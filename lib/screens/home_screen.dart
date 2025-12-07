@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ionicons/ionicons.dart';
@@ -7,6 +6,8 @@ import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
+import '../utils/responsive.dart';
+import '../widgets/shimmer_loading.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
 import 'genre_animes_screen.dart';
@@ -19,7 +20,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final JikanService _jikanService = JikanService();
   final ScrollController _scrollController = ScrollController();
 
@@ -27,14 +29,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   bool _showFab = false;
   double _headerOpacity = 1.0;
-
-  // Estados de carregamento
-  bool _isLoadingSeason = true;
-  bool _isLoadingTop = true;
-  bool _isLoadingAction = true;
-  bool _isLoadingRomance = true;
-  bool _isLoadingComedy = true;
-  bool _isLoadingFantasy = true;
+  bool _dataLoaded = false;
+  bool _isLoading = true;
 
   // Listas de animes
   List<JikanAnime> _seasonAnimes = [];
@@ -49,6 +45,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late PageController _bannerPageController;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
     _fabAnimationController = AnimationController(
@@ -58,7 +57,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _bannerPageController = PageController();
 
     _scrollController.addListener(_onScroll);
-    _loadAllData();
+    if (!_dataLoaded) {
+      _loadAllData();
+    }
     _startBannerRotation();
   }
 
@@ -73,7 +74,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _onScroll() {
     final offset = _scrollController.offset;
 
-    // Mostrar FAB quando rolar para baixo
     if (offset > 300 && !_showFab) {
       setState(() => _showFab = true);
       _fabAnimationController.forward();
@@ -82,7 +82,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _fabAnimationController.reverse();
     }
 
-    // Header transparente no topo, preto sólido ao rolar (estilo Netflix)
     final newOpacity = offset > 0 ? 1.0 : 0.0;
     if ((newOpacity - _headerOpacity).abs() > 0.01) {
       setState(() {
@@ -108,134 +107,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-  Future<void> _loadAllData() async {
-    // Carrega dados com delays para respeitar rate limit da Jikan API
-    _loadCurrentSeason();
-    await Future.delayed(const Duration(milliseconds: 600));
-    _loadTopAnimes();
-    await Future.delayed(const Duration(milliseconds: 600));
-    _loadActionAnimes();
-    await Future.delayed(const Duration(milliseconds: 600));
-    _loadRomanceAnimes();
-    await Future.delayed(const Duration(milliseconds: 600));
-    _loadComedyAnimes();
-    await Future.delayed(const Duration(milliseconds: 600));
-    _loadFantasyAnimes();
-  }
+  /// Carrega TODOS os dados de uma vez usando o método otimizado
+  Future<void> _loadAllData({bool forceRefresh = false}) async {
+    _dataLoaded = true;
 
-  Future<void> _loadCurrentSeason() async {
-    setState(() => _isLoadingSeason = true);
+    if (!forceRefresh && _seasonAnimes.isNotEmpty) {
+      // Já tem dados, não precisa recarregar
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
     try {
-      final animes = await _jikanService.getCurrentSeasonAnimes(limit: 15);
+      // Carrega tudo de uma vez com o novo método paralelo
+      final homeData = await _jikanService.loadHomeData(
+        forceRefresh: forceRefresh,
+      );
+
       if (mounted) {
         setState(() {
-          _seasonAnimes = animes;
-          _isLoadingSeason = false;
+          _seasonAnimes = homeData.seasonAnimes;
+          _topAnimes = homeData.topAnimes;
+          _actionAnimes = homeData.actionAnimes;
+          _romanceAnimes = homeData.romanceAnimes;
+          _comedyAnimes = homeData.comedyAnimes;
+          _fantasyAnimes = homeData.fantasyAnimes;
+          _isLoading = false;
         });
+        
+        // Pre-cache das imagens do banner para transições suaves
+        _precacheBannerImages();
       }
     } catch (e) {
-      debugPrint('Error loading season animes: $e');
-      if (mounted) setState(() => _isLoadingSeason = false);
+      debugPrint('Error loading home data: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  Future<void> _loadTopAnimes() async {
-    setState(() => _isLoadingTop = true);
-    try {
-      final animes = await _jikanService.getTopAnimes(limit: 15);
-      if (mounted) {
-        setState(() {
-          _topAnimes = animes;
-          _isLoadingTop = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading top animes: $e');
-      if (mounted) setState(() => _isLoadingTop = false);
-    }
-  }
-
-  Future<void> _loadActionAnimes() async {
-    setState(() => _isLoadingAction = true);
-    try {
-      final animes = await _jikanService.getAnimesByGenre(
-        JikanGenreIds.action,
-        limit: 15,
+  /// Pre-carrega imagens do banner para transições mais suaves
+  void _precacheBannerImages() {
+    final bannerAnimes = _seasonAnimes.take(5);
+    for (final anime in bannerAnimes) {
+      final imageUrl = anime.largImageUrl ?? anime.imageUrl;
+      precacheImage(
+        CachedNetworkImageProvider(imageUrl),
+        context,
       );
-      if (mounted) {
-        setState(() {
-          _actionAnimes = animes;
-          _isLoadingAction = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading action animes: $e');
-      if (mounted) setState(() => _isLoadingAction = false);
-    }
-  }
-
-  Future<void> _loadRomanceAnimes() async {
-    setState(() => _isLoadingRomance = true);
-    try {
-      debugPrint(
-        'Loading Romance animes with genre ID: ${JikanGenreIds.romance}',
-      );
-      final animes = await _jikanService.getAnimesByGenre(
-        JikanGenreIds.romance,
-        limit: 15,
-      );
-      debugPrint('Loaded ${animes.length} romance animes');
-      if (mounted) {
-        setState(() {
-          _romanceAnimes = animes;
-          _isLoadingRomance = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading romance animes: $e');
-      if (mounted) setState(() => _isLoadingRomance = false);
-    }
-  }
-
-  Future<void> _loadComedyAnimes() async {
-    setState(() => _isLoadingComedy = true);
-    try {
-      final animes = await _jikanService.getAnimesByGenre(
-        JikanGenreIds.comedy,
-        limit: 15,
-      );
-      if (mounted) {
-        setState(() {
-          _comedyAnimes = animes;
-          _isLoadingComedy = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading comedy animes: $e');
-      if (mounted) setState(() => _isLoadingComedy = false);
-    }
-  }
-
-  Future<void> _loadFantasyAnimes() async {
-    setState(() => _isLoadingFantasy = true);
-    try {
-      debugPrint(
-        'Loading Fantasy animes with genre ID: ${JikanGenreIds.fantasy}',
-      );
-      final animes = await _jikanService.getAnimesByGenre(
-        JikanGenreIds.fantasy,
-        limit: 15,
-      );
-      debugPrint('Loaded ${animes.length} fantasy animes');
-      if (mounted) {
-        setState(() {
-          _fantasyAnimes = animes;
-          _isLoadingFantasy = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading fantasy animes: $e');
-      if (mounted) setState(() => _isLoadingFantasy = false);
     }
   }
 
@@ -254,13 +173,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Requerido por AutomaticKeepAliveClientMixin
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
       appBar: _buildAppBar(),
       body: RefreshIndicator(
-        onRefresh: _loadAllData,
+        onRefresh: () => _loadAllData(forceRefresh: true),
         color: AppColors.primary,
         backgroundColor: AppColors.surface,
         child: CustomScrollView(
@@ -284,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       colors: [AppColors.primary, AppColors.secondary],
                     ),
                     animes: _seasonAnimes,
-                    isLoading: _isLoadingSeason,
+                    isLoading: _isLoading && _seasonAnimes.isEmpty,
                     sectionId: 'season',
                     genreId: null,
                   ),
@@ -297,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       colors: [Color(0xFFFFD93D), Color(0xFFFFA500)],
                     ),
                     animes: _topAnimes,
-                    isLoading: _isLoadingTop,
+                    isLoading: _isLoading && _topAnimes.isEmpty,
                     sectionId: 'top',
                     genreId: null,
                   ),
@@ -310,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
                     ),
                     animes: _actionAnimes,
-                    isLoading: _isLoadingAction,
+                    isLoading: _isLoading && _actionAnimes.isEmpty,
                     sectionId: 'action',
                     genreId: JikanGenreIds.action,
                   ),
@@ -323,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       colors: [Color(0xFFFF6B9D), Color(0xFFC44569)],
                     ),
                     animes: _romanceAnimes,
-                    isLoading: _isLoadingRomance,
+                    isLoading: _isLoading && _romanceAnimes.isEmpty,
                     sectionId: 'romance',
                     genreId: JikanGenreIds.romance,
                   ),
@@ -336,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       colors: [Color(0xFF00D2FF), Color(0xFF3A7BD5)],
                     ),
                     animes: _comedyAnimes,
-                    isLoading: _isLoadingComedy,
+                    isLoading: _isLoading && _comedyAnimes.isEmpty,
                     sectionId: 'comedy',
                     genreId: JikanGenreIds.comedy,
                   ),
@@ -349,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
                     ),
                     animes: _fantasyAnimes,
-                    isLoading: _isLoadingFantasy,
+                    isLoading: _isLoading && _fantasyAnimes.isEmpty,
                     sectionId: 'fantasy',
                     genreId: JikanGenreIds.fantasy,
                   ),
@@ -456,30 +376,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildHeroBannerCarousel() {
     final bannerAnimes = _seasonAnimes.take(5).toList();
 
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 1200),
-      curve: Curves.easeOutQuart,
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, -60 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: Transform.scale(scale: 0.90 + (0.10 * value), child: child),
-          ),
-        );
-      },
+    return AnimatedOpacity(
+      opacity: _seasonAnimes.isEmpty ? 0.0 : 1.0,
+      duration: const Duration(milliseconds: 500),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Calculate responsive height based on screen width
-          final screenWidth = constraints.maxWidth;
-          // Banner height reduzido levemente: 63% of width, clamped 215-295px
-          final bannerHeight = (screenWidth * 0.63).clamp(215.0, 295.0);
+          // Responsive banner height
+          final bannerHeight = Responsive.getBannerHeight(context);
+          final padding = Responsive.getHorizontalPadding(context);
 
-          // Abaixado levemente: 106px do topo (antes 100px)
-          // Status bar (~44-47px) + AppBar (64px) = ~108-111px
-          // Pequeno espaço de segurança sem sobrepor ícones
-          final bannerTopMargin = 106.0;
+          // Ajuste para diferentes dispositivos
+          final bannerTopMargin = Responsive.value(
+            context,
+            phone: 106.0,
+            tablet: 100.0,
+            quest: 90.0,
+          );
 
           return Container(
             height: bannerHeight,
@@ -489,9 +401,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 // PageView with rounded corners
                 Positioned.fill(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: EdgeInsets.symmetric(horizontal: padding),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(Responsive.value(
+                        context,
+                        phone: 20.0,
+                        tablet: 24.0,
+                        quest: 28.0,
+                      )),
                       child: PageView.builder(
                         controller: _bannerPageController,
                         onPageChanged: (index) {
@@ -562,11 +479,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: CachedNetworkImage(
               imageUrl: anime.largImageUrl ?? anime.imageUrl,
               fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
-              memCacheWidth: 1200,
-              memCacheHeight: 1600,
-              maxWidthDiskCache: 1200,
-              maxHeightDiskCache: 1600,
+              filterQuality: FilterQuality.medium,
+              memCacheWidth: 600,
+              memCacheHeight: 800,
+              maxWidthDiskCache: 600,
+              maxHeightDiskCache: 800,
               placeholder: (context, url) => Container(
                 color: AppColors.surface,
                 child: const Center(
@@ -638,77 +555,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     int? genreId,
   }) {
     final l10n = AppLocalizations.of(context);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Cabeçalho da seção com Glassmorphism
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(
-              milliseconds: 900,
-            ), // Slower for better visibility
-            curve: Curves.easeOutQuart, // Smoother curve
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset(
-                  -100 * (1 - value),
-                  0,
-                ), // More pronounced horizontal slide
-                child: Opacity(
-                  opacity: value,
-                  child: Transform.scale(
-                    scale: 0.88 + (0.12 * value), // Slightly more scale
-                    alignment: Alignment.centerLeft,
-                    child: child,
-                  ),
-                ),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+    final horizontalPadding = Responsive.getHorizontalPadding(context);
+    final sectionHeight = Responsive.getSectionHeight(context);
+    final titleSize = Responsive.getSectionTitleSize(context);
+    
+    return AnimatedOpacity(
+      opacity: isLoading ? 0.6 : 1.0,
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cabeçalho da seção (simplificado para performance)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               child: Row(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(9),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              gradient.colors.first.withValues(alpha: 0.3),
-                              gradient.colors.last.withValues(alpha: 0.2),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: gradient.colors.first.withValues(alpha: 0.3),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: gradient.colors.first.withValues(
-                                alpha: 0.4,
-                              ),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: Icon(icon, color: Colors.white, size: 19),
+                  // Ícone da seção (simplificado para performance)
+                  Container(
+                    padding: EdgeInsets.all(Responsive.value(context, phone: 9.0, tablet: 11.0)),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          gradient.colors.first.withValues(alpha: 0.3),
+                          gradient.colors.last.withValues(alpha: 0.2),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: gradient.colors.first.withValues(alpha: 0.3),
+                        width: 1.5,
                       ),
                     ),
+                    child: Icon(icon, color: Colors.white, size: Responsive.value(context, phone: 19.0, tablet: 22.0)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 19,
+                        fontSize: titleSize,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.3,
                       ),
@@ -717,119 +605,89 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  ClipRRect(
+                  // Botão "Ver todos" simplificado
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => GenreAnimesScreen(
+                              title: title,
+                              icon: icon,
+                              gradient: gradient,
+                              genreId: genreId,
+                            ),
+                        ),
+                      );
+                    },
                     borderRadius: BorderRadius.circular(18),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => GenreAnimesScreen(
-                                  title: title,
-                                  icon: icon,
-                                  gradient: gradient,
-                                  genreId: genreId,
-                                ),
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(18),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.3),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  l10n.seeAll,
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: AppColors.primary,
-                                  size: 11,
-                                ),
-                              ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            l10n.seeAll,
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_ios,
+                            color: AppColors.primary,
+                            size: 11,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
 
-          // Lista de animes
+          // Lista de animes (otimizada - responsiva)
           SizedBox(
-            height: 280,
+            height: sectionHeight,
             child: isLoading
                 ? _buildLoadingCards()
                 : animes.isEmpty
                 ? _buildEmptyState()
                 : ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                     itemCount: animes.length,
+                    cacheExtent: 500, // Pre-render cards para scroll suave
                     itemBuilder: (context, index) {
-                      return TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        duration: Duration(
-                          milliseconds: 800 + (index * 150),
-                        ), // Slower animation
-                        curve: Curves.easeOutQuart, // Smoother curve
-                        builder: (context, value, child) {
-                          return Transform.translate(
-                            offset: Offset(
-                              80 *
-                                  (1 -
-                                      value), // Stronger horizontal slide from right
-                              20 * (1 - value), // Subtle vertical slide
-                            ),
-                            child: Opacity(
-                              opacity: value,
-                              child: Transform.scale(
-                                scale:
-                                    0.85 +
-                                    (0.15 * value), // Gentler scale effect
-                                child: child,
-                              ),
-                            ),
-                          );
-                        },
-                        child: _buildModernAnimeCard(
-                          animes[index],
-                          gradient,
-                          sectionId ?? title,
-                          index,
-                          showScore: sectionId != 'season',
-                        ),
+                      return _buildModernAnimeCard(
+                        animes[index],
+                        gradient,
+                        sectionId ?? title,
+                        index,
+                        showScore: sectionId != 'season',
                       );
                     },
                   ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -841,186 +699,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     int index, {
     bool showScore = true,
   }) {
-    return GestureDetector(
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeight(context);
+    final spacing = Responsive.getCardSpacing(context);
+    
+    return _AnimatedAnimeCard(
+      anime: anime,
+      cardWidth: cardWidth,
+      cardHeight: cardHeight,
+      spacing: spacing,
+      sectionId: sectionId,
+      index: index,
+      showScore: showScore,
       onTap: () => _onAnimeTap(anime),
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Card com imagem + Glassmorphism
-            Hero(
-              tag: 'anime_${sectionId}_${anime.malId}_$index',
-              child: Container(
-                height: 220,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: gradient.colors.first.withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    // Imagem
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: CachedNetworkImage(
-                        imageUrl: anime.largImageUrl ?? anime.imageUrl,
-                        width: 160,
-                        height: 220,
-                        fit: BoxFit.cover,
-                        filterQuality: FilterQuality.high,
-                        memCacheWidth: 480, // Cache 3x para máxima qualidade
-                        memCacheHeight: 660,
-                        maxWidthDiskCache: 480,
-                        maxHeightDiskCache: 660,
-                        placeholder: (context, url) => Container(
-                          color: AppColors.surface,
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: AppColors.surface,
-                          child: const Icon(Icons.error, color: Colors.white54),
-                        ),
-                      ),
-                    ),
-
-                    // Gradient overlay com blur
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.7),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Score badge com Glassmorphism (only if showScore is true)
-                    if (showScore && anime.score != null)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    color: Colors.amber,
-                                    size: 12,
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    anime.score!.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Título
-            Text(
-              anime.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                height: 1.3,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildLoadingCards() {
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return Container(
-          width: 160,
-          margin: const EdgeInsets.only(right: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 220,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: 120,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeight(context);
+    final spacing = Responsive.getCardSpacing(context);
+    final padding = Responsive.getHorizontalPadding(context);
+    
+    return ShimmerAnimeList(
+      itemWidth: cardWidth,
+      itemHeight: cardHeight,
+      spacing: spacing,
+      padding: EdgeInsets.symmetric(horizontal: padding),
     );
   }
 
@@ -1030,6 +735,209 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Text(
         l10n.noAnimeFound,
         style: const TextStyle(color: Colors.white54),
+      ),
+    );
+  }
+}
+
+/// Card de anime com animação leve de hover/press
+class _AnimatedAnimeCard extends StatefulWidget {
+  final JikanAnime anime;
+  final double cardWidth;
+  final double cardHeight;
+  final double spacing;
+  final String sectionId;
+  final int index;
+  final bool showScore;
+  final VoidCallback onTap;
+
+  const _AnimatedAnimeCard({
+    required this.anime,
+    required this.cardWidth,
+    required this.cardHeight,
+    required this.spacing,
+    required this.sectionId,
+    required this.index,
+    required this.showScore,
+    required this.onTap,
+  });
+
+  @override
+  State<_AnimatedAnimeCard> createState() => _AnimatedAnimeCardState();
+}
+
+class _AnimatedAnimeCardState extends State<_AnimatedAnimeCard> {
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // RepaintBoundary isola o card para evitar repaint de toda a lista
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
+            width: widget.cardWidth,
+            margin: EdgeInsets.only(right: widget.spacing),
+            transform: Matrix4.identity()
+              ..setEntry(0, 0, _isPressed ? 0.96 : (_isHovered ? 1.03 : 1.0))
+              ..setEntry(1, 1, _isPressed ? 0.96 : (_isHovered ? 1.03 : 1.0)),
+            transformAlignment: Alignment.center,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Card com imagem (otimizado)
+                Hero(
+                  tag: 'anime_${widget.sectionId}_${widget.anime.malId}_${widget.index}',
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    height: widget.cardHeight,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _isHovered
+                              ? AppColors.primary.withValues(alpha: 0.35)
+                              : Colors.black.withValues(alpha: 0.3),
+                          blurRadius: _isHovered ? 14 : 8,
+                          offset: Offset(0, _isHovered ? 6 : 4),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        // Imagem (cache otimizado 2x para retina)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: CachedNetworkImage(
+                            imageUrl: widget.anime.largImageUrl ?? widget.anime.imageUrl,
+                            width: widget.cardWidth,
+                            height: widget.cardHeight,
+                            fit: BoxFit.cover,
+                            filterQuality: FilterQuality.medium,
+                            memCacheWidth: (widget.cardWidth * 2).toInt(),
+                            memCacheHeight: (widget.cardHeight * 2).toInt(),
+                            placeholder: (context, url) => Container(
+                              color: AppColors.surface,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: AppColors.primary,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.surface,
+                              child: const Icon(Icons.error, color: Colors.white54),
+                          ),
+                        ),
+                      ),
+
+                      // Gradient overlay simples (sem blur)
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.7),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Score badge simples (sem blur para performance)
+                      if (widget.showScore && widget.anime.score != null)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.75),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  color: Colors.amber,
+                                  size: 12,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  widget.anime.score!.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      // Hover overlay
+                      if (_isHovered)
+                        Positioned.fill(
+                          child: AnimatedOpacity(
+                            opacity: _isHovered ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 150),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppColors.primary.withValues(alpha: 0.5),
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Título
+              Text(
+                widget.anime.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: Responsive.value(context, phone: 13.0, tablet: 14.0),
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       ),
     );
   }

@@ -40,13 +40,11 @@ class AnimeCard extends StatelessWidget {
                     width: width,
                     height: height,
                     fit: BoxFit.cover,
-                    filterQuality:
-                        FilterQuality.high, // Filtro de alta qualidade
-                    memCacheWidth: (width * 3)
-                        .toInt(), // Cache 3x para melhor qualidade
-                    memCacheHeight: (height * 3).toInt(),
-                    maxWidthDiskCache: (width * 3).toInt(),
-                    maxHeightDiskCache: (height * 3).toInt(),
+                    filterQuality: FilterQuality.medium,
+                    memCacheWidth: (width * 2).toInt(),
+                    memCacheHeight: (height * 2).toInt(),
+                    maxWidthDiskCache: (width * 2).toInt(),
+                    maxHeightDiskCache: (height * 2).toInt(),
                     placeholder: (context, url) => Container(
                       width: width,
                       height: height,
@@ -56,6 +54,7 @@ class AnimeCard extends StatelessWidget {
                           valueColor: AlwaysStoppedAnimation<Color>(
                             Colors.orange,
                           ),
+                          strokeWidth: 2,
                         ),
                       ),
                     ),
@@ -154,11 +153,11 @@ class AnimeCardLarge extends StatelessWidget {
                 width: 100,
                 height: 140,
                 fit: BoxFit.cover,
-                filterQuality: FilterQuality.high,
-                memCacheWidth: 300, // Cache 3x para melhor qualidade
-                memCacheHeight: 420,
-                maxWidthDiskCache: 300,
-                maxHeightDiskCache: 420,
+                filterQuality: FilterQuality.medium,
+                memCacheWidth: 200,
+                memCacheHeight: 280,
+                maxWidthDiskCache: 200,
+                maxHeightDiskCache: 280,
                 placeholder: (context, url) => Container(
                   width: 100,
                   height: 140,
@@ -166,6 +165,7 @@ class AnimeCardLarge extends StatelessWidget {
                   child: const Center(
                     child: CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                      strokeWidth: 2,
                     ),
                   ),
                 ),
