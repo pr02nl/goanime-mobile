@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+
 import '../models/jikan_models.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
@@ -80,7 +82,9 @@ class _ResponsiveAnimeCardState extends State<ResponsiveAnimeCard> {
                       children: [
                         // Imagem
                         CachedNetworkImage(
-                          imageUrl: widget.anime.largImageUrl ?? widget.anime.imageUrl,
+                          imageUrl:
+                              widget.anime.largImageUrl ??
+                              widget.anime.imageUrl,
                           fit: BoxFit.cover,
                           filterQuality: FilterQuality.medium,
                           memCacheWidth: (cardWidth * 2).toInt(),
@@ -96,7 +100,10 @@ class _ResponsiveAnimeCardState extends State<ResponsiveAnimeCard> {
                           ),
                           errorWidget: (context, url, error) => Container(
                             color: AppColors.surface,
-                            child: const Icon(Icons.error, color: Colors.white54),
+                            child: const Icon(
+                              Icons.error,
+                              color: Colors.white54,
+                            ),
                           ),
                         ),
 
@@ -160,7 +167,9 @@ class _ResponsiveAnimeCardState extends State<ResponsiveAnimeCard> {
                               decoration: BoxDecoration(
                                 color: AppColors.primary.withValues(alpha: 0.1),
                                 border: Border.all(
-                                  color: AppColors.primary.withValues(alpha: 0.5),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.5,
+                                  ),
                                   width: 2,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
@@ -189,7 +198,11 @@ class _ResponsiveAnimeCardState extends State<ResponsiveAnimeCard> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: Responsive.value(context, phone: 12.0, tablet: 14.0),
+                    fontSize: Responsive.value(
+                      context,
+                      phone: 12.0,
+                      tablet: 14.0,
+                    ),
                     fontWeight: FontWeight.w500,
                     height: 1.2,
                   ),
@@ -226,10 +239,7 @@ class ResponsiveAnimeList extends StatelessWidget {
     final padding = Responsive.getHorizontalPadding(context);
 
     if (isLoading) {
-      return SizedBox(
-        height: height,
-        child: _buildLoadingList(context),
-      );
+      return SizedBox(height: height, child: _buildLoadingList(context));
     }
 
     if (animes.isEmpty) {
@@ -250,7 +260,7 @@ class ResponsiveAnimeList extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: padding),
         itemCount: animes.length,
-        cacheExtent: 500,
+        scrollCacheExtent: const ScrollCacheExtent.pixels(500.0),
         itemBuilder: (context, index) {
           final anime = animes[index];
           return ResponsiveAnimeCard(

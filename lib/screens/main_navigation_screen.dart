@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:ionicons/ionicons.dart';
+
 import '../theme/app_colors.dart';
+import 'downloads_screen.dart';
 import 'home_screen.dart';
 import 'search_screen.dart';
-import 'watchlist_screen.dart';
-import 'downloads_screen.dart';
 import 'settings_screen.dart';
+import 'watchlist_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -76,32 +76,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildNavItem(
-                    icon: Ionicons.home_outline,
-                    activeIcon: Ionicons.home,
+                    icon: Icons.home_outlined,
+                    activeIcon: Icons.home,
                     label: 'Home',
                     index: 0,
                   ),
                   _buildNavItem(
-                    icon: Ionicons.search_outline,
-                    activeIcon: Ionicons.search,
+                    icon: Icons.search_outlined,
+                    activeIcon: Icons.search,
                     label: 'Search',
                     index: 1,
                   ),
                   _buildNavItem(
-                    icon: Ionicons.bookmark_outline,
-                    activeIcon: Ionicons.bookmark,
+                    icon: Icons.bookmark_outline,
+                    activeIcon: Icons.bookmark,
                     label: 'Watchlist',
                     index: 2,
                   ),
                   _buildNavItem(
-                    icon: Ionicons.download_outline,
-                    activeIcon: Ionicons.download,
+                    icon: Icons.download_outlined,
+                    activeIcon: Icons.download,
                     label: 'Downloads',
                     index: 3,
                   ),
                   _buildNavItem(
-                    icon: Ionicons.settings_outline,
-                    activeIcon: Ionicons.settings,
+                    icon: Icons.settings_outlined,
+                    activeIcon: Icons.settings,
                     label: 'Settings',
                     index: 4,
                   ),

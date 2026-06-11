@@ -1,16 +1,16 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:ionicons/ionicons.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+
+import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
-import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
 import '../widgets/shimmer_loading.dart';
+import 'genre_animes_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
-import 'genre_animes_screen.dart';
 import 'source_selection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -134,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen>
           _fantasyAnimes = homeData.fantasyAnimes;
           _isLoading = false;
         });
-        
+
         // Pre-cache das imagens do banner para transições suaves
         _precacheBannerImages();
       }
@@ -151,10 +151,7 @@ class _HomeScreenState extends State<HomeScreen>
     final bannerAnimes = _seasonAnimes.take(5);
     for (final anime in bannerAnimes) {
       final imageUrl = anime.largImageUrl ?? anime.imageUrl;
-      precacheImage(
-        CachedNetworkImageProvider(imageUrl),
-        context,
-      );
+      precacheImage(CachedNetworkImageProvider(imageUrl), context);
     }
   }
 
@@ -199,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen>
                   // Seção: Destaques da Temporada
                   _buildModernSection(
                     title: l10n.seasonHighlights,
-                    icon: Ionicons.trending_up_outline,
+                    icon: Icons.trending_up_outlined,
                     gradient: LinearGradient(
                       colors: [AppColors.primary, AppColors.secondary],
                     ),
@@ -212,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen>
                   // Seção: Top Animes
                   _buildModernSection(
                     title: l10n.topAnime,
-                    icon: LucideIcons.trophy,
+                    icon: Icons.emoji_events,
                     gradient: const LinearGradient(
                       colors: [Color(0xFFFFD93D), Color(0xFFFFA500)],
                     ),
@@ -225,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen>
                   // Seção: Ação
                   _buildModernSection(
                     title: l10n.action,
-                    icon: LucideIcons.swords,
+                    icon: Icons.hardware,
                     gradient: const LinearGradient(
                       colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
                     ),
@@ -238,7 +235,7 @@ class _HomeScreenState extends State<HomeScreen>
                   // Seção: Romance
                   _buildModernSection(
                     title: l10n.romance,
-                    icon: LucideIcons.heart,
+                    icon: Icons.favorite,
                     gradient: const LinearGradient(
                       colors: [Color(0xFFFF6B9D), Color(0xFFC44569)],
                     ),
@@ -251,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen>
                   // Seção: Comédia
                   _buildModernSection(
                     title: l10n.comedy,
-                    icon: LucideIcons.laugh,
+                    icon: Icons.sentiment_very_satisfied,
                     gradient: const LinearGradient(
                       colors: [Color(0xFF00D2FF), Color(0xFF3A7BD5)],
                     ),
@@ -264,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen>
                   // Seção: Fantasia
                   _buildModernSection(
                     title: l10n.fantasy,
-                    icon: LucideIcons.wand2,
+                    icon: Icons.auto_fix_high,
                     gradient: const LinearGradient(
                       colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
                     ),
@@ -403,12 +400,14 @@ class _HomeScreenState extends State<HomeScreen>
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: padding),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(Responsive.value(
-                        context,
-                        phone: 20.0,
-                        tablet: 24.0,
-                        quest: 28.0,
-                      )),
+                      borderRadius: BorderRadius.circular(
+                        Responsive.value(
+                          context,
+                          phone: 20.0,
+                          tablet: 24.0,
+                          quest: 28.0,
+                        ),
+                      ),
                       child: PageView.builder(
                         controller: _bannerPageController,
                         onPageChanged: (index) {
@@ -558,7 +557,7 @@ class _HomeScreenState extends State<HomeScreen>
     final horizontalPadding = Responsive.getHorizontalPadding(context);
     final sectionHeight = Responsive.getSectionHeight(context);
     final titleSize = Responsive.getSectionTitleSize(context);
-    
+
     return AnimatedOpacity(
       opacity: isLoading ? 0.6 : 1.0,
       duration: const Duration(milliseconds: 300),
@@ -574,7 +573,9 @@ class _HomeScreenState extends State<HomeScreen>
                 children: [
                   // Ícone da seção (simplificado para performance)
                   Container(
-                    padding: EdgeInsets.all(Responsive.value(context, phone: 9.0, tablet: 11.0)),
+                    padding: EdgeInsets.all(
+                      Responsive.value(context, phone: 9.0, tablet: 11.0),
+                    ),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -588,7 +589,15 @@ class _HomeScreenState extends State<HomeScreen>
                         width: 1.5,
                       ),
                     ),
-                    child: Icon(icon, color: Colors.white, size: Responsive.value(context, phone: 19.0, tablet: 22.0)),
+                    child: Icon(
+                      icon,
+                      color: Colors.white,
+                      size: Responsive.value(
+                        context,
+                        phone: 19.0,
+                        tablet: 22.0,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -619,74 +628,78 @@ class _HomeScreenState extends State<HomeScreen>
                               gradient: gradient,
                               genreId: genreId,
                             ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3),
-                          width: 1,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            l10n.seeAll,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              l10n.seeAll,
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.arrow_forward_ios,
-                            color: AppColors.primary,
-                            size: 11,
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.arrow_forward_ios,
+                              color: AppColors.primary,
+                              size: 11,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Lista de animes (otimizada - responsiva)
-          SizedBox(
-            height: sectionHeight,
-            child: isLoading
-                ? _buildLoadingCards()
-                : animes.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                    itemCount: animes.length,
-                    cacheExtent: 500, // Pre-render cards para scroll suave
-                    itemBuilder: (context, index) {
-                      return _buildModernAnimeCard(
-                        animes[index],
-                        gradient,
-                        sectionId ?? title,
-                        index,
-                        showScore: sectionId != 'season',
-                      );
-                    },
-                  ),
-          ),
-        ],
+            // Lista de animes (otimizada - responsiva)
+            SizedBox(
+              height: sectionHeight,
+              child: isLoading
+                  ? _buildLoadingCards()
+                  : animes.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                      ),
+                      itemCount: animes.length,
+                      scrollCacheExtent: const ScrollCacheExtent.pixels(
+                        500.0,
+                      ), // Pre-render cards para scroll suave
+                      itemBuilder: (context, index) {
+                        return _buildModernAnimeCard(
+                          animes[index],
+                          gradient,
+                          sectionId ?? title,
+                          index,
+                          showScore: sectionId != 'season',
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
     );
@@ -702,7 +715,7 @@ class _HomeScreenState extends State<HomeScreen>
     final cardWidth = Responsive.getHorizontalListItemWidth(context);
     final cardHeight = Responsive.getCardHeight(context);
     final spacing = Responsive.getCardSpacing(context);
-    
+
     return _AnimatedAnimeCard(
       anime: anime,
       cardWidth: cardWidth,
@@ -720,7 +733,7 @@ class _HomeScreenState extends State<HomeScreen>
     final cardHeight = Responsive.getCardHeight(context);
     final spacing = Responsive.getCardSpacing(context);
     final padding = Responsive.getHorizontalPadding(context);
-    
+
     return ShimmerAnimeList(
       itemWidth: cardWidth,
       itemHeight: cardHeight,
@@ -796,7 +809,8 @@ class _AnimatedAnimeCardState extends State<_AnimatedAnimeCard> {
               children: [
                 // Card com imagem (otimizado)
                 Hero(
-                  tag: 'anime_${widget.sectionId}_${widget.anime.malId}_${widget.index}',
+                  tag:
+                      'anime_${widget.sectionId}_${widget.anime.malId}_${widget.index}',
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     height: widget.cardHeight,
@@ -818,7 +832,9 @@ class _AnimatedAnimeCardState extends State<_AnimatedAnimeCard> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: CachedNetworkImage(
-                            imageUrl: widget.anime.largImageUrl ?? widget.anime.imageUrl,
+                            imageUrl:
+                                widget.anime.largImageUrl ??
+                                widget.anime.imageUrl,
                             width: widget.cardWidth,
                             height: widget.cardHeight,
                             fit: BoxFit.cover,
@@ -836,108 +852,119 @@ class _AnimatedAnimeCardState extends State<_AnimatedAnimeCard> {
                             ),
                             errorWidget: (context, url, error) => Container(
                               color: AppColors.surface,
-                              child: const Icon(Icons.error, color: Colors.white54),
-                          ),
-                        ),
-                      ),
-
-                      // Gradient overlay simples (sem blur)
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: 0.7),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Score badge simples (sem blur para performance)
-                      if (widget.showScore && widget.anime.score != null)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.75),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                width: 1,
+                              child: const Icon(
+                                Icons.error,
+                                color: Colors.white54,
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  color: Colors.amber,
-                                  size: 12,
+                          ),
+                        ),
+
+                        // Gradient overlay simples (sem blur)
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.transparent,
+                                  Colors.black.withValues(alpha: 0.7),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Score badge simples (sem blur para performance)
+                        if (widget.showScore && widget.anime.score != null)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.75),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  width: 1,
                                 ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  widget.anime.score!.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    color: Colors.amber,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    widget.anime.score!.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        // Hover overlay
+                        if (_isHovered)
+                          Positioned.fill(
+                            child: AnimatedOpacity(
+                              opacity: _isHovered ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 150),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    width: 2,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                      // Hover overlay
-                      if (_isHovered)
-                        Positioned.fill(
-                          child: AnimatedOpacity(
-                            opacity: _isHovered ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 150),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(alpha: 0.5),
-                                  width: 2,
-                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-              // Título
-              Text(
-                widget.anime.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: Responsive.value(context, phone: 13.0, tablet: 14.0),
-                  fontWeight: FontWeight.w600,
-                  height: 1.3,
+                // Título
+                Text(
+                  widget.anime.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: Responsive.value(
+                      context,
+                      phone: 13.0,
+                      tablet: 14.0,
+                    ),
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
