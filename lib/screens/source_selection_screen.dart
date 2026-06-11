@@ -1,11 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../main.dart';
+import 'package:flutter/material.dart';
+
 import '../l10n/app_localizations.dart';
-import '../theme/app_colors.dart';
+import '../models/anime.dart';
 import '../services/allanime_service.dart';
+import '../services/anime_service.dart';
+import '../theme/app_colors.dart';
 import '../widgets/watchlist_button.dart';
-import 'episode_list_screen.dart';
+import 'modern_episode_list_screen.dart';
 
 class SourceSelectionScreen extends StatefulWidget {
   final String animeTitle;

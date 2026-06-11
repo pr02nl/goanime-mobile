@@ -1,18 +1,23 @@
-import 'dart:io';
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'dart:io';
+
+import 'package:chewie/chewie.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
-import '../main.dart';
+
 import '../google_video_proxy.dart';
-import '../services/allanime_service.dart';
-import '../services/aniskip_service.dart';
-import '../models/aniskip_models.dart';
-import '../widgets/skip_button.dart';
 import '../l10n/app_localizations.dart';
+import '../models/anime.dart';
+import '../models/aniskip_models.dart';
+import '../models/episode.dart';
+import '../services/allanime_service.dart';
+import '../services/anime_service.dart';
+import '../services/aniskip_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/skip_button.dart';
+import 'blogger_webview_screen.dart';
 
 // Function to extract only episode number from full text
 String _extractEpisodeNumber(String episodeText) {

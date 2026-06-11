@@ -7,7 +7,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../main.dart' show AnimeService;
+import 'anime_service.dart';
 import 'allanime_service.dart';
 
 /// Download status enum
