@@ -287,22 +287,29 @@ class _SearchScreenState extends State<SearchScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Search Header
-            _buildSearchHeader(canPop),
+      body: GestureDetector(
+        onTap: () {
+          // Fecha o teclado ao clicar fora do campo de busca
+          FocusScope.of(context).unfocus();
+        },
+        behavior: HitTestBehavior.translucent,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Search Header
+              _buildSearchHeader(canPop),
 
-            // Genre Filters
-            if (!_showHistory) _buildGenreFilters(),
+              // Genre Filters
+              if (!_showHistory) _buildGenreFilters(),
 
-            // Content
-            Expanded(
-              child: _showHistory
-                  ? _buildHistoryAndTrending()
-                  : _buildSearchResults(),
-            ),
-          ],
+              // Content
+              Expanded(
+                child: _showHistory
+                    ? _buildHistoryAndTrending()
+                    : _buildSearchResults(),
+              ),
+            ],
+          ),
         ),
       ),
     );
