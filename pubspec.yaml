@@ -33,37 +33,37 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^1.0.9
   # Video player dependencies
-  chewie: ^1.8.5
-  video_player: ^2.8.7
+  chewie: ^1.14.1
+  video_player: ^2.11.1
   # HTTP requests
-  http: ^1.1.0
+  http: ^1.6.0
   # HTML parsing
-  html: ^0.15.4
+  html: ^0.15.6
   # Database
-  sqflite: ^2.3.0
+  sqflite: ^2.4.3
   # Path provider
-  path: ^1.8.3
-  path_provider: ^2.1.1
+  path: ^1.9.1
+  path_provider: ^2.1.5
   # WebView fallback for iOS playback
-  webview_flutter: ^4.5.0
+  webview_flutter: ^4.13.1
   # Image caching for better performance
-  cached_network_image: ^3.3.1
+  cached_network_image: ^3.4.1
   # Local storage for search history
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.5
   # State management
-  provider: ^6.1.1
+  provider: ^6.1.5+1
   # Internationalization support
   flutter_localizations:
     sdk: flutter
-  intl: any
+  intl: ^0.20.2
   # Bottom navigation bar
-  bottom_navy_bar: ^6.0.0
+  bottom_navy_bar: ^6.1.0
   # Ionicons icons
-  ionicons: ^0.2.2
+  # ionicons removed - using Material Icons instead
   # Lucide icons
-  lucide_icons: ^0.257.0
+  # lucide_icons removed - using Material Icons instead
   # Animated widgets
   animated_item: ^0.0.2
 
