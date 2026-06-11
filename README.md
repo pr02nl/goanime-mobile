@@ -126,8 +126,21 @@ flutter doctor
 ## Supported Platforms
 
 - **Android**: API level 21+ (Android 5.0+)
+- **Android TV**: Leanback launcher support with remote control navigation
 - **iOS**: iOS 12.0+
 - **Web**: Modern web browsers (experimental)
+
+## Android TV Support
+
+GoAnime now supports Android TV with optimized UI for large screens and remote control navigation:
+
+- **D-Pad Navigation**: Navigate through anime lists with your TV remote
+- **Visual Focus Indicators**: Clear visual feedback for selected items
+- **Adaptive Layouts**: Optimized grid layouts for TV screens (6 columns)
+- **Large Text**: 30-40% larger fonts for better readability from a distance
+- **TV Theme**: Enhanced contrast and spacing for living room viewing
+
+For detailed TV setup instructions, see [TV Support Guide](docs/TV_SUPPORT.md).
 
 ## Contributing
 
