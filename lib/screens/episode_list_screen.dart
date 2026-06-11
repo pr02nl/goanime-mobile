@@ -8,6 +8,7 @@ import '../models/anime.dart';
 import '../models/episode.dart';
 import '../screens/video_player_screen.dart';
 import '../services/anime_service.dart';
+import '../widgets/focusable_widget.dart';
 import '../widgets/logo_widget.dart';
 
 class EpisodeListScreen extends StatefulWidget {
@@ -555,7 +556,11 @@ class _EpisodeCard extends StatelessWidget {
         ? episode.number
         : 'Episódio ${episode.number}';
 
-    return InkWell(
+    return FocusableWidget(
+      onSelect: onTap,
+      borderRadius: 24,
+      focusPadding: EdgeInsets.zero,
+      child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
       splashColor: colorScheme.primary.withValues(alpha: 0.08),
@@ -650,6 +655,7 @@ class _EpisodeCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

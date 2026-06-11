@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../models/watchlist_anime.dart';
-import '../services/watchlist_service.dart';
-import '../services/watchlist_notifier.dart';
-import '../theme/app_colors.dart';
+import 'package:flutter/material.dart';
+
 import '../l10n/app_localizations.dart';
+import '../models/watchlist_anime.dart';
+import '../services/watchlist_notifier.dart';
+import '../services/watchlist_service.dart';
+import '../theme/app_colors.dart';
+import '../widgets/focusable_widget.dart';
 import 'source_selection_screen.dart';
 
 class WatchlistScreen extends StatefulWidget {
@@ -163,8 +165,8 @@ class _WatchlistScreenState extends State<WatchlistScreen>
   }
 
   Widget _buildAnimeCard(WatchlistAnime anime) {
-    return GestureDetector(
-      onTap: () {
+    return FocusableWidget(
+      onSelect: () {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => SourceSelectionScreen(
@@ -175,107 +177,126 @@ class _WatchlistScreenState extends State<WatchlistScreen>
           ),
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Imagem de capa
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: CachedNetworkImage(
+      borderRadius: 16,
+      focusPadding: EdgeInsets.zero,
+      child: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => SourceSelectionScreen(
+                animeTitle: anime.title,
                 imageUrl: anime.coverImage,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-                placeholder: (context, url) => Container(
-                  color: AppColors.surface,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2,
+                myAnimeListUrl: anime.myAnimeListUrl,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Imagem de capa
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: CachedNetworkImage(
+                  imageUrl: anime.coverImage,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  placeholder: (context, url) => Container(
+                    color: AppColors.surface,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: AppColors.surface,
+                    child: const Icon(
+                      Icons.movie,
+                      color: Colors.white30,
+                      size: 48,
                     ),
                   ),
                 ),
-                errorWidget: (context, url, error) => Container(
-                  color: AppColors.surface,
-                  child: const Icon(
-                    Icons.movie,
-                    color: Colors.white30,
-                    size: 48,
-                  ),
-                ),
               ),
-            ),
 
-            // Overlay gradiente
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.8),
-                  ],
-                  stops: const [0.5, 1.0],
-                ),
-              ),
-            ),
-
-            // Botão de remover
-            Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: () => _removeFromWatchlist(anime),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close, color: Colors.white, size: 20),
-                ),
-              ),
-            ),
-
-            // Título
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(
-                  anime.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(0, 1),
-                        blurRadius: 3,
-                        color: Colors.black,
-                      ),
+              // Overlay gradiente
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.8),
                     ],
+                    stops: const [0.5, 1.0],
                   ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-          ],
+
+              // Botão de remover
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () => _removeFromWatchlist(anime),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Título
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    anime.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(0, 1),
+                          blurRadius: 3,
+                          color: Colors.black,
+                        ),
+                      ],
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

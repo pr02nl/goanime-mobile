@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/focusable_widget.dart';
 import '../utils/responsive.dart';
 import '../widgets/shimmer_loading.dart';
 import 'genre_animes_screen.dart';
@@ -469,7 +470,11 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildBannerItem(JikanAnime anime) {
-    return GestureDetector(
+    return FocusableWidget(
+      onSelect: () => _onAnimeTap(anime),
+      borderRadius: 0,
+      focusPadding: EdgeInsets.zero,
+      child: GestureDetector(
       onTap: () => _onAnimeTap(anime),
       child: Stack(
         children: [
@@ -541,6 +546,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -615,7 +621,23 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(width: 8),
                   // Botão "Ver todos" simplificado
-                  Material(
+                  FocusableWidget(
+                    onSelect: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => GenreAnimesScreen(
+                              title: title,
+                              icon: icon,
+                              gradient: gradient,
+                              genreId: genreId,
+                            ),
+                          ),
+                        );
+                    },
+                    borderRadius: 18,
+                    focusPadding: EdgeInsets.zero,
+                    child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () {
@@ -666,6 +688,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                     ),
+                  ),
                   ),
                 ],
               ),
@@ -787,7 +810,11 @@ class _AnimatedAnimeCardState extends State<_AnimatedAnimeCard> {
   Widget build(BuildContext context) {
     // RepaintBoundary isola o card para evitar repaint de toda a lista
     return RepaintBoundary(
-      child: GestureDetector(
+      child: FocusableWidget(
+        onSelect: widget.onTap,
+        borderRadius: 12,
+        focusPadding: EdgeInsets.zero,
+        child: GestureDetector(
         onTap: widget.onTap,
         onTapDown: (_) => setState(() => _isPressed = true),
         onTapUp: (_) => setState(() => _isPressed = false),
@@ -965,6 +992,7 @@ class _AnimatedAnimeCardState extends State<_AnimatedAnimeCard> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

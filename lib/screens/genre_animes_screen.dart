@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
-import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
+import '../widgets/focusable_widget.dart';
 import 'source_selection_screen.dart';
 
 class GenreAnimesScreen extends StatefulWidget {
@@ -276,7 +278,11 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
   }
 
   Widget _buildAnimeCard(JikanAnime anime) {
-    return GestureDetector(
+    return FocusableWidget(
+      onSelect: () => _onAnimeTap(anime),
+      borderRadius: 16,
+      focusPadding: EdgeInsets.zero,
+      child: GestureDetector(
       onTap: () => _onAnimeTap(anime),
       child: Container(
         decoration: BoxDecoration(
@@ -385,6 +391,7 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

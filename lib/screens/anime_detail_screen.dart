@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/anime.dart';
+import '../widgets/focusable_widget.dart';
 import 'episode_list_screen.dart';
 
 class AnimeDetailScreen extends StatelessWidget {
@@ -235,8 +236,8 @@ class AnimeDetailScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: SizedBox(
                     width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () {
+                    child: FocusableWidget(
+                      onSelect: () {
                         HapticFeedback.lightImpact();
                         Navigator.push(
                           context,
@@ -246,18 +247,32 @@ class AnimeDetailScreen extends StatelessWidget {
                           ),
                         );
                       },
-                      icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                      label: const Text(
-                        'Assistir Episódios',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+                      borderRadius: 12,
+                      focusPadding: EdgeInsets.zero,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  EpisodeListScreen(anime: anime),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                        label: const Text(
+                          'Assistir Episódios',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),

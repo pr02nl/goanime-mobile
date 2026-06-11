@@ -7,6 +7,7 @@ import '../services/search_history_service.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
+import '../widgets/focusable_widget.dart';
 import 'source_selection_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -633,7 +634,11 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildAnimeCard(JikanAnime anime) {
-    return GestureDetector(
+    return FocusableWidget(
+      onSelect: () => _onAnimeTap(anime),
+      borderRadius: 12,
+      focusPadding: EdgeInsets.zero,
+      child: GestureDetector(
       onTap: () => _onAnimeTap(anime),
       child: Container(
         width: 130,
@@ -710,11 +715,16 @@ class _SearchScreenState extends State<SearchScreen>
           ],
         ),
       ),
+    ),
     );
   }
 
   Widget _buildGridAnimeCard(JikanAnime anime) {
-    return GestureDetector(
+    return FocusableWidget(
+      onSelect: () => _onAnimeTap(anime),
+      borderRadius: 12,
+      focusPadding: EdgeInsets.zero,
+      child: GestureDetector(
       onTap: () => _onAnimeTap(anime),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -790,6 +800,7 @@ class _SearchScreenState extends State<SearchScreen>
           ),
         ],
       ),
+    ),
     );
   }
 }
