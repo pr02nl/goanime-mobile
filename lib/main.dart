@@ -1,28 +1,28 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:provider/provider.dart';
-
-import 'models/anilist_models.dart';
-import 'services/anilist_service.dart';
-import 'services/allanime_service.dart';
-import 'services/locale_service.dart';
-import 'services/episode_thumbnail_service.dart';
 import 'l10n/app_localizations.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'models/anilist_models.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/video_player_screen.dart';
+import 'services/allanime_service.dart';
+import 'services/anilist_service.dart';
 import 'services/download_service.dart';
+import 'services/episode_thumbnail_service.dart';
+import 'services/locale_service.dart';
+import 'theme/tv_theme.dart';
 import 'utils/performance_config.dart';
 
 void main() async {
@@ -1170,46 +1170,8 @@ class _MyAppState extends State<MyApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
-              brightness: Brightness.light,
-            ),
-            useMaterial3: true,
-            appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
-            cardTheme: CardThemeData(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-            ),
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
-              brightness: Brightness.dark,
-            ),
-            useMaterial3: true,
-            appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
-            cardTheme: CardThemeData(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-            ),
-          ),
+          theme: TVTheme.lightTheme,
+          darkTheme: TVTheme.darkTheme,
           themeMode: _themeProvider.isDarkMode
               ? ThemeMode.dark
               : ThemeMode.light,

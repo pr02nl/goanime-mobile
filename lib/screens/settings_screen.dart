@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/locale_service.dart';
+
 import '../l10n/app_localizations.dart';
+import '../services/locale_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/responsive.dart';
+import '../widgets/focusable_widget.dart';
 
 class SettingsScreen extends StatelessWidget {
   final VoidCallback? onBackPressed;
@@ -14,6 +17,7 @@ class SettingsScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final localeService = Provider.of<LocaleService>(context);
     final canPop = Navigator.canPop(context);
+    final isTV = Responsive.isTV(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -22,31 +26,34 @@ class SettingsScreen extends StatelessWidget {
         elevation: 0,
         title: Text(
           l10n.settings,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: isTV ? 28 : 20,
           ),
         ),
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.arrow_back, color: Colors.white),
-          ),
-          onPressed: () {
-            if (canPop) {
-              Navigator.pop(context);
-            } else if (onBackPressed != null) {
-              onBackPressed!();
-            }
-          },
-        ),
+        leading: isTV
+            ? null
+            : FocusableWidget(
+                onSelect: () {
+                  if (canPop) {
+                    Navigator.pop(context);
+                  } else if (onBackPressed != null) {
+                    onBackPressed!();
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
+                ),
+              ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isTV ? 24 : 16),
         children: [
           // Language Section
           _buildSectionCard(
@@ -54,6 +61,7 @@ class SettingsScreen extends StatelessWidget {
             title: l10n.language,
             icon: Icons.language,
             iconColor: Colors.blue,
+            isTV: isTV,
             child: Column(
               children: [
                 _buildLanguageTile(
@@ -62,6 +70,7 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: 'English (US)',
                   flag: '🇺🇸',
                   isSelected: localeService.isEnglish,
+                  isTV: isTV,
                   onTap: () async {
                     await localeService.setEnglish();
                     if (context.mounted) {
@@ -86,6 +95,7 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: 'Português (Brasil)',
                   flag: '🇧🇷',
                   isSelected: localeService.isPortuguese,
+                  isTV: isTV,
                   onTap: () async {
                     await localeService.setPortuguese();
                     if (context.mounted) {
@@ -107,7 +117,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 20),
+          SizedBox(height: isTV ? 28 : 20),
 
           // About Section
           _buildSectionCard(
@@ -115,47 +125,48 @@ class SettingsScreen extends StatelessWidget {
             title: l10n.about,
             icon: Icons.info_outline,
             iconColor: AppColors.primary,
+            isTV: isTV,
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isTV ? 24 : 16),
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(isTV ? 28 : 20),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
+                      gradient: const LinearGradient(
                         colors: [AppColors.primary, AppColors.secondary],
                       ),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(isTV ? 20 : 16),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.play_circle_filled,
-                      size: 60,
+                      size: isTV ? 80 : 60,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
+                  SizedBox(height: isTV ? 20 : 16),
+                  Text(
                     'GoAnime',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: isTV ? 32 : 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: isTV ? 12 : 8),
                   Text(
-                    '${l10n.version} 0.0.2',
+                    '${l10n.version} 1.0.0',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 14,
+                      fontSize: isTV ? 18 : 14,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: isTV ? 20 : 16),
                   Text(
-                    'Anime streaming app built with Flutter',
+                    'Anime streaming app built with Flutter\nNow with Android TV support!',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 13,
+                      fontSize: isTV ? 16 : 13,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -163,6 +174,30 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
+
+          if (isTV) ...[
+            SizedBox(height: isTV ? 28 : 20),
+            _buildSectionCard(
+              context,
+              title: 'TV Mode',
+              icon: Icons.tv,
+              iconColor: AppColors.accent,
+              isTV: isTV,
+              child: Padding(
+                padding: EdgeInsets.all(isTV ? 24 : 16),
+                child: Text(
+                  'Use your remote control to navigate:\n'
+                  '• D-Pad: Navigate between items\n'
+                  '• Center button: Select\n'
+                  '• Back button: Go back',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: isTV ? 16 : 13,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -174,34 +209,35 @@ class SettingsScreen extends StatelessWidget {
     required IconData icon,
     required Color iconColor,
     required Widget child,
+    required bool isTV,
   }) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isTV ? 24 : 20),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(isTV ? 24 : 20),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.all(isTV ? 14 : 10),
                   decoration: BoxDecoration(
                     color: iconColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(isTV ? 16 : 12),
                   ),
-                  child: Icon(icon, color: iconColor, size: 24),
+                  child: Icon(icon, color: iconColor, size: isTV ? 32 : 24),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: isTV ? 16 : 12),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: isTV ? 24 : 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -220,51 +256,62 @@ class SettingsScreen extends StatelessWidget {
     required String subtitle,
     required String flag,
     required bool isSelected,
+    required bool isTV,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Text(flag, style: const TextStyle(fontSize: 32)),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+    final content = Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isTV ? 28 : 20,
+        vertical: isTV ? 20 : 16,
+      ),
+      child: Row(
+        children: [
+          Text(flag, style: TextStyle(fontSize: isTV ? 40 : 32)),
+          SizedBox(width: isTV ? 20 : 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isTV ? 20 : 16,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 13,
-                    ),
+                ),
+                SizedBox(height: isTV ? 4 : 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: isTV ? 16 : 13,
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          if (isSelected)
+            Container(
+              padding: EdgeInsets.all(isTV ? 12 : 8),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.check,
+                color: Colors.green,
+                size: isTV ? 28 : 20,
               ),
             ),
-            if (isSelected)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check, color: Colors.green, size: 20),
-              ),
-          ],
-        ),
+        ],
       ),
     );
+
+    if (isTV) {
+      return FocusableWidget(onSelect: onTap, borderRadius: 12, child: content);
+    }
+
+    return InkWell(onTap: onTap, child: content);
   }
 }
