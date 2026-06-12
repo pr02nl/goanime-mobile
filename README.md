@@ -160,7 +160,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Based on the original [GoAnime TUI](https://github.com/alvarorichard/GoAnime) project
 - Built with [Flutter](https://flutter.dev/)
-- Video playback powered by [Chewie](https://pub.dev/packages/chewie)
+- Video playback powered by [media_kit](https://pub.dev/packages/media_kit)
 
 ## Support
 
