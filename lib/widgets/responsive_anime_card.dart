@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 
 import '../models/jikan_models.dart';
 import '../theme/app_colors.dart';
+import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
 
 /// Card de anime otimizado com animações leves e responsivo
@@ -102,7 +103,7 @@ class _ResponsiveAnimeCardState extends State<ResponsiveAnimeCard> {
                             color: AppColors.surface,
                             child: const Icon(
                               Icons.error,
-                              color: Colors.white54,
+                              color: NetflixTheme.textTertiary,
                             ),
                           ),
                         ),
@@ -248,7 +249,7 @@ class ResponsiveAnimeList extends StatelessWidget {
         child: const Center(
           child: Text(
             'Nenhum anime encontrado',
-            style: TextStyle(color: Colors.white54),
+            style: TextStyle(color: NetflixTheme.textTertiary),
           ),
         ),
       );

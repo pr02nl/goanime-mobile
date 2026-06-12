@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/jikan_models.dart';
 import '../theme/app_colors.dart';
+import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
 import 'anime_card.dart';
 import 'focusable_widget.dart';
@@ -25,7 +26,7 @@ class AnimeSection extends StatelessWidget {
     this.onSeeAll,
     this.onAnimeTap,
     this.showLargeCards = false,
-    this.useNetflixStyle = false,
+    this.useNetflixStyle = true,
   });
 
   @override
@@ -88,7 +89,7 @@ class AnimeSection extends StatelessWidget {
                   child: const Text(
                     'Ver Todos',
                     style: TextStyle(
-                      color: Colors.orange,
+                      color: AppColors.primary,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -159,12 +160,14 @@ class AnimeSection extends StatelessWidget {
                   width: 120,
                   height: 180,
                   decoration: BoxDecoration(
-                    color: Colors.grey[900],
+                    color: NetflixTheme.surface,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -173,7 +176,7 @@ class AnimeSection extends StatelessWidget {
                   width: 100,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: Colors.grey[900],
+                    color: NetflixTheme.surface,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -182,7 +185,7 @@ class AnimeSection extends StatelessWidget {
                   width: 80,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: Colors.grey[900],
+                    color: NetflixTheme.surface,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -225,7 +228,7 @@ class AnimeCardLarge extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.grey[900],
+            color: NetflixTheme.surface,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -249,11 +252,11 @@ class AnimeCardLarge extends StatelessWidget {
                   placeholder: (context, url) => Container(
                     width: 100,
                     height: 140,
-                    color: Colors.grey[800],
+                    color: NetflixTheme.surfaceLight,
                     child: const Center(
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.orange,
+                          AppColors.primary,
                         ),
                         strokeWidth: 2,
                       ),
@@ -262,8 +265,11 @@ class AnimeCardLarge extends StatelessWidget {
                   errorWidget: (context, url, error) => Container(
                     width: 100,
                     height: 140,
-                    color: Colors.grey[800],
-                    child: const Icon(Icons.error, color: Colors.white54),
+                    color: NetflixTheme.surfaceLight,
+                    child: const Icon(
+                      Icons.error,
+                      color: NetflixTheme.textTertiary,
+                    ),
                   ),
                 ),
               ),
