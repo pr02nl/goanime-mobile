@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -13,9 +15,34 @@ class DatabaseHelper {
     return _database!;
   }
 
-  static Future<Database> _initDatabase() async {
+  /// Resolve database path, migrating from the legacy sqflite location if
+  /// necessary. sqflite's getDatabasesPath() returned <data>/databases/ on
+  /// Android while getApplicationDocumentsDirectory() returns
+  /// <data>/app_flutter/. We check the legacy path first so existing data
+  /// is preserved.
+  static Future<String> _resolveDatabasePath() async {
     final docsDir = await getApplicationDocumentsDirectory();
-    final dbPath = p.join(docsDir.path, dbName);
+
+    if (Platform.isAndroid) {
+      final legacyDir = Directory(
+        p.join(docsDir.parent.path, 'databases'),
+      );
+      final legacyPath = p.join(legacyDir.path, dbName);
+      if (await File(legacyPath).exists()) {
+        return legacyPath;
+      }
+      // No legacy DB — use the new location
+      if (!await legacyDir.exists()) {
+        await legacyDir.create(recursive: true);
+      }
+      return legacyPath;
+    }
+
+    return p.join(docsDir.path, dbName);
+  }
+
+  static Future<Database> _initDatabase() async {
+    final dbPath = await _resolveDatabasePath();
     final db = sqlite3.open(dbPath);
     _createDb(db);
     return db;
@@ -34,9 +61,14 @@ class DatabaseHelper {
     final db = await database;
     final stmt = db.prepare('INSERT INTO $animeTable (name) VALUES (?)');
     try {
+      db.execute('BEGIN TRANSACTION');
       for (final name in animeNames) {
         stmt.execute([name]);
       }
+      db.execute('COMMIT');
+    } catch (e) {
+      db.execute('ROLLBACK');
+      rethrow;
     } finally {
       stmt.close();
     }
