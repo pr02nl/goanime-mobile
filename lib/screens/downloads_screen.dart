@@ -668,6 +668,7 @@ class _LocalVideoPlayerScreenState extends State<_LocalVideoPlayerScreen> {
         _player!,
         configuration: const VideoControllerConfiguration(
           enableHardwareAcceleration: true,
+          androidAttachSurfaceAfterVideoParameters: true,
         ),
       );
 

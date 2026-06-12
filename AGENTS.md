@@ -138,7 +138,7 @@ The project uses **media_kit** for video playback, replacing the previous Chewie
 - TV-optimized playback with D-pad controls
 - AniSkip integration for skipping intro/outro segments
 - Google Video proxy for handling restricted streams
-- Hardware acceleration control (disabled on TV for compatibility)
+- Hardware acceleration enabled safely on TV (using androidAttachSurfaceAfterVideoParameters to prevent black screen)
 - WebView fallback for iOS when needed
 - Adaptive video controls for different platforms
 
@@ -161,7 +161,7 @@ Custom HTTP proxy server that:
 - Bypasses CORS restrictions for embedded video players
 
 ### TV Video Player Specifics
-- Hardware acceleration disabled for compatibility
+- Hardware acceleration enabled safely with androidAttachSurfaceAfterVideoParameters: true
 - MaterialDesktopVideoControls with Focus wrapper
 - Auto-fullscreen on TV devices
 - Landscape-only orientation on TV

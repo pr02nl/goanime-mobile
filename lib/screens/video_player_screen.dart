@@ -837,6 +837,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         _player!,
         configuration: const VideoControllerConfiguration(
           enableHardwareAcceleration: true,
+          androidAttachSurfaceAfterVideoParameters: true,
         ),
       );
       debugPrint('[VideoPlayer] HW acceleration: true (isTV: $isTV)');
@@ -1204,28 +1205,27 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
           // Video ocupa toda a tela
           _videoController != null
               ? (isTV
-                  ? MaterialDesktopVideoControlsTheme(
-                      normal: const MaterialDesktopVideoControlsThemeData(
-                        visibleOnMount: true,
-                        playAndPauseOnTap: true,
-                      ),
-                      fullscreen:
-                          const MaterialDesktopVideoControlsThemeData(
-                            visibleOnMount: true,
-                            playAndPauseOnTap: true,
-                          ),
-                      child: Video(
+                    ? MaterialDesktopVideoControlsTheme(
+                        normal: const MaterialDesktopVideoControlsThemeData(
+                          visibleOnMount: true,
+                          playAndPauseOnTap: true,
+                        ),
+                        fullscreen: const MaterialDesktopVideoControlsThemeData(
+                          visibleOnMount: true,
+                          playAndPauseOnTap: true,
+                        ),
+                        child: Video(
+                          controller: _videoController!,
+                          fit: BoxFit.contain,
+                          controls: MaterialDesktopVideoControls,
+                        ),
+                      )
+                    : Video(
                         controller: _videoController!,
                         fit: BoxFit.contain,
-                        controls: MaterialDesktopVideoControls,
-                      ),
-                    )
-                  : Video(
-                      controller: _videoController!,
-                      fit: BoxFit.contain,
-                      // Phone: AdaptiveVideoControls = touch controls padrao
-                      controls: AdaptiveVideoControls,
-                    ))
+                        // Phone: AdaptiveVideoControls = touch controls padrao
+                        controls: AdaptiveVideoControls,
+                      ))
               : Container(color: Colors.black),
           // Skip Button Overlay
           Positioned(
@@ -1340,11 +1340,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                           visibleOnMount: true,
                           playAndPauseOnTap: true,
                         ),
-                        fullscreen:
-                            const MaterialDesktopVideoControlsThemeData(
-                              visibleOnMount: true,
-                              playAndPauseOnTap: true,
-                            ),
+                        fullscreen: const MaterialDesktopVideoControlsThemeData(
+                          visibleOnMount: true,
+                          playAndPauseOnTap: true,
+                        ),
                         child: Video(
                           controller: _videoController!,
                           fit: BoxFit.cover,
