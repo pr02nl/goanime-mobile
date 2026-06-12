@@ -172,12 +172,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   }
 
   /// Sai do modo fullscreen
-  // void _exitFullscreen() {
-  //   setState(() {
-  //     _isFullscreen = false;
-  //   });
-  //   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  // }
+  void _exitFullscreen() {
+    setState(() {
+      _isFullscreen = false;
+    });
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
 
   /// Configura listener para detectar mudanças no sistema UI (fullscreen exit)
   void _setupFullscreenListener() {
@@ -1227,6 +1227,32 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                         controls: AdaptiveVideoControls,
                       ))
               : Container(color: Colors.black),
+          // Botão flutuante voltar
+          Positioned(
+            top: isTV ? 16 : 8,
+            left: isTV ? 16 : 8,
+            child: SafeArea(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _exitFullscreen,
+                  borderRadius: BorderRadius.circular(50),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.4),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
           // Skip Button Overlay
           Positioned(
             bottom: isTV ? 40 : 80,
