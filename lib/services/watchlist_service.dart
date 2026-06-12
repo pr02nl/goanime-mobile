@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,6 +10,7 @@ import '../models/watchlist_anime.dart';
 class WatchlistService {
   static sql.Database? _database;
   static const String tableName = 'watchlist';
+  static const String _dbFileName = 'watchlist.db';
 
   Future<sql.Database> get database async {
     if (_database != null) return _database!;
@@ -15,9 +18,31 @@ class WatchlistService {
     return _database!;
   }
 
-  Future<sql.Database> _initDatabase() async {
+  /// Resolve database path preserving the legacy sqflite location on Android.
+  /// sqflite's getDatabasesPath() returned <data>/databases/ while
+  /// getApplicationDocumentsDirectory() returns <data>/app_flutter/.
+  Future<String> _resolveDatabasePath() async {
     final docsDir = await getApplicationDocumentsDirectory();
-    final dbPath = join(docsDir.path, 'watchlist.db');
+
+    if (Platform.isAndroid) {
+      final legacyDir = Directory(
+        join(docsDir.parent.path, 'databases'),
+      );
+      final legacyPath = join(legacyDir.path, _dbFileName);
+      if (await File(legacyPath).exists()) {
+        return legacyPath;
+      }
+      if (!await legacyDir.exists()) {
+        await legacyDir.create(recursive: true);
+      }
+      return legacyPath;
+    }
+
+    return join(docsDir.path, _dbFileName);
+  }
+
+  Future<sql.Database> _initDatabase() async {
+    final dbPath = await _resolveDatabasePath();
 
     final db = sql.sqlite3.open(dbPath);
     db.execute('''

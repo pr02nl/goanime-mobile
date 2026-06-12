@@ -775,6 +775,8 @@ class DownloadService extends ChangeNotifier {
     }
     _downloadClients.clear();
     _activeDownloads.clear();
+    _database?.close();
+    _database = null;
     super.dispose();
   }
 }
