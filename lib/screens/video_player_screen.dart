@@ -1211,10 +1211,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                             visibleOnMount: true,
                             playAndPauseOnTap: true,
                           ),
-                          fullscreen: const MaterialDesktopVideoControlsThemeData(
-                            visibleOnMount: true,
-                            playAndPauseOnTap: true,
-                          ),
+                          fullscreen:
+                              const MaterialDesktopVideoControlsThemeData(
+                                visibleOnMount: true,
+                                playAndPauseOnTap: true,
+                              ),
                           child: Video(
                             controller: _videoController!,
                             fit: BoxFit.contain,
@@ -1344,10 +1345,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                             visibleOnMount: true,
                             playAndPauseOnTap: true,
                           ),
-                          fullscreen: const MaterialDesktopVideoControlsThemeData(
-                            visibleOnMount: true,
-                            playAndPauseOnTap: true,
-                          ),
+                          fullscreen:
+                              const MaterialDesktopVideoControlsThemeData(
+                                visibleOnMount: true,
+                                playAndPauseOnTap: true,
+                              ),
                           child: Video(
                             controller: _videoController!,
                             fit: BoxFit.cover,
