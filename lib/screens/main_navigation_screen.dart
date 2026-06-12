@@ -18,49 +18,51 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
-  final List<FocusNode> _focusNodes = [];
+  bool _isTV = false;
+
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-    for (int i = 0; i < 5; i++) {
-      _focusNodes.add(FocusNode());
-    }
-  }
-
-  @override
-  void dispose() {
-    for (var node in _focusNodes) {
-      node.dispose();
-    }
-    super.dispose();
-  }
-
-  void _navigateToHome() {
-    setState(() => _currentIndex = 0);
-  }
-
-  void _onNavItemSelected(int index) {
-    setState(() => _currentIndex = index);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Lista de telas para o IndexedStack
-    final List<Widget> screens = [
+    _screens = [
       const HomeScreen(),
-      SearchScreen(onBackPressed: _navigateToHome),
+      const SearchScreen(),
       const WatchlistScreen(),
       const DownloadsScreen(),
       SettingsScreen(onBackPressed: _navigateToHome),
     ];
+    _detectTVMode();
+  }
 
-    final isTV = TVDetector.isTV;
-    final bottomPadding = isTV
+  Future<void> _detectTVMode() async {
+    final isTV = await TVDetector.isTV;
+    if (mounted) {
+      setState(() {
+        _isTV = isTV;
+      });
+    }
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  void _navigateToHome() {
+    setState(() {
+      _currentIndex = 0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = _isTV
         ? 0.0
         : (MediaQuery.of(context).padding.bottom > 0 ? 8.0 : 12.0);
-    final navHeight = isTV ? 80.0 : 64.0;
-    final horizontalMargin = isTV ? 24.0 : 12.0;
+    final navHeight = _isTV ? 80.0 : 64.0;
+    final horizontalMargin = _isTV ? 24.0 : 12.0;
 
     return PopScope(
       canPop: _currentIndex == 0,
@@ -71,7 +73,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: IndexedStack(index: _currentIndex, children: screens),
+        body: IndexedStack(index: _currentIndex, children: _screens),
         bottomNavigationBar: SafeArea(
           child: Container(
             margin: EdgeInsets.only(
@@ -82,61 +84,54 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             height: navHeight,
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(isTV ? 16 : 20),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                width: 1,
-              ),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, -2),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 30,
-                  offset: const Offset(0, 10),
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(isTV ? 16 : 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(
-                    icon: Icons.home_outlined,
-                    activeIcon: Icons.home,
-                    label: 'Home',
-                    index: 0,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.search_outlined,
-                    activeIcon: Icons.search,
-                    label: 'Search',
-                    index: 1,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.bookmark_outline,
-                    activeIcon: Icons.bookmark,
-                    label: 'Watchlist',
-                    index: 2,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.download_outlined,
-                    activeIcon: Icons.download,
-                    label: 'Downloads',
-                    index: 3,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.settings_outlined,
-                    activeIcon: Icons.settings,
-                    label: 'Settings',
-                    index: 4,
-                  ),
-                ],
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildNavItem(
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home,
+                  label: 'Início',
+                  index: 0,
+                  navHeight: navHeight,
+                ),
+                _buildNavItem(
+                  icon: Icons.search_outlined,
+                  selectedIcon: Icons.search,
+                  label: 'Buscar',
+                  index: 1,
+                  navHeight: navHeight,
+                ),
+                _buildNavItem(
+                  icon: Icons.bookmark_outline,
+                  selectedIcon: Icons.bookmark,
+                  label: 'Lista',
+                  index: 2,
+                  navHeight: navHeight,
+                ),
+                _buildNavItem(
+                  icon: Icons.download_outlined,
+                  selectedIcon: Icons.download,
+                  label: 'Downloads',
+                  index: 3,
+                  navHeight: navHeight,
+                ),
+                _buildNavItem(
+                  icon: Icons.settings_outlined,
+                  selectedIcon: Icons.settings,
+                  label: 'Config',
+                  index: 4,
+                  navHeight: navHeight,
+                ),
+              ],
             ),
           ),
         ),
@@ -146,76 +141,43 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   Widget _buildNavItem({
     required IconData icon,
-    required IconData activeIcon,
+    required IconData selectedIcon,
     required String label,
     required int index,
+    required double navHeight,
   }) {
     final isSelected = _currentIndex == index;
-    final isTV = TVDetector.isTV;
 
-    final iconSize = isTV ? 28.0 : 20.0;
-    final fontSize = isSelected ? (isTV ? 14.0 : 10.0) : (isTV ? 12.0 : 9.0);
-    final padding = isTV
-        ? const EdgeInsets.symmetric(vertical: 12, horizontal: 8)
-        : const EdgeInsets.symmetric(vertical: 6, horizontal: 2);
-
-    Widget content = Padding(
-      padding: padding,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: EdgeInsets.all(isTV ? 10 : 5),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.primary.withValues(alpha: 0.15)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(isTV ? 14 : 10),
+    return FocusableWidget(
+      onSelect: () => _onItemTapped(index),
+      autoFocus: isSelected,
+      child: SizedBox(
+        width: _isTV ? 100 : 80,
+        height: navHeight,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconTheme(
+              data: IconThemeData(
+                color: isSelected
+                    ? AppColors.primary
+                    : AppColors.textSecondary.withValues(alpha: 0.6),
+                size: _isTV ? 28 : 24,
+              ),
+              child: Icon(isSelected ? selectedIcon : icon),
             ),
-            child: Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? AppColors.primary : Colors.grey.shade600,
-              size: iconSize,
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? AppColors.primary
+                    : AppColors.textSecondary.withValues(alpha: 0.6),
+                fontSize: _isTV ? 12 : 10,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
             ),
-          ),
-          SizedBox(height: isTV ? 6 : 2),
-          AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
-            style: TextStyle(
-              color: isSelected ? AppColors.primary : Colors.grey.shade600,
-              fontSize: fontSize,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            ),
-            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-          ),
-        ],
-      ),
-    );
-
-    // Se for TV, usa FocusableWidget para navegação com controle remoto
-    if (isTV) {
-      return Expanded(
-        child: FocusableWidget(
-          focusNode: _focusNodes[index],
-          autoFocus: index == 0,
-          onSelect: () => _onNavItemSelected(index),
-          focusScale: 1.08,
-          borderRadius: 16,
-          child: content,
-        ),
-      );
-    }
-
-    // Mobile: usa InkWell normal
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onNavItemSelected(index),
-          borderRadius: BorderRadius.circular(16),
-          child: content,
+          ],
         ),
       ),
     );

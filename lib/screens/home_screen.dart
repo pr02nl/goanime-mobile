@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -41,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen>
   List<JikanAnime> _comedyAnimes = [];
   List<JikanAnime> _fantasyAnimes = [];
 
-  // Índice do banner atual
+  // Ãndice do banner atual
   int _currentBannerIndex = 0;
   late PageController _bannerPageController;
 
@@ -108,19 +108,19 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  /// Carrega TODOS os dados de uma vez usando o método otimizado
+  /// Carrega TODOS os dados de uma vez usando o mÃ©todo otimizado
   Future<void> _loadAllData({bool forceRefresh = false}) async {
     _dataLoaded = true;
 
     if (!forceRefresh && _seasonAnimes.isNotEmpty) {
-      // Já tem dados, não precisa recarregar
+      // JÃ¡ tem dados, nÃ£o precisa recarregar
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      // Carrega tudo de uma vez com o novo método paralelo
+      // Carrega tudo de uma vez com o novo mÃ©todo paralelo
       final homeData = await _jikanService.loadHomeData(
         forceRefresh: forceRefresh,
       );
@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen>
           _isLoading = false;
         });
 
-        // Pre-cache das imagens do banner para transições suaves
+        // Pre-cache das imagens do banner para transiÃ§Ãµes suaves
         _precacheBannerImages();
       }
     } catch (e) {
@@ -147,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  /// Pre-carrega imagens do banner para transições mais suaves
+  /// Pre-carrega imagens do banner para transiÃ§Ãµes mais suaves
   void _precacheBannerImages() {
     final bannerAnimes = _seasonAnimes.take(5);
     for (final anime in bannerAnimes) {
@@ -188,13 +188,13 @@ class _HomeScreenState extends State<HomeScreen>
             if (_seasonAnimes.isNotEmpty)
               SliverToBoxAdapter(child: _buildHeroBannerCarousel()),
 
-            // Conteúdo principal
+            // ConteÃºdo principal
             SliverToBoxAdapter(
               child: Column(
                 children: [
                   const SizedBox(height: 24),
 
-                  // Seção: Destaques da Temporada
+                  // SeÃ§Ã£o: Destaques da Temporada
                   _buildModernSection(
                     title: l10n.seasonHighlights,
                     icon: Icons.trending_up_outlined,
@@ -207,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen>
                     genreId: null,
                   ),
 
-                  // Seção: Top Animes
+                  // SeÃ§Ã£o: Top Animes
                   _buildModernSection(
                     title: l10n.topAnime,
                     icon: Icons.emoji_events,
@@ -220,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen>
                     genreId: null,
                   ),
 
-                  // Seção: Ação
+                  // SeÃ§Ã£o: AÃ§Ã£o
                   _buildModernSection(
                     title: l10n.action,
                     icon: Icons.hardware,
@@ -233,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen>
                     genreId: JikanGenreIds.action,
                   ),
 
-                  // Seção: Romance
+                  // SeÃ§Ã£o: Romance
                   _buildModernSection(
                     title: l10n.romance,
                     icon: Icons.favorite,
@@ -246,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen>
                     genreId: JikanGenreIds.romance,
                   ),
 
-                  // Seção: Comédia
+                  // SeÃ§Ã£o: ComÃ©dia
                   _buildModernSection(
                     title: l10n.comedy,
                     icon: Icons.sentiment_very_satisfied,
@@ -259,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen>
                     genreId: JikanGenreIds.comedy,
                   ),
 
-                  // Seção: Fantasia
+                  // SeÃ§Ã£o: Fantasia
                   _buildModernSection(
                     title: l10n.fantasy,
                     icon: Icons.auto_fix_high,
@@ -572,12 +572,12 @@ class _HomeScreenState extends State<HomeScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cabeçalho da seção (simplificado para performance)
+            // CabeÃ§alho da seÃ§Ã£o (simplificado para performance)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               child: Row(
                 children: [
-                  // Ícone da seção (simplificado para performance)
+                  // Ãcone da seÃ§Ã£o (simplificado para performance)
                   Container(
                     padding: EdgeInsets.all(
                       Responsive.value(context, phone: 9.0, tablet: 11.0),
@@ -620,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Botão "Ver todos" simplificado
+                  // BotÃ£o "Ver todos" simplificado
                   FocusableWidget(
                     onSelect: () {
                         Navigator.push(
@@ -736,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen>
     bool showScore = true,
   }) {
     final cardWidth = Responsive.getHorizontalListItemWidth(context);
-    final cardHeight = Responsive.getCardHeight(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
     final spacing = Responsive.getCardSpacing(context);
 
     return _AnimatedAnimeCard(
@@ -753,7 +753,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildLoadingCards() {
     final cardWidth = Responsive.getHorizontalListItemWidth(context);
-    final cardHeight = Responsive.getCardHeight(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
     final spacing = Responsive.getCardSpacing(context);
     final padding = Responsive.getHorizontalPadding(context);
 
@@ -776,7 +776,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 }
 
-/// Card de anime com animação leve de hover/press
+/// Card de anime com animaÃ§Ã£o leve de hover/press
 class _AnimatedAnimeCard extends StatefulWidget {
   final JikanAnime anime;
   final double cardWidth;
@@ -972,7 +972,7 @@ class _AnimatedAnimeCardState extends State<_AnimatedAnimeCard> {
                 ),
                 const SizedBox(height: 8),
 
-                // Título
+                // TÃ­tulo
                 Text(
                   widget.anime.title,
                   maxLines: 2,
@@ -997,3 +997,4 @@ class _AnimatedAnimeCardState extends State<_AnimatedAnimeCard> {
     );
   }
 }
+

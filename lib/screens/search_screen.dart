@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/jikan_models.dart';
@@ -140,7 +140,7 @@ class _SearchScreenState extends State<SearchScreen>
 
     setState(() => _showHistory = false);
 
-    // Busca sugestões no histórico
+    // Busca sugestÃµes no histÃ³rico
     _loadSuggestions(query);
 
     // Debounce para busca na API
@@ -179,7 +179,7 @@ class _SearchScreenState extends State<SearchScreen>
     final history = await SearchHistoryService.getSearchHistory();
     if (history.isEmpty) return;
 
-    // Busca os últimos 3 animes do histórico
+    // Busca os Ãºltimos 3 animes do histÃ³rico
     final recentSearches = history.take(3).toList();
     final List<JikanAnime> results = [];
 
@@ -209,7 +209,7 @@ class _SearchScreenState extends State<SearchScreen>
       List<JikanAnime> results;
 
       if (_selectedGenre != null) {
-        // Busca por gênero com termo
+        // Busca por gÃªnero com termo
         results = await _jikanService.searchAnimes(query, limit: 20);
         results = results.where((anime) {
           return anime.genres.any((genre) => genre.malId == _selectedGenre);
@@ -235,7 +235,7 @@ class _SearchScreenState extends State<SearchScreen>
     _searchController.text = query;
     _searchFocusNode.unfocus();
 
-    // Salva no histórico
+    // Salva no histÃ³rico
     await SearchHistoryService.saveSearch(query);
     await _loadSearchHistory();
 
@@ -265,10 +265,10 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Future<void> _onAnimeTap(JikanAnime anime) async {
-    // Salva no histórico
+    // Salva no histÃ³rico
     await SearchHistoryService.saveSearch(anime.title);
 
-    // Navega para tela de seleção de fonte
+    // Navega para tela de seleÃ§Ã£o de fonte
     if (!mounted) return;
     Navigator.push(
       context,
@@ -547,7 +547,7 @@ class _SearchScreenState extends State<SearchScreen>
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: Responsive.getGridColumns(context),
+              crossAxisCount: Responsive.getGridColumnCount(context),
               childAspectRatio: 0.6,
               crossAxisSpacing: Responsive.getCardSpacing(context),
               mainAxisSpacing: Responsive.getCardSpacing(context),
@@ -595,7 +595,7 @@ class _SearchScreenState extends State<SearchScreen>
     return GridView.builder(
       padding: EdgeInsets.all(Responsive.getHorizontalPadding(context)),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: Responsive.getGridColumns(context),
+        crossAxisCount: Responsive.getGridColumnCount(context),
         childAspectRatio: 0.6,
         crossAxisSpacing: Responsive.getCardSpacing(context),
         mainAxisSpacing: Responsive.getCardSpacing(context),
@@ -804,3 +804,4 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 }
+

@@ -42,6 +42,7 @@ class _FocusableWidgetState extends State<FocusableWidget>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   bool _isFocused = false;
+  bool _isTV = false;
 
   @override
   void initState() {
@@ -56,6 +57,18 @@ class _FocusableWidgetState extends State<FocusableWidget>
     );
 
     _focusNode.addListener(_handleFocusChange);
+
+    // Detecta se é TV de forma assíncrona
+    _detectTVMode();
+  }
+
+  Future<void> _detectTVMode() async {
+    final isTV = await TVDetector.isTV;
+    if (mounted) {
+      setState(() {
+        _isTV = isTV;
+      });
+    }
   }
 
   void _handleFocusChange() {
@@ -95,10 +108,8 @@ class _FocusableWidgetState extends State<FocusableWidget>
 
   @override
   Widget build(BuildContext context) {
-    final isTV = TVDetector.isTV;
-
     // Se não for TV e não tiver navegação D-pad habilitada, retorna widget normal
-    if (!isTV && !widget.enableDpadNavigation) {
+    if (!_isTV && !widget.enableDpadNavigation) {
       return GestureDetector(onTap: widget.onSelect, child: widget.child);
     }
 

@@ -4,20 +4,42 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../services/locale_service.dart';
 import '../theme/app_colors.dart';
-import '../utils/responsive.dart';
+import '../utils/tv_detector.dart';
 import '../widgets/focusable_widget.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   final VoidCallback? onBackPressed;
 
   const SettingsScreen({super.key, this.onBackPressed});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _isTV = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _detectTVMode();
+  }
+
+  Future<void> _detectTVMode() async {
+    final isTV = await TVDetector.isTV;
+    if (mounted) {
+      setState(() {
+        _isTV = isTV;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final localeService = Provider.of<LocaleService>(context);
     final canPop = Navigator.canPop(context);
-    final isTV = Responsive.isTV(context);
+    final isTV = _isTV;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -39,28 +61,11 @@ class SettingsScreen extends StatelessWidget {
                 onPressed: () {
                   if (canPop) {
                     Navigator.pop(context);
-                  } else if (onBackPressed != null) {
-                    onBackPressed!();
+                  } else if (widget.onBackPressed != null) {
+                    widget.onBackPressed!();
                   }
                 },
               ),
-        // : FocusableWidget(
-        //     onSelect: () {
-        //       if (canPop) {
-        //         Navigator.pop(context);
-        //       } else if (onBackPressed != null) {
-        //         onBackPressed!();
-        //       }
-        //     },
-        //     child: Container(
-        //       padding: const EdgeInsets.all(8),
-        //       decoration: BoxDecoration(
-        //         color: Colors.black.withValues(alpha: 0.3),
-        //         borderRadius: BorderRadius.circular(12),
-        //       ),
-        //       child: const Icon(Icons.arrow_back, color: Colors.white),
-        //     ),
-        //   ),
       ),
       body: ListView(
         padding: EdgeInsets.all(isTV ? 24 : 16),

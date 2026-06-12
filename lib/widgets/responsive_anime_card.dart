@@ -34,7 +34,7 @@ class _ResponsiveAnimeCardState extends State<ResponsiveAnimeCard> {
   @override
   Widget build(BuildContext context) {
     final cardWidth = Responsive.getHorizontalListItemWidth(context);
-    final cardHeight = Responsive.getCardHeight(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
     final spacing = Responsive.getCardSpacing(context);
 
     return GestureDetector(
@@ -276,7 +276,7 @@ class ResponsiveAnimeList extends StatelessWidget {
 
   Widget _buildLoadingList(BuildContext context) {
     final cardWidth = Responsive.getHorizontalListItemWidth(context);
-    final cardHeight = Responsive.getCardHeight(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
     final spacing = Responsive.getCardSpacing(context);
     final padding = Responsive.getHorizontalPadding(context);
 
