@@ -7,6 +7,7 @@ import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
+import '../utils/tv_detector.dart';
 import '../widgets/netflix_card.dart';
 import '../widgets/netflix_carousel.dart';
 import 'genre_animes_screen.dart';
@@ -32,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen>
   double _headerOpacity = 1.0;
   bool _dataLoaded = false;
   bool _isLoading = true;
+  bool _isTV = false;
 
   // Listas de animes
   List<JikanAnime> _seasonAnimes = [];
@@ -54,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen>
       duration: const Duration(milliseconds: 300),
     );
     _scrollController.addListener(_onScroll);
+    _detectTVMode();
     if (!_dataLoaded) {
       _loadAllData();
     }
@@ -64,6 +67,11 @@ class _HomeScreenState extends State<HomeScreen>
     _fabAnimationController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _detectTVMode() async {
+    final isTV = await TVDetector.isTV;
+    if (mounted) setState(() => _isTV = isTV);
   }
 
   void _onScroll() {
@@ -172,6 +180,7 @@ class _HomeScreenState extends State<HomeScreen>
                   description: _seasonAnimes.first.synopsis,
                   onPlay: () => _onAnimeTap(_seasonAnimes.first),
                   height: Responsive.getBannerHeight(context) * 1.2,
+                  isTV: _isTV,
                 ),
               ),
 
@@ -383,6 +392,7 @@ class _HomeScreenState extends State<HomeScreen>
     return NetflixCarousel(
       title: title,
       height: sectionHeight,
+      isTV: _isTV,
       trailing: genreId != null
           ? TextButton(
               onPressed: () {
@@ -415,6 +425,7 @@ class _HomeScreenState extends State<HomeScreen>
           rating: anime.score,
           width: cardWidth,
           height: cardHeight,
+          isTV: _isTV,
           onTap: () => _onAnimeTap(anime),
         );
       }).toList(),

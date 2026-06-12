@@ -22,6 +22,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   late final List<Widget> _screens;
 
+  // FocusNodes for each nav item so TV d-pad can move between them.
+  final List<FocusNode> _navFocusNodes = List.generate(5, (_) => FocusNode());
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +36,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       SettingsScreen(onBackPressed: _navigateToHome),
     ];
     _detectTVMode();
+  }
+
+  @override
+  void dispose() {
+    for (final node in _navFocusNodes) {
+      node.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _detectTVMode() async {
@@ -73,65 +84,70 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: IndexedStack(index: _currentIndex, children: _screens),
+        body: FocusTraversalGroup(
+          child: IndexedStack(index: _currentIndex, children: _screens),
+        ),
         bottomNavigationBar: SafeArea(
-          child: Container(
-            margin: EdgeInsets.only(
-              left: horizontalMargin,
-              right: horizontalMargin,
-              bottom: bottomPadding,
-            ),
-            height: navHeight,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildNavItem(
-                  icon: Icons.home_outlined,
-                  selectedIcon: Icons.home,
-                  label: 'Início',
-                  index: 0,
-                  navHeight: navHeight,
-                ),
-                _buildNavItem(
-                  icon: Icons.search_outlined,
-                  selectedIcon: Icons.search,
-                  label: 'Buscar',
-                  index: 1,
-                  navHeight: navHeight,
-                ),
-                _buildNavItem(
-                  icon: Icons.bookmark_outline,
-                  selectedIcon: Icons.bookmark,
-                  label: 'Lista',
-                  index: 2,
-                  navHeight: navHeight,
-                ),
-                _buildNavItem(
-                  icon: Icons.download_outlined,
-                  selectedIcon: Icons.download,
-                  label: 'Downloads',
-                  index: 3,
-                  navHeight: navHeight,
-                ),
-                _buildNavItem(
-                  icon: Icons.settings_outlined,
-                  selectedIcon: Icons.settings,
-                  label: 'Config',
-                  index: 4,
-                  navHeight: navHeight,
-                ),
-              ],
+          child: FocusTraversalGroup(
+            policy: OrderedTraversalPolicy(),
+            child: Container(
+              margin: EdgeInsets.only(
+                left: horizontalMargin,
+                right: horizontalMargin,
+                bottom: bottomPadding,
+              ),
+              height: navHeight,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildNavItem(
+                    icon: Icons.home_outlined,
+                    selectedIcon: Icons.home,
+                    label: 'Início',
+                    index: 0,
+                    navHeight: navHeight,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.search_outlined,
+                    selectedIcon: Icons.search,
+                    label: 'Buscar',
+                    index: 1,
+                    navHeight: navHeight,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.bookmark_outline,
+                    selectedIcon: Icons.bookmark,
+                    label: 'Lista',
+                    index: 2,
+                    navHeight: navHeight,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.download_outlined,
+                    selectedIcon: Icons.download,
+                    label: 'Downloads',
+                    index: 3,
+                    navHeight: navHeight,
+                  ),
+                  _buildNavItem(
+                    icon: Icons.settings_outlined,
+                    selectedIcon: Icons.settings,
+                    label: 'Config',
+                    index: 4,
+                    navHeight: navHeight,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -148,36 +164,43 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }) {
     final isSelected = _currentIndex == index;
 
-    return FocusableWidget(
-      onSelect: () => _onItemTapped(index),
-      autoFocus: isSelected,
-      child: SizedBox(
-        width: _isTV ? 100 : 80,
-        height: navHeight,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconTheme(
-              data: IconThemeData(
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.textSecondary.withValues(alpha: 0.6),
-                size: _isTV ? 28 : 24,
+    return FocusTraversalOrder(
+      order: NumericFocusOrder(index.toDouble()),
+      child: FocusableWidget(
+        onSelect: () => _onItemTapped(index),
+        focusNode: _navFocusNodes[index],
+        autoFocus: isSelected,
+        focusPadding: EdgeInsets.zero,
+        focusScale: 1.0,
+        borderRadius: 12,
+        child: SizedBox(
+          width: _isTV ? 100 : 80,
+          height: navHeight,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconTheme(
+                data: IconThemeData(
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary.withValues(alpha: 0.6),
+                  size: _isTV ? 28 : 24,
+                ),
+                child: Icon(isSelected ? selectedIcon : icon),
               ),
-              child: Icon(isSelected ? selectedIcon : icon),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.textSecondary.withValues(alpha: 0.6),
-                fontSize: _isTV ? 12 : 10,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary.withValues(alpha: 0.6),
+                  fontSize: _isTV ? 12 : 10,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

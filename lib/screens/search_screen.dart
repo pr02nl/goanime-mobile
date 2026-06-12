@@ -9,6 +9,7 @@ import '../services/search_history_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
+import '../utils/tv_detector.dart';
 import '../widgets/netflix_card.dart';
 import 'source_selection_screen.dart';
 
@@ -39,6 +40,7 @@ class _SearchScreenState extends State<SearchScreen>
   bool _isLoadingTrending = true;
   bool _isSearching = false;
   bool _showHistory = true;
+  bool _isTV = false;
 
   // Filtros
   int? _selectedGenre;
@@ -110,6 +112,7 @@ class _SearchScreenState extends State<SearchScreen>
     );
     _animationController.forward();
 
+    _detectTVMode();
     _loadSearchHistory();
     _loadTrendingAnimes();
     _loadRecentSearches();
@@ -124,6 +127,11 @@ class _SearchScreenState extends State<SearchScreen>
     _searchFocusNode.dispose();
     _debounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _detectTVMode() async {
+    final isTV = await TVDetector.isTV;
+    if (mounted) setState(() => _isTV = isTV);
   }
 
   void _onSearchChanged() {
@@ -359,7 +367,7 @@ class _SearchScreenState extends State<SearchScreen>
                   child: TextField(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
-                    autofocus: true,
+                    autofocus: !_isTV,
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                     decoration: InputDecoration(
                       hintText: 'Search animes...',

@@ -5,6 +5,7 @@ import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
+import '../utils/responsive.dart';
 import '../widgets/netflix_card.dart';
 import 'source_selection_screen.dart';
 
@@ -243,13 +244,18 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(
+                Responsive.getHorizontalPadding(context),
+              ),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:
+                      Responsive.getGridColumnCount(context),
                   childAspectRatio: 0.65,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
+                  crossAxisSpacing:
+                      Responsive.getCardSpacing(context),
+                  mainAxisSpacing:
+                      Responsive.getCardSpacing(context),
                 ),
                 delegate: SliverChildBuilderDelegate((context, index) {
                   if (index >= _animes.length) return null;

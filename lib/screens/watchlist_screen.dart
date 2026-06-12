@@ -6,6 +6,7 @@ import '../services/watchlist_notifier.dart';
 import '../services/watchlist_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
+import '../utils/responsive.dart';
 import '../widgets/focusable_widget.dart';
 import '../widgets/netflix_card.dart';
 import 'source_selection_screen.dart';
@@ -115,12 +116,17 @@ class _WatchlistScreenState extends State<WatchlistScreen>
               color: AppColors.primary,
               backgroundColor: AppColors.surface,
               child: GridView.builder(
-                padding: const EdgeInsets.all(16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                padding: EdgeInsets.all(
+                  Responsive.getHorizontalPadding(context),
+                ),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount:
+                      Responsive.getGridColumnCount(context),
                   childAspectRatio: 0.7,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
+                  crossAxisSpacing:
+                      Responsive.getCardSpacing(context),
+                  mainAxisSpacing:
+                      Responsive.getCardSpacing(context),
                 ),
                 itemCount: _watchlist.length,
                 itemBuilder: (context, index) {

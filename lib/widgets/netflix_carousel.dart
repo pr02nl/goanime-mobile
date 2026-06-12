@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
@@ -142,22 +143,32 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                     ),
                   ),
                 ),
-              // Scrollable content
-              ListView.builder(
-                controller: _scrollController,
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(
-                  horizontal: NetflixTheme.horizontalPadding(context),
+              // Scrollable content wrapped in a FocusTraversalGroup so
+              // d-pad left/right stays within this carousel row.
+              FocusTraversalGroup(
+                policy: OrderedTraversalPolicy(),
+                child: ListView.builder(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: NetflixTheme.horizontalPadding(context),
+                  ),
+                  itemCount: widget.items.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: NetflixTheme.cardSpacing(context),
+                      ),
+                      child: FocusTraversalOrder(
+                        order: NumericFocusOrder(index.toDouble()),
+                        child: _AutoScrollOnFocus(
+                          scrollController: _scrollController,
+                          child: widget.items[index],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                itemCount: widget.items.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      right: NetflixTheme.cardSpacing(context),
-                    ),
-                    child: widget.items[index],
-                  );
-                },
               ),
               // Navigation buttons (desktop/TV only)
               if (!widget.isTV && MediaQuery.of(context).size.width > 600) ...[
@@ -271,6 +282,52 @@ class NetflixCarouselShimmer extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Wraps a child so that, when it (or any descendant) gains focus, the
+/// surrounding [ScrollController] auto-scrolls to keep it visible.
+/// This makes d-pad navigation in horizontal carousels work seamlessly.
+class _AutoScrollOnFocus extends StatelessWidget {
+  final ScrollController scrollController;
+  final Widget child;
+
+  const _AutoScrollOnFocus({
+    required this.scrollController,
+    required this.child,
+  });
+
+  void _ensureVisible(BuildContext context) {
+    final renderObject = context.findRenderObject();
+    if (renderObject == null) return;
+    if (!scrollController.hasClients) return;
+
+    final viewport = RenderAbstractViewport.of(renderObject);
+    final offset = viewport.getOffsetToReveal(renderObject, 0.0).offset;
+    final currentOffset = scrollController.offset;
+    final maxExtent = scrollController.position.maxScrollExtent;
+
+    // Add a small leading margin so the card isn't flush with the edge.
+    final target = (offset - 16.0).clamp(0.0, maxExtent);
+
+    if ((target - currentOffset).abs() > 1.0) {
+      scrollController.animateTo(
+        target,
+        duration: NetflixTheme.mediumDuration,
+        curve: NetflixTheme.defaultCurve,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      canRequestFocus: false,
+      onFocusChange: (hasFocus) {
+        if (hasFocus) _ensureVisible(context);
+      },
+      child: child,
     );
   }
 }

@@ -96,14 +96,16 @@ class _FocusableWidgetState extends State<FocusableWidget>
     super.dispose();
   }
 
-  void _handleKeyEvent(KeyEvent event) {
+  KeyEventResult _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.select ||
           event.logicalKey == LogicalKeyboardKey.enter ||
           event.logicalKey == LogicalKeyboardKey.space) {
         widget.onSelect?.call();
+        return KeyEventResult.handled;
       }
     }
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -119,8 +121,7 @@ class _FocusableWidgetState extends State<FocusableWidget>
         focusNode: _focusNode,
         autofocus: widget.autoFocus,
         onKeyEvent: (node, event) {
-          _handleKeyEvent(event);
-          return KeyEventResult.ignored; // Deixa o sistema tratar também
+          return _handleKeyEvent(event);
         },
         child: AnimatedBuilder(
           animation: _animationController,
