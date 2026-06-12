@@ -741,12 +741,25 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       _currentVideoHeaders = controllerHeaders;
       debugPrint('Using playback headers: $_currentVideoHeaders');
 
-      _player = Player();
+      _player = Player(
+        configuration: const PlayerConfiguration(
+          protocolWhitelist: [
+            'file',
+            'tcp',
+            'tls',
+            'http',
+            'https',
+            'crypto',
+            'data',
+          ],
+        ),
+      );
       _videoController = VideoController(_player!);
 
       // Listen to player streams for error handling
       _player?.stream.error.listen((error) {
-        if (mounted) {
+        debugPrint('[VideoPlayer] Error stream received: $error');
+        if (error.toString().isNotEmpty && mounted) {
           setState(() {
             _errorMessage = 'Player error: $error';
             _isLoading = false;
@@ -754,9 +767,62 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         }
       });
 
+      // Log playback state changes for debugging
+      _player?.stream.playing.listen((playing) {
+        debugPrint('[VideoPlayer] Playing state: $playing');
+      });
+
+      _player?.stream.completed.listen((completed) {
+        debugPrint('[VideoPlayer] Completed: $completed');
+      });
+
       // Open the media with headers
-      final media = Media(resolvedVideoUrl, httpHeaders: controllerHeaders);
-      await _player!.open(media, play: true);
+      debugPrint('[VideoPlayer] Opening media URL: $resolvedVideoUrl');
+
+      // Extract referer from URL for CDN compatibility
+      final uri = Uri.parse(resolvedVideoUrl);
+      final referer = '${uri.scheme}://${uri.host}/';
+
+      // Merge default headers with controller headers for better compatibility
+      final defaultHeaders = {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.0',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'identity;q=1, *;q=0',
+        'Connection': 'keep-alive',
+        'Referer': referer,
+        'Sec-Fetch-Dest': 'video',
+        'Sec-Fetch-Mode': 'no-cors',
+        'Sec-Fetch-Site': 'cross-site',
+      };
+
+      // Merge: controller headers take priority over defaults
+      final mergedHeaders = {...defaultHeaders, ...controllerHeaders};
+      debugPrint('[VideoPlayer] Headers: $mergedHeaders');
+
+      try {
+        final media = Media(resolvedVideoUrl, httpHeaders: mergedHeaders);
+        await _player!.open(media, play: true);
+        debugPrint('[VideoPlayer] Media opened successfully');
+      } catch (e) {
+        debugPrint('[VideoPlayer] Failed with headers, trying without...');
+        // Fallback: try without headers
+        final media = Media(resolvedVideoUrl);
+        await _player!.open(media, play: true);
+        debugPrint('[VideoPlayer] Media opened successfully (no headers fallback)');
+      }
+
+      // Wait for player to be ready
+      await _player?.stream.playing
+          .firstWhere((playing) => playing == true)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('[VideoPlayer] Timeout waiting for playback to start');
+              return false;
+            },
+          );
 
       if (!_isActiveEpisode(episodeKey)) {
         debugPrint('[VideoPlayer] Controller init ignored (episode changed).');
