@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'netflix_theme.dart';
 
@@ -53,21 +54,20 @@ class _NetflixCardState extends State<NetflixCard>
       duration: NetflixTheme.mediumDuration,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: widget.isTV ? 1.08 : 1.05,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: NetflixTheme.defaultCurve,
-    ));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: widget.isTV ? 1.08 : 1.05)
+        .animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: NetflixTheme.defaultCurve,
+          ),
+        );
 
-    _opacityAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: NetflixTheme.fastCurve,
-    ));
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: NetflixTheme.fastCurve,
+      ),
+    );
   }
 
   @override
@@ -108,6 +108,17 @@ class _NetflixCardState extends State<NetflixCard>
       cursor: SystemMouseCursors.click,
       child: Focus(
         onFocusChange: _handleFocus,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.space) {
+              widget.onTap?.call();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
         child: AnimatedBuilder(
           animation: _animationController,
           builder: (context, child) {
@@ -118,15 +129,13 @@ class _NetflixCardState extends State<NetflixCard>
                 child: Container(
                   width: widget.width,
                   decoration: BoxDecoration(
-                    borderRadius:
-                        BorderRadius.circular(NetflixTheme.radiusMd),
+                    borderRadius: BorderRadius.circular(NetflixTheme.radiusMd),
                     boxShadow: (_isHovered || _isFocused)
                         ? NetflixTheme.elevatedCardShadow
                         : NetflixTheme.cardShadow,
                   ),
                   child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(NetflixTheme.radiusMd),
+                    borderRadius: BorderRadius.circular(NetflixTheme.radiusMd),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -198,8 +207,9 @@ class _NetflixCardState extends State<NetflixCard>
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: NetflixTheme.background
-                                      .withValues(alpha: 0.8),
+                                  color: NetflixTheme.background.withValues(
+                                    alpha: 0.8,
+                                  ),
                                   borderRadius: BorderRadius.circular(
                                     NetflixTheme.radiusSm,
                                   ),
@@ -321,9 +331,7 @@ class NetflixHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: height,
-      decoration: const BoxDecoration(
-        color: NetflixTheme.background,
-      ),
+      decoration: const BoxDecoration(color: NetflixTheme.background),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -338,8 +346,9 @@ class NetflixHeroCard extends StatelessWidget {
               color: NetflixTheme.surface,
               child: const Center(
                 child: CircularProgressIndicator(
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(NetflixTheme.netflixRed),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    NetflixTheme.netflixRed,
+                  ),
                 ),
               ),
             ),
@@ -380,10 +389,7 @@ class NetflixHeroCard extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    NetflixTheme.background,
-                  ],
+                  colors: [Colors.transparent, NetflixTheme.background],
                 ),
               ),
               child: Column(
@@ -421,19 +427,19 @@ class NetflixHeroCard extends StatelessWidget {
                   Row(
                     children: [
                       if (onPlay != null)
-                      ElevatedButton.icon(
-                        onPressed: onPlay,
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Play'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: NetflixTheme.netflixRed,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: NetflixTheme.lg,
-                            vertical: NetflixTheme.md,
+                        ElevatedButton.icon(
+                          onPressed: onPlay,
+                          icon: const Icon(Icons.play_arrow),
+                          label: const Text('Play'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: NetflixTheme.netflixRed,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: NetflixTheme.lg,
+                              vertical: NetflixTheme.md,
+                            ),
                           ),
                         ),
-                      ),
                       if (onMyList != null) ...[
                         const SizedBox(width: NetflixTheme.md),
                         OutlinedButton.icon(

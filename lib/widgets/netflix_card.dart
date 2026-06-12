@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
@@ -106,6 +107,17 @@ class _NetflixCardState extends State<NetflixCard>
       cursor: SystemMouseCursors.click,
       child: Focus(
         onFocusChange: _handleFocus,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.space) {
+              widget.onTap?.call();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
         child: AnimatedBuilder(
           animation: _animationController,
           builder: (context, child) {
@@ -133,10 +145,18 @@ class _NetflixCardState extends State<NetflixCard>
                           height: widget.height,
                           fit: BoxFit.cover,
                           filterQuality: FilterQuality.medium,
-                          memCacheWidth: widget.width.isFinite ? (widget.width * 2).toInt() : null,
-                          memCacheHeight: widget.height.isFinite ? (widget.height * 2).toInt() : null,
-                          maxWidthDiskCache: widget.width.isFinite ? (widget.width * 2).toInt() : null,
-                          maxHeightDiskCache: widget.height.isFinite ? (widget.height * 2).toInt() : null,
+                          memCacheWidth: widget.width.isFinite
+                              ? (widget.width * 2).toInt()
+                              : null,
+                          memCacheHeight: widget.height.isFinite
+                              ? (widget.height * 2).toInt()
+                              : null,
+                          maxWidthDiskCache: widget.width.isFinite
+                              ? (widget.width * 2).toInt()
+                              : null,
+                          maxHeightDiskCache: widget.height.isFinite
+                              ? (widget.height * 2).toInt()
+                              : null,
                           fadeInDuration: NetflixTheme.mediumDuration,
                           placeholder: (context, url) => Container(
                             width: widget.width,
