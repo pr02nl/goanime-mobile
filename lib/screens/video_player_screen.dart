@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:chewie/chewie.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 import '../google_video_proxy.dart';
 import '../l10n/app_localizations.dart';
@@ -58,8 +57,8 @@ class ModernVideoPlayerScreen extends StatefulWidget {
 }
 
 class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
-  VideoPlayerController? _videoPlayerController;
-  ChewieController? _chewieController;
+  Player? _player;
+  VideoController? _videoController;
   bool _isLoading = true;
   String? _errorMessage;
   String? _currentVideoUrl;
@@ -198,8 +197,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     }
 
     final resolvedEpisodeLength =
-        episodeLengthSeconds ??
-        _videoPlayerController?.value.duration.inSeconds;
+        episodeLengthSeconds ?? _player?.state.duration.inSeconds;
 
     if (resolvedEpisodeLength == null || resolvedEpisodeLength <= 0) {
       debugPrint(
@@ -216,8 +214,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
           }
           if (mounted) {
             _loadSkipTimes(
-              episodeLengthSeconds:
-                  _videoPlayerController?.value.duration.inSeconds,
+              episodeLengthSeconds: _player?.state.duration.inSeconds,
             );
           }
         });
@@ -288,8 +285,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
             _startPositionTimer();
 
             // Immediately check if we should show the button
-            if (_videoPlayerController?.value.isInitialized == true) {
-              final currentPos = _videoPlayerController?.value.position;
+            if (_player != null) {
+              final currentPos = _player?.state.position;
               if (currentPos != null) {
                 debugPrint(
                   '[AniSkip] 🔍 Initial position check at ${currentPos.inSeconds}s',
@@ -327,20 +324,18 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         return;
       }
 
-      final controller = _videoPlayerController;
-      if (controller == null) {
+      final player = _player;
+      if (player == null) {
         if (tickCount % 10 == 0) {
-          debugPrint('[AniSkip] ⚠️  Controller is null (tick $tickCount)');
+          debugPrint('[AniSkip] ⚠️  Player is null (tick $tickCount)');
         }
         return;
       }
 
-      final value = controller.value;
-      if (!value.isInitialized) {
+      final value = player.state;
+      if (value.duration == Duration.zero) {
         if (tickCount % 10 == 0) {
-          debugPrint(
-            '[AniSkip] ⚠️  Controller not initialized (tick $tickCount)',
-          );
+          debugPrint('[AniSkip] ⚠️  Player not ready (tick $tickCount)');
         }
         return;
       }
@@ -354,7 +349,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
       // Log every 10 seconds to confirm timer is running
       if (tickCount % 20 == 0) {
-        final pos = value.position.inSeconds;
+        final pos = player.state.position.inSeconds;
         debugPrint(
           '[AniSkip] ⏱️  Timer active (tick $tickCount, position: ${pos}s)',
         );
@@ -366,15 +361,15 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
   /// Check if skip button should be visible based on current position
   void _checkSkipButtonVisibility() {
-    final controller = _videoPlayerController;
-    if (controller == null || !controller.value.isInitialized) {
+    final player = _player;
+    if (player == null || player.state.duration == Duration.zero) {
       return;
     }
 
-    final position = controller.value.position;
+    final position = player.state.position;
 
     // Don't show button when video is paused (prevents infinite loop in landscape)
-    if (!controller.value.isPlaying) {
+    if (!player.state.playing) {
       if (_showSkipButton) {
         setState(() {
           _showSkipButton = false;
@@ -497,7 +492,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
   /// Skip to the end of the current intro/outro
   void _skipIntroOutro() {
-    final position = _videoPlayerController?.value.position;
+    final position = _player?.state.position;
     if (position == null) {
       debugPrint('[AniSkip] ❌ Cannot skip: video position unavailable');
       return;
@@ -537,7 +532,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     }
 
     // Perform the skip
-    _videoPlayerController?.seekTo(skipToPosition);
+    _player?.seek(skipToPosition);
 
     // Hide button after skip
     _skipButtonAutoHideTimer?.cancel();
@@ -746,13 +741,22 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       _currentVideoHeaders = controllerHeaders;
       debugPrint('Using playback headers: $_currentVideoHeaders');
 
-      _videoPlayerController = VideoPlayerController.networkUrl(
-        Uri.parse(resolvedVideoUrl),
-        httpHeaders: controllerHeaders,
-      );
+      _player = Player();
+      _videoController = VideoController(_player!);
 
-      _videoPlayerController!.addListener(_videoPlayerListener);
-      await _videoPlayerController!.initialize();
+      // Listen to player streams for error handling
+      _player?.stream.error.listen((error) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Player error: $error';
+            _isLoading = false;
+          });
+        }
+      });
+
+      // Open the media with headers
+      final media = Media(resolvedVideoUrl, httpHeaders: controllerHeaders);
+      await _player!.open(media, play: true);
 
       if (!_isActiveEpisode(episodeKey)) {
         debugPrint('[VideoPlayer] Controller init ignored (episode changed).');
@@ -760,25 +764,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       }
 
       if (!mounted) return;
-
-      if (_videoPlayerController!.value.hasError) {
-        throw Exception(
-          'Initialization error: ${_videoPlayerController!.value.errorDescription}',
-        );
-      }
-
-      _chewieController = ChewieController(
-        videoPlayerController: _videoPlayerController!,
-        autoPlay: true,
-        looping: false,
-        allowFullScreen: true,
-        allowMuting: true,
-        showControls: true,
-        aspectRatio: _calculateAspectRatio(),
-        errorBuilder: (context, errorMessage) {
-          return _buildErrorWidget('Player error: $errorMessage');
-        },
-      );
 
       if (mounted) {
         if (!_isActiveEpisode(episodeKey)) {
@@ -792,8 +777,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         });
       }
 
-      final videoDurationSeconds =
-          _videoPlayerController?.value.duration.inSeconds ?? 0;
+      final videoDurationSeconds = _player?.state.duration.inSeconds ?? 0;
       debugPrint('[VideoPlayer] Duration (s): $videoDurationSeconds');
       await _loadSkipTimes(episodeLengthSeconds: videoDurationSeconds);
     } catch (e) {
@@ -810,31 +794,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     }
   }
 
-  void _videoPlayerListener() {
-    if (_videoPlayerController?.value.hasError == true) {
-      final error = _videoPlayerController!.value.errorDescription;
-      debugPrint('Video player error: $error');
-      if (mounted) {
-        final isBloggerError =
-            error?.contains('OSStatus error -12847') == true ||
-            error?.contains('media format is not supported') == true ||
-            error?.contains('CoreMediaErrorDomain error -12939') == true;
-
-        setState(() {
-          if (isBloggerError) {
-            _errorMessage =
-                'Compatibility error detected. Try using the alternative web player.';
-            _showWebViewOption = _isIOS && _bloggerVideoUrl != null;
-          } else {
-            _errorMessage = 'Player error: $error';
-          }
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  // bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   void _openWebViewFallback() {
     final fallbackUrl = _bloggerVideoUrl ?? _currentVideoUrl;
@@ -851,10 +811,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   }
 
   double _calculateAspectRatio() {
-    if (_videoPlayerController?.value.isInitialized == true) {
-      final size = _videoPlayerController!.value.size;
-      if (size.width > 0 && size.height > 0) {
-        return size.width / size.height;
+    if (_player != null) {
+      final width = _player?.state.width;
+      final height = _player?.state.height;
+      if (width != null && height != null && width > 0 && height > 0) {
+        return width / height;
       }
     }
     return 16 / 9;
@@ -863,11 +824,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   Future<void> _cleanupControllers() async {
     _positionTimer?.cancel();
     _skipButtonAutoHideTimer?.cancel();
-    _videoPlayerController?.removeListener(_videoPlayerListener);
-    await _videoPlayerController?.dispose();
-    _chewieController?.dispose();
-    _videoPlayerController = null;
-    _chewieController = null;
+    await _player?.dispose();
+    _player = null;
+    _videoController = null;
     _currentVideoHeaders = null;
     _currentVideoUrl = null;
     _isGoogleStream = false;
@@ -1136,8 +1095,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                   borderRadius: BorderRadius.circular(20),
                   child: AspectRatio(
                     aspectRatio: _calculateAspectRatio(),
-                    child: _chewieController != null
-                        ? Chewie(controller: _chewieController!)
+                    child: _videoController != null
+                        ? Video(controller: _videoController!)
                         : Container(color: Colors.black),
                   ),
                 ),

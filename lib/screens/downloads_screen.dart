@@ -1,10 +1,8 @@
-import 'dart:io';
-
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
 
 import '../services/download_service.dart';
 import '../theme/app_colors.dart';
@@ -652,8 +650,8 @@ class _LocalVideoPlayerScreen extends StatefulWidget {
 }
 
 class _LocalVideoPlayerScreenState extends State<_LocalVideoPlayerScreen> {
-  late VideoPlayerController _videoPlayerController;
-  ChewieController? _chewieController;
+  Player? _player;
+  VideoController? _videoController;
   bool _isInitialized = false;
   String? _errorMessage;
 
@@ -665,49 +663,10 @@ class _LocalVideoPlayerScreenState extends State<_LocalVideoPlayerScreen> {
 
   Future<void> _initializePlayer() async {
     try {
-      _videoPlayerController = VideoPlayerController.file(
-        File(widget.filePath),
-      );
+      _player = Player();
+      _videoController = VideoController(_player!);
 
-      await _videoPlayerController.initialize();
-
-      _chewieController = ChewieController(
-        videoPlayerController: _videoPlayerController,
-        autoPlay: true,
-        looping: false,
-        allowFullScreen: true,
-        allowMuting: true,
-        showControls: true,
-        materialProgressColors: ChewieProgressColors(
-          playedColor: AppColors.accent,
-          handleColor: AppColors.accent,
-          backgroundColor: Colors.grey,
-          bufferedColor: Colors.grey.shade300,
-        ),
-        placeholder: Container(
-          color: Colors.black,
-          child: const Center(child: CircularProgressIndicator()),
-        ),
-        errorBuilder: (context, errorMessage) {
-          return Container(
-            color: Colors.black,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 60),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error: $errorMessage',
-                    style: const TextStyle(color: Colors.white),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
+      await _player!.open(Media(widget.filePath), play: true);
 
       setState(() {
         _isInitialized = true;
@@ -721,8 +680,7 @@ class _LocalVideoPlayerScreenState extends State<_LocalVideoPlayerScreen> {
 
   @override
   void dispose() {
-    _videoPlayerController.dispose();
-    _chewieController?.dispose();
+    _player?.dispose();
     super.dispose();
   }
 
@@ -753,8 +711,8 @@ class _LocalVideoPlayerScreenState extends State<_LocalVideoPlayerScreen> {
                   ),
                 ],
               )
-            : _isInitialized && _chewieController != null
-            ? Chewie(controller: _chewieController!)
+            : _isInitialized && _videoController != null
+            ? Video(controller: _videoController!)
             : const CircularProgressIndicator(),
       ),
     );
