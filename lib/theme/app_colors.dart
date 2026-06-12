@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'netflix_theme.dart';
+
 /// GoAnime Color Palette - Streaming Platform Design
 ///
 /// Design Philosophy (Inspired by Netflix, Disney+, HBO Max):
@@ -12,8 +14,17 @@ import 'package:flutter/material.dart';
 /// This palette follows modern streaming service design language:
 /// maximizing contrast for content visibility while using vibrant
 /// accent colors for navigation and interaction.
+///
+/// Now integrated with NetflixTheme for consistent styling across the app.
 class AppColors {
   AppColors._();
+
+  // Netflix integration - Reference to Netflix theme colors
+  static const Color netflixRed = NetflixTheme.netflixRed;
+  static const Color netflixBackground = NetflixTheme.background;
+  static const Color netflixSurface = NetflixTheme.surface;
+  static const Color netflixTextPrimary = NetflixTheme.textPrimary;
+  static const Color netflixTextSecondary = NetflixTheme.textSecondary;
 
   // Primary Colors - Main brand identity (Cyan accents)
   static const Color primary = Color(0xFF00BCD4); // Cyan 500
@@ -78,6 +89,10 @@ class AppColors {
     Color(0xFF00BCD4), // Cyan
     Color(0xFF7C4DFF), // Deep Purple
   ];
+
+  // Netflix-style gradient overlay for images
+  static LinearGradient get netflixGradientOverlay =>
+      NetflixTheme.gradientOverlay;
 
   // Utility methods
   static LinearGradient getPrimaryGradient({

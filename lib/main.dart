@@ -8,7 +8,7 @@ import 'providers/theme_provider.dart';
 import 'screens/main_navigation_screen.dart';
 import 'services/download_service.dart';
 import 'services/locale_service.dart';
-import 'theme/tv_theme.dart';
+import 'theme/app_theme.dart';
 import 'utils/performance_config.dart';
 
 void main() async {
@@ -63,8 +63,9 @@ class _MyAppState extends State<MyApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
-          theme: TVTheme.lightTheme,
-          darkTheme: TVTheme.darkTheme,
+          // Use unified AppTheme (Netflix-style with GoAnime colors)
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
           themeMode: _themeProvider.isDarkMode
               ? ThemeMode.dark
               : ThemeMode.light,
