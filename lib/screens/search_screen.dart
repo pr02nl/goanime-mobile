@@ -1,10 +1,12 @@
 ﻿import 'dart:async';
-import 'package:flutter/material.dart';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../services/search_history_service.dart';
-import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
 import '../widgets/focusable_widget.dart';
@@ -140,7 +142,7 @@ class _SearchScreenState extends State<SearchScreen>
 
     setState(() => _showHistory = false);
 
-    // Busca sugestÃµes no histÃ³rico
+    // Busca sugestões no histórico
     _loadSuggestions(query);
 
     // Debounce para busca na API
@@ -179,7 +181,7 @@ class _SearchScreenState extends State<SearchScreen>
     final history = await SearchHistoryService.getSearchHistory();
     if (history.isEmpty) return;
 
-    // Busca os Ãºltimos 3 animes do histÃ³rico
+    // Busca os últimos 3 animes do histórico
     final recentSearches = history.take(3).toList();
     final List<JikanAnime> results = [];
 
@@ -209,7 +211,7 @@ class _SearchScreenState extends State<SearchScreen>
       List<JikanAnime> results;
 
       if (_selectedGenre != null) {
-        // Busca por gÃªnero com termo
+        // Busca por gênero com termo
         results = await _jikanService.searchAnimes(query, limit: 20);
         results = results.where((anime) {
           return anime.genres.any((genre) => genre.malId == _selectedGenre);
@@ -235,7 +237,7 @@ class _SearchScreenState extends State<SearchScreen>
     _searchController.text = query;
     _searchFocusNode.unfocus();
 
-    // Salva no histÃ³rico
+    // Salva no histórico
     await SearchHistoryService.saveSearch(query);
     await _loadSearchHistory();
 
@@ -265,10 +267,10 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Future<void> _onAnimeTap(JikanAnime anime) async {
-    // Salva no histÃ³rico
+    // Salva no histórico
     await SearchHistoryService.saveSearch(anime.title);
 
-    // Navega para tela de seleÃ§Ã£o de fonte
+    // Navega para tela de seleção de fonte
     if (!mounted) return;
     Navigator.push(
       context,
@@ -639,83 +641,83 @@ class _SearchScreenState extends State<SearchScreen>
       borderRadius: 12,
       focusPadding: EdgeInsets.zero,
       child: GestureDetector(
-      onTap: () => _onAnimeTap(anime),
-      child: Container(
-        width: 130,
-        margin: const EdgeInsets.only(right: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: anime.imageUrl,
-                    width: 130,
-                    height: 160,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: AppColors.surface,
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
+        onTap: () => _onAnimeTap(anime),
+        child: Container(
+          width: 130,
+          margin: const EdgeInsets.only(right: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: anime.imageUrl,
+                      width: 130,
+                      height: 160,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: AppColors.surface,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  if (anime.score != null)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                              size: 12,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              anime.score!.toStringAsFixed(1),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                    if (anime.score != null)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 12,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 2),
+                              Text(
+                                anime.score!.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              anime.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 6),
+              Text(
+                anime.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
@@ -725,83 +727,82 @@ class _SearchScreenState extends State<SearchScreen>
       borderRadius: 12,
       focusPadding: EdgeInsets.zero,
       child: GestureDetector(
-      onTap: () => _onAnimeTap(anime),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: anime.imageUrl,
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: AppColors.surface,
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
+        onTap: () => _onAnimeTap(anime),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: anime.imageUrl,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: AppColors.surface,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  if (anime.score != null)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                              size: 10,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              anime.score!.toStringAsFixed(1),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                    if (anime.score != null)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 10,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 2),
+                              Text(
+                                anime.score!.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            anime.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              height: 1.2,
+            const SizedBox(height: 6),
+            Text(
+              anime.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 }
-
