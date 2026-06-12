@@ -812,6 +812,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       _currentVideoHeaders = controllerHeaders;
       debugPrint('Using playback headers: $_currentVideoHeaders');
 
+      // Resolve TV detection before creating VideoController
+      // to apply correct hardware acceleration setting
+      if (_isTVDevice == null && Platform.isAndroid) {
+        _isTVDevice = await TVDetector.isTV;
+      }
+      final isTV = _isTVDevice == true;
+
       _player = Player(
         configuration: const PlayerConfiguration(
           protocolWhitelist: [
@@ -827,10 +834,23 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       );
       _videoController = VideoController(
         _player!,
-        configuration: const VideoControllerConfiguration(
-          enableHardwareAcceleration: true,
+        configuration: VideoControllerConfiguration(
+          enableHardwareAcceleration: !isTV,
         ),
       );
+      debugPrint('[VideoPlayer] HW acceleration: ${!isTV} (isTV: $isTV)');
+
+      // Força rebuild para inserir o Video widget na árvore AGORA,
+      // permitindo que AndroidVideoController crie a Surface Android
+      // antes de player.open() ser chamado.
+      if (mounted) setState(() {});
+
+      // Aguarda a Surface Android estar pronta antes de abrir a mídia
+      await _player!.platform?.waitForVideoControllerInitializationIfAttached
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => debugPrint('[VideoPlayer] Surface init timeout'),
+          );
 
       // Listen to player streams for error handling
       _player?.stream.error.listen((error) {
@@ -1096,11 +1116,20 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         backgroundColor: Colors.black,
         extendBody: true,
         extendBodyBehindAppBar: true,
-        body: _isLoading
-            ? _buildLoadingState()
-            : _errorMessage != null
-            ? _buildErrorState()
-            : _buildFullscreenContent(),
+        // O Video widget DEVE estar sempre na árvore para que o
+        // AndroidVideoController crie a Surface antes de player.open().
+        // Estados de loading/erro são sobrepostos via Stack.
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Video sempre presente para garantir Surface inicializada
+            _buildFullscreenContent(),
+            // Loading overlay
+            if (_isLoading) _buildLoadingState(),
+            // Error overlay
+            if (!_isLoading && _errorMessage != null) _buildErrorState(),
+          ],
+        ),
       );
     }
 
@@ -1203,10 +1232,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
   Widget _buildLoadingState() {
     final isFullscreen = _isFullscreen;
-    return Container(
-      height: isFullscreen
-          ? MediaQuery.of(context).size.height
-          : MediaQuery.of(context).size.height - 200,
+    final inner = Container(
+      height: isFullscreen ? null : MediaQuery.of(context).size.height - 200,
       color: isFullscreen ? Colors.black : null,
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -1259,14 +1286,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         ),
       ),
     );
+    return isFullscreen ? SizedBox.expand(child: inner) : inner;
   }
 
   Widget _buildErrorState() {
     final isFullscreen = _isFullscreen;
-    return Container(
-      height: isFullscreen
-          ? MediaQuery.of(context).size.height
-          : MediaQuery.of(context).size.height - 200,
+    final inner = Container(
+      height: isFullscreen ? null : MediaQuery.of(context).size.height - 200,
       color: isFullscreen ? Colors.black : null,
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -1275,6 +1301,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         ),
       ),
     );
+    return isFullscreen ? SizedBox.expand(child: inner) : inner;
   }
 
   Widget _buildLoadedContent() {
