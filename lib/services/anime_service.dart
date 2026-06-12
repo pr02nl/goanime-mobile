@@ -16,8 +16,6 @@ class AnimeService {
   static const String baseSiteUrl = 'https://animefire.plus';
   static const String _googleVideoUserAgent =
       'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1';
-  static const String _bloggerOrigin = 'https://www.blogger.com';
-  static const String _bloggerReferer = 'https://www.blogger.com/';
 
   static Future<List<Anime>> searchAnime(String animeName) async {
     try {
@@ -548,115 +546,335 @@ class AnimeService {
     try {
       debugPrint('Extracting actual video URL from Blogger: $bloggerUrl');
 
-      final response = await http.get(
-        Uri.parse(bloggerUrl),
-        headers: {
-          HttpHeaders.userAgentHeader: _googleVideoUserAgent,
-          HttpHeaders.refererHeader: 'https://animefire.plus/',
-        },
-      );
+      final tokenMatch = RegExp(
+        r'token=([A-Za-z0-9_-]+)',
+      ).firstMatch(bloggerUrl);
+      if (tokenMatch == null) {
+        debugPrint('No token found in Blogger URL');
+        return VideoStreamResult(url: bloggerUrl);
+      }
+      final token = tokenMatch.group(1)!;
+      debugPrint('Extracted Blogger token: $token');
 
-      debugPrint('Blogger response status: ${response.statusCode}');
-      debugPrint('Response headers: ${response.headers}');
+      // Step 1: Fetch the Blogger page to get session info (f.sid, bl)
+      final pageClient = HttpClient();
+      pageClient.userAgent = _googleVideoUserAgent;
+      pageClient.connectionTimeout = const Duration(seconds: 15);
 
-      if (response.headers.containsKey('location')) {
-        final location = response.headers['location']!;
-        debugPrint('Found redirect location: $location');
+      String fSid = '';
+      String bl = 'boq_bloggeruiserver_20260610.02_p0';
 
-        if (location.contains('googlevideo.com')) {
-          return await _createVideoStreamResult(location, referer: bloggerUrl);
+      try {
+        final pageRequest = await pageClient.getUrl(Uri.parse(bloggerUrl));
+        pageRequest.headers
+          ..set(HttpHeaders.userAgentHeader, _googleVideoUserAgent)
+          ..set(HttpHeaders.refererHeader, 'https://animefire.plus/')
+          ..set(HttpHeaders.acceptHeader, 'text/html,application/xhtml+xml,*/*')
+          ..set(HttpHeaders.acceptLanguageHeader, 'en-US,en;q=0.9')
+          ..set(HttpHeaders.connectionHeader, 'keep-alive');
+
+        final pageResponse = await pageRequest.close();
+        final pageContent = await _collectResponse(pageResponse);
+
+        final sidPattern = RegExp(r'"SNlM0e"\s*:\s*"([^"]+)"');
+        final sidMatch = sidPattern.firstMatch(pageContent);
+        if (sidMatch != null) {
+          fSid = sidMatch.group(1)!;
+          debugPrint('Found f.sid: $fSid');
+        }
+
+        final blPattern = RegExp(r'"boq_bloggeruiserver_[^"]+"');
+        final blMatch = blPattern.firstMatch(pageContent);
+        if (blMatch != null) {
+          bl = blMatch.group(0)!.replaceAll('"', '');
+          debugPrint('Found bl: $bl');
+        }
+      } catch (e) {
+        debugPrint('Failed to fetch Blogger page for session info: $e');
+      }
+      pageClient.close(force: true);
+
+      // Step 2: Call batchexecute API to get the actual video URLs
+      final batchClient = HttpClient();
+      batchClient.userAgent = _googleVideoUserAgent;
+      batchClient.connectionTimeout = const Duration(seconds: 15);
+
+      try {
+        final queryParams = <String, String>{
+          'rpcids': 'WcwnYd',
+          'source-path': '/video.g',
+          'bl': bl,
+          'hl': 'pt-BR',
+          '_reqid': '${DateTime.now().millisecondsSinceEpoch}',
+          'rt': 'c',
+        };
+        if (fSid.isNotEmpty) {
+          queryParams['f.sid'] = fSid;
+        }
+
+        final batchUrl = Uri.https(
+          'www.blogger.com',
+          '/_/BloggerVideoPlayerUi/data/batchexecute',
+          queryParams,
+        );
+
+        debugPrint('Calling Blogger batchexecute API');
+
+        final fReq = jsonEncode([
+          [
+            [
+              'WcwnYd',
+              jsonEncode([token, null, 0]),
+              null,
+              'generic',
+            ],
+          ],
+        ]);
+
+        final requestBody = 'f.req=${Uri.encodeComponent(fReq)}&';
+
+        final batchRequest = await batchClient.postUrl(batchUrl);
+        batchRequest.headers
+          ..set(HttpHeaders.userAgentHeader, _googleVideoUserAgent)
+          ..set(HttpHeaders.contentTypeHeader,
+              'application/x-www-form-urlencoded;charset=UTF-8')
+          ..set(HttpHeaders.refererHeader, 'https://www.blogger.com/')
+          ..set('origin', 'https://www.blogger.com')
+          ..set(HttpHeaders.acceptHeader, '*/*')
+          ..set(HttpHeaders.acceptLanguageHeader, 'pt-BR,pt;q=0.9,en-US;q=0.8')
+          ..set('sec-ch-ua',
+              '"Google Chrome";v="149", "Chromium";v="149"')
+          ..set('sec-ch-ua-mobile', '?0')
+          ..set('sec-ch-ua-platform', '"Windows"')
+          ..set('sec-fetch-dest', 'empty')
+          ..set('sec-fetch-mode', 'cors')
+          ..set('sec-fetch-site', 'same-origin')
+          ..set('x-same-domain', '1');
+
+        batchRequest.write(requestBody);
+
+        final batchResponse = await batchRequest.close();
+        final batchContent = await _collectResponse(batchResponse);
+
+        debugPrint(
+            'Batchexecute response (${batchResponse.statusCode}): ${batchContent.length} bytes');
+
+        if (batchResponse.statusCode == 200) {
+          final result =
+              _parseBatchexecuteResponse(batchContent, bloggerUrl);
+          if (result != null) {
+            batchClient.close(force: true);
+            return result;
+          }
+        }
+      } catch (e) {
+        debugPrint('Batchexecute API call failed: $e');
+      }
+      batchClient.close(force: true);
+
+      // Fallback: try the old HTML parsing approach
+      debugPrint('Falling back to HTML parsing approach...');
+      return await _extractBloggerFromHTML(bloggerUrl);
+    } catch (e) {
+      debugPrint('Error extracting Blogger video URL: $e');
+      return VideoStreamResult(url: bloggerUrl);
+    }
+  }
+
+  static VideoStreamResult? _parseBatchexecuteResponse(
+    String content,
+    String bloggerUrl,
+  ) {
+    debugPrint('Parsing batchexecute response...');
+
+    // Format: )]}\'\n{length}\n[["wrb.fr","WcwnYd","json_string",...]]
+    final lines = content.split('\n');
+    if (lines.length < 3) {
+      debugPrint('Unexpected batchexecute response format');
+      return null;
+    }
+
+    String jsonLine = '';
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.startsWith('[[') || trimmed.startsWith('["')) {
+        jsonLine = trimmed;
+        break;
+      }
+    }
+
+    if (jsonLine.isEmpty) {
+      debugPrint('No JSON line found in batchexecute response');
+      return null;
+    }
+
+    try {
+      final outerArray = jsonDecode(jsonLine) as List;
+      if (outerArray.isEmpty) return null;
+
+      final innerArray = outerArray[0] as List;
+      if (innerArray.length < 3) return null;
+
+      final innerJsonString = innerArray[2] as String;
+      debugPrint('Inner JSON string (first 500 chars): ${innerJsonString.substring(0, innerJsonString.length > 500 ? 500 : innerJsonString.length)}');
+
+      final innerData = jsonDecode(innerJsonString) as List;
+
+      // Structure: [1, null, [[url1, [itag1]], [url2, [itag2]], ...]]
+      if (innerData.length >= 3 && innerData[2] is List) {
+        final streams = innerData[2] as List;
+
+        String? bestUrl;
+        int bestItag = 0;
+
+        for (final stream in streams) {
+          if (stream is List && stream.length >= 2) {
+            var url = stream[0] as String;
+            final itagInfo = stream[1] as List;
+            final itag = itagInfo[0] as int;
+
+            url = url
+                .replaceAll(r'\u003d', '=')
+                .replaceAll(r'\u0026', '&')
+                .replaceAll(r'\u003c', '<')
+                .replaceAll(r'\u003e', '>')
+                .replaceAll(r'\/', '/');
+
+            debugPrint('Found stream: itag=$itag, url=${url.substring(0, url.length > 100 ? 100 : url.length)}...');
+
+            if (itag > bestItag && url.contains('googlevideo.com')) {
+              bestItag = itag;
+              bestUrl = url;
+            }
+          }
+        }
+
+        if (bestUrl != null) {
+          debugPrint('Best stream: itag=$bestItag');
+          return VideoStreamResult(url: bestUrl);
         }
       }
+    } catch (e) {
+      debugPrint('Failed to parse batchexecute response: $e');
+    }
 
-      final content = response.body;
+    // Fallback: find any googlevideo URL in the response
+    final urlPattern = RegExp(
+      r'https://[^"\\]+\.googlevideo\.com/videoplayback[^"\\]*',
+    );
+    final urlMatch = urlPattern.firstMatch(content);
+    if (urlMatch != null) {
+      var videoUrl = urlMatch.group(0)!
+          .replaceAll(r'\u003d', '=')
+          .replaceAll(r'\u0026', '&')
+          .replaceAll(r'\/', '/');
+      debugPrint('Found googlevideo URL in response');
+      return VideoStreamResult(url: videoUrl);
+    }
 
-      // Try VIDEO_CONFIG first (most reliable method)
-      final videoConfigPattern = RegExp(
-        r'var\s+VIDEO_CONFIG\s*=\s*({.*?});',
-        dotAll: true,
-      );
-      final videoConfigMatch = videoConfigPattern.firstMatch(content);
+    return null;
+  }
 
-      if (videoConfigMatch != null) {
-        final configJson = videoConfigMatch.group(1)!;
-        debugPrint('Found VIDEO_CONFIG, parsing...');
+  static Future<VideoStreamResult> _extractBloggerFromHTML(
+    String bloggerUrl,
+  ) async {
+    try {
+      final httpClient = HttpClient();
+      httpClient.userAgent = _googleVideoUserAgent;
+      httpClient.connectionTimeout = const Duration(seconds: 15);
 
-        try {
-          final config = json.decode(configJson) as Map<String, dynamic>;
+      final request = await httpClient.getUrl(Uri.parse(bloggerUrl));
+      request.headers
+        ..set(HttpHeaders.userAgentHeader, _googleVideoUserAgent)
+        ..set(HttpHeaders.refererHeader, 'https://animefire.plus/')
+        ..set(HttpHeaders.acceptHeader, 'text/html,application/xhtml+xml,*/*')
+        ..set(HttpHeaders.acceptLanguageHeader, 'en-US,en;q=0.9')
+        ..set(HttpHeaders.connectionHeader, 'keep-alive');
+      request.followRedirects = true;
 
-          if (config.containsKey('streams') && config['streams'] != null) {
-            final streams = config['streams'] as List;
-            debugPrint('Found ${streams.length} streams in VIDEO_CONFIG');
+      final response = await request.close();
+      final content = await _collectResponse(response);
+      httpClient.close(force: true);
 
-            for (final stream in streams) {
-              if (stream is Map<String, dynamic>) {
-                if (stream.containsKey('play_url') &&
-                    stream['play_url'] != null) {
-                  final videoUrl = stream['play_url'].toString();
-                  if (videoUrl.isNotEmpty && videoUrl.contains('http')) {
-                    debugPrint(
-                      'Found video URL in VIDEO_CONFIG streams: $videoUrl',
-                    );
-                    return await _createVideoStreamResult(
-                      videoUrl,
-                      referer: bloggerUrl,
-                    );
-                  }
-                }
+      return _parseBloggerContent(content, bloggerUrl) ??
+          VideoStreamResult(url: bloggerUrl);
+    } catch (e) {
+      debugPrint('HTML fallback extraction failed: $e');
+      return VideoStreamResult(url: bloggerUrl);
+    }
+  }
 
-                // Check for URL in different field names
-                final possibleKeys = [
-                  'url',
-                  'stream_url',
-                  'video_url',
-                  'source',
-                  'src',
-                ];
-                for (final key in possibleKeys) {
-                  if (stream.containsKey(key) && stream[key] != null) {
-                    final videoUrl = stream[key].toString();
-                    if (videoUrl.isNotEmpty && videoUrl.contains('http')) {
-                      debugPrint(
-                        'Found video URL in VIDEO_CONFIG stream[$key]: $videoUrl',
-                      );
-                      return await _createVideoStreamResult(
-                        videoUrl,
-                        referer: bloggerUrl,
-                      );
-                    }
-                  }
-                }
-              }
-            }
-          }
+  static Future<String> _collectResponse(HttpClientResponse response) async {
+    final buffer = StringBuffer();
+    await for (final chunk in response.transform(utf8.decoder)) {
+      buffer.write(chunk);
+    }
+    return buffer.toString();
+  }
 
-          if (config.containsKey('video') && config['video'] != null) {
-            final video = config['video'] as Map<String, dynamic>;
-            final possibleKeys = [
-              'play_url',
-              'url',
-              'stream_url',
-              'video_url',
-              'source',
-              'src',
-            ];
-            for (final key in possibleKeys) {
-              if (video.containsKey(key) && video[key] != null) {
-                final videoUrl = video[key].toString();
+  static VideoStreamResult? _parseBloggerContent(
+    String content,
+    String bloggerUrl,
+  ) {
+    debugPrint('Parsing Blogger page content (${content.length} bytes)');
+
+    // Try VIDEO_CONFIG first (most reliable method)
+    final videoConfigPattern = RegExp(
+      r'var\s+VIDEO_CONFIG\s*=\s*({.*?});',
+      dotAll: true,
+    );
+    final videoConfigMatch = videoConfigPattern.firstMatch(content);
+
+    if (videoConfigMatch != null) {
+      final configJson = videoConfigMatch.group(1)!;
+      debugPrint('Found VIDEO_CONFIG, parsing...');
+
+      try {
+        final config = json.decode(configJson) as Map<String, dynamic>;
+
+        if (config.containsKey('streams') && config['streams'] != null) {
+          final streams = config['streams'] as List;
+          debugPrint('Found ${streams.length} streams in VIDEO_CONFIG');
+
+          for (final stream in streams) {
+            if (stream is Map<String, dynamic>) {
+              if (stream.containsKey('play_url') &&
+                  stream['play_url'] != null) {
+                final videoUrl = stream['play_url'].toString();
                 if (videoUrl.isNotEmpty && videoUrl.contains('http')) {
                   debugPrint(
-                    'Found video URL in VIDEO_CONFIG.video[$key]: $videoUrl',
+                    'Found video URL in VIDEO_CONFIG streams: $videoUrl',
                   );
-                  return await _createVideoStreamResult(
-                    videoUrl,
-                    referer: bloggerUrl,
-                  );
+                  return VideoStreamResult(url: videoUrl);
+                }
+              }
+
+              final possibleKeys = [
+                'url',
+                'stream_url',
+                'video_url',
+                'source',
+                'src',
+              ];
+              for (final key in possibleKeys) {
+                if (stream.containsKey(key) && stream[key] != null) {
+                  final videoUrl = stream[key].toString();
+                  if (videoUrl.isNotEmpty && videoUrl.contains('http')) {
+                    debugPrint(
+                      'Found video URL in VIDEO_CONFIG stream[$key]: $videoUrl',
+                    );
+                    return VideoStreamResult(url: videoUrl);
+                  }
                 }
               }
             }
           }
+        }
 
+        if (config.containsKey('video') && config['video'] != null) {
+          final video = config['video'] as Map<String, dynamic>;
           final possibleKeys = [
+            'play_url',
             'url',
             'stream_url',
             'video_url',
@@ -664,249 +882,156 @@ class AnimeService {
             'src',
           ];
           for (final key in possibleKeys) {
-            if (config.containsKey(key) && config[key] != null) {
-              final videoUrl = config[key].toString();
+            if (video.containsKey(key) && video[key] != null) {
+              final videoUrl = video[key].toString();
               if (videoUrl.isNotEmpty && videoUrl.contains('http')) {
-                debugPrint('Found video URL in VIDEO_CONFIG[$key]: $videoUrl');
-                return await _createVideoStreamResult(
-                  videoUrl,
-                  referer: bloggerUrl,
+                debugPrint(
+                  'Found video URL in VIDEO_CONFIG.video[$key]: $videoUrl',
                 );
+                return VideoStreamResult(url: videoUrl);
               }
             }
           }
-        } catch (jsonError) {
-          debugPrint('Failed to parse VIDEO_CONFIG JSON: $jsonError');
+        }
 
-          final playUrlPattern = RegExp(r'"play_url"\s*:\s*"([^"]+)"');
-          final playUrlMatch = playUrlPattern.firstMatch(configJson);
-          if (playUrlMatch != null) {
-            final videoUrl = playUrlMatch.group(1)!;
-            debugPrint(
-              'Extracted play_url directly from JSON string: $videoUrl',
-            );
-            return await _createVideoStreamResult(
-              videoUrl,
-              referer: bloggerUrl,
-            );
+        final possibleKeys = [
+          'url',
+          'stream_url',
+          'video_url',
+          'source',
+          'src',
+        ];
+        for (final key in possibleKeys) {
+          if (config.containsKey(key) && config[key] != null) {
+            final videoUrl = config[key].toString();
+            if (videoUrl.isNotEmpty && videoUrl.contains('http')) {
+              debugPrint('Found video URL in VIDEO_CONFIG[$key]: $videoUrl');
+              return VideoStreamResult(url: videoUrl);
+            }
           }
         }
-      }
+      } catch (jsonError) {
+        debugPrint('Failed to parse VIDEO_CONFIG JSON: $jsonError');
 
-      final patterns = [
+        final playUrlPattern = RegExp(r'"play_url"\s*:\s*"([^"]+)"');
+        final playUrlMatch = playUrlPattern.firstMatch(configJson);
+        if (playUrlMatch != null) {
+          final videoUrl = playUrlMatch.group(1)!;
+          debugPrint(
+            'Extracted play_url directly from JSON string: $videoUrl',
+          );
+          return VideoStreamResult(url: videoUrl);
+        }
+      }
+    }
+
+    // Try broader JSON patterns for video URLs
+    final jsonUrlPatterns = [
+      RegExp(r'"play_url"\s*:\s*"([^"]+)"'),
+      RegExp(r'"stream_url"\s*:\s*"([^"]+)"'),
+      RegExp(r'"video_url"\s*:\s*"([^"]+)"'),
+      RegExp(r'"source"\s*:\s*"(https?://[^"]+)"'),
+      RegExp(r'"src"\s*:\s*"(https?://[^"]+)"'),
+    ];
+
+    for (final pattern in jsonUrlPatterns) {
+      final match = pattern.firstMatch(content);
+      if (match != null) {
+        var videoUrl = match.group(1)!;
+        videoUrl = videoUrl
+            .replaceAll(r'\u003d', '=')
+            .replaceAll(r'\u0026', '&')
+            .replaceAll(r'\/', '/');
+        if (videoUrl.contains('googlevideo') ||
+            videoUrl.contains('.mp4') ||
+            videoUrl.contains('videoplayback')) {
+          debugPrint('Found video URL with JSON pattern: $videoUrl');
+          return VideoStreamResult(url: videoUrl);
+        }
+      }
+    }
+
+    // Try regex patterns for video URLs
+    final patterns = [
+      RegExp(
+        r'https://[^"\s<>]+videoplayback[^"\s<>]*',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'https://[^"\s<>]+\.googlevideo\.com[^"\s<>]*',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'https://[^"\s<>]+\.googleusercontent\.com[^"\s<>]*videoplayback[^"\s<>]*',
+        caseSensitive: false,
+      ),
+      RegExp(r'https://[^"\s<>]+\.mp4[^"\s<>]*', caseSensitive: false),
+    ];
+
+    for (int i = 0; i < patterns.length; i++) {
+      final pattern = patterns[i];
+      final match = pattern.firstMatch(content);
+      if (match != null) {
+        var videoUrl = match.group(1) ?? match.group(0)!;
+        videoUrl = videoUrl
+            .replaceAll(r'\u003d', '=')
+            .replaceAll(r'\u0026', '&')
+            .replaceAll(r'\/', '/')
+            .replaceAll(r'\', '')
+            .replaceAll(r'\/', '/');
+
+        debugPrint('Found video URL with pattern ${i + 1}: $videoUrl');
+        return VideoStreamResult(url: videoUrl);
+      }
+    }
+
+    // Scan script blocks
+    final scriptMatches = RegExp(
+      r'<script[^>]*>(.*?)</script>',
+      dotAll: true,
+    ).allMatches(content);
+    for (final scriptMatch in scriptMatches) {
+      final scriptContent = scriptMatch.group(1) ?? '';
+      final jsPatterns = [
+        RegExp(r'https://[^"]+videoplayback[^"]*'),
+        RegExp(r'https://[^"]+\.googlevideo\.com[^"]*'),
         RegExp(
-          r'https://[^"\s<>]+videoplayback[^"\s<>]*',
-          caseSensitive: false,
+          r'https://[^"]+\.googleusercontent\.com[^"]*videoplayback[^"]*',
         ),
-        RegExp(
-          r'https://[^"\s<>]+\.googlevideo\.com[^"\s<>]*',
-          caseSensitive: false,
-        ),
-        RegExp(
-          r'https://[^"\s<>]+\.googleusercontent\.com[^"\s<>]*videoplayback[^"\s<>]*',
-          caseSensitive: false,
-        ),
-        RegExp(
-          r'https://[^"\s<>]+\.googleapis\.com[^"\s<>]*',
-          caseSensitive: false,
-        ),
-        RegExp(r'stream_url.*?"([^"]*)"', caseSensitive: false),
-        RegExp(r'video_url.*?"([^"]*)"', caseSensitive: false),
-        RegExp(r'"url":\s*"([^"]*videoplayback[^"]*)"', caseSensitive: false),
-        RegExp(r'"url":\s*"([^"]*\.mp4[^"]*)"', caseSensitive: false),
-        RegExp(r'https://[^"\s<>]+\.mp4[^"\s<>]*', caseSensitive: false),
       ];
 
-      for (int i = 0; i < patterns.length; i++) {
-        final pattern = patterns[i];
-        final match = pattern.firstMatch(content);
-        if (match != null) {
-          String videoUrl = match.group(1) ?? match.group(0)!;
-          videoUrl = videoUrl
-              .replaceAll(r'\u003d', '=')
-              .replaceAll(r'\u0026', '&')
-              .replaceAll(r'\/', '/')
-              .replaceAll(r'\', '')
-              .replaceAll(r'\/', '/');
-
-          debugPrint('Found video URL with pattern ${i + 1}: $videoUrl');
-
-          if (videoUrl.startsWith('http') &&
-              (videoUrl.contains('.mp4') ||
-                  videoUrl.contains('googlevideo') ||
-                  videoUrl.contains('googleusercontent'))) {
-            return await _createVideoStreamResult(
-              videoUrl,
-              referer: bloggerUrl,
-            );
-          }
+      for (final jsPattern in jsPatterns) {
+        final jsMatch = jsPattern.firstMatch(scriptContent);
+        if (jsMatch != null) {
+          final videoUrl = jsMatch.group(0)!;
+          debugPrint('Found video URL in JavaScript: $videoUrl');
+          return VideoStreamResult(url: videoUrl);
         }
       }
+    }
 
-      final scriptMatches = RegExp(
-        r'<script[^>]*>(.*?)</script>',
-        dotAll: true,
-      ).allMatches(content);
-      for (final scriptMatch in scriptMatches) {
-        final scriptContent = scriptMatch.group(1) ?? '';
-        final jsPatterns = [
-          RegExp(r'https://[^"]+videoplayback[^"]*'),
-          RegExp(r'https://[^"]+\.googlevideo\.com[^"]*'),
-          RegExp(
-            r'https://[^"]+\.googleusercontent\.com[^"]*videoplayback[^"]*',
-          ),
-        ];
-
-        for (final jsPattern in jsPatterns) {
-          final jsMatch = jsPattern.firstMatch(scriptContent);
-          if (jsMatch != null) {
-            final videoUrl = jsMatch.group(0)!;
-            debugPrint('Found video URL in JavaScript: $videoUrl');
-            return await _createVideoStreamResult(
-              videoUrl,
-              referer: bloggerUrl,
-            );
-          }
-        }
+    // Look for any JSON-escaped video URLs
+    final escapedUrlPattern = RegExp(
+      r'https?:.{0,4}video.{0,200}',
+      caseSensitive: false,
+    );
+    final escapedMatch = escapedUrlPattern.firstMatch(content);
+    if (escapedMatch != null) {
+      var videoUrl = escapedMatch.group(0)!
+          .replaceAll(r'\u003d', '=')
+          .replaceAll(r'\u0026', '&')
+          .replaceAll(r'\/', '/')
+          .replaceAll(r'\\', '/');
+      if (videoUrl.contains('googlevideo') ||
+          videoUrl.contains('.mp4') ||
+          videoUrl.contains('videoplayback')) {
+        debugPrint('Found escaped video URL: $videoUrl');
+        return VideoStreamResult(url: videoUrl);
       }
-
-      final tokenMatch = RegExp(
-        r'token=([A-Za-z0-9_-]+)',
-      ).firstMatch(bloggerUrl);
-      if (tokenMatch != null) {
-        final token = tokenMatch.group(1)!;
-        debugPrint('Extracted token: $token');
-
-        final alternativeUrls = [
-          'https://www.blogger.com/video-play/mp4/$token',
-          'https://blogger.googleusercontent.com/video.g?token=$token',
-          'https://redirector.googlevideo.com/videoplayback?token=$token',
-        ];
-
-        for (final altUrl in alternativeUrls) {
-          debugPrint('Trying alternative URL: $altUrl');
-          try {
-            final testResponse = await http.head(Uri.parse(altUrl));
-            if (testResponse.statusCode == 200 ||
-                testResponse.statusCode == 302) {
-              debugPrint('Alternative URL works: $altUrl');
-              return await _createVideoStreamResult(
-                altUrl,
-                referer: bloggerUrl,
-              );
-            }
-          } catch (e) {
-            debugPrint('Alternative URL failed: $altUrl - $e');
-          }
-        }
-      }
-
-      debugPrint('Could not extract video URL from Blogger response');
-      return VideoStreamResult(url: bloggerUrl);
-    } catch (e) {
-      debugPrint('Error extracting Blogger video URL: $e');
-      return VideoStreamResult(url: bloggerUrl);
-    }
-  }
-
-  static Future<VideoStreamResult> _createVideoStreamResult(
-    String url, {
-    String? referer,
-  }) async {
-    if (url.contains('googlevideo.com') || url.contains('videoplayback')) {
-      debugPrint('Processing Google Video URL for native playback...');
-      return await _processGoogleVideoURL(url, referer: referer);
     }
 
-    return VideoStreamResult(url: url);
-  }
-
-  // Process Google Video URLs for native compatibility
-  static Future<VideoStreamResult> _processGoogleVideoURL(
-    String googleVideoUrl, {
-    String? referer,
-  }) async {
-    try {
-      debugPrint('Processing Google Video URL for playback: $googleVideoUrl');
-
-      final originalUri = Uri.parse(googleVideoUrl);
-      final sanitizedUri = _sanitizeGoogleVideoUri(originalUri);
-
-      final httpClient = HttpClient();
-      httpClient.userAgent = _googleVideoUserAgent;
-      httpClient.connectionTimeout = const Duration(seconds: 12);
-
-      final request = await httpClient.getUrl(sanitizedUri);
-      request.followRedirects = true;
-      request.headers
-        ..set(HttpHeaders.acceptHeader, 'video/mp4,video/*;q=0.9,*/*;q=0.8')
-        ..set(HttpHeaders.acceptLanguageHeader, 'en-US,en;q=0.9')
-        ..set(HttpHeaders.acceptEncodingHeader, 'identity')
-        ..set(HttpHeaders.rangeHeader, 'bytes=0-1')
-        ..set(HttpHeaders.refererHeader, referer ?? _bloggerReferer)
-        ..set('Origin', _bloggerOrigin)
-        ..set(HttpHeaders.connectionHeader, 'keep-alive');
-
-      final response = await request.close();
-      final effectiveUri = response.redirects.isNotEmpty
-          ? response.redirects.last.location
-          : sanitizedUri;
-      final cookies = response.cookies;
-      debugPrint('Google Video URL response status: ${response.statusCode}');
-      await response.drain();
-      httpClient.close(force: true);
-
-      final cookieHeader = cookies.isEmpty
-          ? ''
-          : cookies
-                .map((cookie) => '${cookie.name}=${cookie.value}')
-                .join('; ');
-
-      final headers = <String, String>{
-        HttpHeaders.userAgentHeader: _googleVideoUserAgent,
-        HttpHeaders.acceptHeader: 'video/mp4,video/*;q=0.9,*/*;q=0.8',
-        HttpHeaders.acceptLanguageHeader: 'en-US,en;q=0.9',
-        HttpHeaders.acceptEncodingHeader: 'identity',
-        HttpHeaders.refererHeader: referer ?? _bloggerReferer,
-        'Origin': _bloggerOrigin,
-      };
-
-      if (cookieHeader.isNotEmpty) {
-        headers[HttpHeaders.cookieHeader] = cookieHeader;
-      }
-
-      final finalUrl = effectiveUri.toString();
-      debugPrint('Cleaned Google Video URL: $finalUrl');
-
-      return VideoStreamResult(url: finalUrl, headers: headers);
-    } catch (e) {
-      debugPrint('Error processing Google Video URL: $e');
-      return VideoStreamResult(url: googleVideoUrl);
-    }
-  }
-
-  // Sanitize Google Video URI by removing problematic parameters
-  static Uri _sanitizeGoogleVideoUri(Uri uri) {
-    final params = Map<String, String>.from(uri.queryParameters);
-
-    params.remove('requiressl');
-
-    final rmParams = params.keys.where((k) => k.startsWith('rm')).toList();
-    for (final key in rmParams) {
-      params.remove(key);
-    }
-
-    params.remove('ms');
-    params.remove('mv');
-    params.remove('pl');
-    params.remove('ip');
-    params.remove('ipbits');
-
-    if (params.containsKey('ratebypass')) {
-      params['ratebypass'] = 'yes';
-    }
-
-    return uri.replace(queryParameters: params);
+    debugPrint('No video URL found in Blogger content');
+    return null;
   }
 
   static String _treatAnimeName(String animeName) {
