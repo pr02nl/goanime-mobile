@@ -813,7 +813,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       debugPrint('Using playback headers: $_currentVideoHeaders');
 
       // Resolve TV detection before creating VideoController
-      // to apply correct hardware acceleration setting
+      // to apply correct hardware acceleration setting.
+      // IMPORTANTE: Nao desabilitar HW accel na TV — causa tela preta.
       if (_isTVDevice == null && Platform.isAndroid) {
         _isTVDevice = await TVDetector.isTV;
       }
@@ -834,11 +835,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       );
       _videoController = VideoController(
         _player!,
-        configuration: VideoControllerConfiguration(
-          enableHardwareAcceleration: !isTV,
+        configuration: const VideoControllerConfiguration(
+          enableHardwareAcceleration: true,
         ),
       );
-      debugPrint('[VideoPlayer] HW acceleration: ${!isTV} (isTV: $isTV)');
+      debugPrint('[VideoPlayer] HW acceleration: true (isTV: $isTV)');
 
       // Força rebuild para inserir o Video widget na árvore AGORA,
       // permitindo que AndroidVideoController crie a Surface Android
@@ -1202,12 +1203,30 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         children: [
           // Video ocupa toda a tela
           _videoController != null
-              ? Video(
-                  controller: _videoController!,
-                  fit: BoxFit.contain,
-                  // TV: controles desktop com suporte a D-pad/teclado
-                  // Phone: null usa AdaptiveVideoControls (touch)
-                  controls: isTV ? MaterialDesktopVideoControls : null,
+              ? Focus(
+                  autofocus: isTV,
+                  child: isTV
+                      ? MaterialDesktopVideoControlsTheme(
+                          normal: const MaterialDesktopVideoControlsThemeData(
+                            visibleOnMount: true,
+                            playAndPauseOnTap: true,
+                          ),
+                          fullscreen: const MaterialDesktopVideoControlsThemeData(
+                            visibleOnMount: true,
+                            playAndPauseOnTap: true,
+                          ),
+                          child: Video(
+                            controller: _videoController!,
+                            fit: BoxFit.contain,
+                            controls: MaterialDesktopVideoControls,
+                          ),
+                        )
+                      : Video(
+                          controller: _videoController!,
+                          fit: BoxFit.contain,
+                          // Phone: null usa AdaptiveVideoControls (touch)
+                          controls: null,
+                        ),
                 )
               : Container(color: Colors.black),
           // Skip Button Overlay
@@ -1318,10 +1337,23 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
               // Video Player fullscreen
               SizedBox.expand(
                 child: _videoController != null
-                    ? Video(
-                        controller: _videoController!,
-                        fit: BoxFit.cover,
-                        controls: null,
+                    ? Focus(
+                        autofocus: true,
+                        child: MaterialDesktopVideoControlsTheme(
+                          normal: const MaterialDesktopVideoControlsThemeData(
+                            visibleOnMount: true,
+                            playAndPauseOnTap: true,
+                          ),
+                          fullscreen: const MaterialDesktopVideoControlsThemeData(
+                            visibleOnMount: true,
+                            playAndPauseOnTap: true,
+                          ),
+                          child: Video(
+                            controller: _videoController!,
+                            fit: BoxFit.cover,
+                            controls: MaterialDesktopVideoControls,
+                          ),
+                        ),
                       )
                     : Container(color: Colors.black),
               ),
