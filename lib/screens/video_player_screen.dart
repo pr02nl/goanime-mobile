@@ -73,6 +73,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   bool _isFullscreen = false;
   bool? _isTVDevice;
 
+  // Overlay controls auto-hide
+  bool _showOverlayControls = true;
+  Timer? _overlayControlsTimer;
+  static const Duration _overlayControlsAutoHideDuration = Duration(seconds: 3);
+
   // AniSkip related variables
   SkipTimes? _skipTimes;
   bool _showSkipButton = false;
@@ -169,6 +174,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       _isFullscreen = true;
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _startOverlayControlsHideTimer();
   }
 
   /// Sai do modo fullscreen
@@ -1104,11 +1110,33 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   void dispose() {
     _positionTimer?.cancel();
     _skipButtonAutoHideTimer?.cancel();
+    _overlayControlsTimer?.cancel();
     SystemChrome.setSystemUIChangeCallback(null); // Remove o listener
     _cleanupControllers();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations([]); // Reset orientations
     super.dispose();
+  }
+
+  /// Mostra os controles de overlay e reinicia o timer de auto-hide
+  void _showOverlayControlsAndResetTimer() {
+    if (!mounted) return;
+    setState(() {
+      _showOverlayControls = true;
+    });
+    _startOverlayControlsHideTimer();
+  }
+
+  /// Inicia o timer que esconde os controles de overlay
+  void _startOverlayControlsHideTimer() {
+    _overlayControlsTimer?.cancel();
+    _overlayControlsTimer = Timer(_overlayControlsAutoHideDuration, () {
+      if (mounted) {
+        setState(() {
+          _showOverlayControls = false;
+        });
+      }
+    });
   }
 
   @override
@@ -1197,78 +1225,98 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
   Widget _buildFullscreenContent() {
     final isTV = _isTVDevice == true;
-
-    return SizedBox.expand(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Video ocupa toda a tela
-          _videoController != null
-              ? (isTV
-                    ? MaterialDesktopVideoControlsTheme(
-                        normal: const MaterialDesktopVideoControlsThemeData(
-                          visibleOnMount: true,
-                          playAndPauseOnTap: true,
+    // Detector de interação para mostrar/esconder controles
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _showOverlayControlsAndResetTimer,
+      child: MouseRegion(
+        onHover: (_) => _showOverlayControlsAndResetTimer(),
+        child: Focus(
+          autofocus: true,
+          onKeyEvent: (node, event) {
+            _showOverlayControlsAndResetTimer();
+            return KeyEventResult.ignored;
+          },
+          child: SizedBox.expand(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Video ocupa toda a tela
+                _videoController != null
+                    ? (isTV
+                          ? MaterialDesktopVideoControlsTheme(
+                              normal:
+                                  const MaterialDesktopVideoControlsThemeData(
+                                    visibleOnMount: true,
+                                    playAndPauseOnTap: true,
+                                  ),
+                              fullscreen:
+                                  const MaterialDesktopVideoControlsThemeData(
+                                    visibleOnMount: true,
+                                    playAndPauseOnTap: true,
+                                  ),
+                              child: Video(
+                                controller: _videoController!,
+                                fit: BoxFit.contain,
+                                controls: MaterialDesktopVideoControls,
+                              ),
+                            )
+                          : Video(
+                              controller: _videoController!,
+                              fit: BoxFit.contain,
+                              // Phone: AdaptiveVideoControls = touch controls padrao
+                              controls: AdaptiveVideoControls,
+                            ))
+                    : Container(color: Colors.black),
+                // Botão flutuante voltar
+                Positioned(
+                  top: isTV ? 16 : 8,
+                  left: isTV ? 16 : 8,
+                  child: AnimatedOpacity(
+                    opacity: _showOverlayControls ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: SafeArea(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _exitFullscreen,
+                          borderRadius: BorderRadius.circular(50),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
                         ),
-                        fullscreen: const MaterialDesktopVideoControlsThemeData(
-                          visibleOnMount: true,
-                          playAndPauseOnTap: true,
-                        ),
-                        child: Video(
-                          controller: _videoController!,
-                          fit: BoxFit.contain,
-                          controls: MaterialDesktopVideoControls,
-                        ),
-                      )
-                    : Video(
-                        controller: _videoController!,
-                        fit: BoxFit.contain,
-                        // Phone: AdaptiveVideoControls = touch controls padrao
-                        controls: AdaptiveVideoControls,
-                      ))
-              : Container(color: Colors.black),
-          // Botão flutuante voltar
-          Positioned(
-            top: isTV ? 16 : 8,
-            left: isTV ? 16 : 8,
-            child: SafeArea(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _exitFullscreen,
-                  borderRadius: BorderRadius.circular(50),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                      size: 24,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          // Skip Button Overlay
-          Positioned(
-            bottom: isTV ? 40 : 80,
-            right: isTV ? 40 : 24,
-            child: SafeArea(
-              child: IgnorePointer(
-                ignoring: !_showSkipButton,
-                child: SkipButton(
-                  onSkip: _skipIntroOutro,
-                  label: _skipButtonLabel,
-                  show: _showSkipButton,
+                // Skip Button Overlay
+                Positioned(
+                  bottom: isTV ? 40 : 80,
+                  right: isTV ? 40 : 24,
+                  child: SafeArea(
+                    child: IgnorePointer(
+                      ignoring: !_showSkipButton,
+                      child: SkipButton(
+                        onSkip: _skipIntroOutro,
+                        label: _skipButtonLabel,
+                        show: _showSkipButton,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
