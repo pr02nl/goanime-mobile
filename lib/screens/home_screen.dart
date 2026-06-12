@@ -191,64 +191,70 @@ class _HomeScreenState extends State<HomeScreen>
             if (_seasonAnimes.isNotEmpty)
               SliverToBoxAdapter(child: _buildHeroBannerCarousel()),
 
-            // Conteúdo principal
+            // Conteúdo principal - cada seção como SliverToBoxAdapter separado
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+            // Seção: Destaques da Temporada
             SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  const SizedBox(height: 24),
-
-                  // Seção: Destaques da Temporada
-                  _buildNetflixSection(
-                    title: l10n.seasonHighlights,
-                    animes: _seasonAnimes,
-                    isLoading: _isLoading && _seasonAnimes.isEmpty,
-                    genreId: null,
-                  ),
-
-                  // Seção: Top Animes
-                  _buildNetflixSection(
-                    title: l10n.topAnime,
-                    animes: _topAnimes,
-                    isLoading: _isLoading && _topAnimes.isEmpty,
-                    genreId: null,
-                  ),
-
-                  // Seção: Ação
-                  _buildNetflixSection(
-                    title: l10n.action,
-                    animes: _actionAnimes,
-                    isLoading: _isLoading && _actionAnimes.isEmpty,
-                    genreId: JikanGenreIds.action,
-                  ),
-
-                  // Seção: Romance
-                  _buildNetflixSection(
-                    title: l10n.romance,
-                    animes: _romanceAnimes,
-                    isLoading: _isLoading && _romanceAnimes.isEmpty,
-                    genreId: JikanGenreIds.romance,
-                  ),
-
-                  // Seção: Comédia
-                  _buildNetflixSection(
-                    title: l10n.comedy,
-                    animes: _comedyAnimes,
-                    isLoading: _isLoading && _comedyAnimes.isEmpty,
-                    genreId: JikanGenreIds.comedy,
-                  ),
-
-                  // Seção: Fantasia
-                  _buildNetflixSection(
-                    title: l10n.fantasy,
-                    animes: _fantasyAnimes,
-                    isLoading: _isLoading && _fantasyAnimes.isEmpty,
-                    genreId: JikanGenreIds.fantasy,
-                  ),
-
-                  const SizedBox(height: 48),
-                ],
+              child: _buildNetflixSection(
+                title: l10n.seasonHighlights,
+                animes: _seasonAnimes,
+                isLoading: _isLoading && _seasonAnimes.isEmpty,
+                genreId: null,
               ),
             ),
+
+            // Seção: Top Animes
+            SliverToBoxAdapter(
+              child: _buildNetflixSection(
+                title: l10n.topAnime,
+                animes: _topAnimes,
+                isLoading: _isLoading && _topAnimes.isEmpty,
+                genreId: null,
+              ),
+            ),
+
+            // Seção: Ação
+            SliverToBoxAdapter(
+              child: _buildNetflixSection(
+                title: l10n.action,
+                animes: _actionAnimes,
+                isLoading: _isLoading && _actionAnimes.isEmpty,
+                genreId: JikanGenreIds.action,
+              ),
+            ),
+
+            // Seção: Romance
+            SliverToBoxAdapter(
+              child: _buildNetflixSection(
+                title: l10n.romance,
+                animes: _romanceAnimes,
+                isLoading: _isLoading && _romanceAnimes.isEmpty,
+                genreId: JikanGenreIds.romance,
+              ),
+            ),
+
+            // Seção: Comédia
+            SliverToBoxAdapter(
+              child: _buildNetflixSection(
+                title: l10n.comedy,
+                animes: _comedyAnimes,
+                isLoading: _isLoading && _comedyAnimes.isEmpty,
+                genreId: JikanGenreIds.comedy,
+              ),
+            ),
+
+            // Seção: Fantasia
+            SliverToBoxAdapter(
+              child: _buildNetflixSection(
+                title: l10n.fantasy,
+                animes: _fantasyAnimes,
+                isLoading: _isLoading && _fantasyAnimes.isEmpty,
+                genreId: JikanGenreIds.fantasy,
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 48)),
           ],
         ),
       ),
@@ -344,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-    /// Hero Section estilo Netflix - Anime em destaque
+  /// Hero Section estilo Netflix - Anime em destaque
   Widget _buildNetflixHero() {
     if (_seasonAnimes.isEmpty) return const SizedBox.shrink();
 
@@ -402,7 +408,10 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 // Tag "Em Alta" ou similar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(4),
@@ -543,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-Widget _buildHeroBannerCarousel() {
+  Widget _buildHeroBannerCarousel() {
     final bannerAnimes = _seasonAnimes.take(5).toList();
 
     return AnimatedOpacity(
