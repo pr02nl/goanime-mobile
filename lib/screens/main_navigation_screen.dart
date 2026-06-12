@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
-import '../utils/tv_detector.dart';
-import '../widgets/focusable_widget.dart';
 import 'downloads_screen.dart';
 import 'home_screen.dart';
 import 'search_screen.dart';
@@ -18,7 +16,7 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
-  bool _isTV = false;
+  final double _headerOpacity = 1.0;
 
   late final List<Widget> _screens;
 
@@ -35,7 +33,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       const DownloadsScreen(),
       SettingsScreen(onBackPressed: _navigateToHome),
     ];
-    _detectTVMode();
   }
 
   @override
@@ -46,21 +43,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     super.dispose();
   }
 
-  Future<void> _detectTVMode() async {
-    final isTV = await TVDetector.isTV;
-    if (mounted) {
-      setState(() {
-        _isTV = isTV;
-      });
-    }
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  }
-
   void _navigateToHome() {
     setState(() {
       _currentIndex = 0;
@@ -69,12 +51,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = _isTV
-        ? 0.0
-        : (MediaQuery.of(context).padding.bottom > 0 ? 8.0 : 12.0);
-    final navHeight = _isTV ? 80.0 : 64.0;
-    final horizontalMargin = _isTV ? 24.0 : 12.0;
-
     return PopScope(
       canPop: _currentIndex == 0,
       onPopInvokedWithResult: (didPop, result) {
@@ -84,125 +60,102 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
+        appBar: _buildAppBar(),
         body: FocusTraversalGroup(
           child: IndexedStack(index: _currentIndex, children: _screens),
-        ),
-        bottomNavigationBar: SafeArea(
-          child: FocusTraversalGroup(
-            policy: OrderedTraversalPolicy(),
-            child: Container(
-              margin: EdgeInsets.only(
-                left: horizontalMargin,
-                right: horizontalMargin,
-                bottom: bottomPadding,
-              ),
-              height: navHeight,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildNavItem(
-                    icon: Icons.home_outlined,
-                    selectedIcon: Icons.home,
-                    label: 'Início',
-                    index: 0,
-                    navHeight: navHeight,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.search_outlined,
-                    selectedIcon: Icons.search,
-                    label: 'Buscar',
-                    index: 1,
-                    navHeight: navHeight,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.bookmark_outline,
-                    selectedIcon: Icons.bookmark,
-                    label: 'Lista',
-                    index: 2,
-                    navHeight: navHeight,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.download_outlined,
-                    selectedIcon: Icons.download,
-                    label: 'Downloads',
-                    index: 3,
-                    navHeight: navHeight,
-                  ),
-                  _buildNavItem(
-                    icon: Icons.settings_outlined,
-                    selectedIcon: Icons.settings,
-                    label: 'Config',
-                    index: 4,
-                    navHeight: navHeight,
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required IconData selectedIcon,
-    required String label,
-    required int index,
-    required double navHeight,
-  }) {
-    final isSelected = _currentIndex == index;
-
-    return FocusTraversalOrder(
-      order: NumericFocusOrder(index.toDouble()),
-      child: FocusableWidget(
-        onSelect: () => _onItemTapped(index),
-        focusNode: _navFocusNodes[index],
-        autoFocus: isSelected,
-        focusPadding: EdgeInsets.zero,
-        focusScale: 1.0,
-        borderRadius: 12,
-        child: SizedBox(
-          width: _isTV ? 100 : 80,
-          height: navHeight,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconTheme(
-                data: IconThemeData(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.textSecondary.withValues(alpha: 0.6),
-                  size: _isTV ? 28 : 24,
-                ),
-                child: Icon(isSelected ? selectedIcon : icon),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.textSecondary.withValues(alpha: 0.6),
-                  fontSize: _isTV ? 12 : 10,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: _headerOpacity > 0
+          ? AppColors.background.withValues(alpha: 0.95)
+          : Colors.transparent,
+      elevation: 0,
+      toolbarHeight: 64,
+      flexibleSpace: _headerOpacity > 0
+          ? Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.background,
+                    AppColors.background.withValues(alpha: 0.0),
+                  ],
                 ),
               ),
-            ],
+            )
+          : null,
+      title: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.primary, AppColors.primaryDark],
           ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: IconButton(
+          icon: const Icon(
+            Icons.play_circle_filled,
+            color: Colors.white,
+            size: 22,
+          ),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          },
         ),
       ),
+      centerTitle: false,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search, color: Colors.white, size: 24),
+          tooltip: 'Search',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SearchScreen()),
+            );
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.bookmark, color: Colors.white, size: 24),
+          tooltip: 'Bookmarks',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const WatchlistScreen()),
+            );
+          },
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.settings_outlined,
+            color: Colors.white,
+            size: 24,
+          ),
+          tooltip: 'Settings',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+            );
+          },
+        ),
+        const SizedBox(width: 8),
+      ],
     );
   }
 }
