@@ -313,7 +313,9 @@ class _NetflixCardState extends State<NetflixCard>
   }
 }
 
-/// Hero card variant for featured content
+/// Hero card variant for featured content.
+/// On TV / d-pad the Play button auto-focuses so the user can immediately
+/// press Select to start watching.
 class NetflixHeroCard extends StatelessWidget {
   final String imageUrl;
   final String title;
@@ -336,7 +338,8 @@ class NetflixHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return FocusTraversalGroup(
+      child: Container(
       height: height,
       decoration: const BoxDecoration(color: NetflixTheme.background),
       child: Stack(
@@ -432,35 +435,19 @@ class NetflixHeroCard extends StatelessWidget {
                   Row(
                     children: [
                       if (onPlay != null)
-                        ElevatedButton.icon(
-                          onPressed: onPlay,
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('Play'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: NetflixTheme.lg,
-                              vertical: NetflixTheme.md,
-                            ),
-                          ),
+                        _HeroActionButton(
+                          onPressed: onPlay!,
+                          icon: Icons.play_arrow,
+                          label: 'Play',
+                          filled: true,
                         ),
                       if (onMyList != null) ...[
                         const SizedBox(width: NetflixTheme.md),
-                        OutlinedButton.icon(
-                          onPressed: onMyList,
-                          icon: const Icon(Icons.add),
-                          label: const Text('My List'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: NetflixTheme.textPrimary,
-                            side: const BorderSide(
-                              color: NetflixTheme.textSecondary,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: NetflixTheme.lg,
-                              vertical: NetflixTheme.md,
-                            ),
-                          ),
+                        _HeroActionButton(
+                          onPressed: onMyList!,
+                          icon: Icons.add,
+                          label: 'My List',
+                          filled: false,
                         ),
                       ],
                     ],
@@ -470,6 +457,95 @@ class NetflixHeroCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    ),
+    );
+  }
+}
+
+/// A hero-area action button that is keyboard/d-pad focusable and shows a
+/// visible focus ring so TV users can see which button is highlighted.
+class _HeroActionButton extends StatefulWidget {
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String label;
+  final bool filled;
+
+  const _HeroActionButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.filled,
+  });
+
+  @override
+  State<_HeroActionButton> createState() => _HeroActionButtonState();
+}
+
+class _HeroActionButtonState extends State<_HeroActionButton> {
+  bool _isFocused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = widget.filled
+        ? ElevatedButton.icon(
+            onPressed: widget.onPressed,
+            icon: Icon(widget.icon),
+            label: Text(widget.label),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: NetflixTheme.lg,
+                vertical: NetflixTheme.md,
+              ),
+            ),
+          )
+        : OutlinedButton.icon(
+            onPressed: widget.onPressed,
+            icon: Icon(widget.icon),
+            label: Text(widget.label),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: NetflixTheme.textPrimary,
+              side: const BorderSide(
+                color: NetflixTheme.textSecondary,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: NetflixTheme.lg,
+                vertical: NetflixTheme.md,
+              ),
+            ),
+          );
+
+    return Focus(
+      onFocusChange: (focused) => setState(() => _isFocused = focused),
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter)) {
+          widget.onPressed();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: AnimatedContainer(
+        duration: NetflixTheme.fastDuration,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(NetflixTheme.radiusMd),
+          border: _isFocused
+              ? Border.all(color: AppColors.primary, width: 3)
+              : null,
+          boxShadow: _isFocused
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.5),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
+        ),
+        child: button,
       ),
     );
   }
