@@ -6,7 +6,7 @@ import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
-import '../widgets/anime_section.dart';
+import '../widgets/anime_card.dart';
 import '../widgets/focusable_widget.dart';
 import 'genre_animes_screen.dart';
 import 'search_screen.dart';
@@ -519,38 +519,96 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // NOVO: Método para criar seções com Netflix style
+  // VERSAO SIMPLIFICADA: Metodo para criar secoes com Netflix style
   Widget _buildNetflixSection({
     required String title,
     required List<JikanAnime> animes,
     required bool isLoading,
     int? genreId,
   }) {
-    return AnimatedOpacity(
-      opacity: isLoading ? 0.6 : 1.0,
-      duration: const Duration(milliseconds: 300),
-      child: AnimeSection(
-        title: title,
-        animes: animes,
-        isLoading: isLoading,
-        useNetflixStyle: true,
-        onSeeAll: genreId != null
-            ? () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GenreAnimesScreen(
-                      title: title,
-                      icon: Icons.movie,
-                      gradient: AppColors.getPrimaryGradient(),
-                      genreId: genreId,
+    final l10n = AppLocalizations.of(context);
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (genreId != null)
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GenreAnimesScreen(
+                          title: title,
+                          icon: Icons.movie,
+                          gradient: AppColors.getPrimaryGradient(),
+                          genreId: genreId,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    l10n.seeAll,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                );
-              }
-            : null,
-        onAnimeTap: _onAnimeTap,
-      ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: cardHeight + 60,
+          child: isLoading
+              ? Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : animes.isEmpty
+              ? Center(
+                  child: Text(
+                    'Nenhum anime encontrado',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                )
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: animes.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: AnimeCard(
+                        anime: animes[index],
+                        width: cardWidth,
+                        height: cardHeight,
+                        useNetflixStyle: true,
+                        onTap: () => _onAnimeTap(animes[index]),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }

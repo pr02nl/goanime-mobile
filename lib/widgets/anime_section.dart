@@ -43,7 +43,13 @@ class AnimeSection extends StatelessWidget {
             onTap: onAnimeTap != null ? () => onAnimeTap!(anime) : null,
           );
         }).toList(),
-        height: Responsive.getSectionHeight(context),
+        height: Responsive.value(
+          context,
+          phone: 280.0,
+          tablet: 290.0,
+          tv: 360.0,
+          quest: 330.0,
+        ),
         trailing: onSeeAll != null
             ? TextButton(
                 onPressed: onSeeAll,
