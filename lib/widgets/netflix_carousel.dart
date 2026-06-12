@@ -109,40 +109,6 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
           height: defaultHeight,
           child: Stack(
             children: [
-              // Left gradient fade
-              if (_showLeftGradient)
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: 60,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [NetflixTheme.background, Colors.transparent],
-                      ),
-                    ),
-                  ),
-                ),
-              // Right gradient fade
-              if (_showRightGradient)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: 60,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [Colors.transparent, NetflixTheme.background],
-                      ),
-                    ),
-                  ),
-                ),
               // Scrollable content wrapped in a FocusTraversalGroup so
               // d-pad left/right stays within this carousel row.
               FocusTraversalGroup(
@@ -170,6 +136,49 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                   },
                 ),
               ),
+              // Edge gradient fades (painted above content)
+              if (_showLeftGradient)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 60,
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            NetflixTheme.background,
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (_showRightGradient)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 60,
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Colors.transparent,
+                            NetflixTheme.background,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               // Navigation buttons (desktop/TV only)
               if (!widget.isTV && MediaQuery.of(context).size.width > 600) ...[
                 // Left button

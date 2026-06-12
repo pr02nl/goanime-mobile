@@ -440,6 +440,7 @@ class NetflixHeroCard extends StatelessWidget {
                           icon: Icons.play_arrow,
                           label: 'Play',
                           filled: true,
+                          autofocus: isTV,
                         ),
                       if (onMyList != null) ...[
                         const SizedBox(width: NetflixTheme.md),
@@ -470,12 +471,14 @@ class _HeroActionButton extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool filled;
+  final bool autofocus;
 
   const _HeroActionButton({
     required this.onPressed,
     required this.icon,
     required this.label,
     required this.filled,
+    this.autofocus = false,
   });
 
   @override
@@ -518,6 +521,7 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
           );
 
     return Focus(
+      autofocus: widget.autofocus,
       onFocusChange: (focused) => setState(() => _isFocused = focused),
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
