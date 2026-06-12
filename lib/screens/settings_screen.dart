@@ -34,23 +34,33 @@ class SettingsScreen extends StatelessWidget {
         ),
         leading: isTV
             ? null
-            : FocusableWidget(
-                onSelect: () {
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () {
                   if (canPop) {
                     Navigator.pop(context);
                   } else if (onBackPressed != null) {
                     onBackPressed!();
                   }
                 },
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.arrow_back, color: Colors.white),
-                ),
               ),
+        // : FocusableWidget(
+        //     onSelect: () {
+        //       if (canPop) {
+        //         Navigator.pop(context);
+        //       } else if (onBackPressed != null) {
+        //         onBackPressed!();
+        //       }
+        //     },
+        //     child: Container(
+        //       padding: const EdgeInsets.all(8),
+        //       decoration: BoxDecoration(
+        //         color: Colors.black.withValues(alpha: 0.3),
+        //         borderRadius: BorderRadius.circular(12),
+        //       ),
+        //       child: const Icon(Icons.arrow_back, color: Colors.white),
+        //     ),
+        //   ),
       ),
       body: ListView(
         padding: EdgeInsets.all(isTV ? 24 : 16),
