@@ -11,8 +11,6 @@ import '../utils/tv_detector.dart';
 import '../widgets/netflix_card.dart';
 import '../widgets/netflix_carousel.dart';
 import 'genre_animes_screen.dart';
-import 'search_screen.dart';
-import 'settings_screen.dart';
 import 'source_selection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -161,7 +159,6 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       extendBodyBehindAppBar: true,
-      appBar: _buildAppBar(),
       body: RefreshIndicator(
         onRefresh: () => _loadAllData(forceRefresh: true),
         color: AppColors.primary,
@@ -267,79 +264,6 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             )
           : null,
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: _headerOpacity > 0
-          ? AppColors.background.withValues(alpha: 0.95)
-          : Colors.transparent,
-      elevation: 0,
-      toolbarHeight: 64,
-      flexibleSpace: _headerOpacity > 0
-          ? Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.background,
-                    AppColors.background.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            )
-          : null,
-      title: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.primaryDark],
-          ),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Icon(
-          Icons.play_circle_filled,
-          color: Colors.white,
-          size: 22,
-        ),
-      ),
-      centerTitle: false,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search, color: Colors.white, size: 24),
-          tooltip: 'Search',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SearchScreen()),
-            );
-          },
-        ),
-        IconButton(
-          icon: const Icon(
-            Icons.settings_outlined,
-            color: Colors.white,
-            size: 24,
-          ),
-          tooltip: 'Settings',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
-            );
-          },
-        ),
-        const SizedBox(width: 8),
-      ],
     );
   }
 
