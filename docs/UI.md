@@ -93,7 +93,7 @@ Lista de episódios de um anime.
 Player de vídeo com recursos premium.
 
 **Características:**
-- Player nativo (video_player + chewie)
+- Player nativo (media_kit)
 - AniSkip integration (botão de pular intro/outro)
 - Fallback WebView para iOS
 - Google Video proxy para contornar restrições

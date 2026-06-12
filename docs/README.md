@@ -135,8 +135,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 ## 🎬 Funcionalidades do Player de Vídeo
 
 ### Tecnologias
-- **video_player**: Player nativo Flutter
-- **chewie**: UI customizada sobre o player
+- **media_kit**: Player nativo Flutter de alta performance (substitui video_player + chewie)
 - **Google Video Proxy**: Para contornar restrições de referrer
 
 ### Recursos Premium
@@ -190,8 +189,9 @@ Implementação customizada via `AppLocalizations` com traduções inline.
 
 | Pacote | Versão | Propósito |
 |--------|--------|-----------|
-| chewie | ^1.8.5 | Player de vídeo UI |
-| video_player | ^2.8.7 | Player de vídeo nativo |
+| media_kit | ^1.2.6 | Player de vídeo/audio nativo de alta performance |
+| media_kit_video | ^2.0.1 | Widget de vídeo para media_kit |
+| media_kit_libs_video | ^1.0.7 | Bibliotecas nativas de vídeo |
 | http | ^1.1.0 | Requisições HTTP |
 | html | ^0.15.4 | Parsing de HTML |
 | sqflite | ^2.3.0 | Banco de dados local |
