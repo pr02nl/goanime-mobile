@@ -131,15 +131,16 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    // Entra em fullscreen imediatamente (síncrono) antes de qualquer await
+    _enterFullscreen();
     _initializeVideoPlayer();
     _detectDeviceAndEnterFullscreen();
   }
 
-  /// Detecta o tipo de dispositivo e entra em fullscreen
+  /// Detecta o tipo de dispositivo e configura comportamentos específicos (TV, etc.)
   void _detectDeviceAndEnterFullscreen() async {
     if (!Platform.isAndroid) {
-      // Para iOS e outros, apenas entra em fullscreen
-      _enterFullscreen();
+      _setupFullscreenListener();
       return;
     }
 
@@ -155,7 +156,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       ]);
     }
 
-    // Entra em fullscreen para todos os dispositivos
+    // Garantir fullscreen (pode ter sido perdido durante o await)
     _enterFullscreen();
 
     // Configurar listener para detectar saída do fullscreen
@@ -1090,6 +1091,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isFullscreen) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: _isLoading
+            ? _buildLoadingState()
+            : _errorMessage != null
+            ? _buildErrorState()
+            : _buildFullscreenContent(),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
@@ -1147,6 +1159,90 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFullscreenContent() {
+    return Stack(
+      children: [
+        // Video ocupa toda a tela
+        SizedBox.expand(
+          child: _videoController != null
+              ? Video(controller: _videoController!, fit: BoxFit.contain)
+              : Container(color: Colors.black),
+        ),
+        // Botão de voltar no topo-esquerdo
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.arrow_back, color: Colors.white),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.animeTitle,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(color: Colors.black54, blurRadius: 4),
+                            ],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'Episode ${_extractEpisodeNumber(widget.episode.number)}',
+                          style: TextStyle(
+                            color: AppColors.primary.withValues(alpha: 0.9),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Skip Button Overlay
+        Positioned(
+          bottom: 80,
+          right: 24,
+          child: SafeArea(
+            child: IgnorePointer(
+              ignoring: !_showSkipButton,
+              child: SkipButton(
+                onSkip: _skipIntroOutro,
+                label: _skipButtonLabel,
+                show: _showSkipButton,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1283,8 +1379,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                             ? Video(
                                 controller: _videoController!,
                                 fit: BoxFit.contain,
-                                controls:
-                                    null, // Usa controles nativos do media_kit
                               )
                             : Container(color: Colors.black),
                       ),
