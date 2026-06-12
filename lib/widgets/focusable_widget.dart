@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../utils/tv_detector.dart';
 
 /// Widget que adiciona suporte a foco para navegação com controle remoto (TV)
@@ -51,10 +52,7 @@ class _FocusableWidgetState extends State<FocusableWidget>
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: widget.focusScale).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
 
     _focusNode.addListener(_handleFocusChange);
@@ -88,7 +86,8 @@ class _FocusableWidgetState extends State<FocusableWidget>
   void _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.select ||
-          event.logicalKey == LogicalKeyboardKey.enter) {
+          event.logicalKey == LogicalKeyboardKey.enter ||
+          event.logicalKey == LogicalKeyboardKey.space) {
         widget.onSelect?.call();
       }
     }
@@ -98,55 +97,57 @@ class _FocusableWidgetState extends State<FocusableWidget>
   Widget build(BuildContext context) {
     final isTV = TVDetector.isTV;
 
-    // Se não for TV, retorna o widget normal sem foco
+    // Se não for TV e não tiver navegação D-pad habilitada, retorna widget normal
     if (!isTV && !widget.enableDpadNavigation) {
-      return GestureDetector(
-        onTap: widget.onSelect,
-        child: widget.child,
-      );
+      return GestureDetector(onTap: widget.onSelect, child: widget.child);
     }
 
-    return Focus(
-      focusNode: _focusNode,
-      autofocus: widget.autoFocus,
-      onKeyEvent: (node, event) {
-        _handleKeyEvent(event);
-        return KeyEventResult.handled;
-      },
-      child: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(widget.borderRadius),
-                boxShadow: _isFocused
-                    ? [
-                        BoxShadow(
-                          color: (widget.focusColor ??
-                                  Theme.of(context).colorScheme.primary)
-                              .withValues(alpha: 0.6),
-                          blurRadius: 12,
-                          spreadRadius: 2,
-                        ),
-                      ]
-                    : null,
-                border: _isFocused
-                    ? Border.all(
-                        color: widget.focusColor ??
-                            Theme.of(context).colorScheme.primary,
-                        width: 3,
-                      )
-                    : null,
-              ),
-              child: Padding(
-                padding: widget.focusPadding,
-                child: widget.child,
-              ),
-            ),
-          );
+    return GestureDetector(
+      onTap: widget.onSelect,
+      child: Focus(
+        focusNode: _focusNode,
+        autofocus: widget.autoFocus,
+        onKeyEvent: (node, event) {
+          _handleKeyEvent(event);
+          return KeyEventResult.ignored; // Deixa o sistema tratar também
         },
+        child: AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(widget.borderRadius),
+                  boxShadow: _isFocused
+                      ? [
+                          BoxShadow(
+                            color:
+                                (widget.focusColor ??
+                                        Theme.of(context).colorScheme.primary)
+                                    .withValues(alpha: 0.6),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ]
+                      : null,
+                  border: _isFocused
+                      ? Border.all(
+                          color:
+                              widget.focusColor ??
+                              Theme.of(context).colorScheme.primary,
+                          width: 3,
+                        )
+                      : null,
+                ),
+                child: Padding(
+                  padding: widget.focusPadding,
+                  child: widget.child,
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -225,18 +226,13 @@ class TVAnimeCard extends StatelessWidget {
       borderRadius: 16,
       child: Card(
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: child,
       ),
     );
 
     if (heroTag != null) {
-      return Hero(
-        tag: heroTag!,
-        child: card,
-      );
+      return Hero(tag: heroTag!, child: card);
     }
 
     return card;
@@ -284,10 +280,11 @@ class TVNavigationBar extends StatelessWidget {
                     data: IconThemeData(
                       color: index == currentIndex
                           ? (selectedItemColor ??
-                              Theme.of(context).colorScheme.primary)
+                                Theme.of(context).colorScheme.primary)
                           : (unselectedItemColor ??
-                              Theme.of(context).colorScheme.onSurface
-                                  .withValues(alpha: 0.6)),
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.6)),
                       size: 28,
                     ),
                     child: items[index].icon,
@@ -298,10 +295,10 @@ class TVNavigationBar extends StatelessWidget {
                       style: TextStyle(
                         color: index == currentIndex
                             ? (selectedItemColor ??
-                                Theme.of(context).colorScheme.primary)
+                                  Theme.of(context).colorScheme.primary)
                             : (unselectedItemColor ??
-                                Theme.of(context).colorScheme.onSurface
-                                    .withValues(alpha: 0.6)),
+                                  Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.6)),
                         fontSize: 12,
                         fontWeight: index == currentIndex
                             ? FontWeight.bold

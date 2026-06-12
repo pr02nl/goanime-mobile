@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -27,7 +28,7 @@ class TVDetector {
   static bool _detectTVHeuristically() {
     // TVs geralmente têm telas grandes e densidade baixa
     // Esta é uma detecção simplificada
-    return false; // Retorna false por padrão, pode ser sobrescrito via settings
+    return true; // Force true para testes de TV
   }
 
   /// Força o modo TV (útil para testes ou configurações manuais)
