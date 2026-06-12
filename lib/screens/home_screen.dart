@@ -1,14 +1,13 @@
 ﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
+import '../widgets/anime_section.dart';
 import '../widgets/focusable_widget.dart';
-import '../widgets/shimmer_loading.dart';
 import 'genre_animes_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
@@ -195,80 +194,50 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(height: 24),
 
                   // Seção: Destaques da Temporada
-                  _buildModernSection(
+                  _buildNetflixSection(
                     title: l10n.seasonHighlights,
-                    icon: Icons.trending_up_outlined,
-                    gradient: LinearGradient(
-                      colors: [AppColors.primary, AppColors.secondary],
-                    ),
                     animes: _seasonAnimes,
                     isLoading: _isLoading && _seasonAnimes.isEmpty,
-                    sectionId: 'season',
                     genreId: null,
                   ),
 
                   // Seção: Top Animes
-                  _buildModernSection(
+                  _buildNetflixSection(
                     title: l10n.topAnime,
-                    icon: Icons.emoji_events,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFD93D), Color(0xFFFFA500)],
-                    ),
                     animes: _topAnimes,
                     isLoading: _isLoading && _topAnimes.isEmpty,
-                    sectionId: 'top',
                     genreId: null,
                   ),
 
                   // Seção: Ação
-                  _buildModernSection(
+                  _buildNetflixSection(
                     title: l10n.action,
-                    icon: Icons.hardware,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
-                    ),
                     animes: _actionAnimes,
                     isLoading: _isLoading && _actionAnimes.isEmpty,
-                    sectionId: 'action',
                     genreId: JikanGenreIds.action,
                   ),
 
                   // Seção: Romance
-                  _buildModernSection(
+                  _buildNetflixSection(
                     title: l10n.romance,
-                    icon: Icons.favorite,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFF6B9D), Color(0xFFC44569)],
-                    ),
                     animes: _romanceAnimes,
                     isLoading: _isLoading && _romanceAnimes.isEmpty,
-                    sectionId: 'romance',
                     genreId: JikanGenreIds.romance,
                   ),
 
                   // Seção: Comédia
-                  _buildModernSection(
+                  _buildNetflixSection(
                     title: l10n.comedy,
-                    icon: Icons.sentiment_very_satisfied,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00D2FF), Color(0xFF3A7BD5)],
-                    ),
                     animes: _comedyAnimes,
                     isLoading: _isLoading && _comedyAnimes.isEmpty,
-                    sectionId: 'comedy',
                     genreId: JikanGenreIds.comedy,
                   ),
 
                   // Seção: Fantasia
-                  _buildModernSection(
+                  _buildNetflixSection(
                     title: l10n.fantasy,
-                    icon: Icons.auto_fix_high,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                    ),
                     animes: _fantasyAnimes,
                     isLoading: _isLoading && _fantasyAnimes.isEmpty,
-                    sectionId: 'fantasy',
                     genreId: JikanGenreIds.fantasy,
                   ),
 
@@ -550,227 +519,37 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildModernSection({
+  // NOVO: Método para criar seções com Netflix style
+  Widget _buildNetflixSection({
     required String title,
-    required IconData icon,
-    required Gradient gradient,
     required List<JikanAnime> animes,
     required bool isLoading,
-    String? sectionId,
     int? genreId,
   }) {
-    final l10n = AppLocalizations.of(context);
-    final horizontalPadding = Responsive.getHorizontalPadding(context);
-    final sectionHeight = Responsive.getSectionHeight(context);
-    final titleSize = Responsive.getSectionTitleSize(context);
-
     return AnimatedOpacity(
       opacity: isLoading ? 0.6 : 1.0,
       duration: const Duration(milliseconds: 300),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Cabeçalho da seção (simplificado para performance)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-              child: Row(
-                children: [
-                  // Ícone da seção (simplificado para performance)
-                  Container(
-                    padding: EdgeInsets.all(
-                      Responsive.value(context, phone: 9.0, tablet: 11.0),
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          gradient.colors.first.withValues(alpha: 0.3),
-                          gradient.colors.last.withValues(alpha: 0.2),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: gradient.colors.first.withValues(alpha: 0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Icon(
-                      icon,
-                      color: Colors.white,
-                      size: Responsive.value(
-                        context,
-                        phone: 19.0,
-                        tablet: 22.0,
-                      ),
+      child: AnimeSection(
+        title: title,
+        animes: animes,
+        isLoading: isLoading,
+        useNetflixStyle: true,
+        onSeeAll: genreId != null
+            ? () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GenreAnimesScreen(
+                      title: title,
+                      icon: Icons.movie,
+                      gradient: AppColors.getPrimaryGradient(),
+                      genreId: genreId,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: titleSize,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.3,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Botão "Ver todos" simplificado
-                  FocusableWidget(
-                    onSelect: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GenreAnimesScreen(
-                            title: title,
-                            icon: icon,
-                            gradient: gradient,
-                            genreId: genreId,
-                          ),
-                        ),
-                      );
-                    },
-                    borderRadius: 18,
-                    focusPadding: EdgeInsets.zero,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => GenreAnimesScreen(
-                                title: title,
-                                icon: icon,
-                                gradient: gradient,
-                                genreId: genreId,
-                              ),
-                            ),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                l10n.seeAll,
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.arrow_forward_ios,
-                                color: AppColors.primary,
-                                size: 11,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Lista de animes (otimizada - responsiva)
-            SizedBox(
-              height: sectionHeight,
-              child: isLoading
-                  ? _buildLoadingCards()
-                  : animes.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: horizontalPadding,
-                      ),
-                      itemCount: animes.length,
-                      scrollCacheExtent: const ScrollCacheExtent.pixels(
-                        500.0,
-                      ), // Pre-render cards para scroll suave
-                      itemBuilder: (context, index) {
-                        return _buildModernAnimeCard(
-                          animes[index],
-                          gradient,
-                          sectionId ?? title,
-                          index,
-                          showScore: sectionId != 'season',
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernAnimeCard(
-    JikanAnime anime,
-    Gradient gradient,
-    String sectionId,
-    int index, {
-    bool showScore = true,
-  }) {
-    final cardWidth = Responsive.getHorizontalListItemWidth(context);
-    final cardHeight = Responsive.getCardHeightSync(context);
-    final spacing = Responsive.getCardSpacing(context);
-
-    return _AnimatedAnimeCard(
-      anime: anime,
-      cardWidth: cardWidth,
-      cardHeight: cardHeight,
-      spacing: spacing,
-      sectionId: sectionId,
-      index: index,
-      showScore: showScore,
-      onTap: () => _onAnimeTap(anime),
-    );
-  }
-
-  Widget _buildLoadingCards() {
-    final cardWidth = Responsive.getHorizontalListItemWidth(context);
-    final cardHeight = Responsive.getCardHeightSync(context);
-    final spacing = Responsive.getCardSpacing(context);
-    final padding = Responsive.getHorizontalPadding(context);
-
-    return ShimmerAnimeList(
-      itemWidth: cardWidth,
-      itemHeight: cardHeight,
-      spacing: spacing,
-      padding: EdgeInsets.symmetric(horizontal: padding),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    final l10n = AppLocalizations.of(context);
-    return Center(
-      child: Text(
-        l10n.noAnimeFound,
-        style: const TextStyle(color: Colors.white54),
+                );
+              }
+            : null,
+        onAnimeTap: _onAnimeTap,
       ),
     );
   }
