@@ -108,8 +108,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           icon: const Icon(
             Icons.play_circle_filled,
             color: Colors.white,
-            size: 22,
+            // size: 22,
           ),
+          tooltip: 'Home',
           onPressed: () {
             Navigator.push(
               context,
