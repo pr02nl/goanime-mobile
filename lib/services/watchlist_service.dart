@@ -1,48 +1,54 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/sqlite3.dart' as sql;
+
 import '../models/watchlist_anime.dart';
 
 class WatchlistService {
-  static Database? _database;
+  static sql.Database? _database;
   static const String tableName = 'watchlist';
 
-  Future<Database> get database async {
+  Future<sql.Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDatabase();
     return _database!;
   }
 
-  Future<Database> _initDatabase() async {
-    final databasePath = await getDatabasesPath();
-    final path = join(databasePath, 'watchlist.db');
+  Future<sql.Database> _initDatabase() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final dbPath = join(docsDir.path, 'watchlist.db');
 
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE $tableName (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            animeId TEXT NOT NULL UNIQUE,
-            title TEXT NOT NULL,
-            coverImage TEXT NOT NULL,
-            myAnimeListUrl TEXT NOT NULL,
-            addedAt TEXT NOT NULL
-          )
-        ''');
-      },
-    );
+    final db = sql.sqlite3.open(dbPath);
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableName (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        animeId TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        coverImage TEXT NOT NULL,
+        myAnimeListUrl TEXT NOT NULL,
+        addedAt TEXT NOT NULL
+      )
+    ''');
+    return db;
   }
 
   // Adicionar anime à watchlist
   Future<bool> addToWatchlist(WatchlistAnime anime) async {
     try {
       final db = await database;
-      await db.insert(
-        tableName,
-        anime.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+      final map = anime.toMap();
+      db.execute(
+        '''INSERT OR REPLACE INTO $tableName
+           (animeId, title, coverImage, myAnimeListUrl, addedAt)
+           VALUES (?, ?, ?, ?, ?)''',
+        [
+          map['animeId'],
+          map['title'],
+          map['coverImage'],
+          map['myAnimeListUrl'],
+          map['addedAt'],
+        ],
       );
       return true;
     } catch (e) {
@@ -55,7 +61,10 @@ class WatchlistService {
   Future<bool> removeFromWatchlist(String animeId) async {
     try {
       final db = await database;
-      await db.delete(tableName, where: 'animeId = ?', whereArgs: [animeId]);
+      db.execute(
+        'DELETE FROM $tableName WHERE animeId = ?',
+        [animeId],
+      );
       return true;
     } catch (e) {
       debugPrint('Error removing from watchlist: $e');
@@ -67,10 +76,9 @@ class WatchlistService {
   Future<bool> isInWatchlist(String animeId) async {
     try {
       final db = await database;
-      final result = await db.query(
-        tableName,
-        where: 'animeId = ?',
-        whereArgs: [animeId],
+      final result = db.select(
+        'SELECT 1 FROM $tableName WHERE animeId = ? LIMIT 1',
+        [animeId],
       );
       return result.isNotEmpty;
     } catch (e) {
@@ -83,8 +91,12 @@ class WatchlistService {
   Future<List<WatchlistAnime>> getWatchlist() async {
     try {
       final db = await database;
-      final result = await db.query(tableName, orderBy: 'addedAt DESC');
-      return result.map((map) => WatchlistAnime.fromMap(map)).toList();
+      final result = db.select(
+        'SELECT * FROM $tableName ORDER BY addedAt DESC',
+      );
+      return result
+          .map((row) => WatchlistAnime.fromMap(Map<String, dynamic>.from(row)))
+          .toList();
     } catch (e) {
       debugPrint('Error getting watchlist: $e');
       return [];
@@ -95,7 +107,7 @@ class WatchlistService {
   Future<bool> clearWatchlist() async {
     try {
       final db = await database;
-      await db.delete(tableName);
+      db.execute('DELETE FROM $tableName');
       return true;
     } catch (e) {
       debugPrint('Error clearing watchlist: $e');
@@ -107,8 +119,8 @@ class WatchlistService {
   Future<int> getWatchlistCount() async {
     try {
       final db = await database;
-      final result = await db.rawQuery('SELECT COUNT(*) FROM $tableName');
-      return Sqflite.firstIntValue(result) ?? 0;
+      final result = db.select('SELECT COUNT(*) as cnt FROM $tableName');
+      return result.first['cnt'] as int;
     } catch (e) {
       debugPrint('Error getting watchlist count: $e');
       return 0;

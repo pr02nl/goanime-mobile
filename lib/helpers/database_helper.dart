@@ -1,5 +1,6 @@
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 class DatabaseHelper {
   static Database? _database;
@@ -13,13 +14,16 @@ class DatabaseHelper {
   }
 
   static Future<Database> _initDatabase() async {
-    final path = p.join(await getDatabasesPath(), dbName);
-    return await openDatabase(path, version: 1, onCreate: _createDb);
+    final docsDir = await getApplicationDocumentsDirectory();
+    final dbPath = p.join(docsDir.path, dbName);
+    final db = sqlite3.open(dbPath);
+    _createDb(db);
+    return db;
   }
 
-  static Future<void> _createDb(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE $animeTable(
+  static void _createDb(Database db) {
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS $animeTable(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT
       )
@@ -28,14 +32,19 @@ class DatabaseHelper {
 
   static Future<void> addAnimeNames(List<String> animeNames) async {
     final db = await database;
-    for (String name in animeNames) {
-      await db.insert(animeTable, {'name': name});
+    final stmt = db.prepare('INSERT INTO $animeTable (name) VALUES (?)');
+    try {
+      for (final name in animeNames) {
+        stmt.execute([name]);
+      }
+    } finally {
+      stmt.close();
     }
   }
 
   static Future<List<String>> getAnimeNames() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(animeTable);
-    return List.generate(maps.length, (i) => maps[i]['name']);
+    final result = db.select('SELECT name FROM $animeTable');
+    return result.map((row) => row['name'] as String).toList();
   }
 }

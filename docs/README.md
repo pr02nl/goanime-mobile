@@ -117,7 +117,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 
 ## 💾 Persistência Local
 
-### SQLite (sqflite)
+### SQLite (sqlite3)
 
 | Tabela | Propósito |
 |--------|-----------|
@@ -194,7 +194,7 @@ Implementação customizada via `AppLocalizations` com traduções inline.
 | media_kit_libs_video | ^1.0.7 | Bibliotecas nativas de vídeo |
 | http | ^1.1.0 | Requisições HTTP |
 | html | ^0.15.4 | Parsing de HTML |
-| sqflite | ^2.3.0 | Banco de dados local |
+| sqlite3 | ^3.3.3 | Banco de dados local (FFI) |
 | cached_network_image | ^3.3.1 | Cache de imagens |
 | shared_preferences | ^2.2.2 | Preferências locais |
 | provider | ^6.1.1 | State management |

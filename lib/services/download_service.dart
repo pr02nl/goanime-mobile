@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqlite3/sqlite3.dart' as sql;
 
 import 'anime_service.dart';
 import 'allanime_service.dart';
@@ -146,7 +146,7 @@ class DownloadService extends ChangeNotifier {
   factory DownloadService() => _instance;
   DownloadService._internal();
 
-  Database? _database;
+  sql.Database? _database;
   final Map<String, DownloadItem> _downloads = {};
   final Map<String, StreamSubscription> _activeDownloads = {};
   final Map<String, http.Client> _downloadClients = {};
@@ -178,36 +178,32 @@ class DownloadService extends ChangeNotifier {
   }
 
   /// Initialize the database
-  Future<Database> _initDatabase() async {
+  Future<sql.Database> _initDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final dbPath = path.join(documentsDirectory.path, 'downloads.db');
 
-    return await openDatabase(
-      dbPath,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE downloads (
-            id TEXT PRIMARY KEY,
-            animeId TEXT NOT NULL,
-            animeName TEXT NOT NULL,
-            episodeNumber TEXT NOT NULL,
-            episodeTitle TEXT NOT NULL,
-            videoUrl TEXT NOT NULL,
-            thumbnailUrl TEXT NOT NULL,
-            quality INTEGER NOT NULL,
-            status INTEGER NOT NULL,
-            progress REAL NOT NULL,
-            bytesDownloaded INTEGER NOT NULL,
-            totalBytes INTEGER NOT NULL,
-            filePath TEXT,
-            error TEXT,
-            createdAt INTEGER NOT NULL,
-            completedAt INTEGER
-          )
-        ''');
-      },
-    );
+    final db = sql.sqlite3.open(dbPath);
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS downloads (
+        id TEXT PRIMARY KEY,
+        animeId TEXT NOT NULL,
+        animeName TEXT NOT NULL,
+        episodeNumber TEXT NOT NULL,
+        episodeTitle TEXT NOT NULL,
+        videoUrl TEXT NOT NULL,
+        thumbnailUrl TEXT NOT NULL,
+        quality INTEGER NOT NULL,
+        status INTEGER NOT NULL,
+        progress REAL NOT NULL,
+        bytesDownloaded INTEGER NOT NULL,
+        totalBytes INTEGER NOT NULL,
+        filePath TEXT,
+        error TEXT,
+        createdAt INTEGER NOT NULL,
+        completedAt INTEGER
+      )
+    ''');
+    return db;
   }
 
   /// Load downloads from database
@@ -216,11 +212,12 @@ class DownloadService extends ChangeNotifier {
       return;
     }
 
-    final List<Map<String, dynamic>> maps = await _database!.query('downloads');
+    final rows = _database!.select('SELECT * FROM downloads');
     _downloads.clear();
 
-    for (var map in maps) {
-      final download = DownloadItem.fromMap(map);
+    for (final row in rows) {
+      final download =
+          DownloadItem.fromMap(Map<String, dynamic>.from(row));
       _downloads[download.id] = download;
 
       // Reset downloading status to queued on app restart
@@ -670,7 +667,7 @@ class DownloadService extends ChangeNotifier {
     }
 
     // Remove from database
-    await _database?.delete('downloads', where: 'id = ?', whereArgs: [id]);
+    _database?.execute('DELETE FROM downloads WHERE id = ?', [id]);
     _downloads.remove(id);
     notifyListeners();
   }
@@ -712,10 +709,32 @@ class DownloadService extends ChangeNotifier {
 
   /// Save download to database
   Future<void> _saveDownload(DownloadItem download) async {
-    await _database?.insert(
-      'downloads',
-      download.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+    final map = download.toMap();
+    _database?.execute(
+      '''INSERT OR REPLACE INTO downloads
+         (id, animeId, animeName, episodeNumber, episodeTitle,
+          videoUrl, thumbnailUrl, quality, status, progress,
+          bytesDownloaded, totalBytes, filePath, error,
+          createdAt, completedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+      [
+        map['id'],
+        map['animeId'],
+        map['animeName'],
+        map['episodeNumber'],
+        map['episodeTitle'],
+        map['videoUrl'],
+        map['thumbnailUrl'],
+        map['quality'],
+        map['status'],
+        map['progress'],
+        map['bytesDownloaded'],
+        map['totalBytes'],
+        map['filePath'],
+        map['error'],
+        map['createdAt'],
+        map['completedAt'],
+      ],
     );
   }
 
