@@ -1,6 +1,5 @@
 ﻿import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -9,7 +8,7 @@ import '../services/jikan_service.dart';
 import '../services/search_history_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
-import '../widgets/focusable_widget.dart';
+import '../widgets/netflix_card.dart';
 import 'source_selection_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -500,7 +499,18 @@ class _SearchScreenState extends State<SearchScreen>
               scrollDirection: Axis.horizontal,
               itemCount: _recentSearchResults.length,
               itemBuilder: (context, index) {
-                return _buildAnimeCard(_recentSearchResults[index]);
+                final anime = _recentSearchResults[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: NetflixCard(
+                    imageUrl: anime.imageUrl,
+                    title: anime.title,
+                    rating: anime.score,
+                    width: 130,
+                    height: 160,
+                    onTap: () => _onAnimeTap(anime),
+                  ),
+                );
               },
             ),
           ),
@@ -556,7 +566,15 @@ class _SearchScreenState extends State<SearchScreen>
             ),
             itemCount: _trendingAnimes.length,
             itemBuilder: (context, index) {
-              return _buildGridAnimeCard(_trendingAnimes[index]);
+              final anime = _trendingAnimes[index];
+              return NetflixCard(
+                imageUrl: anime.imageUrl,
+                title: anime.title,
+                rating: anime.score,
+                width: double.infinity,
+                height: 220,
+                onTap: () => _onAnimeTap(anime),
+              );
             },
           ),
       ],
@@ -604,7 +622,15 @@ class _SearchScreenState extends State<SearchScreen>
       ),
       itemCount: _searchResults.length,
       itemBuilder: (context, index) {
-        return _buildGridAnimeCard(_searchResults[index]);
+        final anime = _searchResults[index];
+        return NetflixCard(
+          imageUrl: anime.imageUrl,
+          title: anime.title,
+          rating: anime.score,
+          width: double.infinity,
+          height: 220,
+          onTap: () => _onAnimeTap(anime),
+        );
       },
     );
   }
@@ -635,174 +661,4 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildAnimeCard(JikanAnime anime) {
-    return FocusableWidget(
-      onSelect: () => _onAnimeTap(anime),
-      borderRadius: 12,
-      focusPadding: EdgeInsets.zero,
-      child: GestureDetector(
-        onTap: () => _onAnimeTap(anime),
-        child: Container(
-          width: 130,
-          margin: const EdgeInsets.only(right: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: anime.imageUrl,
-                      width: 130,
-                      height: 160,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: AppColors.surface,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (anime.score != null)
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                anime.score!.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                anime.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGridAnimeCard(JikanAnime anime) {
-    return FocusableWidget(
-      onSelect: () => _onAnimeTap(anime),
-      borderRadius: 12,
-      focusPadding: EdgeInsets.zero,
-      child: GestureDetector(
-        onTap: () => _onAnimeTap(anime),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: anime.imageUrl,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: AppColors.surface,
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (anime.score != null)
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 10,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                anime.score!.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              anime.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                height: 1.2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

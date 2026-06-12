@@ -4,7 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
-import '../widgets/anime_card.dart';
+import '../widgets/netflix_card.dart';
 import 'source_selection_screen.dart';
 
 class GenreAnimesScreen extends StatefulWidget {
@@ -200,7 +200,7 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
             ),
           ),
 
-          // Conteúdo usando AnimeCard com Netflix style
+          // Conteúdo usando NetflixCard
           if (_isLoading)
             SliverFillRemaining(
               child: Center(
@@ -252,12 +252,14 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
                 ),
                 delegate: SliverChildBuilderDelegate((context, index) {
                   if (index >= _animes.length) return null;
-                  return AnimeCard(
-                    anime: _animes[index],
+                  final anime = _animes[index];
+                  return NetflixCard(
+                    imageUrl: anime.imageUrl,
+                    title: anime.title,
+                    rating: anime.score,
                     width: double.infinity,
                     height: 220,
-                    useNetflixStyle: true,
-                    onTap: () => _onAnimeTap(_animes[index]),
+                    onTap: () => _onAnimeTap(anime),
                   );
                 }, childCount: _animes.length),
               ),
