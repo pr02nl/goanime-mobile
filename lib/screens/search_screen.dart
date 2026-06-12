@@ -7,6 +7,7 @@ import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../services/search_history_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
 import '../widgets/netflix_card.dart';
 import 'source_selection_screen.dart';
@@ -373,7 +374,7 @@ class _SearchScreenState extends State<SearchScreen>
                           ? IconButton(
                               icon: const Icon(
                                 Icons.clear,
-                                color: Colors.white70,
+                                color: NetflixTheme.textSecondary,
                               ),
                               onPressed: () {
                                 _searchController.clear();
@@ -445,7 +446,9 @@ class _SearchScreenState extends State<SearchScreen>
               child: FilterChip(
                 label: Text(l10n.allGenres),
                 labelStyle: TextStyle(
-                  color: _selectedGenre == null ? Colors.white : Colors.white70,
+                  color: _selectedGenre == null
+                      ? Colors.white
+                      : NetflixTheme.textSecondary,
                   fontWeight: _selectedGenre == null
                       ? FontWeight.bold
                       : FontWeight.normal,
@@ -466,12 +469,12 @@ class _SearchScreenState extends State<SearchScreen>
             child: FilterChip(
               avatar: Icon(
                 genre['icon'] as IconData,
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected ? Colors.white : NetflixTheme.textSecondary,
                 size: 18,
               ),
               label: Text(genre['name'] as String),
               labelStyle: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected ? Colors.white : NetflixTheme.textSecondary,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
               selected: isSelected,
@@ -538,7 +541,7 @@ class _SearchScreenState extends State<SearchScreen>
               leading: const Icon(Icons.history, color: AppColors.primary),
               title: Text(query, style: const TextStyle(color: Colors.white)),
               trailing: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white54),
+                icon: const Icon(Icons.close, color: NetflixTheme.textTertiary),
                 onPressed: () => _removeHistoryItem(query),
               ),
               onTap: () => _selectSearchQuery(query),
@@ -660,5 +663,4 @@ class _SearchScreenState extends State<SearchScreen>
       ],
     );
   }
-
 }

@@ -6,6 +6,7 @@ import '../models/anime.dart';
 import '../services/allanime_service.dart';
 import '../services/anime_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/netflix_theme.dart';
 import '../widgets/focusable_widget.dart';
 import '../widgets/watchlist_button.dart';
 import 'modern_episode_list_screen.dart';
@@ -345,7 +346,10 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
                         Container(color: AppColors.surface),
                     errorWidget: (context, url, error) => Container(
                       color: AppColors.surface,
-                      child: const Icon(Icons.error, color: Colors.white54),
+                      child: const Icon(
+                        Icons.error,
+                        color: NetflixTheme.textTertiary,
+                      ),
                     ),
                   ),
                   Container(

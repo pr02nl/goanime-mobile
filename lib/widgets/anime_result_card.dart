@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../models/anime.dart';
+import '../theme/app_colors.dart';
 import 'focusable_widget.dart';
 
 class AnimeResultCard extends StatelessWidget {
@@ -118,13 +119,15 @@ class AnimeResultCard extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: anime.source == AnimeSource.animeFire
-                                  ? Colors.orange.withValues(alpha: 0.2)
-                                  : Colors.purple.withValues(alpha: 0.2),
+                                  ? AppColors.warning.withValues(alpha: 0.2)
+                                  : AppColors.secondary.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: anime.source == AnimeSource.animeFire
-                                    ? Colors.orange.withValues(alpha: 0.5)
-                                    : Colors.purple.withValues(alpha: 0.5),
+                                    ? AppColors.warning.withValues(alpha: 0.5)
+                                    : AppColors.secondary.withValues(
+                                        alpha: 0.5,
+                                      ),
                                 width: 1,
                               ),
                             ),
@@ -132,8 +135,8 @@ class AnimeResultCard extends StatelessWidget {
                               anime.sourceName,
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: anime.source == AnimeSource.animeFire
-                                    ? Colors.orange.shade800
-                                    : Colors.purple.shade800,
+                                    ? AppColors.warning
+                                    : AppColors.secondary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 10,
                               ),
@@ -175,7 +178,7 @@ class AnimeResultCard extends StatelessWidget {
                             Icon(
                               Icons.star_rounded,
                               size: 16,
-                              color: Colors.amber.shade600,
+                              color: AppColors.warning,
                             ),
                             const SizedBox(width: 4),
                             Text(

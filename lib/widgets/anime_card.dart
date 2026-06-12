@@ -171,7 +171,7 @@ class _AnimeCardState extends State<AnimeCard>
                             children: [
                               const Icon(
                                 Icons.star,
-                                color: Colors.amber,
+                                color: AppColors.warning,
                                 size: 12,
                               ),
                               const SizedBox(width: 2),
@@ -327,7 +327,7 @@ class AnimeCardLarge extends StatelessWidget {
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.grey[400],
+                            color: NetflixTheme.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -337,7 +337,7 @@ class AnimeCardLarge extends StatelessWidget {
                           if (anime.score != null) ...[
                             const Icon(
                               Icons.star,
-                              color: Colors.amber,
+                              color: AppColors.warning,
                               size: 16,
                             ),
                             const SizedBox(width: 4),
@@ -352,12 +352,16 @@ class AnimeCardLarge extends StatelessWidget {
                             const SizedBox(width: 12),
                           ],
                           if (anime.episodes != null) ...[
-                            Icon(Icons.tv, color: Colors.grey[400], size: 16),
+                            Icon(
+                              Icons.tv,
+                              color: NetflixTheme.textSecondary,
+                              size: 16,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               '${anime.episodes} eps',
                               style: TextStyle(
-                                color: Colors.grey[400],
+                                color: NetflixTheme.textSecondary,
                                 fontSize: 12,
                               ),
                             ),

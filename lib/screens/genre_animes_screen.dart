@@ -4,6 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/netflix_theme.dart';
 import '../widgets/netflix_card.dart';
 import 'source_selection_screen.dart';
 
@@ -211,7 +212,7 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
                     const SizedBox(height: 16),
                     Text(
                       l10n.loading,
-                      style: const TextStyle(color: Colors.white70),
+                      style: const TextStyle(color: NetflixTheme.textSecondary),
                     ),
                   ],
                 ),
@@ -232,7 +233,7 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
                     Text(
                       l10n.noResultsFound,
                       style: const TextStyle(
-                        color: Colors.white70,
+                        color: NetflixTheme.textSecondary,
                         fontSize: 18,
                       ),
                     ),

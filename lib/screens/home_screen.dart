@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
 import '../widgets/netflix_card.dart';
 import '../widgets/netflix_carousel.dart';
@@ -164,7 +165,9 @@ class _HomeScreenState extends State<HomeScreen>
             if (_seasonAnimes.isNotEmpty)
               SliverToBoxAdapter(
                 child: NetflixHeroCard(
-                  imageUrl: _seasonAnimes.first.largImageUrl ?? _seasonAnimes.first.imageUrl,
+                  imageUrl:
+                      _seasonAnimes.first.largImageUrl ??
+                      _seasonAnimes.first.imageUrl,
                   title: _seasonAnimes.first.title,
                   description: _seasonAnimes.first.synopsis,
                   onPlay: () => _onAnimeTap(_seasonAnimes.first),
@@ -344,10 +347,7 @@ class _HomeScreenState extends State<HomeScreen>
     final sectionHeight = cardHeight + 60;
 
     if (isLoading) {
-      return NetflixCarouselShimmer(
-        title: title,
-        height: sectionHeight,
-      );
+      return NetflixCarouselShimmer(title: title, height: sectionHeight);
     }
 
     if (animes.isEmpty) {
@@ -372,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: Center(
               child: Text(
                 'Nenhum anime encontrado',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: NetflixTheme.textTertiary),
               ),
             ),
           ),
@@ -421,4 +421,3 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 }
-
