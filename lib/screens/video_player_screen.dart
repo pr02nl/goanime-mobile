@@ -1094,6 +1094,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     if (_isFullscreen) {
       return Scaffold(
         backgroundColor: Colors.black,
+        extendBody: true,
+        extendBodyBehindAppBar: true,
         body: _isLoading
             ? _buildLoadingState()
             : _errorMessage != null
@@ -1163,92 +1165,49 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   }
 
   Widget _buildFullscreenContent() {
-    return Stack(
-      children: [
-        // Video ocupa toda a tela
-        SizedBox.expand(
-          child: _videoController != null
-              ? Video(controller: _videoController!, fit: BoxFit.contain)
+    final isTV = _isTVDevice == true;
+
+    return SizedBox.expand(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Video ocupa toda a tela
+          _videoController != null
+              ? Video(
+                  controller: _videoController!,
+                  fit: BoxFit.contain,
+                  // TV: controles desktop com suporte a D-pad/teclado
+                  // Phone: null usa AdaptiveVideoControls (touch)
+                  controls: isTV ? MaterialDesktopVideoControls : null,
+                )
               : Container(color: Colors.black),
-        ),
-        // Botão de voltar no topo-esquerdo
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.arrow_back, color: Colors.white),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.animeTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(color: Colors.black54, blurRadius: 4),
-                            ],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          'Episode ${_extractEpisodeNumber(widget.episode.number)}',
-                          style: TextStyle(
-                            color: AppColors.primary.withValues(alpha: 0.9),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+          // Skip Button Overlay
+          Positioned(
+            bottom: isTV ? 40 : 80,
+            right: isTV ? 40 : 24,
+            child: SafeArea(
+              child: IgnorePointer(
+                ignoring: !_showSkipButton,
+                child: SkipButton(
+                  onSkip: _skipIntroOutro,
+                  label: _skipButtonLabel,
+                  show: _showSkipButton,
+                ),
               ),
             ),
           ),
-        ),
-        // Skip Button Overlay
-        Positioned(
-          bottom: 80,
-          right: 24,
-          child: SafeArea(
-            child: IgnorePointer(
-              ignoring: !_showSkipButton,
-              child: SkipButton(
-                onSkip: _skipIntroOutro,
-                label: _skipButtonLabel,
-                show: _showSkipButton,
-              ),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildLoadingState() {
+    final isFullscreen = _isFullscreen;
     return Container(
-      height: MediaQuery.of(context).size.height - 200,
+      height: isFullscreen
+          ? MediaQuery.of(context).size.height
+          : MediaQuery.of(context).size.height - 200,
+      color: isFullscreen ? Colors.black : null,
       padding: const EdgeInsets.all(24),
       child: Center(
         child: Column(
@@ -1303,8 +1262,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   }
 
   Widget _buildErrorState() {
+    final isFullscreen = _isFullscreen;
     return Container(
-      height: MediaQuery.of(context).size.height - 200,
+      height: isFullscreen
+          ? MediaQuery.of(context).size.height
+          : MediaQuery.of(context).size.height - 200,
+      color: isFullscreen ? Colors.black : null,
       padding: const EdgeInsets.all(24),
       child: Center(
         child: _buildErrorWidget(
