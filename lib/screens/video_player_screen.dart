@@ -15,8 +15,8 @@ import '../services/allanime_service.dart';
 import '../services/anime_service.dart';
 import '../services/aniskip_service.dart';
 import '../theme/app_colors.dart';
-import '../widgets/skip_button.dart';
 import '../utils/tv_detector.dart';
+import '../widgets/skip_button.dart';
 import 'blogger_webview_screen.dart';
 
 // Function to extract only episode number from full text
@@ -68,6 +68,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   String? _bloggerVideoUrl;
   GoogleVideoProxy? _googleVideoProxy;
   bool _isGoogleStream = false;
+
+  // Fullscreen related variables
+  bool _isFullscreen = false;
+  bool? _isTVDevice;
 
   // AniSkip related variables
   SkipTimes? _skipTimes;
@@ -128,22 +132,71 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   void initState() {
     super.initState();
     _initializeVideoPlayer();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _setupTVFullscreen();
-    });
+    _detectDeviceAndEnterFullscreen();
   }
 
-  void _setupTVFullscreen() async {
-    if (!Platform.isAndroid) return;
-    // Usar TVDetector para detectar TV
+  /// Detecta o tipo de dispositivo e entra em fullscreen
+  void _detectDeviceAndEnterFullscreen() async {
+    if (!Platform.isAndroid) {
+      // Para iOS e outros, apenas entra em fullscreen
+      _enterFullscreen();
+      return;
+    }
+
+    // Detectar se é TV
     final isTV = await TVDetector.isTV;
+    _isTVDevice = isTV;
+
     if (isTV) {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      // TV: fullscreen + landscape only
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
     }
+
+    // Entra em fullscreen para todos os dispositivos
+    _enterFullscreen();
+
+    // Configurar listener para detectar saída do fullscreen
+    _setupFullscreenListener();
+  }
+
+  /// Entra em modo fullscreen (immersive)
+  void _enterFullscreen() {
+    setState(() {
+      _isFullscreen = true;
+    });
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  /// Sai do modo fullscreen
+  // void _exitFullscreen() {
+  //   setState(() {
+  //     _isFullscreen = false;
+  //   });
+  //   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  // }
+
+  /// Configura listener para detectar mudanças no sistema UI (fullscreen exit)
+  void _setupFullscreenListener() {
+    SystemChrome.setSystemUIChangeCallback((systemOverlaysAreVisible) async {
+      // systemOverlaysAreVisible = true quando saiu do fullscreen
+      if (systemOverlaysAreVisible && _isFullscreen) {
+        setState(() {
+          _isFullscreen = false;
+        });
+
+        if (_isTVDevice == true) {
+          // Na TV: fechar o player quando sair do fullscreen
+          debugPrint('[VideoPlayer] TV: Fechando player ao sair do fullscreen');
+          if (mounted && Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+        }
+        // No smartphone: apenas sai do fullscreen sem fechar (comportamento padrão)
+      }
+    });
   }
 
   @override
@@ -1027,7 +1080,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   @override
   void dispose() {
     _positionTimer?.cancel();
+    _skipButtonAutoHideTimer?.cancel();
+    SystemChrome.setSystemUIChangeCallback(null); // Remove o listener
     _cleanupControllers();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setPreferredOrientations([]); // Reset orientations
     super.dispose();
   }
 
@@ -1371,7 +1428,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                           ),
                           IconButton(
                             onPressed: _copyStreamLink,
-                            icon: const Icon(Icons.copy, color: AppColors.primary),
+                            icon: const Icon(
+                              Icons.copy,
+                              color: AppColors.primary,
+                            ),
                             tooltip: AppLocalizations.of(context).copyLink,
                           ),
                         ],
@@ -1426,7 +1486,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _openWebViewFallback,
                         icon: const Icon(Icons.open_in_browser),
-                        label: Text(AppLocalizations.of(context).alternativePlayer),
+                        label: Text(
+                          AppLocalizations.of(context).alternativePlayer,
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.deepPurple,
                           foregroundColor: Colors.white,
@@ -1443,7 +1505,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
             ),
           ],
         );
-          },
+      },
     );
   }
 
