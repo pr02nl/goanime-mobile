@@ -2,7 +2,6 @@
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
-
 import 'l10n/app_localizations.dart';
 import 'providers/theme_provider.dart';
 import 'screens/main_navigation_screen.dart';
