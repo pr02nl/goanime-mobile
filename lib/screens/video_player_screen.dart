@@ -127,6 +127,24 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   void initState() {
     super.initState();
     _initializeVideoPlayer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setupTVFullscreen();
+    });
+  }
+
+  void _setupTVFullscreen() {
+    if (!Platform.isAndroid) return;
+    // Verificar se e Android TV pelo tamanho da tela
+    final size = MediaQuery.of(context).size;
+    final isTV = size.width > 1000 && size.height > 600;
+    if (isTV || true) {
+      // Forcar para teste na TV
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
   }
 
   @override
@@ -754,7 +772,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
           ],
         ),
       );
-      _videoController = VideoController(_player!);
+      _videoController = VideoController(
+        _player!,
+        configuration: const VideoControllerConfiguration(
+          enableHardwareAcceleration: true,
+        ),
+      );
 
       // Listen to player streams for error handling
       _player?.stream.error.listen((error) {
@@ -810,7 +833,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         // Fallback: try without headers
         final media = Media(resolvedVideoUrl);
         await _player!.open(media, play: true);
-        debugPrint('[VideoPlayer] Media opened successfully (no headers fallback)');
+        debugPrint(
+          '[VideoPlayer] Media opened successfully (no headers fallback)',
+        );
       }
 
       // Wait for player to be ready
@@ -1162,7 +1187,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                   child: AspectRatio(
                     aspectRatio: _calculateAspectRatio(),
                     child: _videoController != null
-                        ? Video(controller: _videoController!)
+                        ? Video(
+                            controller: _videoController!,
+                            fit: BoxFit.contain,
+                            controls:
+                                null, // Usa controles nativos do media_kit
+                          )
                         : Container(color: Colors.black),
                   ),
                 ),

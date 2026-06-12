@@ -664,7 +664,12 @@ class _LocalVideoPlayerScreenState extends State<_LocalVideoPlayerScreen> {
   Future<void> _initializePlayer() async {
     try {
       _player = Player();
-      _videoController = VideoController(_player!);
+      _videoController = VideoController(
+        _player!,
+        configuration: const VideoControllerConfiguration(
+          enableHardwareAcceleration: true,
+        ),
+      );
 
       await _player!.open(Media(widget.filePath), play: true);
 
