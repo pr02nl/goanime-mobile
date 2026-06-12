@@ -1,3 +1,20 @@
+---
+name: netflix-ui-ux
+description: Create Netflix-inspired responsive Flutter UI/UX with premium design, smooth animations, and multi-platform support
+argument-hint: "[component] [options]"
+allowed-tools:
+  - read
+  - write
+  - edit
+  - grep
+  - glob
+  - find_file_by_name
+  - exec
+triggers:
+  - user
+  - model
+---
+
 # Netflix UI/UX Design Skill
 
 ## Descrição
