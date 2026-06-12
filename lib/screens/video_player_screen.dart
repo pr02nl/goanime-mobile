@@ -16,6 +16,7 @@ import '../services/anime_service.dart';
 import '../services/aniskip_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/skip_button.dart';
+import '../utils/tv_detector.dart';
 import 'blogger_webview_screen.dart';
 
 // Function to extract only episode number from full text
@@ -132,13 +133,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     });
   }
 
-  void _setupTVFullscreen() {
+  void _setupTVFullscreen() async {
     if (!Platform.isAndroid) return;
-    // Verificar se e Android TV pelo tamanho da tela
-    final size = MediaQuery.of(context).size;
-    final isTV = size.width > 1000 && size.height > 600;
-    if (isTV || true) {
-      // Forcar para teste na TV
+    // Usar TVDetector para detectar TV
+    final isTV = await TVDetector.isTV;
+    if (isTV) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.landscapeLeft,
@@ -1163,249 +1162,288 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   }
 
   Widget _buildLoadedContent() {
-    return Column(
-      children: [
-        // Video Player with Skip Button
-        Container(
-          margin: const EdgeInsets.all(16),
-          child: Stack(
+    // Detectar se é TV
+    return FutureBuilder<bool>(
+      future: TVDetector.isTV,
+      builder: (context, snapshot) {
+        final isTV = snapshot.data ?? false;
+
+        if (isTV) {
+          // Layout fullscreen para TV
+          return Stack(
             children: [
-              // Video Player Container
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: AspectRatio(
-                    aspectRatio: _calculateAspectRatio(),
-                    child: _videoController != null
-                        ? Video(
-                            controller: _videoController!,
-                            fit: BoxFit.contain,
-                            controls:
-                                null, // Usa controles nativos do media_kit
-                          )
-                        : Container(color: Colors.black),
-                  ),
-                ),
+              // Video Player fullscreen
+              SizedBox.expand(
+                child: _videoController != null
+                    ? Video(
+                        controller: _videoController!,
+                        fit: BoxFit.cover,
+                        controls: null,
+                      )
+                    : Container(color: Colors.black),
               ),
-              // Skip Button Overlay (outside ClipRRect)
-              Positioned.fill(
+              // Skip Button Overlay
+              Positioned(
+                bottom: 40,
+                right: 40,
                 child: IgnorePointer(
                   ignoring: !_showSkipButton,
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 24, right: 16),
-                      child: Align(
-                        alignment: Alignment.bottomRight,
-                        child: SkipButton(
-                          onSkip: _skipIntroOutro,
-                          label: _skipButtonLabel,
-                          show: _showSkipButton,
-                        ),
-                      ),
-                    ),
+                  child: SkipButton(
+                    onSkip: _skipIntroOutro,
+                    label: _skipButtonLabel,
+                    show: _showSkipButton,
                   ),
                 ),
               ),
             ],
-          ),
-        ),
+          );
+        }
 
-        // Info Card
-        Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.surface.withValues(alpha: 0.8),
-                AppColors.surfaceLight.withValues(alpha: 0.6),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.animeTitle,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Episode ${_extractEpisodeNumber(widget.episode.number)}',
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Quality Tags
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+        return Column(
+          children: [
+            // Video Player with Skip Button
+            Container(
+              margin: const EdgeInsets.all(16),
+              child: Stack(
                 children: [
-                  _buildTag(
-                    AppLocalizations.of(context).dynamicQuality,
-                    const Color(0xFF9C27B0),
-                    Icons.high_quality_rounded,
-                  ),
-                  _buildTag(
-                    AppLocalizations.of(context).optimizedPlayer,
-                    const Color(0xFF2196F3),
-                    Icons.offline_bolt_rounded,
-                  ),
-                  if (_isGoogleStream)
-                    _buildTag(
-                      AppLocalizations.of(context).googleVideo,
-                      const Color(0xFF4CAF50),
-                      Icons.cloud_done_rounded,
+                  // Video Player Container
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
                     ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: AspectRatio(
+                        aspectRatio: _calculateAspectRatio(),
+                        child: _videoController != null
+                            ? Video(
+                                controller: _videoController!,
+                                fit: BoxFit.contain,
+                                controls:
+                                    null, // Usa controles nativos do media_kit
+                              )
+                            : Container(color: Colors.black),
+                      ),
+                    ),
+                  ),
+                  // Skip Button Overlay (outside ClipRRect)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      ignoring: !_showSkipButton,
+                      child: SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 24, right: 16),
+                          child: Align(
+                            alignment: Alignment.bottomRight,
+                            child: SkipButton(
+                              onSkip: _skipIntroOutro,
+                              label: _skipButtonLabel,
+                              show: _showSkipButton,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
+            ),
 
-              // Server Info
-              if (_currentVideoUrl != null) ...[
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3),
+            // Info Card
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.surface.withValues(alpha: 0.8),
+                    AppColors.surfaceLight.withValues(alpha: 0.6),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.animeTitle,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  child: Row(
+                  const SizedBox(height: 8),
+                  Text(
+                    'Episode ${_extractEpisodeNumber(widget.episode.number)}',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Quality Tags
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.getPrimaryGradient(),
-                          borderRadius: BorderRadius.circular(10),
+                      _buildTag(
+                        AppLocalizations.of(context).dynamicQuality,
+                        const Color(0xFF9C27B0),
+                        Icons.high_quality_rounded,
+                      ),
+                      _buildTag(
+                        AppLocalizations.of(context).optimizedPlayer,
+                        const Color(0xFF2196F3),
+                        Icons.offline_bolt_rounded,
+                      ),
+                      if (_isGoogleStream)
+                        _buildTag(
+                          AppLocalizations.of(context).googleVideo,
+                          const Color(0xFF4CAF50),
+                          Icons.cloud_done_rounded,
                         ),
-                        child: const Icon(
-                          Icons.sensors,
-                          color: Colors.white,
-                          size: 20,
+                    ],
+                  ),
+
+                  // Server Info
+                  if (_currentVideoUrl != null) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: AppColors.getPrimaryGradient(),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.sensors,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  AppLocalizations.of(context).serverInUse,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  Uri.parse(_currentVideoUrl!).host,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _copyStreamLink,
+                            icon: const Icon(Icons.copy, color: AppColors.primary),
+                            tooltip: AppLocalizations.of(context).copyLink,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Buttons
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _initializeVideoPlayer,
+                          icon: const Icon(Icons.refresh),
+                          label: Text(AppLocalizations.of(context).syncStream),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppLocalizations.of(context).serverInUse,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        child: OutlinedButton.icon(
+                          onPressed: _currentVideoUrl == null
+                              ? null
+                              : _copyStreamLink,
+                          icon: const Icon(Icons.link),
+                          label: Text(AppLocalizations.of(context).copyLink),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              Uri.parse(_currentVideoUrl!).host,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 12,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: _copyStreamLink,
-                        icon: const Icon(Icons.copy, color: AppColors.primary),
-                        tooltip: AppLocalizations.of(context).copyLink,
                       ),
                     ],
                   ),
-                ),
-              ],
 
-              // Buttons
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _initializeVideoPlayer,
-                      icon: const Icon(Icons.refresh),
-                      label: Text(AppLocalizations.of(context).syncStream),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  if (_showWebViewOption && _bloggerVideoUrl != null) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _openWebViewFallback,
+                        icon: const Icon(Icons.open_in_browser),
+                        label: Text(AppLocalizations.of(context).alternativePlayer),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _currentVideoUrl == null
-                          ? null
-                          : _copyStreamLink,
-                      icon: const Icon(Icons.link),
-                      label: Text(AppLocalizations.of(context).copyLink),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
+                  ],
                 ],
               ),
-
-              if (_showWebViewOption && _bloggerVideoUrl != null) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _openWebViewFallback,
-                    icon: const Icon(Icons.open_in_browser),
-                    label: Text(AppLocalizations.of(context).alternativePlayer),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+          },
     );
   }
 
