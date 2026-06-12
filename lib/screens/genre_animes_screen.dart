@@ -1,11 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
-import '../widgets/focusable_widget.dart';
+import '../widgets/anime_card.dart';
 import 'source_selection_screen.dart';
 
 class GenreAnimesScreen extends StatefulWidget {
@@ -69,7 +68,6 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
           limit: 25,
         );
       } else {
-        // Para "Top Anime" ou "Season Highlights"
         animes = await _jikanService.getTopAnimes(limit: 25);
       }
 
@@ -93,7 +91,7 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
     _currentPage++;
 
     try {
-      await Future.delayed(const Duration(milliseconds: 600)); // Rate limiting
+      await Future.delayed(const Duration(milliseconds: 600));
 
       List<JikanAnime> newAnimes;
 
@@ -122,7 +120,7 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
       if (mounted) {
         setState(() {
           _isLoadingMore = false;
-          _currentPage--; // Reverte o incremento em caso de erro
+          _currentPage--;
         });
       }
     }
@@ -202,7 +200,7 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
             ),
           ),
 
-          // Conteúdo
+          // Conteúdo usando AnimeCard com Netflix style
           if (_isLoading)
             SliverFillRemaining(
               child: Center(
@@ -254,7 +252,13 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
                 ),
                 delegate: SliverChildBuilderDelegate((context, index) {
                   if (index >= _animes.length) return null;
-                  return _buildAnimeCard(_animes[index]);
+                  return AnimeCard(
+                    anime: _animes[index],
+                    width: double.infinity,
+                    height: 220,
+                    useNetflixStyle: true,
+                    onTap: () => _onAnimeTap(_animes[index]),
+                  );
                 }, childCount: _animes.length),
               ),
             ),
@@ -269,129 +273,8 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
                 ),
               ),
             ),
-
-          // Espaçamento final
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
         ],
       ),
-    );
-  }
-
-  Widget _buildAnimeCard(JikanAnime anime) {
-    return FocusableWidget(
-      onSelect: () => _onAnimeTap(anime),
-      borderRadius: 16,
-      focusPadding: EdgeInsets.zero,
-      child: GestureDetector(
-      onTap: () => _onAnimeTap(anime),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: widget.gradient.colors.first.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Imagem
-              CachedNetworkImage(
-                imageUrl: anime.imageUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: AppColors.surface,
-                  child: const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: AppColors.surface,
-                  child: const Icon(Icons.error, color: Colors.white54),
-                ),
-              ),
-
-              // Gradient overlay
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.7),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Score badge
-              if (anime.score != null && anime.score! > 0)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          anime.score!.toStringAsFixed(1),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // Título
-              Positioned(
-                left: 12,
-                right: 12,
-                bottom: 12,
-                child: Text(
-                  anime.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(0, 1),
-                        blurRadius: 3,
-                        color: Colors.black,
-                      ),
-                    ],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
     );
   }
 }

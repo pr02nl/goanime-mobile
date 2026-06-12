@@ -185,6 +185,10 @@ class _HomeScreenState extends State<HomeScreen>
           slivers: [
             // Banner Hero com Parallax
             if (_seasonAnimes.isNotEmpty)
+              SliverToBoxAdapter(child: _buildNetflixHero()),
+
+            // Banner Hero com Parallax
+            if (_seasonAnimes.isNotEmpty)
               SliverToBoxAdapter(child: _buildHeroBannerCarousel()),
 
             // Conteúdo principal
@@ -340,7 +344,206 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildHeroBannerCarousel() {
+    /// Hero Section estilo Netflix - Anime em destaque
+  Widget _buildNetflixHero() {
+    if (_seasonAnimes.isEmpty) return const SizedBox.shrink();
+
+    final featuredAnime = _seasonAnimes.first;
+    final bannerHeight = Responsive.getBannerHeight(context) * 1.2;
+    final padding = Responsive.getHorizontalPadding(context);
+
+    return SizedBox(
+      height: bannerHeight,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background image
+          CachedNetworkImage(
+            imageUrl: featuredAnime.largImageUrl ?? featuredAnime.imageUrl,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+            placeholder: (context, url) => Container(
+              color: AppColors.surface,
+              child: const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            ),
+            errorWidget: (context, url, error) => Container(
+              color: AppColors.surface,
+              child: const Icon(Icons.error, color: Colors.white54),
+            ),
+          ),
+
+          // Gradient overlay Netflix-style (mais escuro embaixo)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.transparent,
+                  AppColors.background.withValues(alpha: 0.7),
+                  AppColors.background,
+                ],
+                stops: const [0.0, 0.4, 0.75, 1.0],
+              ),
+            ),
+          ),
+
+          // Conteúdo do Hero
+          Positioned(
+            left: padding,
+            right: padding,
+            bottom: 40,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Tag "Em Alta" ou similar
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'DESTAQUE DA TEMPORADA',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Título do anime
+                Text(
+                  featuredAnime.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(0, 2),
+                        blurRadius: 8,
+                        color: Colors.black54,
+                      ),
+                    ],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+
+                // Info row (ano, tipo, rating)
+                Row(
+                  children: [
+                    if (featuredAnime.score != null)
+                      Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            featuredAnime.score!.toStringAsFixed(1),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(width: 12),
+                    Text(
+                      featuredAnime.status ?? 'TV',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (featuredAnime.episodes != null) ...[
+                      const SizedBox(width: 12),
+                      Text(
+                        '${featuredAnime.episodes} eps',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Botões de ação estilo Netflix
+                Row(
+                  children: [
+                    // Botão Assistir
+                    ElevatedButton.icon(
+                      onPressed: () => _onAnimeTap(featuredAnime),
+                      icon: const Icon(Icons.play_arrow, color: Colors.black),
+                      label: const Text(
+                        'Assistir',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Botão + Minha Lista
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        // TODO: Implementar adicionar à watchlist
+                      },
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text(
+                        'Minha Lista',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+Widget _buildHeroBannerCarousel() {
     final bannerAnimes = _seasonAnimes.take(5).toList();
 
     return AnimatedOpacity(
