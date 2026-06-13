@@ -8,8 +8,8 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../google_video_proxy.dart';
 import '../l10n/app_localizations.dart';
-import '../models/anime.dart';
 import '../mixins/video_player_aniskip_mixin.dart';
+import '../models/anime.dart';
 import '../models/episode.dart';
 import '../services/anime_service.dart';
 import '../theme/app_colors.dart';
@@ -750,21 +750,35 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                     child: SafeArea(
                       child: Material(
                         color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _exitFullscreen,
-                          borderRadius: BorderRadius.circular(50),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.4),
-                              shape: BoxShape.circle,
+                        child: Row(
+                          children: [
+                            InkWell(
+                              onTap: _exitFullscreen,
+                              borderRadius: BorderRadius.circular(50),
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.4),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_back,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                              size: 24,
+                            Text(
+                              '  ${widget.animeTitle} - Ep ${extractEpisodeNumber(widget.episode.number)}',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
