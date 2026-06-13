@@ -751,7 +751,7 @@ class AnimeService {
 
         if (bestUrl != null) {
           debugPrint('Best stream: itag=$bestItag');
-          return VideoStreamResult(url: bestUrl);
+          return _googleVideoResult(bestUrl);
         }
       }
     } catch (e) {
@@ -769,7 +769,7 @@ class AnimeService {
           .replaceAll(r'\u0026', '&')
           .replaceAll(r'\/', '/');
       debugPrint('Found googlevideo URL in response');
-      return VideoStreamResult(url: videoUrl);
+      return _googleVideoResult(videoUrl);
     }
 
     return null;
@@ -812,6 +812,17 @@ class AnimeService {
     return buffer.toString();
   }
 
+  static VideoStreamResult _googleVideoResult(String url) {
+    return VideoStreamResult(
+      url: url,
+      headers: const {
+        'Referer': 'https://www.blogger.com/',
+        'Origin': 'https://www.blogger.com',
+      },
+      isGoogleVideo: true,
+    );
+  }
+
   static VideoStreamResult? _parseBloggerContent(
     String content,
     String bloggerUrl,
@@ -845,7 +856,9 @@ class AnimeService {
                   debugPrint(
                     'Found video URL in VIDEO_CONFIG streams: $videoUrl',
                   );
-                  return VideoStreamResult(url: videoUrl);
+                  return videoUrl.contains('googlevideo')
+                      ? _googleVideoResult(videoUrl)
+                      : VideoStreamResult(url: videoUrl);
                 }
               }
 
@@ -863,7 +876,9 @@ class AnimeService {
                     debugPrint(
                       'Found video URL in VIDEO_CONFIG stream[$key]: $videoUrl',
                     );
-                    return VideoStreamResult(url: videoUrl);
+                    return videoUrl.contains('googlevideo')
+                        ? _googleVideoResult(videoUrl)
+                        : VideoStreamResult(url: videoUrl);
                   }
                 }
               }
@@ -888,7 +903,9 @@ class AnimeService {
                 debugPrint(
                   'Found video URL in VIDEO_CONFIG.video[$key]: $videoUrl',
                 );
-                return VideoStreamResult(url: videoUrl);
+                return videoUrl.contains('googlevideo')
+                    ? _googleVideoResult(videoUrl)
+                    : VideoStreamResult(url: videoUrl);
               }
             }
           }
@@ -906,7 +923,9 @@ class AnimeService {
             final videoUrl = config[key].toString();
             if (videoUrl.isNotEmpty && videoUrl.contains('http')) {
               debugPrint('Found video URL in VIDEO_CONFIG[$key]: $videoUrl');
-              return VideoStreamResult(url: videoUrl);
+              return videoUrl.contains('googlevideo')
+                  ? _googleVideoResult(videoUrl)
+                  : VideoStreamResult(url: videoUrl);
             }
           }
         }
@@ -920,7 +939,9 @@ class AnimeService {
           debugPrint(
             'Extracted play_url directly from JSON string: $videoUrl',
           );
-          return VideoStreamResult(url: videoUrl);
+          return videoUrl.contains('googlevideo')
+              ? _googleVideoResult(videoUrl)
+              : VideoStreamResult(url: videoUrl);
         }
       }
     }
@@ -946,7 +967,9 @@ class AnimeService {
             videoUrl.contains('.mp4') ||
             videoUrl.contains('videoplayback')) {
           debugPrint('Found video URL with JSON pattern: $videoUrl');
-          return VideoStreamResult(url: videoUrl);
+          return videoUrl.contains('googlevideo')
+              ? _googleVideoResult(videoUrl)
+              : VideoStreamResult(url: videoUrl);
         }
       }
     }
@@ -981,7 +1004,9 @@ class AnimeService {
             .replaceAll(r'\/', '/');
 
         debugPrint('Found video URL with pattern ${i + 1}: $videoUrl');
-        return VideoStreamResult(url: videoUrl);
+        return videoUrl.contains('googlevideo')
+            ? _googleVideoResult(videoUrl)
+            : VideoStreamResult(url: videoUrl);
       }
     }
 
@@ -1005,7 +1030,9 @@ class AnimeService {
         if (jsMatch != null) {
           final videoUrl = jsMatch.group(0)!;
           debugPrint('Found video URL in JavaScript: $videoUrl');
-          return VideoStreamResult(url: videoUrl);
+          return videoUrl.contains('googlevideo')
+              ? _googleVideoResult(videoUrl)
+              : VideoStreamResult(url: videoUrl);
         }
       }
     }
@@ -1026,7 +1053,9 @@ class AnimeService {
           videoUrl.contains('.mp4') ||
           videoUrl.contains('videoplayback')) {
         debugPrint('Found escaped video URL: $videoUrl');
-        return VideoStreamResult(url: videoUrl);
+        return videoUrl.contains('googlevideo')
+            ? _googleVideoResult(videoUrl)
+            : VideoStreamResult(url: videoUrl);
       }
     }
 
