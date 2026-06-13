@@ -15,6 +15,7 @@ import '../widgets/netflix_carousel.dart';
 import '../widgets/pauloflix_section.dart';
 import 'genre_animes_screen.dart';
 import 'pauloflix_episode_list_screen.dart';
+import 'pauloflix_see_all_screen.dart';
 import 'source_selection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -274,6 +275,14 @@ class _HomeScreenState extends State<HomeScreen>
                     title: 'PauloFlix',
                     contents: pauloflixProvider.contents.take(15).toList(),
                     isTV: _isTV,
+                    onSeeAll: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PauloFlixSeeAllScreen(),
+                        ),
+                      );
+                    },
                     onItemTap: (content) {
                       Navigator.push(
                         context,
