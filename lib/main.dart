@@ -23,9 +23,13 @@ void main() async {
   final downloadService = DownloadService();
   await downloadService.initialize();
 
+  // Cria instância do ThemeProvider para uso global
+  final themeProvider = ThemeProvider();
+
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider(create: (_) => LocaleService()),
         ChangeNotifierProvider.value(value: downloadService),
       ],
@@ -42,14 +46,13 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final ThemeProvider _themeProvider = ThemeProvider();
-
   @override
   Widget build(BuildContext context) {
     final localeService = Provider.of<LocaleService>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
-    return AnimatedBuilder(
-      animation: _themeProvider,
+    return ListenableBuilder(
+      listenable: themeProvider,
       builder: (context, _) {
         return MaterialApp(
           title: 'GoAnime',
@@ -65,7 +68,7 @@ class _MyAppState extends State<MyApp> {
           // Use unified AppTheme (Netflix-style with GoAnime colors)
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
-          themeMode: _themeProvider.isDarkMode
+          themeMode: themeProvider.isDarkMode
               ? ThemeMode.dark
               : ThemeMode.light,
           home: const MainNavigationScreen(),
