@@ -57,43 +57,10 @@ Busca anime específico pelo AniList ID.
 
 ### Limpeza de Títulos
 Remove automaticamente:
-- Tags de fonte (`[AnimeFire]`, `[AllAnime]`)
+- Tags de fonte (`[AnimeFire]`)
 - Indicadores de idioma
 - Sufixos de episódios/temporadas
 - Conteúdo entre parênteses
-
----
-
-## AllAnimeService
-
-Serviço de streaming via AllAnime API.
-
-### Funcionalidades
-- Busca de animes
-- Lista de episódios (simples e detalhada)
-- Streaming de episódios
-- Resolução de múltiplas fontes de vídeo
-
-### Métodos Principais
-
-#### `searchAnime(String query)`
-Busca animes no AllAnime com thumbnails.
-
-#### `getEpisodesList(String animeId, {String mode = 'sub'})`
-Retorna lista simples de números de episódios disponíveis.
-
-#### `getEpisodesListDetailed(String animeId, {String mode, String? showThumbnail})`
-Retorna lista detalhada com thumbnails e metadados.
-
-#### `getEpisodeStreams(String animeId, String episodeNumber, {String mode})`
-Obtém URLs de streaming para um episódio específico.
-
-#### `resolveVideoUrl(String sourceUrl, {String? videoId})`
-Resolve URL final do vídeo suportando:
-- Links MP4 diretos
-- HLS (m3u8)
-- Google Video (com headers especiais)
-- Blogger videos
 
 ---
 
@@ -262,9 +229,8 @@ Retorna locale atual.
 Serviço para obter thumbnails de episódios.
 
 ### Fontes de Thumbnails
-1. AllAnime API (prioritário)
-2. AniList streamingEpisodes (bônus, raramente disponível)
-3. Thumbnail do anime como fallback
+1. AniList streamingEpisodes (bônus, raramente disponível)
+2. Thumbnail do anime como fallback
 
 ### Métodos Principais
 

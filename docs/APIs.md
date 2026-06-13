@@ -111,7 +111,7 @@ query ($id: Int) {
 
 ### Limpeza de Títulos
 A API implementa limpeza inteligente de títulos para melhorar resultados:
-- Remove tags como `[AnimeFire]`, `[AllAnime]`
+- Remove tags como `[AnimeFire]`
 - Remove indicadores de idioma (`dublado`, `legendado`, `dub`, `sub`)
 - Remove "Todos os Episodios"
 - Remove indicadores de temporada/episódio
@@ -120,75 +120,7 @@ A API implementa limpeza inteligente de títulos para melhorar resultados:
 
 ---
 
-## 3. AllAnime API (GraphQL)
-
-### Base URL
-```
-https://api.allanime.day/api
-```
-
-### Queries GraphQL
-
-#### Busca de Animes
-```graphql
-query($search: SearchInput, $limit: Int, $page: Int, $translationType: VaildTranslationTypeEnumType, $countryOrigin: VaildCountryOriginEnumType) {
-  shows(search: $search, limit: $limit, page: $page, translationType: $translationType, countryOrigin: $countryOrigin) {
-    edges {
-      _id
-      name
-      englishName
-      availableEpisodes
-      thumbnail
-      __typename
-    }
-  }
-}
-```
-
-#### Lista de Episódios (Simples)
-```graphql
-query ($showId: String!) {
-  show(_id: $showId) {
-    _id
-    availableEpisodesDetail
-  }
-}
-```
-
-#### Lista de Episódios (Detalhada)
-```graphql
-query ($showId: String!) {
-  show(_id: $showId) {
-    _id
-    thumbnail
-    episodeInfos
-    availableEpisodesDetail
-  }
-}
-```
-
-#### Streaming de Episódio
-```graphql
-query ($showId: String!, $translationType: VaildTranslationTypeEnumType, $episodeString: String!) {
-  episode(showId: $showId, translationType: $translationType, episodeString: $episodeString) {
-    episodeString
-    sourceUrls
-    notes
-    videoId
-  }
-}
-```
-
-### Resolução de URLs de Vídeo
-O serviço extrai URLs de diferentes fontes:
-- MP4 (link direto)
-- HLS (m3u8)
-- Google Video (com proxy)
-- Blogger (fallback)
-
----
-
-## 4. AniSkip API
+## 3. AniSkip API
 
 ### Base URL
 ```
@@ -244,7 +176,6 @@ GET /skip-times/{anime_id}/{episode_number}
 |-----|-----------|---------------|-------|
 | Jikan | REST | Dados de animes, rankings | 30 min |
 | AniList | GraphQL | Metadados, imagens | N/A |
-| AllAnime | GraphQL | Streaming de episódios | N/A |
 | AniSkip | REST | Skip intro/outro | N/A |
 
 ---
@@ -253,15 +184,11 @@ GET /skip-times/{anime_id}/{episode_number}
 
 ### User Agents
 ```dart
-// AllAnime
-'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0'
-
 // Google Video (iOS simulation)
 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1'
 ```
 
 ### Referers
 ```dart
-AllAnime: 'https://allanime.to'
 Google Video: 'https://www.blogger.com'
 ```

@@ -203,56 +203,6 @@ class SkipTimesResponse {
 
 ---
 
-## AllAnime API Models
-
-### AllAnimeSearchResponse
-```dart
-class AllAnimeSearchResponse {
-  final List<AllAnimeShow> shows;
-}
-```
-
-### AllAnimeShow
-```dart
-class AllAnimeShow {
-  final String id;              // ID do show
-  final String name;            // Nome do anime
-  final String? englishName;    // Nome em inglês
-  final int availableEpisodes;  // Total de episódios disponíveis
-  final String? thumbnail;        // URL da thumbnail
-}
-```
-
-### AllAnimeEpisode
-```dart
-class AllAnimeEpisode {
-  final String episodeNumber;   // Número do episódio
-  final String? thumbnail;        // Thumbnail específico do episódio
-  final String? title;            // Título do episódio
-  final String? description;      // Descrição do episódio
-}
-```
-
-### AllAnimeVideoSource
-```dart
-class AllAnimeVideoSource {
-  final String sourceUrl;    // URL da fonte
-  final String sourceName; // Nome da fonte (eg: "S-mp4", "S-hls")
-  final String priority;   // Prioridade ("auto", "priority")
-}
-```
-
-### AllAnimeStreamInfo
-```dart
-class AllAnimeStreamInfo {
-  final String url;                  // URL do stream
-  final Map<String, String> headers;   // Headers necessários
-  final bool isGoogleVideo;          // Se é Google Video (precisa de proxy)
-}
-```
-
----
-
 ## Modelos Internos
 
 ### Anime (Main.dart)
@@ -261,8 +211,6 @@ Modelo principal unificado do app.
 class Anime {
   final String name;              // Nome do anime
   final String url;               // URL da fonte
-  final AnimeSource source;       // Fonte (animeFire ou allAnime)
-  final String? allAnimeId;       // ID do AllAnime
   final String? fallbackImageUrl; // Imagem de fallback
   MediaDetails? aniListData;      // Dados do AniList
   bool isLoadingAniList = false;  // Flag de carregamento
@@ -282,7 +230,7 @@ class Anime {
 
 ### AnimeSource (Enum)
 ```dart
-enum AnimeSource { animeFire, allAnime }
+enum AnimeSource { animeFire }
 ```
 
 ### Episode

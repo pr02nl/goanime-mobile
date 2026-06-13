@@ -34,7 +34,6 @@ lib/
 ├── services/
 │   ├── jikan_service.dart       # API Jikan (dados de animes)
 │   ├── anilist_service.dart     # API AniList (metadados ricos)
-│   ├── allanime_service.dart    # API AllAnime (streaming)
 │   ├── aniskip_service.dart     # API AniSkip (pular intro/outro)
 │   ├── download_service.dart    # Gerenciamento de downloads
 │   ├── watchlist_service.dart   # Persistência de watchlist
@@ -100,15 +99,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
   - Busca por MAL ID
   - Busca por AniList ID
 
-### 3. **AllAnime API** (GraphQL)
-- **Base URL**: `https://api.allanime.day/api`
-- **Uso**: Streaming de episódios
-- **Funcionalidades**:
-  - Busca de animes
-  - Lista de episódios com thumbnails
-  - Extração de URLs de vídeo (MP4, HLS)
-
-### 4. **AniSkip API**
+### 3. **AniSkip API**
 - **Base URL**: `https://api.aniskip.com/v2`
 - **Uso**: Timestamps para pular intro e outro automaticamente
 - **Estratégia**: Tenta MAL ID primeiro, depois AniList ID
@@ -220,7 +211,7 @@ SearchScreen → JikanService.searchAnime() → Resultados
    ↓
 SourceSelectionScreen → AniListService (metadados)
    ↓
-EpisodeListScreen → AllAnimeService (episódios)
+EpisodeListScreen → Episode thumbnail fetching
 
 4. Player
    ↓
