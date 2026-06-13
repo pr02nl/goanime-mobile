@@ -1,6 +1,6 @@
 import 'anilist_models.dart';
 
-enum AnimeSource { animeFire }
+enum AnimeSource { animeFire, pauloFlix }
 
 class Anime {
   final String name;
@@ -31,5 +31,12 @@ class Anime {
   String? get status => aniListData?.status;
   int? get episodeCount => aniListData?.episodes;
   double? get averageScore => aniListData?.averageScore;
-  String get sourceName => 'AnimeFire';
+  String get sourceName {
+    switch (source) {
+      case AnimeSource.animeFire:
+        return 'AnimeFire';
+      case AnimeSource.pauloFlix:
+        return 'PauloFlix';
+    }
+  }
 }
