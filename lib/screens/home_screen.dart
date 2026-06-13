@@ -10,9 +10,9 @@ import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
-import '../widgets/pauloflix_section.dart';
 import '../widgets/netflix_card.dart';
 import '../widgets/netflix_carousel.dart';
+import '../widgets/pauloflix_section.dart';
 import 'genre_animes_screen.dart';
 import 'pauloflix_episode_list_screen.dart';
 import 'source_selection_screen.dart';
@@ -61,8 +61,10 @@ class _HomeScreenState extends State<HomeScreen>
     _detectTVMode();
     if (!_dataLoaded) {
       _loadAllData();
-      _checkPauloFlixSync();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkPauloFlixSync();
+    });
   }
 
   @override
@@ -158,13 +160,15 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _checkPauloFlixSync() async {
-    final pauloflixProvider = Provider.of<PauloFlixProvider>(context, listen: false);
+    final pauloflixProvider = Provider.of<PauloFlixProvider>(
+      context,
+      listen: false,
+    );
     await pauloflixProvider.loadContents();
     if (pauloflixProvider.contents.isEmpty) {
       pauloflixProvider.syncContent();
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -273,9 +277,8 @@ class _HomeScreenState extends State<HomeScreen>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PauloFlixEpisodeListScreen(
-                            content: content,
-                          ),
+                          builder: (context) =>
+                              PauloFlixEpisodeListScreen(content: content),
                         ),
                       );
                     },
