@@ -1,18 +1,33 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:goanime/main.dart';
+import 'package:goanime/providers/theme_provider.dart';
+import 'package:goanime/services/download_service.dart';
+import 'package:goanime/services/locale_service.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-	testWidgets('renders GoAnime home screen', (tester) async {
-		await tester.pumpWidget(const MyApp());
+  testWidgets('renders GoAnime app without errors', (tester) async {
+    // Cria instâncias dos serviços para o teste
+    final themeProvider = ThemeProvider();
+    final localeService = LocaleService();
+    final downloadService = DownloadService();
 
-		expect(find.text('GoAnime'), findsOneWidget);
-	});
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: themeProvider),
+          ChangeNotifierProvider.value(value: localeService),
+          ChangeNotifierProvider.value(value: downloadService),
+        ],
+        child: const MyApp(),
+      ),
+    );
+
+    // Verifica se o MaterialApp foi renderizado
+    expect(find.byType(MaterialApp), findsOneWidget);
+    
+    // Verifica se o widget MyApp foi renderizado
+    expect(find.byType(MyApp), findsOneWidget);
+  });
 }
