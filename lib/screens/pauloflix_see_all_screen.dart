@@ -40,11 +40,17 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     return 6;
   }
 
+  void _syncContent() {
+    final provider = context.read<PauloFlixProvider>();
+    provider.syncContent();
+  }
+
   @override
   Widget build(BuildContext context) {
     final pauloflixProvider = context.watch<PauloFlixProvider>();
     final contents = pauloflixProvider.contents;
     final crossAxisCount = _getCrossAxisCount(context);
+    final isSyncing = pauloflixProvider.isSyncing;
 
     final filteredContents = _searchQuery.isEmpty
         ? contents
@@ -61,6 +67,26 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             expandedHeight: 120,
             pinned: true,
             backgroundColor: AppColors.background,
+            actions: [
+              if (isSyncing)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF6366F1),
+                    ),
+                  ),
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.sync),
+                  tooltip: 'Sincronizar',
+                  onPressed: _syncContent,
+                ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               title: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -90,6 +116,43 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
               ),
             ),
           ),
+
+          if (isSyncing)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF6366F1),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        pauloflixProvider.syncProgress,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           SliverToBoxAdapter(
             child: Padding(
@@ -168,6 +231,19 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
                         fontSize: 16,
                       ),
                     ),
+                    if (!isSyncing) ...[
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _syncContent,
+                        icon: const Icon(Icons.sync),
+                        label: const Text('Sincronizar Conteúdo'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
