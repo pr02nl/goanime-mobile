@@ -212,70 +212,75 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         return;
       }
 
-      String videoSrc;
-
-      debugPrint('[VideoPlayer] Getting AnimeFire episode URL');
-      videoSrc = await AnimeService.extractVideoURL(widget.episode.url);
-
-      if (!isActiveEpisode(episodeKey)) {
-        debugPrint(
-          '[VideoPlayer] AnimeFire fetch ignored (episode changed).',
-        );
-        return;
-      }
-
-      if (videoSrc.isEmpty) {
-        throw Exception('Video URL not found on page');
-      }
-
-      _bloggerVideoUrl = videoSrc;
-
       String resolvedVideoUrl;
-      Map<String, String> controllerHeaders;
+      Map<String, String> controllerHeaders = {};
 
-      final actualVideo = await AnimeService.extractActualVideoURL(videoSrc);
-      if (actualVideo.url.isEmpty) {
-        throw Exception('Video URL could not be extracted from API');
-      }
-
-      if (!isActiveEpisode(episodeKey)) {
-        debugPrint(
-          '[VideoPlayer] Actual video extraction ignored (episode changed).',
-        );
-        return;
-      }
-
-      resolvedVideoUrl = actualVideo.url;
-      final playbackHeaders = <String, String>{
-        HttpHeaders.userAgentHeader:
-            'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36',
-        HttpHeaders.refererHeader: 'https://animefire.plus/',
-      };
-
-      if (actualVideo.hasHeaders) {
-        playbackHeaders.addAll(actualVideo.headers);
-      }
-
-      final forwardedHeaders = Map<String, String>.from(playbackHeaders);
-      controllerHeaders = Map<String, String>.from(playbackHeaders);
-      _isGoogleStream = actualVideo.isGoogleVideo;
-
-      if (actualVideo.isGoogleVideo) {
-        _googleVideoProxy = GoogleVideoProxy(
-          targetUri: Uri.parse(actualVideo.url),
-          forwardHeaders: forwardedHeaders,
-        );
-        final proxyUri = await _googleVideoProxy!.start();
+      // Verificar se é PauloFlix (URL direta do arquivo MKV)
+      if (widget.anime?.source == AnimeSource.pauloFlix) {
+        debugPrint('[VideoPlayer] PauloFlix: Using direct URL');
+        resolvedVideoUrl = widget.episode.url;
+      } else {
+        // AnimeFire: extrair URL do vídeo
+        debugPrint('[VideoPlayer] Getting AnimeFire episode URL');
+        final videoSrc = await AnimeService.extractVideoURL(widget.episode.url);
 
         if (!isActiveEpisode(episodeKey)) {
-          debugPrint('[VideoPlayer] Proxy start ignored (episode changed).');
+          debugPrint(
+            '[VideoPlayer] AnimeFire fetch ignored (episode changed).',
+          );
           return;
         }
 
-        resolvedVideoUrl = proxyUri.toString();
-        controllerHeaders = {};
-        debugPrint('Using local proxy for Google Video: $resolvedVideoUrl');
-        debugPrint('Forwarding remote headers: $forwardedHeaders');
+        if (videoSrc.isEmpty) {
+          throw Exception('Video URL not found on page');
+        }
+
+        _bloggerVideoUrl = videoSrc;
+
+        final actualVideo = await AnimeService.extractActualVideoURL(videoSrc);
+        if (actualVideo.url.isEmpty) {
+          throw Exception('Video URL could not be extracted from API');
+        }
+
+        if (!isActiveEpisode(episodeKey)) {
+          debugPrint(
+            '[VideoPlayer] Actual video extraction ignored (episode changed).',
+          );
+          return;
+        }
+
+        resolvedVideoUrl = actualVideo.url;
+        final playbackHeaders = <String, String>{
+          HttpHeaders.userAgentHeader:
+              'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36',
+          HttpHeaders.refererHeader: 'https://animefire.plus/',
+        };
+
+        if (actualVideo.hasHeaders) {
+          playbackHeaders.addAll(actualVideo.headers);
+        }
+
+        final forwardedHeaders = Map<String, String>.from(playbackHeaders);
+        controllerHeaders = Map<String, String>.from(playbackHeaders);
+        _isGoogleStream = actualVideo.isGoogleVideo;
+
+        if (actualVideo.isGoogleVideo) {
+          _googleVideoProxy = GoogleVideoProxy(
+            targetUri: Uri.parse(actualVideo.url),
+            forwardHeaders: forwardedHeaders,
+          );
+          final proxyUri = await _googleVideoProxy!.start();
+
+          if (!isActiveEpisode(episodeKey)) {
+            debugPrint('[VideoPlayer] Proxy start ignored (episode changed).');
+            return;
+          }
+
+          resolvedVideoUrl = proxyUri.toString();
+          controllerHeaders = {};
+          debugPrint('Using local proxy for Google Video: $resolvedVideoUrl');
+          debugPrint('Forwarding remote headers: $forwardedHeaders');
+        }
       }
 
       _currentVideoUrl = resolvedVideoUrl;
