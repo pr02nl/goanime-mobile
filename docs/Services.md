@@ -239,6 +239,42 @@ Busca thumbnails de episódios de todas as fontes disponíveis.
 
 ---
 
+## PauloFlixDatabaseService
+
+Serviço de persistência para conteúdo PauloFlix.
+
+### Persistência
+- SQLite com tabela `pauloflix_content`
+- Schema: id, folderName, displayName, serverUrl, imageUrl, bannerUrl, description, score, genres, status, episodeCount, malId, anilistId, lastSynced, isAvailable
+
+### Métodos Principais
+
+#### `saveContent(PauloFlixContent content)`
+Salva ou atualiza conteúdo PauloFlix.
+
+#### `saveBatch(List<PauloFlixContent> contents)`
+Salva múltiplos itens em batch (transação).
+
+#### `getAllContent()`
+Retorna todos os conteúdos disponíveis.
+
+#### `searchByName(String query)`
+Busca por nome (LIKE).
+
+#### `getByFolderName(String folderName)`
+Busca por folderName exato.
+
+#### `getByMalId(int malId)`
+Busca por MAL ID.
+
+#### `markAsUnavailable(String folderName)`
+Marca conteúdo como indisponível.
+
+#### `getStats()`
+Retorna estatísticas (total, available, withMetadata).
+
+---
+
 ## Resumo de Persistência
 
 | Serviço | Tecnologia | Chave/Arquivo |

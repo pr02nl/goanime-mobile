@@ -290,6 +290,45 @@ class VideoStreamResult {
 
 ---
 
+## PauloFlixContent
+
+Modelo de conteúdo PauloFlix com metadados do Jikan.
+
+```dart
+class PauloFlixContent {
+  final int? id;
+  final String folderName;        // Nome da pasta no servidor
+  final String displayName;       // Nome formatado para exibição
+  final String serverUrl;         // URL completa no servidor
+  final String? imageUrl;         // URL da imagem (do Jikan)
+  final String? bannerUrl;        // URL do banner (do Jikan)
+  final String? description;      // Descrição (do Jikan)
+  final double? score;            // Score (do Jikan)
+  final List<String> genres;      // Gêneros (do Jikan)
+  final String? status;           // Status (do Jikan)
+  final int? episodeCount;        // Número de episódios (do Jikan)
+  final int? malId;               // MAL ID (do Jikan)
+  final int? anilistId;           // AniList ID (do Jikan)
+  final DateTime lastSynced;      // Última sincronização
+  final bool isAvailable;         // Se o conteúdo ainda está disponível
+}
+```
+
+### Fábricas
+
+#### `PauloFlixContent.fromJikan()`
+Cria a partir de dados do Jikan.
+
+#### `PauloFlixContent.fromMap()`
+Cria a partir de Map (do banco).
+
+### Métodos
+
+#### `toMap()`
+Converte para Map para persistência.
+
+---
+
 ## Modelos de Persistência
 
 ### WatchlistAnime
