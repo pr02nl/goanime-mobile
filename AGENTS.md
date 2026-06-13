@@ -16,17 +16,25 @@ Flutter-based mobile implementation of GoAnime TUI for anime streaming on iOS an
 lib/
 ├── main.dart                 # App entry point
 ├── models/                   # Data models
+│   ├── anime.dart            # Main anime model
+│   └── pauloflix_content.dart  # PauloFlix content model
 ├── screens/                  # UI screens
 │   ├── home_screen.dart      # Main home screen
 │   ├── video_player_screen.dart  # Modern video player with media_kit
+│   ├── pauloflix_episode_list_screen.dart  # PauloFlix episodes
 │   └── ...
 ├── widgets/                  # Reusable widgets
 │   ├── anime_card.dart       # Anime card component
 │   ├── anime_section.dart    # Section with carousel
 │   ├── netflix_card.dart     # Netflix-style card
 │   ├── netflix_carousel.dart # Netflix-style carousel
+│   ├── pauloflix_badge.dart  # PauloFlix badge widget
+│   ├── pauloflix_card.dart   # PauloFlix card widget
+│   ├── pauloflix_section.dart  # PauloFlix section widget
 │   └── ...
 ├── services/                 # API services
+│   ├── pauloflix_service.dart  # PauloFlix file server service
+│   └── pauloflix_database_service.dart  # PauloFlix database
 ├── theme/                    # App theming
 │   ├── app_theme.dart        # Unified theme
 │   ├── netflix_theme.dart    # Netflix-inspired theme
@@ -37,7 +45,8 @@ lib/
 ├── mixins/                   # Reusable mixins
 │   └── video_player_aniskip_mixin.dart  # AniSkip integration mixin
 ├── providers/                # State management providers
-│   └── theme_provider.dart   # Theme state management
+│   ├── theme_provider.dart   # Theme state management
+│   └── pauloflix_provider.dart  # PauloFlix content state
 ├── l10n/                     # Localization files
 │   └── app_localizations.dart # Internationalization support
 ├── google_video_proxy.dart   # Google Video proxy for streams
