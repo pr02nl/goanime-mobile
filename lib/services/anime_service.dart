@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import '../models/anime.dart';
 import '../models/episode.dart';
 import '../models/video.dart';
-import '../services/allanime_service.dart';
 import '../services/anilist_service.dart';
 import '../services/episode_thumbnail_service.dart';
 
@@ -19,29 +18,21 @@ class AnimeService {
 
   static Future<List<Anime>> searchAnime(String animeName) async {
     try {
-      debugPrint('[AnimeService] Searching in multiple sources: $animeName');
+      debugPrint('[AnimeService] Searching in AnimeFire: $animeName');
 
-      // Buscar simultaneamente em AnimeFire e AllAnime
-      final results = await Future.wait([
-        _searchAnimeFire(animeName),
-        _searchAllAnime(animeName),
-      ]);
-
-      // Combinar resultados
-      final List<Anime> allAnimes = [];
-      allAnimes.addAll(results[0]); // AnimeFire
-      allAnimes.addAll(results[1]); // AllAnime
+      // Search in AnimeFire only
+      final results = await _searchAnimeFire(animeName);
 
       debugPrint(
-        '[AnimeService] Total results: ${allAnimes.length} (AnimeFire: ${results[0].length}, AllAnime: ${results[1].length})',
+        '[AnimeService] Total results: ${results.length}',
       );
 
       // Enriquecer com dados do AniList em paralelo
       await Future.wait(
-        allAnimes.map((anime) => enrichAnimeWithAniList(anime)),
+        results.map((anime) => enrichAnimeWithAniList(anime)),
       );
 
-      return allAnimes;
+      return results;
     } catch (e) {
       throw Exception('Error searching anime: $e');
     }
@@ -103,46 +94,6 @@ class AnimeService {
     }
   }
 
-  /// Busca no AllAnime
-  static Future<List<Anime>> _searchAllAnime(String animeName) async {
-    try {
-      final response = await AllAnimeService.searchAnime(animeName);
-
-      if (response == null || response.shows.isEmpty) {
-        debugPrint('[AllAnime] No results found');
-        return [];
-      }
-
-      List<Anime> animes = [];
-      for (var show in response.shows) {
-        final episodeInfo = show.episodeCount > 0
-            ? ' (${show.episodeCount} eps)'
-            : '';
-
-        // Usar thumbnail do AllAnime como fallback se disponível
-        final fallbackImage = show.thumbnail?.isNotEmpty == true
-            ? show.thumbnail!
-            : null;
-
-        animes.add(
-          Anime(
-            name: '${show.displayName}$episodeInfo',
-            url: show.id, // Para AllAnime, a "URL" é o ID
-            source: AnimeSource.allAnime,
-            allAnimeId: show.id,
-            fallbackImageUrl: fallbackImage, // Fallback até AniList carregar
-          ),
-        );
-      }
-
-      debugPrint('[AllAnime] Found ${animes.length} results');
-      return animes;
-    } catch (e) {
-      debugPrint('[AllAnime] Search error: $e');
-      return [];
-    }
-  }
-
   /// Enriches an anime with data from AniList
   static Future<void> enrichAnimeWithAniList(Anime anime) async {
     try {
@@ -181,11 +132,7 @@ class AnimeService {
       );
       debugPrint('[AnimeService] Fallback image: ${anime.fallbackImageUrl}');
 
-      if (anime.source == AnimeSource.allAnime) {
-        return await _getEpisodesFromAllAnime(anime);
-      } else {
-        return await _getEpisodesFromAnimeFire(anime);
-      }
+      return await _getEpisodesFromAnimeFire(anime);
     } catch (e) {
       throw Exception('Error getting episodes: $e');
     }
@@ -279,103 +226,6 @@ class AnimeService {
     } catch (e) {
       debugPrint('[AnimeFire] Get episodes error: $e');
       throw Exception('Error getting episodes from AnimeFire: $e');
-    }
-  }
-
-  /// Busca episódios do AllAnime
-  static Future<List<Episode>> _getEpisodesFromAllAnime(Anime anime) async {
-    try {
-      debugPrint('[AllAnime] Fetching episodes for: ${anime.name}');
-      debugPrint('[AllAnime] Anime thumbnail: ${anime.imageUrl}');
-
-      if (anime.allAnimeId == null) {
-        throw Exception('AllAnime ID not found');
-      }
-
-      final detailedEpisodes = await AllAnimeService.getEpisodesListDetailed(
-        anime.allAnimeId!,
-      );
-
-      if (detailedEpisodes.isEmpty) {
-        debugPrint('[AllAnime] No episodes found');
-        return [];
-      }
-
-      // Get show thumbnail as fallback
-      final showThumbnail = anime.imageUrl;
-
-      // Extract episode numbers for batch thumbnail fetching
-      List<int> episodeNumbers = [];
-      for (var ep in detailedEpisodes) {
-        final epNum = int.tryParse(ep.episodeNumber);
-        if (epNum != null) {
-          episodeNumbers.add(epNum);
-        }
-      }
-
-      // Batch fetch episode-specific thumbnails from multiple sources
-      debugPrint('[AllAnime] Fetching episode-specific thumbnails...');
-      final kitsuThumbnails = await EpisodeThumbnailService.batchGetThumbnails(
-        animeTitle: anime.name,
-        episodeNumbers: episodeNumbers,
-        malId: anime.malId?.toString(),
-        anilistId: anime.anilistId?.toString(),
-      );
-
-      if (kitsuThumbnails.isNotEmpty) {
-        debugPrint(
-          '[AllAnime] Got ${kitsuThumbnails.length} episode-specific thumbnails from Kitsu',
-        );
-      }
-
-      List<Episode> episodes = [];
-      for (var allAnimeEp in detailedEpisodes) {
-        final displayNumber = allAnimeEp.episodeNumber.contains('.')
-            ? 'Episódio ${allAnimeEp.episodeNumber}'
-            : 'Episódio ${allAnimeEp.episodeNumber}';
-
-        // Priority: Kitsu thumbnail > AllAnime thumbnail > Show thumbnail
-        String? episodeThumbnail;
-
-        final epNum = int.tryParse(allAnimeEp.episodeNumber);
-        if (epNum != null && kitsuThumbnails.containsKey(epNum)) {
-          episodeThumbnail = kitsuThumbnails[epNum];
-          if (episodes.length < 3) {
-            debugPrint('[AllAnime] Episode $epNum: Using Kitsu thumbnail');
-          }
-        } else {
-          episodeThumbnail = allAnimeEp.getImageUrl();
-          if (episodeThumbnail == null || episodeThumbnail.isEmpty) {
-            episodeThumbnail = showThumbnail;
-          }
-        }
-
-        episodes.add(
-          Episode(
-            number: displayNumber,
-            url: allAnimeEp
-                .episodeNumber, // Para AllAnime, guardamos o número do episódio
-            thumbnail: episodeThumbnail, // Add thumbnail (with fallback)
-            title: allAnimeEp.title,
-            description: allAnimeEp.description,
-          ),
-        );
-
-        // Log first few episodes for debugging
-        if (episodes.length <= 3) {
-          debugPrint(
-            '[AllAnime] Episode ${allAnimeEp.episodeNumber} final thumbnail: $episodeThumbnail',
-          );
-        }
-      }
-
-      debugPrint(
-        '[AllAnime] Converted ${episodes.length} episodes with thumbnails',
-      );
-      return episodes;
-    } catch (e) {
-      debugPrint('[AllAnime] Get episodes error: $e');
-      throw Exception('Error getting episodes from AllAnime: $e');
     }
   }
 

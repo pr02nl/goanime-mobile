@@ -8,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
 import 'anime_service.dart';
-import 'allanime_service.dart';
 
 /// Download status enum
 enum DownloadStatus {
@@ -397,60 +396,21 @@ class DownloadService extends ChangeNotifier {
     try {
       debugPrint('[Download] Resolving video URL...');
 
-      // Check if this is an AllAnime episode (videoUrl is just episode number)
-      final isAllAnimeEpisode =
-          !download.videoUrl.startsWith('http') &&
-          int.tryParse(download.videoUrl) != null;
+      // AnimeFire: use AnimeService URL extraction
+      debugPrint(
+        '[Download] Detected AnimeFire episode, extracting video URL...',
+      );
 
-      if (isAllAnimeEpisode) {
-        // AllAnime: use AllAnimeService to get video URL
-        debugPrint(
-          '[Download] Detected AllAnime episode, fetching video URL...',
+      // Step 1: Extract video source from episode page
+      final videoSrc = await AnimeService.extractVideoURL(download.videoUrl);
+      debugPrint('[Download] Extracted video source: $videoSrc');
+
+      // Check if it's an HLS/m3u8 URL after extraction
+      if (videoSrc.contains('.m3u8') || videoSrc.contains('master.m3u8')) {
+        throw Exception(
+          'This source uses HLS streaming which cannot be downloaded. Try a different source.',
         );
-
-        // animeId is the AllAnime show ID (e.g., "8sB7F65RGSQ3dMjYa")
-        final animeShowId = download.animeId;
-        final episodeNumber = download.videoUrl;
-
-        debugPrint(
-          '[Download] AllAnime Show ID: $animeShowId, Episode: $episodeNumber',
-        );
-
-        final videoUrl = await AllAnimeService.getEpisodeURL(
-          animeShowId,
-          episodeNumber,
-        );
-
-        if (videoUrl == null || videoUrl.isEmpty) {
-          throw Exception('Failed to get video URL from AllAnime');
-        }
-
-        debugPrint('[Download] AllAnime video URL: $videoUrl');
-
-        // Check if it's HLS
-        if (videoUrl.contains('.m3u8') || videoUrl.contains('master.m3u8')) {
-          throw Exception(
-            'AllAnime uses HLS streaming which cannot be downloaded. Try AnimeFire source instead.',
-          );
-        }
-
-        actualVideoUrl = videoUrl;
-      } else {
-        // AnimeFire: use AnimeService URL extraction
-        debugPrint(
-          '[Download] Detected AnimeFire episode, extracting video URL...',
-        );
-
-        // Step 1: Extract video source from episode page
-        final videoSrc = await AnimeService.extractVideoURL(download.videoUrl);
-        debugPrint('[Download] Extracted video source: $videoSrc');
-
-        // Check if it's an HLS/m3u8 URL after extraction
-        if (videoSrc.contains('.m3u8') || videoSrc.contains('master.m3u8')) {
-          throw Exception(
-            'This source uses HLS streaming which cannot be downloaded. Try a different source.',
-          );
-        }
+      }
 
         // Step 2: Get the actual video URL
         final videoResult = await AnimeService.extractActualVideoURL(videoSrc);
@@ -464,7 +424,6 @@ class DownloadService extends ChangeNotifier {
             'This source uses HLS streaming which cannot be downloaded. Try a different source.',
           );
         }
-      }
     } catch (e) {
       debugPrint('[Download] Failed to resolve video URL: $e');
       if (e.toString().contains('HLS') || e.toString().contains('streaming')) {

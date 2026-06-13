@@ -1,12 +1,11 @@
 import 'anilist_models.dart';
 
-enum AnimeSource { animeFire, allAnime }
+enum AnimeSource { animeFire }
 
 class Anime {
   final String name;
   final String url;
   final AnimeSource source;
-  final String? allAnimeId; // ID do AllAnime para buscar episódios
   final String?
   fallbackImageUrl; // Imagem de fallback antes do AniList carregar
   MediaDetails? aniListData;
@@ -16,7 +15,6 @@ class Anime {
     required this.name,
     required this.url,
     this.source = AnimeSource.animeFire,
-    this.allAnimeId,
     this.aniListData,
     this.fallbackImageUrl,
   });
@@ -33,6 +31,5 @@ class Anime {
   String? get status => aniListData?.status;
   int? get episodeCount => aniListData?.episodes;
   double? get averageScore => aniListData?.averageScore;
-  String get sourceName =>
-      source == AnimeSource.animeFire ? 'AnimeFire' : 'AllAnime';
+  String get sourceName => 'AnimeFire';
 }

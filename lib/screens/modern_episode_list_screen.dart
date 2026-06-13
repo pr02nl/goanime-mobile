@@ -145,7 +145,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
     showDialog(
       context: context,
       builder: (context) => BatchDownloadDialog(
-        animeId: widget.anime.allAnimeId ?? widget.anime.url,
+        animeId: widget.anime.url,
         animeName: widget.anime.name,
         thumbnailUrl: widget.anime.imageUrl,
         episodes: _episodes.map((e) {
@@ -541,7 +541,6 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
               animeThumbnail: widget.anime.imageUrl,
               sourceName: widget.anime.sourceName,
               animeUrl: widget.anime.url,
-              allAnimeId: widget.anime.allAnimeId,
             ),
           );
         }, childCount: _episodes.length),
@@ -661,7 +660,6 @@ class _EpisodeListCard extends StatelessWidget {
   final String animeThumbnail;
   final String sourceName;
   final String animeUrl;
-  final String? allAnimeId;
 
   const _EpisodeListCard({
     required this.episode,
@@ -671,7 +669,6 @@ class _EpisodeListCard extends StatelessWidget {
     required this.animeThumbnail,
     required this.sourceName,
     required this.animeUrl,
-    this.allAnimeId,
   });
 
   @override
@@ -901,9 +898,7 @@ class _EpisodeListCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: DownloadButton(
-                  animeId:
-                      allAnimeId ??
-                      animeUrl, // Use AllAnime ID if available, otherwise URL
+                  animeId: animeUrl,
                   animeName: animeTitle,
                   episodeNumber: _getEpisodeNumber(episode.number, index),
                   episodeTitle: _getEpisodeLabel(episode.number, index),

@@ -11,7 +11,6 @@ import '../l10n/app_localizations.dart';
 import '../models/anime.dart';
 import '../mixins/video_player_aniskip_mixin.dart';
 import '../models/episode.dart';
-import '../services/allanime_service.dart';
 import '../services/anime_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/episode_utils.dart';
@@ -82,7 +81,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       episodeUrl: target.episode.url,
       animeAnilistId: anime?.anilistId?.toString(),
       animeMalId: anime?.malId?.toString(),
-      animeAllAnimeId: anime?.allAnimeId,
       animeUrl: anime?.url,
     );
   }
@@ -216,42 +214,18 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       String videoSrc;
 
-      if (widget.anime?.source == AnimeSource.allAnime) {
-        debugPrint('[VideoPlayer] Getting AllAnime episode URL');
+      debugPrint('[VideoPlayer] Getting AnimeFire episode URL');
+      videoSrc = await AnimeService.extractVideoURL(widget.episode.url);
 
-        final animeId = widget.anime!.allAnimeId ?? widget.anime!.url;
-        final episodeNo = widget.episode.url;
-
-        final allAnimeUrl = await AllAnimeService.getEpisodeURL(
-          animeId,
-          episodeNo,
+      if (!isActiveEpisode(episodeKey)) {
+        debugPrint(
+          '[VideoPlayer] AnimeFire fetch ignored (episode changed).',
         );
+        return;
+      }
 
-        if (!isActiveEpisode(episodeKey)) {
-          debugPrint('[VideoPlayer] AllAnime fetch ignored (episode changed).');
-          return;
-        }
-
-        if (allAnimeUrl == null || allAnimeUrl.isEmpty) {
-          throw Exception('Video URL not found on AllAnime');
-        }
-
-        videoSrc = allAnimeUrl;
-        debugPrint('[VideoPlayer] AllAnime video URL: $videoSrc');
-      } else {
-        debugPrint('[VideoPlayer] Getting AnimeFire episode URL');
-        videoSrc = await AnimeService.extractVideoURL(widget.episode.url);
-
-        if (!isActiveEpisode(episodeKey)) {
-          debugPrint(
-            '[VideoPlayer] AnimeFire fetch ignored (episode changed).',
-          );
-          return;
-        }
-
-        if (videoSrc.isEmpty) {
-          throw Exception('Video URL not found on page');
-        }
+      if (videoSrc.isEmpty) {
+        throw Exception('Video URL not found on page');
       }
 
       _bloggerVideoUrl = videoSrc;
@@ -259,59 +233,49 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       String resolvedVideoUrl;
       Map<String, String> controllerHeaders;
 
-      if (widget.anime?.source == AnimeSource.allAnime) {
-        debugPrint('[VideoPlayer] Using AllAnime URL directly for streaming');
-        resolvedVideoUrl = videoSrc;
-        controllerHeaders = {
-          HttpHeaders.userAgentHeader:
-              'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36',
-        };
-        _isGoogleStream = false;
-      } else {
-        final actualVideo = await AnimeService.extractActualVideoURL(videoSrc);
-        if (actualVideo.url.isEmpty) {
-          throw Exception('Video URL could not be extracted from API');
-        }
+      final actualVideo = await AnimeService.extractActualVideoURL(videoSrc);
+      if (actualVideo.url.isEmpty) {
+        throw Exception('Video URL could not be extracted from API');
+      }
+
+      if (!isActiveEpisode(episodeKey)) {
+        debugPrint(
+          '[VideoPlayer] Actual video extraction ignored (episode changed).',
+        );
+        return;
+      }
+
+      resolvedVideoUrl = actualVideo.url;
+      final playbackHeaders = <String, String>{
+        HttpHeaders.userAgentHeader:
+            'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36',
+        HttpHeaders.refererHeader: 'https://animefire.plus/',
+      };
+
+      if (actualVideo.hasHeaders) {
+        playbackHeaders.addAll(actualVideo.headers);
+      }
+
+      final forwardedHeaders = Map<String, String>.from(playbackHeaders);
+      controllerHeaders = Map<String, String>.from(playbackHeaders);
+      _isGoogleStream = actualVideo.isGoogleVideo;
+
+      if (actualVideo.isGoogleVideo) {
+        _googleVideoProxy = GoogleVideoProxy(
+          targetUri: Uri.parse(actualVideo.url),
+          forwardHeaders: forwardedHeaders,
+        );
+        final proxyUri = await _googleVideoProxy!.start();
 
         if (!isActiveEpisode(episodeKey)) {
-          debugPrint(
-            '[VideoPlayer] Actual video extraction ignored (episode changed).',
-          );
+          debugPrint('[VideoPlayer] Proxy start ignored (episode changed).');
           return;
         }
 
-        resolvedVideoUrl = actualVideo.url;
-        final playbackHeaders = <String, String>{
-          HttpHeaders.userAgentHeader:
-              'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36',
-          HttpHeaders.refererHeader: 'https://animefire.plus/',
-        };
-
-        if (actualVideo.hasHeaders) {
-          playbackHeaders.addAll(actualVideo.headers);
-        }
-
-        final forwardedHeaders = Map<String, String>.from(playbackHeaders);
-        controllerHeaders = Map<String, String>.from(playbackHeaders);
-        _isGoogleStream = actualVideo.isGoogleVideo;
-
-        if (actualVideo.isGoogleVideo) {
-          _googleVideoProxy = GoogleVideoProxy(
-            targetUri: Uri.parse(actualVideo.url),
-            forwardHeaders: forwardedHeaders,
-          );
-          final proxyUri = await _googleVideoProxy!.start();
-
-          if (!isActiveEpisode(episodeKey)) {
-            debugPrint('[VideoPlayer] Proxy start ignored (episode changed).');
-            return;
-          }
-
-          resolvedVideoUrl = proxyUri.toString();
-          controllerHeaders = {};
-          debugPrint('Using local proxy for Google Video: $resolvedVideoUrl');
-          debugPrint('Forwarding remote headers: $forwardedHeaders');
-        }
+        resolvedVideoUrl = proxyUri.toString();
+        controllerHeaders = {};
+        debugPrint('Using local proxy for Google Video: $resolvedVideoUrl');
+        debugPrint('Forwarding remote headers: $forwardedHeaders');
       }
 
       _currentVideoUrl = resolvedVideoUrl;

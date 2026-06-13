@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/anime.dart';
-import '../services/allanime_service.dart';
 import '../services/anime_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
@@ -31,10 +30,7 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
 
-  bool _isSearchingAllAnime = false;
   bool _isSearchingAnimeFire = false;
-  List<AllAnimeShow> _allAnimeResults = [];
-  String? _allAnimeErrorMessage;
   List<Anime> _animeFireResults = [];
   String? _animeFireErrorMessage;
 
@@ -46,7 +42,6 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
       duration: const Duration(milliseconds: 300),
     );
     _animationController.forward();
-    _searchAllAnime();
     _searchAnimeFire();
   }
 
@@ -54,39 +49,6 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
   void dispose() {
     _animationController.dispose();
     super.dispose();
-  }
-
-  Future<void> _searchAllAnime() async {
-    setState(() {
-      _isSearchingAllAnime = true;
-      _allAnimeErrorMessage = null;
-    });
-
-    try {
-      final searchResponse = await AllAnimeService.searchAnime(
-        widget.animeTitle,
-      );
-
-      if (searchResponse != null && searchResponse.shows.isNotEmpty) {
-        setState(() {
-          _allAnimeResults = searchResponse.shows;
-          _isSearchingAllAnime = false;
-        });
-      } else {
-        if (!mounted) return;
-        final l10n = AppLocalizations.of(context);
-        setState(() {
-          _isSearchingAllAnime = false;
-          _allAnimeErrorMessage = l10n.animeNotFoundOnAllAnime;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error searching AllAnime: $e');
-      setState(() {
-        _isSearchingAllAnime = false;
-        _allAnimeErrorMessage = 'Error searching on AllAnime';
-      });
-    }
   }
 
   Future<void> _searchAnimeFire() async {
@@ -124,57 +86,7 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
   }
 
   Future<void> _selectSource(AnimeSource source) async {
-    if (source == AnimeSource.allAnime && _allAnimeResults.isNotEmpty) {
-      // Se houver múltiplos resultados, mostra dialog para escolher
-      if (_allAnimeResults.length > 1) {
-        final selectedShow = await _showVersionSelectionDialog(
-          source: source,
-          allAnimeShows: _allAnimeResults,
-        );
-        if (selectedShow == null) return; // User cancelled
-
-        final anime = Anime(
-          name: selectedShow.displayName,
-          url: widget.myAnimeListUrl,
-          fallbackImageUrl: widget.imageUrl,
-          source: AnimeSource.allAnime,
-          allAnimeId: selectedShow.id,
-        );
-
-        // Enrich with AniList data before navigating
-        await AnimeService.enrichAnimeWithAniList(anime);
-
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ModernEpisodeListScreen(anime: anime),
-          ),
-        );
-      } else {
-        // Apenas um resultado, usa diretamente
-        final show = _allAnimeResults.first;
-        final anime = Anime(
-          name: show.displayName,
-          url: widget.myAnimeListUrl,
-          fallbackImageUrl: widget.imageUrl,
-          source: AnimeSource.allAnime,
-          allAnimeId: show.id,
-        );
-
-        // Enrich with AniList data before navigating
-        await AnimeService.enrichAnimeWithAniList(anime);
-
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ModernEpisodeListScreen(anime: anime),
-          ),
-        );
-      }
-    } else if (source == AnimeSource.animeFire &&
-        _animeFireResults.isNotEmpty) {
+    if (source == AnimeSource.animeFire && _animeFireResults.isNotEmpty) {
       // Se houver múltiplos resultados, mostra dialog para escolher
       if (_animeFireResults.length > 1) {
         final selectedAnime = await _showVersionSelectionDialog(
@@ -232,7 +144,6 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
 
   Future<dynamic> _showVersionSelectionDialog({
     required AnimeSource source,
-    List<AllAnimeShow>? allAnimeShows,
     List<Anime>? animeFireAnimes,
   }) async {
     final l10n = AppLocalizations.of(context);
@@ -252,30 +163,9 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
             width: double.maxFinite,
             child: ListView.builder(
               shrinkWrap: true,
-              itemCount: source == AnimeSource.allAnime
-                  ? (allAnimeShows?.length ?? 0)
-                  : (animeFireAnimes?.length ?? 0),
+              itemCount: animeFireAnimes?.length ?? 0,
               itemBuilder: (context, index) {
-                if (source == AnimeSource.allAnime && allAnimeShows != null) {
-                  final show = allAnimeShows[index];
-                  return ListTile(
-                    title: Text(
-                      show.displayName,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      '${show.episodeCount} episodes',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                    ),
-                    trailing: const Icon(
-                      Icons.arrow_forward_ios,
-                      color: AppColors.primary,
-                    ),
-                    onTap: () => Navigator.pop(context, show),
-                  );
-                } else if (source == AnimeSource.animeFire &&
+                if (source == AnimeSource.animeFire &&
                     animeFireAnimes != null) {
                   final anime = animeFireAnimes[index];
                   return ListTile(
@@ -411,29 +301,6 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
-
-                  // Opção AllAnime
-                  _buildSourceCard(
-                    title: 'AllAnime',
-                    subtitle: _isSearchingAllAnime
-                        ? l10n.searching
-                        : _allAnimeResults.isNotEmpty
-                        ? _allAnimeResults.length > 1
-                              ? 'Available • ${_allAnimeResults.length} versions found'
-                              : 'Available • Subtitled'
-                        : _allAnimeErrorMessage ?? 'Unavailable',
-                    icon: Icons.public,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                    ),
-                    available: _allAnimeResults.isNotEmpty,
-                    isLoading: _isSearchingAllAnime,
-                    onTap: _allAnimeResults.isNotEmpty
-                        ? () => _selectSource(AnimeSource.allAnime)
-                        : null,
-                  ),
-
-                  const SizedBox(height: 16),
 
                   // Opção AnimeFire
                   _buildSourceCard(

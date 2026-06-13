@@ -5,7 +5,7 @@ import 'package:goanime/models/anilist_models.dart';
 
 void main() {
   group('Anime Model', () {
-    test('deve criar anime com dados obrigatórios', () {
+    test('deve criar anime com dados obrigatorios', () {
       final anime = Anime(
         name: 'Test Anime',
         url: 'https://example.com/anime',
@@ -14,11 +14,10 @@ void main() {
       expect(anime.name, 'Test Anime');
       expect(anime.url, 'https://example.com/anime');
       expect(anime.source, AnimeSource.animeFire);
-      expect(anime.allAnimeId, isNull);
       expect(anime.aniListData, isNull);
     });
 
-    test('deve retornar fallbackImageUrl quando não há aniListData', () {
+    test('deve retornar fallbackImageUrl quando nao ha aniListData', () {
       final anime = Anime(
         name: 'Test Anime',
         url: 'https://example.com/anime',
@@ -30,14 +29,13 @@ void main() {
       expect(anime.description, '');
     });
 
-    test('deve usar dados do AniList quando disponíveis', () {
+    test('deve usar dados do AniList quando disponiveis', () {
       final mediaDetails = MediaDetails(
         id: 1,
         idMal: 12345,
         title: MediaTitle(
           romaji: 'Test Anime',
           english: 'Test Anime English',
-          native: 'テストアニメ',
         ),
         coverImage: CoverImage(
           extraLarge: 'https://example.com/cover_extra.jpg',
@@ -45,7 +43,7 @@ void main() {
           medium: 'https://example.com/cover_medium.jpg',
         ),
         bannerImage: 'https://example.com/banner.jpg',
-        description: 'Uma descrição de teste',
+        description: 'Uma descricao de teste',
         episodes: 12,
         status: 'FINISHED',
         season: 'SPRING',
@@ -64,7 +62,7 @@ void main() {
 
       expect(anime.imageUrl, 'https://example.com/cover_extra.jpg');
       expect(anime.bannerUrl, 'https://example.com/banner.jpg');
-      expect(anime.description, 'Uma descrição de teste');
+      expect(anime.description, 'Uma descricao de teste');
       expect(anime.malId, 12345);
       expect(anime.anilistId, 1);
       expect(anime.genres, ['Action', 'Adventure']);
@@ -80,14 +78,7 @@ void main() {
         source: AnimeSource.animeFire,
       );
 
-      final allAnime = Anime(
-        name: 'Anime 2',
-        url: 'https://example.com',
-        source: AnimeSource.allAnime,
-      );
-
       expect(animeFire.sourceName, 'AnimeFire');
-      expect(allAnime.sourceName, 'AllAnime');
     });
 
     test('toString deve retornar o nome do anime', () {
@@ -148,7 +139,7 @@ void main() {
       expect(anime.season, 'spring');
     });
 
-    test('deve usar JPG quando WebP não disponível', () {
+    test('deve usar JPG quando WebP nao disponivel', () {
       final json = {
         'mal_id': 12345,
         'title': 'Test Anime',
