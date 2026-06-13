@@ -273,6 +273,7 @@ class _HomeScreenState extends State<HomeScreen>
                   child: PauloFlixSection(
                     title: 'PauloFlix',
                     contents: pauloflixProvider.contents.take(15).toList(),
+                    isTV: _isTV,
                     onItemTap: (content) {
                       Navigator.push(
                         context,
