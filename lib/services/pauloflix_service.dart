@@ -90,6 +90,11 @@ class PauloFlixService {
     }
   }
 
+  /// Supported video extensions
+  static const Set<String> videoExtensions = {
+    '.mkv', '.mp4', '.avi', '.webm', '.mov', '.flv', '.wmv', '.m4v',
+  };
+
   static Future<List<PauloFlixEpisode>> fetchSeasonEpisodes(
     String seasonUrl,
   ) async {
@@ -113,7 +118,9 @@ class PauloFlixService {
         if (href == '../' || href.isEmpty || name.isEmpty || name == '../') {
           continue;
         }
-        if (!name.toLowerCase().endsWith('.mkv')) continue;
+        final lowerName = name.toLowerCase();
+        final hasVideoExtension = videoExtensions.any((ext) => lowerName.endsWith(ext));
+        if (!hasVideoExtension) continue;
         final episodeInfo = _extractEpisodeInfo(name);
         if (episodeInfo == null) continue;
         final absoluteUrl = '$seasonUrl${Uri.encodeComponent(name)}';
@@ -143,7 +150,7 @@ class PauloFlixService {
 
   static _EpisodeInfo? _extractEpisodeInfo(String filename) {
     final match = RegExp(
-      r'S\d+E(\d+)(?:\s*-\s*(.+))?\.mkv$',
+      r'S\d+E(\d+)(?:\s*-\s*(.+))?\.(mkv|mp4|avi|webm|mov|flv|wmv|m4v)$',
       caseSensitive: false,
     ).firstMatch(filename);
     if (match != null) {
@@ -155,9 +162,14 @@ class PauloFlixService {
     if (simpleMatch != null) {
       final number = int.tryParse(simpleMatch.group(1)!);
       if (number != null) {
+        // Remove any video extension from title
+        var title = filename;
+        for (final ext in videoExtensions) {
+          title = title.replaceAll(ext, '');
+        }
         return _EpisodeInfo(
           number: number,
-          title: filename.replaceAll('.mkv', ''),
+          title: title,
         );
       }
     }
