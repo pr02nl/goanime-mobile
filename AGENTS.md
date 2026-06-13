@@ -32,6 +32,15 @@ lib/
 │   ├── netflix_theme.dart    # Netflix-inspired theme
 │   ├── tv_theme.dart         # TV-specific theme
 │   └── app_colors.dart       # Color palette
+├── helpers/                  # Database and utility helpers
+│   └── database_helper.dart  # SQLite database helper
+├── mixins/                   # Reusable mixins
+│   └── video_player_aniskip_mixin.dart  # AniSkip integration mixin
+├── providers/                # State management providers
+│   └── theme_provider.dart   # Theme state management
+├── l10n/                     # Localization files
+│   └── app_localizations.dart # Internationalization support
+├── google_video_proxy.dart   # Google Video proxy for streams
 └── utils/                    # Utilities
     ├── responsive.dart       # Responsive helpers
     └── ...
