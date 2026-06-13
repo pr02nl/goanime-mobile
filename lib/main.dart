@@ -2,7 +2,9 @@
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
+import 'helpers/database_helper.dart';
 import 'l10n/app_localizations.dart';
+import 'providers/pauloflix_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/main_navigation_screen.dart';
 import 'services/download_service.dart';
@@ -26,12 +28,16 @@ void main() async {
   // Cria instância do ThemeProvider para uso global
   final themeProvider = ThemeProvider();
 
+  // Inicializar banco de dados
+  await DatabaseHelper.initializeAll();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider(create: (_) => LocaleService()),
         ChangeNotifierProvider.value(value: downloadService),
+        ChangeNotifierProvider(create: (_) => PauloFlixProvider()),
       ],
       child: const MyApp(),
     ),

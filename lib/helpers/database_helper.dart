@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
+import '../services/pauloflix_database_service.dart';
 
 class DatabaseHelper {
   static Database? _database;
@@ -78,5 +79,15 @@ class DatabaseHelper {
     final db = await database;
     final result = db.select('SELECT name FROM $animeTable');
     return result.map((row) => row['name'] as String).toList();
+  }
+
+  /// Inicializa todos os bancos de dados necessários
+  static Future<void> initializeAll() async {
+    // Banco principal (anime names)
+    await database;
+
+    // Banco PauloFlix
+    final pauloflixDb = PauloFlixDatabaseService();
+    await pauloflixDb.database;
   }
 }

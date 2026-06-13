@@ -13,7 +13,11 @@ import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
+import '../models/jikan_models.dart';
+import '../models/pauloflix_content.dart';
 import '../models/pauloflix_models.dart';
+import 'jikan_service.dart';
+import 'pauloflix_database_service.dart';
 
 class PauloFlixService {
   static const String baseUrl = 'http://100.95.105.113:8300/tvshows/';
@@ -253,6 +257,88 @@ class PauloFlixService {
     }
 
     return null;
+  }
+  /// Synchronizes PauloFlix content with metadata from Jikan and saves to local database.
+  static Future<bool> syncContent({
+    void Function(String progress)? onProgress,
+    void Function(String error)? onError,
+  }) async {
+    try {
+      onProgress?.call('Buscando shows do PauloFlix...');
+      final shows = await fetchAllShows();
+
+      if (shows.isEmpty) {
+        onError?.call('Nenhum show encontrado no PauloFlix');
+        return false;
+      }
+
+      onProgress?.call('Encontrados ${shows.length} shows. Buscando metadados...');
+
+      final dbService = PauloFlixDatabaseService();
+      final jikanService = JikanService();
+      final List<PauloFlixContent> contents = [];
+      int processed = 0;
+
+      for (final show in shows) {
+        processed++;
+        onProgress?.call('Processando ${show.name} ($processed/${shows.length})');
+
+        try {
+          // Search Jikan for metadata
+          final searchResults = await jikanService.searchAnimes(show.name, limit: 5);
+
+          // Try to find best match
+          JikanAnime? matchedAnime;
+          if (searchResults.isNotEmpty) {
+            // Exact match first
+            matchedAnime = searchResults.where((a) =>
+              a.title.toLowerCase() == show.name.toLowerCase()
+            ).firstOrNull;
+
+            // Fallback to first result if no exact match
+            matchedAnime ??= searchResults.first;
+          }
+
+          if (matchedAnime != null) {
+            contents.add(PauloFlixContent.fromJikan(
+              folderName: show.name,
+              serverUrl: show.url,
+              jikanAnime: matchedAnime,
+            ));
+          } else {
+            // No metadata found, create basic entry
+            contents.add(PauloFlixContent(
+              folderName: show.name,
+              displayName: show.name,
+              serverUrl: show.url,
+            ));
+          }
+        } catch (e) {
+          debugPrint('[PauloFlix] Error processing ${show.name}: $e');
+          // Still add the show without metadata
+          contents.add(PauloFlixContent(
+            folderName: show.name,
+            displayName: show.name,
+            serverUrl: show.url,
+          ));
+        }
+
+        // Rate limiting for Jikan API
+        if (processed % 3 == 0) {
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      }
+
+      onProgress?.call('Salvando ${contents.length} items no banco de dados...');
+      await dbService.saveBatch(contents);
+
+      onProgress?.call('Sincronização completa: ${contents.length} shows');
+      return true;
+    } catch (e) {
+      debugPrint('[PauloFlix] Sync error: $e');
+      onError?.call('Erro na sincronização: $e');
+      return false;
+    }
   }
 }
 

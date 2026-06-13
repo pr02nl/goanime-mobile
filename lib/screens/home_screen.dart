@@ -1,16 +1,20 @@
 ﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/jikan_models.dart';
+import '../providers/pauloflix_provider.dart';
 import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
+import '../widgets/pauloflix_section.dart';
 import '../widgets/netflix_card.dart';
 import '../widgets/netflix_carousel.dart';
 import 'genre_animes_screen.dart';
+import 'pauloflix_episode_list_screen.dart';
 import 'source_selection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -57,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen>
     _detectTVMode();
     if (!_dataLoaded) {
       _loadAllData();
+      _checkPauloFlixSync();
     }
   }
 
@@ -152,6 +157,15 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Future<void> _checkPauloFlixSync() async {
+    final pauloflixProvider = Provider.of<PauloFlixProvider>(context, listen: false);
+    await pauloflixProvider.loadContents();
+    if (pauloflixProvider.contents.isEmpty) {
+      pauloflixProvider.syncContent();
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Requerido por AutomaticKeepAliveClientMixin
@@ -242,6 +256,32 @@ class _HomeScreenState extends State<HomeScreen>
                 isLoading: _isLoading && _fantasyAnimes.isEmpty,
                 genreId: JikanGenreIds.fantasy,
               ),
+            ),
+
+            // Seção PauloFlix
+            Consumer<PauloFlixProvider>(
+              builder: (context, pauloflixProvider, _) {
+                if (pauloflixProvider.contents.isEmpty) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
+
+                return SliverToBoxAdapter(
+                  child: PauloFlixSection(
+                    title: 'PauloFlix',
+                    contents: pauloflixProvider.contents.take(15).toList(),
+                    onItemTap: (content) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PauloFlixEpisodeListScreen(
+                            content: content,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: 48)),
