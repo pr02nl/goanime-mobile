@@ -380,19 +380,39 @@ Os nomes das pastas/arquivos são bagunçados (com tags de qualidade, codecs, gr
 - Pasta contém apenas sub-pastas → **coleção** (banner + lista de sub-filmes)
 - Vazia → marcada como removida
 
+### Detecção de legenda (.srt)
+Quando a pasta do filme contém arquivos `.srt`, o algoritmo escolhe o
+melhor candidato por idioma (PT-BR tem prioridade):
+
+1. **PT-BR explícito**: `.pob.srt`, `.pt-br.srt`, `.por.srt`
+2. **Forced PT-BR**: `.pob.forced.srt`, `.pt-br.forced.srt`
+3. **PT genérico**: `.pt.srt`
+4. **Idioma conhecido**: `.eng.srt`, `.en.srt`, `.spa.srt`, `.es.srt`, etc.
+5. **Qualquer `.srt`** como fallback (assumido pt-BR)
+
+A URL da legenda escolhida vai junto no objeto `PauloFlixMovieFile` que é
+passada para o player via `Episode.subtitleUrl`. O
+`ModernVideoPlayerScreen` carrega via `media_kit.Player.setSubtitleTrack`
+depois de `Media.open(...)`.
+
+Se a legenda não carregar (erro de rede ou formato), a reprodução do
+vídeo continua normalmente — silenciar a falha evita derrubar o filme.
+
 ### Métodos Principais
 
 #### `fetchRootFolders()`
 Lista todas as pastas raiz de `/movies/`.
 
 #### `inspectFolder(folderName, folderUrl)`
-Detecta se a pasta é filme individual ou coleção e inspeciona o conteúdo.
+Detecta se a pasta é filme individual, coleção. Extrai título da pasta,
+ano via `(YYYY)`, e (se houver) URL da legenda `.srt`.
 
-#### `extractYear(String text)`
-Regex que retorna o ano (YYYY) encontrado no texto, ou `null`.
+#### `extractYearFromFolder(String folderName)`
+Regex `\((19|20)\d{2}\)` no nome da pasta. Retorna `null` se ausente.
 
-#### `cleanMovieName(String rawName)`
-Aplica o algoritmo de 4 passes descrito acima.
+#### `cleanTitleForTmdb(String folderName)`
+Limpa o nome da pasta para produzir título buscável no TMDB (remove
+tags de qualidade/codec/grupo, normaliza espaços).
 
 #### `syncContent({onProgress, onError})`
 Sincronização completa:
@@ -403,7 +423,8 @@ Sincronização completa:
 5. Manda erro via `onError`
 
 #### `fetchMovieFile(String folderUrl)`
-Resolve a URL final do `.mkv`/`.mp4` dentro de uma pasta de filme.
+Resolve URL final do `.mkv`/`.mp4` e (se houver) a URL do `.srt` na mesma
+pasta; retorna `PauloFlixMovieFile?`.
 
 ---
 
