@@ -4,6 +4,7 @@ import '../services/watchlist_service.dart';
 import '../services/watchlist_notifier.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_localizations.dart';
+import 'focusable_widget.dart';
 
 class WatchlistButton extends StatefulWidget {
   final String animeId;
@@ -113,8 +114,15 @@ class _WatchlistButtonState extends State<WatchlistButton> {
       );
     }
 
-    return GestureDetector(
-      onTap: _toggleWatchlist,
+    // FocusableWidget garante:
+    //  - D-pad Enter/Select aciona _toggleWatchlist em TV
+    //  - Anel de foco visível no círculo do botão
+    //  - Em mobile/tablet cai para GestureDetector puro
+    return FocusableWidget(
+      onSelect: _toggleWatchlist,
+      borderRadius: 24,
+      focusPadding: EdgeInsets.zero,
+      focusScale: 1.05,
       child: Container(
         width: 48,
         height: 48,
