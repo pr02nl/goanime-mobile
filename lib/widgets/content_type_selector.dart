@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'focusable_widget.dart';
 
 /// Toggle de segmentação entre Animes e Filmes para o AppBar.
 class ContentTypeSelector extends StatelessWidget {
@@ -64,8 +65,15 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    // FocusableWidget adiciona:
+    //  - FocusNode + onKeyEvent (Select/Enter/Space disparam onTap)
+    //  - Anel de foco visível em TV
+    //  - Em mobile/tablet cai para GestureDetector puro (sem custo visual)
+    return FocusableWidget(
+      onSelect: onTap,
+      borderRadius: 16,
+      focusPadding: EdgeInsets.zero,
+      focusScale: 1.0,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
