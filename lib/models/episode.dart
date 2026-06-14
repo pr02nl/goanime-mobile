@@ -5,12 +5,22 @@ class Episode {
   final String? title;
   final String? description;
 
+  /// URL absoluta da legenda (.srt) opcional. Quando presente, é
+  /// carregada pelo [ModernVideoPlayerScreen] via
+  /// `Player.setSubtitleTrack(SubtitleTrack.uri(...))`.
+  final String? subtitleUrl;
+
+  /// Idioma inferido da legenda (e.g. `"pt-BR"`).
+  final String? subtitleLanguage;
+
   Episode({
     required this.number,
     required this.url,
     this.thumbnail,
     this.title,
     this.description,
+    this.subtitleUrl,
+    this.subtitleLanguage,
   });
 
   @override

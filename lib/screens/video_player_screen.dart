@@ -388,6 +388,26 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         );
       }
 
+      // Carrega legenda (.srt) externa, se fornecida via Episode.subtitleUrl.
+      // Equivale a `ffmpeg -i video.mp4 -i legend.srt -c copy out.mkv`, mas
+      // sem precisar re-encodar: o media_kit expõe a legenda como track.
+      final subtitleUrl = widget.episode.subtitleUrl;
+      if (subtitleUrl != null && subtitleUrl.isNotEmpty) {
+        try {
+          final langCode = widget.episode.subtitleLanguage ?? 'pt-BR';
+          final subtitle = SubtitleTrack.uri(
+            subtitleUrl,
+            title: langCode,
+            language: langCode,
+          );
+          await _player!.setSubtitleTrack(subtitle);
+          debugPrint('[VideoPlayer] Subtitle loaded: $langCode');
+        } catch (e) {
+          debugPrint('[VideoPlayer] Failed to load subtitle: $e');
+          // Não derruba a reprodução — vídeo continua sem legenda.
+        }
+      }
+
       // Wait for player to be ready
       await _player?.stream.playing
           .firstWhere((playing) => playing == true)

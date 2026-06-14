@@ -10,6 +10,15 @@ class PauloFlixMovieFile {
   final int? year;
   final String cleanedName;
 
+  /// URL absoluta da legenda `.srt` encontrada na mesma pasta, se houver.
+  /// O arquivo é detectado por nome compatível (e.g. `filme.eng.srt`,
+  /// `filme.pob.srt`, `filme.pt-BR.srt`) — preferência por `.pob`
+  /// (Português Brasil) e fallback por `.srt` único.
+  final String? subtitleUrl;
+
+  /// Idioma inferido da legenda (e.g. `"pt-BR"`, `"en"`).
+  final String? subtitleLanguage;
+
   const PauloFlixMovieFile({
     required this.folderName,
     required this.folderUrl,
@@ -17,11 +26,14 @@ class PauloFlixMovieFile {
     required this.videoUrl,
     required this.cleanedName,
     this.year,
+    this.subtitleUrl,
+    this.subtitleLanguage,
   });
 
   @override
   String toString() =>
-      'PauloFlixMovieFile(folderName: $folderName, video: $videoFileName)';
+      'PauloFlixMovieFile(folderName: $folderName, video: $videoFileName'
+      '${subtitleUrl != null ? ", with subtitle" : ""})';
 }
 
 /// Sub-pasta encontrada dentro de uma coleção.

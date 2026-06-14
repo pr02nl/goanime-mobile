@@ -8,19 +8,32 @@ import 'pauloflix_movies_database_service.dart';
 import 'tmdb_service.dart';
 
 /// Lê diretórios HTML do PauloFlix Movies e enriquece com metadados do TMDB.
+///
+/// ## Como nomes e anos são extraídos
+///
+/// Para **filmes individuais**, o nome do filme e o ano são extraídos do
+/// **NOME DA PASTA**, não do nome do arquivo.
+///
+/// Exemplos de pastas (todas URL-encoded):
+/// - `A%20Origem%20(2010)` → título: "A Origem", ano: 2010
+/// - `Amadeus` → título: "Amadeus", ano: null
+/// - `Constantine%202005%20(1080p)%20WWW.BLUDV.COM` → título: "Constantine 2005", ano: 2005
+///
+/// Regex utilizada:
+/// - **Ano**: `(YYYY)` entre parênteses `( ... )` no nome da pasta.
+///   Se não houver `(YYYY)`, retorna null e a busca no TMDB fica sem filtro de ano.
+///
+/// Para **coleções** (pastas só com sub-pastas, ex: `Coleção Harry Potter`),
+/// o nome da pasta é usado como displayName sem extração de ano.
+///
+/// O nome do arquivo (`.mkv`/`.mp4`) só é usado para localizar a URL de
+/// streaming — nunca é passado pro TMDB.
 class PauloFlixMoviesService {
   static const String baseUrl = 'http://100.95.105.113:8300/movies/';
 
   /// Extensões de vídeo reconhecidas.
   static const Set<String> videoExtensions = {
-    '.mkv',
-    '.mp4',
-    '.avi',
-    '.webm',
-    '.mov',
-    '.flv',
-    '.wmv',
-    '.m4v',
+    '.mkv', '.mp4', '.avi', '.webm', '.mov', '.flv', '.wmv', '.m4v',
   };
 
   // ---------------- Parsing de listings HTML ----------------
@@ -28,7 +41,7 @@ class PauloFlixMoviesService {
   /// Decodifica um componente URI de forma defensiva.
   ///
   /// [Uri.decodeComponent] lança [ArgumentError] quando o input contém
-  /// sequências `%` inválidas (e.g. `%XY` onde XY não é hexadecimal).
+  /// sequências `%` inválidas (e.g. `%XY` onde `XY` não é hexadecimal).
   /// Isso acontece com nomes de pastas no servidor que já vêm com `%`
   /// literal (não decodificado duas vezes).
   ///
@@ -40,17 +53,12 @@ class PauloFlixMoviesService {
     try {
       return Uri.decodeComponent(input);
     } on ArgumentError {
-      // Fallback: tenta decodificar apenas os pedacos válidos,
-      // deixando o `%XY` malformado como `%XY` literal.
       final buf = StringBuffer();
       final pattern = RegExp(r'%([0-9A-Fa-f]{2})');
       int lastEnd = 0;
       for (final match in pattern.allMatches(input)) {
-        // Copia o trecho antes do match (incluindo eventuais `%` inválidos)
         buf.write(input.substring(lastEnd, match.start));
-        buf.write(
-          Uri.decodeComponent('%${match.group(1)!}'),
-        );
+        buf.write(Uri.decodeComponent('%${match.group(1)!}'));
         lastEnd = match.end;
       }
       buf.write(input.substring(lastEnd));
@@ -84,12 +92,25 @@ class PauloFlixMoviesService {
   }
 
   /// Detecta se uma pasta contém um filme individual ou coleção de sub-pastas.
+  ///
+  /// - O **título** do filme é derivado do `folderName` (com remoção leve
+  ///   de tags).
+  /// - O **ano** é extraído pela regex `(YYYY)` no `folderName`.
+  /// - O **arquivo de vídeo** é o primeiro `.mkv`/`.mp4` encontrado —
+  ///   a URL dele é o `videoUrl` final a ser enviado ao player.
   static Future<PauloFlixMovieRaw> inspectFolder(
     String folderName,
     String folderUrl,
   ) async {
+    final folderTitle = cleanTitleForTmdb(folderName);
+    final folderYear = extractYearFromFolder(folderName);
+
+    debugPrint(
+      '[PauloFlix Movies] Inspecting: $folderUrl — '
+      'title="$folderTitle", year=${folderYear ?? "?"}',
+    );
+
     try {
-      debugPrint('[PauloFlix Movies] Inspecting: $folderUrl');
       final response = await http
           .get(Uri.parse(folderUrl))
           .timeout(const Duration(seconds: 10));
@@ -102,19 +123,38 @@ class PauloFlixMoviesService {
 
       final links = _parseLinks(response.body);
 
+      // Arquivos de legenda (.srt)
+      final subtitleFiles = links
+          .where(
+            (l) => l.href.toLowerCase().endsWith('.srt') ||
+                l.name.toLowerCase().endsWith('.srt'),
+          )
+          .toList();
+      final subtitlePick = _pickBestSubtitle(subtitleFiles, folderName);
+
       // Arquivos de vídeo (sem '/' no href)
       final videoFiles = links
           .where(
             (l) => videoExtensions.any(
-              (ext) => l.name.toLowerCase().endsWith(ext),
+              (ext) => l.href.toLowerCase().endsWith(ext),
             ),
           )
           .toList();
 
+      // Procura também por nome (caso o link receba href e text iguais)
+      if (videoFiles.isEmpty) {
+        videoFiles.addAll(
+          links.where(
+            (l) => videoExtensions.any(
+              (ext) => l.name.toLowerCase().endsWith(ext),
+            ),
+          ),
+        );
+      }
+
       if (videoFiles.isNotEmpty) {
         final first = videoFiles.first;
         final videoUrl = '$folderUrl${Uri.encodeComponent(first.name)}';
-        final cleaned = cleanMovieName(first.name);
         return PauloFlixMovieRaw.single(
           folderName: folderName,
           folderUrl: folderUrl,
@@ -123,20 +163,19 @@ class PauloFlixMoviesService {
             folderUrl: folderUrl,
             videoFileName: first.name,
             videoUrl: videoUrl,
-            cleanedName: cleaned,
-            year: extractYear(first.name) ?? extractYear(folderName),
+            cleanedName: folderTitle,
+            year: folderYear,
+            subtitleUrl: subtitlePick?.$1,
+            subtitleLanguage: subtitlePick?.$2,
           ),
         );
       }
 
-      // Sub-pastas
+      // Sub-pastas (coleção)
       final subFolders = links
           .where((l) => l.href.endsWith('/'))
           .map(
-            (l) => PauloFlixMovieSubfolder(
-              name: l.name,
-              url: '$folderUrl${l.href}',
-            ),
+            (l) => PauloFlixMovieSubfolder(name: l.name, url: '$folderUrl${l.href}'),
           )
           .toList();
 
@@ -185,142 +224,191 @@ class PauloFlixMoviesService {
     }
   }
 
-  // ---------------- Limpeza de nome ----------------
+  // ---------------- Extração de título + ano ----------------
 
-  /// Remove extensão.
-  static String _removeExtension(String s) {
-    return s.replaceAll(
-      RegExp(r'\.(mkv|mp4|avi|webm|mov|flv|wmv|m4v)$', caseSensitive: false),
-      '',
-    );
-  }
+  /// Regex de ano entre parênteses: `(2010)`, `(1985)`.
+  static final RegExp _yearInParens = RegExp(r'\((19|20)\d{2}\)');
 
-  /// Extrai ano (YYYY) do texto, se presente.
-  static int? extractYear(String text) {
-    final match = RegExp(r'\b(19|20)\d{2}\b').firstMatch(text);
+  /// Extrai o ano entre parênteses do nome da pasta. Retorna null se
+  /// não houver `(YYYY)`.
+  ///
+  /// Importante: a regex é deliberadamente restrita a parênteses
+  /// (não colchetes) e exige exatamente 4 dígitos começando com `19` ou
+  /// `20` — isso evita falsos positivos com anos embutidos em tags
+  /// de codec (ex: `x265` → false, mas `(2010)` → matched).
+  static int? extractYearFromFolder(String folderName) {
+    final match = _yearInParens.firstMatch(folderName);
     if (match == null) return null;
-    return int.tryParse(match.group(0)!);
+    final raw = match.group(0)!; // "(2010)"
+    final yearStr = raw.substring(1, raw.length - 1);
+    return int.tryParse(yearStr);
   }
 
-  /// Limpa nome de arquivo bagunçado e devolve um título "limpo" para busca.
-  static String cleanMovieName(String rawName) {
-    var name = rawName;
+  /// Tags comuns que aparecem em nomes de pastas como ornamentação.
+  /// Case-insensitive. Removidas por [cleanTitleForTmdb].
+  static const List<String> _decorativeTags = [
+    // Qualidade
+    '1080p', '720p', '480p', '2160p', '4K',
+    'FULLHD', 'FullHD',
+    'BRRip', 'BDRip', 'WEB-DL', 'WEBRip', 'WEB', 'HDTV',
+    'HDRip', 'DVDRip', 'Open.Matte', 'Directors.Cut',
+    'Extended', 'Versão Estendida', 'VERSAO ESTENDIDA',
+    // Codec / áudio
+    'x265', 'x264', 'HEVC', 'H265', 'H264', 'AV1', 'AVC',
+    '10bit', 'Opus', 'AAC', 'AC3', 'DDP5.1', 'DD5.1',
+    'DUAL', 'Dublado', 'Legendado',
+    // Grupos
+    'WWW.BLUDV.COM', 'BLUDV.COM', 'WOLVERDONFILMES.COM', 'wolverdonfilmes.com',
+    'GalaxyRG', 'YTS.MX', 'KONTRAST', 'Alan_680', 'AndreTPF',
+    'LAPUMiA', 'Zero00', 'RARBG', 'TGx',
+    'ThePirateFilmes', 'The.Pirate.Filmes',
+  ];
 
-    // 1) Extensão
-    name = _removeExtension(name);
+  /// Versão antiga mantida por compatibilidade com testes/código legado —
+  /// usa o algoritmo pesado original (case-sensitivity do código antigo).
+  /// Novas chamadas devem preferir [cleanTitleForTmdb].
+  @Deprecated('Use cleanTitleForTmdb - extrai título do nome da pasta.')
+  static String cleanMovieName(String rawName) => cleanTitleForTmdb(rawName);
 
-    // 2) Ano entre parênteses ou colchetes (ex: " (2010) " ou " [1985] ")
-    name = name.replaceAll(RegExp(r'\s*[\[\(](19|20)\d{2}[\]\)]\s*'), ' ');
+  /// Mapa estático (não const porque `RegExp` não tem construtor const)
+  /// de tokens de idioma comum em legendas SRT → código BCP-47.
+  ///
+  /// Ordem na estrutura reflete prioridade de matching.
+  static final Map<RegExp, String> _subtitleLanguageTokens = {
+    // PT-BR tem prioridade máxima
+    RegExp(r'\.pob\.srt$', caseSensitive: false): 'pt-BR',
+    RegExp(r'\.pt[-_]br\.srt$', caseSensitive: false): 'pt-BR',
+    RegExp(r'\.por\.srt$', caseSensitive: false): 'pt-BR',
+    RegExp(r'\.pt\.srt$', caseSensitive: false): 'pt',
+    // Outros idiomas
+    RegExp(r'\.eng\.srt$', caseSensitive: false): 'en',
+    RegExp(r'\.en\.srt$', caseSensitive: false): 'en',
+    RegExp(r'\.spa\.srt$', caseSensitive: false): 'es',
+    RegExp(r'\.es\.srt$', caseSensitive: false): 'es',
+    RegExp(r'\.fra\.srt$', caseSensitive: false): 'fr',
+    RegExp(r'\.fr\.srt$', caseSensitive: false): 'fr',
+    RegExp(r'\.deu\.srt$', caseSensitive: false): 'de',
+    RegExp(r'\.ger\.srt$', caseSensitive: false): 'de',
+    RegExp(r'\.de\.srt$', caseSensitive: false): 'de',
+    RegExp(r'\.ita\.srt$', caseSensitive: false): 'it',
+    RegExp(r'\.it\.srt$', caseSensitive: false): 'it',
+    RegExp(r'\.jpn\.srt$', caseSensitive: false): 'ja',
+    RegExp(r'\.jp\.srt$', caseSensitive: false): 'ja',
+  };
 
-    // 3) Tags em ordem (case-insensitive). Mais longas primeiro para evitar prefixos.
-    _removeInOrder(name, _qualityTags);
-    name = _stripAfter(_qualityTags, name);
+  /// Detecta se o arquivo `.srt` é uma legenda "forced" — versão de
+  /// trechos traduzidos que ficam visíveis mesmo sem selecionar faixa
+  /// (e.g. signos em língua estrangeira no filme).
+  static final RegExp _forcedSrtPattern =
+      RegExp(r'\.forced\.srt$', caseSensitive: false);
 
-    _stripAfter(_codecs, name);
-    _stripAfter(_audioTags, name);
-    _stripAfter(_groups, name);
-    _stripAfter(_extraTags, name);
+  /// Seleciona a melhor legenda (.srt) entre candidatos.
+  ///
+  /// Heurística de prioridade (do melhor para o pior):
+  /// 1. PT-BR (`.pob.srt`, `.pt-br.srt`, `.por.srt`).
+  /// 2. PT-BR `.forced.srt` (faixa obrigatória em PT-BR).
+  /// 3. PT genérico (`.pt.srt`).
+  /// 4. Qualquer outra legenda cujo nome bata num [_subtitleLanguageTokens].
+  /// 5. Qualquer `.srt` (fallback final).
+  ///
+  /// Retorna `(url, languageCode)?` — null se nenhum .srt.
+  static (String, String)? _pickBestSubtitle(
+    List<_LinkEntry> subtitleFiles,
+    String folderUrl,
+  ) {
+    if (subtitleFiles.isEmpty) return null;
 
-    // 4) Pontos/underscores viram espaço, normaliza múltiplos espaços, limpa pontuação solta
-    name = name.replaceAll(RegExp(r'[._]+'), ' ');
+    // Pontuação de prioridade: quanto maior, melhor.
+    int score(_LinkEntry l) {
+      final fileName = _safeBase(l.href).toLowerCase();
+      if (fileName.endsWith('.pob.srt') ||
+          fileName.endsWith('.pt-br.srt') ||
+          fileName.endsWith('.por.srt')) {
+        return 100; // PT-BR explícito
+      }
+      if (_forcedSrtPattern.hasMatch(fileName)) {
+        // Forced sem tag de idioma → assumir PT-BR (público brasileiro).
+        if (fileName.contains('.pob.') || fileName.contains('.pt-br.')) {
+          return 95;
+        }
+        return 60; // Forced genérico
+      }
+      if (fileName.endsWith('.pt.srt')) return 90; // PT genérico
+      // Idioma conhecido (eng, en, spa, es, fra, fr, deu, ger, de, ita, it, jpn, jp)
+      for (final entry in _subtitleLanguageTokens.entries) {
+        if (entry.key.hasMatch(fileName)) return 80;
+      }
+      return 50; // qualquer .srt
+    }
+
+    final sorted = [...subtitleFiles]
+      ..sort((a, b) => score(b).compareTo(score(a)));
+
+    final chosen = sorted.first;
+    final base = _safeBase(chosen.href).toLowerCase();
+    String? langCode;
+    for (final entry in _subtitleLanguageTokens.entries) {
+      if (entry.key.hasMatch(base)) {
+        langCode = entry.value;
+        break;
+      }
+    }
+    // Sem tag de idioma reconhecida: assumir PT-BR (release brasileiro também
+    // usa `.srt` sem sufixo de idioma; o media_kit vai exibir "Português" no menu).
+    langCode ??= 'pt-BR';
+
+    final subtitleUrl = '$folderUrl${Uri.encodeComponent(chosen.name)}';
+    return (subtitleUrl, langCode);
+  }
+
+  /// Extrai só o nome do arquivo de uma URL ou nome completo (sem separadores
+  /// de path).
+  static String _safeBase(String href) {
+    final parts = href.split('/');
+    var last = parts.isEmpty ? href : parts.last;
+    // Decodifica %XX se houver
+    try {
+      last = Uri.decodeComponent(last);
+    } catch (_) {}
+    return last;
+  }
+
+  /// Limpa o nome da pasta para produzir um título buscável no TMDB.
+  ///
+  /// Regras:
+  /// 1. Remove o `(YYYY)` se houver (vai ser usado como filtro separado).
+  /// 2. Remove ano solto entre colchetes `[1985]`.
+  /// 3. Remove tags decorativas (qualidade, codecs, áudio, grupos).
+  /// 4. Substitui `.`, `_`, `-`, `+` por espaço.
+  /// 5. Colapsa múltiplos espaços, remove acentos das pontas.
+  ///
+  /// Exemplos:
+  /// - `A Origem (2010)` → `A Origem`
+  /// - `Constantine 2005 (1080p) WWW.BLUDV.COM` → `Constantine 2005`
+  /// - `Coleção Harry Potter 2001 - 2011  WWW.BLUDV.COM` → `Coleção Harry Potter 2001 2011`
+  static String cleanTitleForTmdb(String folderName) {
+    var name = folderName;
+
+    // 1) Remove (YYYY) — vai ser extraído separadamente
+    name = name.replaceAll(_yearInParens, ' ');
+
+    // 2) Remove [YYYY] também
+    name = name.replaceAll(RegExp(r'\[(19|20)\d{2}\]'), ' ');
+
+    // 3) Remove tags decorativas
+    for (final tag in _decorativeTags) {
+      final escaped = RegExp.escape(tag);
+      name = name.replaceAll(RegExp(escaped, caseSensitive: false), ' ');
+    }
+
+    // 4) Pontuação virando espaço
+    name = name.replaceAll(RegExp(r'[._+\-]+'), ' ');
+
+    // 5) Normaliza múltiplos espaços + trim + remove pontas
     name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
-
-    // Remove caracteres especiais nas pontas
     name = name.replaceAll(RegExp(r'^[^\wÀ-ÿ]+|[^\wÀ-ÿ]+$'), '');
 
     return name;
-  }
-
-  // Tags estáticas (case-insensitive em _stripAfter).
-  static const List<String> _qualityTags = [
-    'Open.Matte',
-    'Directors.Cut',
-    'Remasterizada',
-    'Remastered',
-    'Versão Estendida',
-    'VERSAO ESTENDIDA',
-    'BluRay',
-    'BRRip',
-    'BDRip',
-    'WEB-DL',
-    'WEBRip',
-    'WEB',
-    'HDTV',
-    'HDRip',
-    'DVDRip',
-    'Extended',
-    'FullHD',
-    'FULLHD',
-    '1080p',
-    '720p',
-    '480p',
-    '2160p',
-    '4K',
-  ];
-
-  static const List<String> _codecs = [
-    'x265',
-    'x264',
-    'HEVC',
-    'H265',
-    'H264',
-    'AV1',
-    'AVC',
-    'Opus',
-    '10bit',
-  ];
-
-  static const List<String> _audioTags = [
-    'Dual.Áudio',
-    'Dual Audio',
-    'Dual.Audio',
-    'Dual.áudio',
-    'DUAL',
-    'Dublado',
-    'Legendado',
-    'DDP5.1',
-    'DD5.1',
-    '5.1',
-    '7.1',
-    'AAC',
-    'AC3',
-  ];
-
-  static const List<String> _groups = [
-    'WWW.BLUDV.COM',
-    'BLUDV.COM',
-    'wolverdonfilmes.com',
-    'WOLVERDONFILMES.COM',
-    'GalaxyRG',
-    'YTS.MX',
-    'KONTRAST',
-    'Alan_680',
-    'AndreTPF',
-    'LAPUMiA',
-    'Zero00',
-    'FG4LL4RD0',
-    'RARBG',
-    'TGx',
-    'ThePirateFilmes',
-    'The.Pirate.Filmes',
-    'Rich_jc',
-    'rich_jc',
-  ];
-
-  static const List<String> _extraTags = ['Coleção', 'COLEÇÃO', 'Colecao'];
-
-  static void _removeInOrder(String input, List<String> tags) {
-    // No-op — usado via _stripAfter para garantir imutabilidade
-  }
-
-  static String _stripAfter(List<String> tags, String input) {
-    var result = input;
-    for (final tag in tags) {
-      // Escapa caracteres regex especiais no tag antes de montar o pattern
-      final escaped = RegExp.escape(tag);
-      result = result.replaceAll(RegExp(escaped, caseSensitive: false), ' ');
-    }
-    return result;
   }
 
   // ---------------- Sincronização ----------------
@@ -345,9 +433,8 @@ class PauloFlixMoviesService {
         onError?.call('Nenhuma pasta encontrada em /movies/');
         return false;
       }
-      onProgress?.call(
-        'Encontradas ${folders.length} pastas. Inspecionando...',
-      );
+      onProgress
+          ?.call('Encontradas ${folders.length} pastas. Inspecionando...');
 
       final db = PauloFlixMoviesDatabaseService();
       final existing = await db.getAllContent();
@@ -393,7 +480,8 @@ class PauloFlixMoviesService {
         return true;
       }
 
-      onProgress?.call('Processando ${toProcess.length} pastas no TMDB...');
+      onProgress
+          ?.call('Processando ${toProcess.length} pastas no TMDB...');
 
       final List<PauloFlixMovie> contents = [];
       int processed = 0;
@@ -410,14 +498,11 @@ class PauloFlixMoviesService {
             case MovieFolderType.single:
               final video = raw.videoFile!;
               final searchResults = await tmdb.searchMovies(
-                video.cleanedName.isEmpty ? folder.name : video.cleanedName,
+                video.cleanedName,
                 year: video.year,
                 limit: 3,
               );
-              final match = tmdb.matchInResults(
-                searchResults,
-                video.cleanedName,
-              );
+              final match = tmdb.matchInResults(searchResults, video.cleanedName);
               if (match != null) {
                 contents.add(
                   PauloFlixMovie.fromTmdb(
@@ -492,8 +577,6 @@ class PauloFlixMoviesService {
 
   /// Retorna o arquivo de vídeo (.mkv/.mp4) de uma pasta de filme.
   static Future<PauloFlixMovieFile?> fetchMovieFile(String folderUrl) async {
-    // folderUrl já aponta para a sub-pasta; estima-se que é um filme.
-    // Reaproveita inspectFolder para reutilizar a lógica de detecção.
     final segments = folderUrl.split('/');
     final rawName = segments[segments.length - 2].isEmpty
         ? segments[segments.length - 1]

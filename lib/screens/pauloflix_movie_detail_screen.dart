@@ -28,6 +28,8 @@ class _PauloFlixMovieDetailScreenState
 
   // Para filme individual
   String? _movieVideoUrl;
+  String? _movieSubtitleUrl;
+  String? _movieSubtitleLanguage;
   bool _isResolvingSingle = false;
 
   @override
@@ -49,6 +51,8 @@ class _PauloFlixMovieDetailScreenState
       if (!mounted) return;
       setState(() {
         _movieVideoUrl = file?.videoUrl;
+        _movieSubtitleUrl = file?.subtitleUrl;
+        _movieSubtitleLanguage = file?.subtitleLanguage;
         _isResolvingSingle = false;
       });
     } catch (e) {
@@ -116,12 +120,22 @@ class _PauloFlixMovieDetailScreenState
     return entries;
   }
 
-  void _openPlayer(String videoUrl, String title) {
+  void _openPlayer(
+    String videoUrl,
+    String title, {
+    String? subtitleUrl,
+    String? subtitleLanguage,
+  }) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ModernVideoPlayerScreen(
-          episode: Episode(number: '1', url: videoUrl),
+          episode: Episode(
+            number: '1',
+            url: videoUrl,
+            subtitleUrl: subtitleUrl,
+            subtitleLanguage: subtitleLanguage,
+          ),
           animeTitle: title,
           anime: Anime(
             name: title,
@@ -142,6 +156,8 @@ class _PauloFlixMovieDetailScreenState
         _openPlayer(
           file.videoUrl,
           file.cleanedName.isEmpty ? sub.name : file.cleanedName,
+          subtitleUrl: file.subtitleUrl,
+          subtitleLanguage: file.subtitleLanguage,
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -363,7 +379,12 @@ class _PauloFlixMovieDetailScreenState
         child: ElevatedButton.icon(
           onPressed: disabled
               ? null
-              : () => _openPlayer(_movieVideoUrl!, widget.content.displayName),
+              : () => _openPlayer(
+                  _movieVideoUrl!,
+                  widget.content.displayName,
+                  subtitleUrl: _movieSubtitleUrl,
+                  subtitleLanguage: _movieSubtitleLanguage,
+                ),
           icon: _isResolvingSingle
               ? const SizedBox(
                   width: 16,
