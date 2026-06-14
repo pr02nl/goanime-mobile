@@ -526,97 +526,87 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
       onSelect: available && !isLoading ? onTap : null,
       borderRadius: 20,
       focusPadding: EdgeInsets.zero,
-      child: GestureDetector(
-        onTap: available && !isLoading ? onTap : null,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: available && !isLoading
-                ? gradient
-                : LinearGradient(
-                    colors: [Colors.grey.shade800, Colors.grey.shade700],
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: available && !isLoading
+              ? gradient
+              : LinearGradient(
+                  colors: [Colors.grey.shade800, Colors.grey.shade700],
+                ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: available && !isLoading
+              ? [
+                  BoxShadow(
+                    color: gradient.colors.first.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: available && !isLoading
-                ? [
-                    BoxShadow(
-                      color: gradient.colors.first.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: available && !isLoading ? onTap : null,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
+                ]
+              : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              // Ícone
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: Colors.white, size: 32),
+              ),
+              const SizedBox(width: 16),
+
+              // Textos
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Ícone
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(icon, color: Colors.white, size: 32),
-                    ),
-                    const SizedBox(width: 16),
-
-                    // Textos
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitle,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Indicador
-                    if (isLoading)
-                      const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(Colors.white),
-                        ),
-                      )
-                    else if (available)
-                      const Icon(
-                        Icons.arrow_forward_ios,
+                    Text(
+                      title,
+                      style: const TextStyle(
                         color: Colors.white,
-                        size: 20,
-                      )
-                    else
-                      Icon(
-                        Icons.block,
-                        color: Colors.white.withValues(alpha: 0.5),
-                        size: 20,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
+
+              // Indicador
+              if (isLoading)
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                )
+              else if (available)
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.white,
+                  size: 20,
+                )
+              else
+                Icon(
+                  Icons.block,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  size: 20,
+                ),
+            ],
           ),
         ),
       ),

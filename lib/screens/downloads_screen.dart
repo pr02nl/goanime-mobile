@@ -460,65 +460,60 @@ class _AnimeDownloadGroupState extends State<_AnimeDownloadGroup> {
             onSelect: () => setState(() => _isExpanded = !_isExpanded),
             borderRadius: 8,
             focusPadding: EdgeInsets.zero,
-            child: InkWell(
-              onTap: () => setState(() => _isExpanded = !_isExpanded),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    // Thumbnail
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(
-                        imageUrl: widget.thumbnailUrl,
-                        width: 60,
-                        height: 90,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: AppColors.background,
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: AppColors.background,
-                          child: const Icon(Icons.error),
-                        ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  // Thumbnail
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: widget.thumbnailUrl,
+                      width: 60,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: AppColors.background,
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: AppColors.background,
+                        child: const Icon(Icons.error),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    // Info
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.animeName,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 12),
+                  // Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.animeName,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${widget.episodes.length} episodes',
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 14,
-                            ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${widget.episodes.length} episodes',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    Icon(
-                      _isExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: AppColors.textSecondary,
-                    ),
-                  ],
-                ),
+                  ),
+                  Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
               ),
             ),
           ),
@@ -547,73 +542,70 @@ class _EpisodeListItem extends StatelessWidget {
       onSelect: () => _playEpisode(context),
       borderRadius: 8,
       focusPadding: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () => _playEpisode(context),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: const BoxDecoration(
-            border: Border(
-              top: BorderSide(color: AppColors.background, width: 1),
-            ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          border: Border(
+            top: BorderSide(color: AppColors.background, width: 1),
           ),
-          child: Row(
-            children: [
-              // Episode number
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Center(
-                  child: Text(
-                    episode.episodeNumber,
-                    style: const TextStyle(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.bold,
-                    ),
+        ),
+        child: Row(
+          children: [
+            // Episode number
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Center(
+                child: Text(
+                  episode.episodeNumber,
+                  style: const TextStyle(
+                    color: AppColors.accent,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Episode title
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      episode.episodeTitle,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(width: 12),
+            // Episode title
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    episode.episodeTitle,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
                     ),
-                    const SizedBox(height: 2),
-                    if (episode.totalBytes > 0)
-                      Text(
-                        downloadService.formatBytes(episode.totalBytes),
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  if (episode.totalBytes > 0)
+                    Text(
+                      downloadService.formatBytes(episode.totalBytes),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-              // Play button
-              IconButton(
-                icon: const Icon(
-                  Icons.play_circle_filled,
-                  color: AppColors.accent,
-                  size: 32,
-                ),
-                onPressed: () => _playEpisode(context),
+            ),
+            // Play button
+            IconButton(
+              icon: const Icon(
+                Icons.play_circle_filled,
+                color: AppColors.accent,
+                size: 32,
               ),
-            ],
-          ),
+              onPressed: () => _playEpisode(context),
+            ),
+          ],
         ),
       ),
     );
