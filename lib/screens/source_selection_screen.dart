@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/anime.dart';
-import '../models/pauloflix_models.dart';
 import '../services/anime_service.dart';
-import '../services/pauloflix_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../widgets/focusable_widget.dart';
@@ -36,10 +34,6 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
   List<Anime> _animeFireResults = [];
   String? _animeFireErrorMessage;
 
-  bool _isFetchingPauloFlix = false;
-  List<PauloFlixShow> _pauloFlixShows = [];
-  String? _pauloFlixErrorMessage;
-
   @override
   void initState() {
     super.initState();
@@ -49,7 +43,6 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
     );
     _animationController.forward();
     _searchAnimeFire();
-    _fetchPauloFlixShows();
   }
 
   @override
@@ -88,36 +81,6 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
       setState(() {
         _isSearchingAnimeFire = false;
         _animeFireErrorMessage = 'Error searching on AnimeFire';
-      });
-    }
-  }
-
-  Future<void> _fetchPauloFlixShows() async {
-    setState(() {
-      _isFetchingPauloFlix = true;
-      _pauloFlixErrorMessage = null;
-    });
-
-    try {
-      final shows = await PauloFlixService.fetchAllShows();
-      if (shows.isNotEmpty) {
-        setState(() {
-          _pauloFlixShows = shows;
-          _isFetchingPauloFlix = false;
-        });
-      } else {
-        if (!mounted) return;
-        setState(() {
-          _isFetchingPauloFlix = false;
-          _pauloFlixErrorMessage = 'No shows available on PauloFlix';
-        });
-      }
-    } catch (e) {
-      debugPrint('Error fetching PauloFlix shows: $e');
-      if (!mounted) return;
-      setState(() {
-        _isFetchingPauloFlix = false;
-        _pauloFlixErrorMessage = 'Error connecting to PauloFlix';
       });
     }
   }
@@ -177,95 +140,6 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
         ),
       );
     }
-  }
-
-  Future<void> _selectPauloFlixSource() async {
-    if (_pauloFlixShows.isEmpty) return;
-
-    final selectedShow = await _showPauloFlixShowsDialog();
-    if (selectedShow == null) return; // User cancelled
-
-    // PauloFlix shows don't need AniList enrichment - direct file server content
-    final anime = Anime(
-      name: selectedShow.name,
-      url: selectedShow.url,
-      source: AnimeSource.pauloFlix,
-      fallbackImageUrl: null,
-    );
-
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ModernEpisodeListScreen(anime: anime),
-      ),
-    );
-  }
-
-  Future<PauloFlixShow?> _showPauloFlixShowsDialog() async {
-    final l10n = AppLocalizations.of(context);
-
-    return showDialog<PauloFlixShow>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.backgroundLight,
-          title: Text(
-            l10n.locale.languageCode == 'pt'
-                ? 'Selecione o Show'
-                : 'Select Show',
-            style: const TextStyle(color: Colors.white),
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  l10n.locale.languageCode == 'pt'
-                      ? 'PauloFlix tem ${_pauloFlixShows.length} shows disponíveis'
-                      : 'PauloFlix has ${_pauloFlixShows.length} shows available',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _pauloFlixShows.length,
-                    itemBuilder: (context, index) {
-                      final show = _pauloFlixShows[index];
-                      return ListTile(
-                        title: Text(
-                          show.name,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        trailing: const Icon(
-                          Icons.arrow_forward_ios,
-                          color: AppColors.primary,
-                        ),
-                        onTap: () => Navigator.pop(context, show),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                l10n.locale.languageCode == 'pt' ? 'Cancelar' : 'Cancel',
-                style: const TextStyle(color: AppColors.primary),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Future<dynamic> _showVersionSelectionDialog({
@@ -450,27 +324,6 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
                   ),
 
                   const SizedBox(height: 16),
-
-                  // Opção PauloFlix
-                  _buildSourceCard(
-                    title: 'PauloFlix',
-                    subtitle: _isFetchingPauloFlix
-                        ? l10n.searching
-                        : _pauloFlixShows.isNotEmpty
-                        ? 'Available • ${_pauloFlixShows.length} shows'
-                        : _pauloFlixErrorMessage ?? 'Unavailable',
-                    icon: Icons.dns,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                    ),
-                    available: _pauloFlixShows.isNotEmpty,
-                    isLoading: _isFetchingPauloFlix,
-                    onTap: _pauloFlixShows.isNotEmpty
-                        ? () => _selectPauloFlixSource()
-                        : null,
-                  ),
-
-                  const SizedBox(height: 32),
 
                   // Info adicional
                   Container(
