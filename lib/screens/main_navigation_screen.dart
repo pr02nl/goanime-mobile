@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/content_type_selector.dart';
+import '../widgets/focusable_widget.dart';
 import 'home_screen.dart';
 import 'pauloflix_movies_home_screen.dart';
 import 'search_screen.dart';
@@ -120,8 +121,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       backgroundColor: AppColors.background.withValues(alpha: 0.95),
       elevation: 0,
       toolbarHeight: 64,
-      title: GestureDetector(
-        onTap: _openRootHome,
+      // FocusableWidget: logo do AppBar volta para a root-home via d-pad
+      // em TV (Enter/Select). Em mobile/tablet cai no fallback GestureDetector
+      // puro (lib/widgets/focusable_widget.dart:115), preservando o tap.
+      // focusScale: 1.0 evita que a box-shadow do logo seja cortada pelo
+      // Transform.scale do widget (a sombra ultrapassa o container).
+      title: FocusableWidget(
+        onSelect: _openRootHome,
+        borderRadius: 12,
+        focusPadding: EdgeInsets.zero,
+        focusScale: 1.0,
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
