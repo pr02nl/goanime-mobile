@@ -224,19 +224,29 @@ class AnimeResultCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 if (onEpisodesTap != null)
-                  InkWell(
-                    onTap: onEpisodesTap,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: colorScheme.primary.withValues(alpha: 0.12),
-                      ),
-                      padding: const EdgeInsets.all(10),
-                      child: Icon(
-                        Icons.play_arrow_rounded,
-                        color: colorScheme.primary,
-                        size: 22,
+                  // FocusableWidget: nó de foco independente do pai (que é o
+                  // FocusableWidget do card inteiro), permite ao d-pad pousar
+                  // especificamente no botão play de cada resultado.
+                  // Em mobile/tablet cai no fallback GestureDetector puro.
+                  FocusableWidget(
+                    onSelect: () => onEpisodesTap?.call(),
+                    borderRadius: 16,
+                    focusPadding: EdgeInsets.zero,
+                    focusScale: 1.05,
+                    child: InkWell(
+                      onTap: onEpisodesTap,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: colorScheme.primary.withValues(alpha: 0.12),
+                        ),
+                        padding: const EdgeInsets.all(10),
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: colorScheme.primary,
+                          size: 22,
+                        ),
                       ),
                     ),
                   ),
