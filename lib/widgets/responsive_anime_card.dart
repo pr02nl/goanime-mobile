@@ -6,6 +6,7 @@ import '../models/jikan_models.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
+import 'focusable_widget.dart';
 
 /// Card de anime otimizado com animações leves e responsivo
 class ResponsiveAnimeCard extends StatefulWidget {
@@ -38,178 +39,189 @@ class _ResponsiveAnimeCardState extends State<ResponsiveAnimeCard> {
     final cardHeight = Responsive.getCardHeightSync(context);
     final spacing = Responsive.getCardSpacing(context);
 
-    return GestureDetector(
-      onTap: widget.onTap,
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          width: cardWidth,
-          margin: EdgeInsets.only(right: spacing),
-          transform: Matrix4.identity()
-            ..setEntry(0, 0, _isPressed ? 0.95 : (_isHovered ? 1.05 : 1.0))
-            ..setEntry(1, 1, _isPressed ? 0.95 : (_isHovered ? 1.05 : 1.0)),
-          transformAlignment: Alignment.center,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Card com imagem
-              Hero(
-                tag: widget.heroTag,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  height: cardHeight,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _isHovered
-                            ? AppColors.primary.withValues(alpha: 0.4)
-                            : Colors.black.withValues(alpha: 0.3),
-                        blurRadius: _isHovered ? 16 : 8,
-                        offset: Offset(0, _isHovered ? 8 : 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Imagem
-                        CachedNetworkImage(
-                          imageUrl:
-                              widget.anime.largImageUrl ??
-                              widget.anime.imageUrl,
-                          fit: BoxFit.cover,
-                          filterQuality: FilterQuality.medium,
-                          memCacheWidth: (cardWidth * 2).toInt(),
-                          memCacheHeight: (cardHeight * 2).toInt(),
-                          placeholder: (context, url) => Container(
-                            color: AppColors.surface,
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: AppColors.surface,
-                            child: const Icon(
-                              Icons.error,
-                              color: NetflixTheme.textTertiary,
-                            ),
-                          ),
+    // FocusableWidget envolve o GestureDetector para dar suporte a d-pad/TV.
+    // Em mobile/tablet, o wrapper cai no fallback GestureDetector puro
+    // (lib/widgets/focusable_widget.dart:115), preservando o comportamento.
+    return FocusableWidget(
+      onSelect: widget.onTap,
+      borderRadius: 12,
+      focusPadding: EdgeInsets.zero,
+      focusScale: 1.0,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            width: cardWidth,
+            margin: EdgeInsets.only(right: spacing),
+            transform: Matrix4.identity()
+              ..setEntry(0, 0, _isPressed ? 0.95 : (_isHovered ? 1.05 : 1.0))
+              ..setEntry(1, 1, _isPressed ? 0.95 : (_isHovered ? 1.05 : 1.0)),
+            transformAlignment: Alignment.center,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Card com imagem
+                Hero(
+                  tag: widget.heroTag,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: cardHeight,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _isHovered
+                              ? AppColors.primary.withValues(alpha: 0.4)
+                              : Colors.black.withValues(alpha: 0.3),
+                          blurRadius: _isHovered ? 16 : 8,
+                          offset: Offset(0, _isHovered ? 8 : 4),
                         ),
-
-                        // Gradient overlay
-                        Positioned.fill(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.7),
-                                ],
-                                stops: const [0.6, 1.0],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Score badge
-                        if (widget.showScore && widget.anime.score != null)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.75),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.star_rounded,
-                                    color: Colors.amber,
-                                    size: 12,
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    widget.anime.score!.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                        // Hover overlay
-                        if (_isHovered)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                  width: 2,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.play_circle_outline,
-                                  color: Colors.white,
-                                  size: 48,
-                                ),
-                              ),
-                            ),
-                          ),
                       ],
                     ),
-                  ),
-                ),
-              ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // Imagem
+                          CachedNetworkImage(
+                            imageUrl:
+                                widget.anime.largImageUrl ??
+                                widget.anime.imageUrl,
+                            fit: BoxFit.cover,
+                            filterQuality: FilterQuality.medium,
+                            memCacheWidth: (cardWidth * 2).toInt(),
+                            memCacheHeight: (cardHeight * 2).toInt(),
+                            placeholder: (context, url) => Container(
+                              color: AppColors.surface,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.surface,
+                              child: const Icon(
+                                Icons.error,
+                                color: NetflixTheme.textTertiary,
+                              ),
+                            ),
+                          ),
 
-              // Título
-              if (widget.showTitle) ...[
-                const SizedBox(height: 8),
-                Text(
-                  widget.anime.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: Responsive.value(
-                      context,
-                      phone: 12.0,
-                      tablet: 14.0,
+                          // Gradient overlay
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withValues(alpha: 0.7),
+                                  ],
+                                  stops: const [0.6, 1.0],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Score badge
+                          if (widget.showScore && widget.anime.score != null)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.75),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.star_rounded,
+                                      color: Colors.amber,
+                                      size: 12,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      widget.anime.score!.toStringAsFixed(1),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                          // Hover overlay
+                          if (_isHovered)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  border: Border.all(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.play_circle_outline,
+                                    color: Colors.white,
+                                    size: 48,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                    fontWeight: FontWeight.w500,
-                    height: 1.2,
                   ),
                 ),
+
+                // Título
+                if (widget.showTitle) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.anime.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: Responsive.value(
+                        context,
+                        phone: 12.0,
+                        tablet: 14.0,
+                      ),
+                      fontWeight: FontWeight.w500,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
