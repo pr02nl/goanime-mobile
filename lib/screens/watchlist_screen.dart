@@ -190,18 +190,28 @@ class _WatchlistScreenState extends State<WatchlistScreen>
           Positioned(
             top: NetflixTheme.sm,
             right: NetflixTheme.sm,
-            child: GestureDetector(
-              onTap: () => _removeFromWatchlist(anime),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: NetflixTheme.background.withValues(alpha: 0.6),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.close,
-                  color: NetflixTheme.textPrimary,
-                  size: 20,
+            // FocusableWidget: nó de foco independente para o d-pad alternar
+            // entre o card (navegar para o anime) e o botão X (remover da watchlist).
+            // Em mobile/tablet cai no fallback GestureDetector puro.
+            child: FocusableWidget(
+              onSelect: () => _removeFromWatchlist(anime),
+              borderRadius: 20,
+              focusPadding: EdgeInsets.zero,
+              focusScale: 1.0,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () => _removeFromWatchlist(anime),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: NetflixTheme.background.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: NetflixTheme.textPrimary,
+                    size: 20,
+                  ),
                 ),
               ),
             ),
