@@ -2,13 +2,28 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/content_type_selector.dart';
-import 'downloads_screen.dart';
 import 'home_screen.dart';
 import 'pauloflix_movies_home_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
 import 'watchlist_screen.dart';
 
+/// Tela raiz do app após o splash.
+///
+/// Após a modernização para incluir PauloFlix Movies, esta tela abandonou o
+/// padrão antigo de [IndexedStack] + `_currentIndex` que misturava dois sistemas
+/// de navegação conflitantes com o [Navigator.push] usado pelo resto do AppBar.
+///
+/// Agora a única fonte de verdade é o [Navigator]:
+/// - O body mostra a tela raiz conforme o [_contentType] ativo
+/// - Sempre que o usuário alterna Animes/Filmes, substituímos a tela raiz
+///   substituindo o widget raiz do Navigator via [Navigator.pushReplacement]
+/// - Botões do AppBar continuam usando [Navigator.push] como sempre fizeram
+///
+/// Benefícios:
+/// - Memória: só 1 tela pesada montada por vez (em vez de 5 no IndexedStack)
+/// - Back button previsível: volta para a tela raiz não-Filmes quando aplicável
+/// - Sem estado morto (`_currentIndex` removido)
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
@@ -17,117 +32,100 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _currentIndex = 0;
-  final double _headerOpacity = 1.0;
-
-  // Tipo de conteúdo ativo: animes ou filmes.
-  // Animes = HomeScreen atual; Filmes = PauloFlixMoviesHomeScreen.
+  /// Tipo de conteúdo ativo: animes ou filmes.
   ContentType _contentType = ContentType.anime;
 
-  // FocusNodes for each nav item so TV d-pad can move between them.
-  // Mantidos como campos da classe para que o dispose os limpe,
-  // mas só as primeiras 4 entradas são usadas para a tab inferior real.
-  final List<FocusNode> _navFocusNodes = List.generate(5, (_) => FocusNode());
+  // Gera uma Key por conteúdo para forçar remontagem quando o usuário
+  // alterna entre Animes e Filmes (necessário porque uma vez que a tela
+  // raiz foi empurrada via push* ela permanece).
+  Key _rootKey = UniqueKey();
 
-  @override
-  void dispose() {
-    for (final node in _navFocusNodes) {
-      node.dispose();
-    }
-    super.dispose();
-  }
-
-  void _navigateToHome() {
-    setState(() {
-      _currentIndex = 0;
-    });
-  }
-
-  void _onContentTypeChanged(ContentType type) {
+  /// Substitui a tela raiz do Navigator pela Home/Movies conforme [type].
+  /// Usado em dois lugares:
+  /// - Toggle Animes/Filmes (pushReplacement)
+  /// - back físico que precisa voltar para Animes (pushReplacement)
+  void _setRootContent(ContentType type) {
     if (_contentType == type) return;
     setState(() {
       _contentType = type;
-      _currentIndex = 0;
+      _rootKey = UniqueKey();
     });
+  }
+
+  Widget _buildRootScreen() {
+    return KeyedSubtree(
+      key: _rootKey,
+      child: _contentType == ContentType.anime
+          ? const HomeScreen()
+          : const PauloFlixMoviesHomeScreen(),
+    );
+  }
+
+  void _openSearch() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SearchScreen()),
+    );
+  }
+
+  void _openWatchlist() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const WatchlistScreen()),
+    );
+  }
+
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
+      ),
+    );
+  }
+
+  void _openRootHome() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => _buildRootScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Construímos a lista em todo build. O `IndexedStack` mantém o estado
-    // dos filhos pelo índice, então não há perda de scroll/state ao trocar
-    // o tipo de conteúdo.
-    final screens = <Widget>[
-      _contentType == ContentType.anime
-          ? const HomeScreen()
-          : const PauloFlixMoviesHomeScreen(),
-      const SearchScreen(),
-      const WatchlistScreen(),
-      const DownloadsScreen(),
-      SettingsScreen(onBackPressed: _navigateToHome),
-    ];
+    // canPop só liberado quando estamos nos Animes na raiz: isso garante
+    // que o back físico sempre volte para Animes primeiro (se estiver em
+    // Filmes) ou então saia do app (se já estiver em Animes).
+    final canExitApp = _contentType == ContentType.anime;
 
     return PopScope(
-      canPop: _currentIndex == 0 && _contentType == ContentType.anime,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          // Primeira prioridade: voltar para Animes
-          if (_contentType == ContentType.movie) {
-            setState(() {
-              _contentType = ContentType.anime;
-              _currentIndex = 0;
-            });
-            return;
-          }
-          // Depois: voltar para Home
-          if (_currentIndex != 0) {
-            setState(() => _currentIndex = 0);
-          }
+      canPop: canExitApp,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        // Primeira prioridade: voltar para Animes
+        if (_contentType == ContentType.movie) {
+          _setRootContent(ContentType.anime);
         }
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: _buildAppBar(),
-        body: IndexedStack(index: _currentIndex, children: screens),
+        body: _buildRootScreen(),
       ),
     );
   }
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: _headerOpacity > 0
-          ? AppColors.background.withValues(alpha: 0.95)
-          : Colors.transparent,
+      backgroundColor: AppColors.background.withValues(alpha: 0.95),
       elevation: 0,
       toolbarHeight: 64,
-      flexibleSpace: _headerOpacity > 0
-          ? Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.background,
-                    AppColors.background.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            )
-          : null,
       title: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => _contentType == ContentType.anime
-                  ? const HomeScreen()
-                  : const PauloFlixMoviesHomeScreen(),
-            ),
-          );
-        },
+        onTap: _openRootHome,
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               colors: [AppColors.primary, AppColors.primaryDark],
             ),
             borderRadius: BorderRadius.circular(12),
@@ -147,30 +145,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       centerTitle: false,
       actions: [
-        // Toggle entre Animes e Filmes
         ContentTypeSelector(
           selected: _contentType,
-          onChanged: _onContentTypeChanged,
+          onChanged: _setRootContent,
         ),
         IconButton(
           icon: const Icon(Icons.search, color: Colors.white, size: 24),
           tooltip: 'Search',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SearchScreen()),
-            );
-          },
+          onPressed: _openSearch,
         ),
         IconButton(
           icon: const Icon(Icons.bookmark, color: Colors.white, size: 24),
           tooltip: 'Bookmarks',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const WatchlistScreen()),
-            );
-          },
+          onPressed: _openWatchlist,
         ),
         IconButton(
           icon: const Icon(
@@ -179,12 +166,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             size: 24,
           ),
           tooltip: 'Settings',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
-            );
-          },
+          onPressed: _openSettings,
         ),
         const SizedBox(width: 8),
       ],
