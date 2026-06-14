@@ -13,10 +13,52 @@ class PauloFlixMoviesService {
 
   /// Extensões de vídeo reconhecidas.
   static const Set<String> videoExtensions = {
-    '.mkv', '.mp4', '.avi', '.webm', '.mov', '.flv', '.wmv', '.m4v',
+    '.mkv',
+    '.mp4',
+    '.avi',
+    '.webm',
+    '.mov',
+    '.flv',
+    '.wmv',
+    '.m4v',
   };
 
   // ---------------- Parsing de listings HTML ----------------
+
+  /// Decodifica um componente URI de forma defensiva.
+  ///
+  /// [Uri.decodeComponent] lança [ArgumentError] quando o input contém
+  /// sequências `%` inválidas (e.g. `%XY` onde XY não é hexadecimal).
+  /// Isso acontece com nomes de pastas no servidor que já vêm com `%`
+  /// literal (não decodificado duas vezes).
+  ///
+  /// Aqui, em caso de erro, devolvemos o input original — o `%` segue
+  /// como caractere válido no nome, o que é preferível a abortar o
+  /// parse e perder o restante da listagem.
+  static String safeDecodeComponent(String input) {
+    if (input.isEmpty) return input;
+    try {
+      return Uri.decodeComponent(input);
+    } on ArgumentError {
+      // Fallback: tenta decodificar apenas os pedacos válidos,
+      // deixando o `%XY` malformado como `%XY` literal.
+      final buf = StringBuffer();
+      final pattern = RegExp(r'%([0-9A-Fa-f]{2})');
+      int lastEnd = 0;
+      for (final match in pattern.allMatches(input)) {
+        // Copia o trecho antes do match (incluindo eventuais `%` inválidos)
+        buf.write(input.substring(lastEnd, match.start));
+        buf.write(
+          Uri.decodeComponent('%${match.group(1)!}'),
+        );
+        lastEnd = match.end;
+      }
+      buf.write(input.substring(lastEnd));
+      return buf.toString();
+    } catch (_) {
+      return input;
+    }
+  }
 
   /// Faz parse de uma página de listing HTML e retorna os links.
   static List<_LinkEntry> _parseLinks(String htmlBody) {
@@ -30,14 +72,13 @@ class PauloFlixMoviesService {
         if (href.isEmpty || href == '../' || text.isEmpty || text == '../') {
           continue;
         }
-        final decodedName = Uri.decodeComponent(
-          text.endsWith('/') ? text.substring(0, text.length - 1) : text,
-        );
-        links.add(_LinkEntry(href: href, name: decodedName));
+        final rawName =
+            text.endsWith('/') ? text.substring(0, text.length - 1) : text;
+        links.add(_LinkEntry(href: href, name: safeDecodeComponent(rawName)));
       }
       return links;
-    } catch (e) {
-      debugPrint('[PauloFlix Movies] _parseLinks error: $e');
+    } catch (e, s) {
+      debugPrint('[PauloFlix Movies] _parseLinks error: $e\n$s');
       return [];
     }
   }
@@ -91,7 +132,12 @@ class PauloFlixMoviesService {
       // Sub-pastas
       final subFolders = links
           .where((l) => l.href.endsWith('/'))
-          .map((l) => PauloFlixMovieSubfolder(name: l.name, url: '$folderUrl${l.href}'))
+          .map(
+            (l) => PauloFlixMovieSubfolder(
+              name: l.name,
+              url: '$folderUrl${l.href}',
+            ),
+          )
           .toList();
 
       if (subFolders.isNotEmpty) {
@@ -187,35 +233,81 @@ class PauloFlixMoviesService {
 
   // Tags estáticas (case-insensitive em _stripAfter).
   static const List<String> _qualityTags = [
-    'Open.Matte', 'Directors.Cut', 'Remasterizada', 'Remastered',
-    'Versão Estendida', 'VERSAO ESTENDIDA',
-    'BluRay', 'BRRip', 'BDRip', 'WEB-DL', 'WEBRip', 'WEB', 'HDTV',
-    'HDRip', 'DVDRip', 'Extended', 'FullHD', 'FULLHD',
-    '1080p', '720p', '480p', '2160p', '4K',
+    'Open.Matte',
+    'Directors.Cut',
+    'Remasterizada',
+    'Remastered',
+    'Versão Estendida',
+    'VERSAO ESTENDIDA',
+    'BluRay',
+    'BRRip',
+    'BDRip',
+    'WEB-DL',
+    'WEBRip',
+    'WEB',
+    'HDTV',
+    'HDRip',
+    'DVDRip',
+    'Extended',
+    'FullHD',
+    'FULLHD',
+    '1080p',
+    '720p',
+    '480p',
+    '2160p',
+    '4K',
   ];
 
   static const List<String> _codecs = [
-    'x265', 'x264', 'HEVC', 'H265', 'H264', 'AV1', 'AVC', 'Opus', '10bit',
+    'x265',
+    'x264',
+    'HEVC',
+    'H265',
+    'H264',
+    'AV1',
+    'AVC',
+    'Opus',
+    '10bit',
   ];
 
   static const List<String> _audioTags = [
-    'Dual.Áudio', 'Dual Audio', 'Dual.Audio', 'Dual.áudio',
-    'DUAL', 'Dublado', 'Legendado',
-    'DDP5.1', 'DD5.1', '5.1', '7.1', 'AAC', 'AC3',
+    'Dual.Áudio',
+    'Dual Audio',
+    'Dual.Audio',
+    'Dual.áudio',
+    'DUAL',
+    'Dublado',
+    'Legendado',
+    'DDP5.1',
+    'DD5.1',
+    '5.1',
+    '7.1',
+    'AAC',
+    'AC3',
   ];
 
   static const List<String> _groups = [
-    'WWW.BLUDV.COM', 'BLUDV.COM', 'wolverdonfilmes.com',
+    'WWW.BLUDV.COM',
+    'BLUDV.COM',
+    'wolverdonfilmes.com',
     'WOLVERDONFILMES.COM',
-    'GalaxyRG', 'YTS.MX', 'KONTRAST', 'Alan_680', 'AndreTPF',
-    'LAPUMiA', 'Zero00', 'FG4LL4RD0', 'RARBG', 'TGx',
-    'ThePirateFilmes', 'The.Pirate.Filmes',
-    'Rich_jc', 'rich_jc',
+    'GalaxyRG',
+    'YTS.MX',
+    'KONTRAST',
+    'Alan_680',
+    'AndreTPF',
+    'LAPUMiA',
+    'Zero00',
+    'FG4LL4RD0',
+    'RARBG',
+    'TGx',
+    'ThePirateFilmes',
+    'The.Pirate.Filmes',
+    'Rich_jc',
+    'rich_jc',
   ];
 
-  static const List<String> _extraTags = [
-    'Coleção', 'COLEÇÃO', 'Colecao',
-  ];
+  static const List<String> _extraTags = ['Coleção', 'COLEÇÃO', 'Colecao'];
 
   static void _removeInOrder(String input, List<String> tags) {
     // No-op — usado via _stripAfter para garantir imutabilidade
@@ -243,9 +335,7 @@ class PauloFlixMoviesService {
     try {
       final tmdb = TmdbService();
       if (!tmdb.isConfigured) {
-        onError?.call(
-          'TMDB não configurado. Vá em Configurações → API Keys.',
-        );
+        onError?.call('TMDB não configurado. Vá em Configurações → API Keys.');
         return false;
       }
 
@@ -255,8 +345,9 @@ class PauloFlixMoviesService {
         onError?.call('Nenhuma pasta encontrada em /movies/');
         return false;
       }
-      onProgress
-          ?.call('Encontradas ${folders.length} pastas. Inspecionando...');
+      onProgress?.call(
+        'Encontradas ${folders.length} pastas. Inspecionando...',
+      );
 
       final db = PauloFlixMoviesDatabaseService();
       final existing = await db.getAllContent();
@@ -278,13 +369,14 @@ class PauloFlixMoviesService {
             (c) =>
                 c.imageUrl == null ||
                 c.imageUrl!.isEmpty ||
-                (c.isCollection == false &&
-                    c.availableMovieCount == 0),
+                (c.isCollection == false && c.availableMovieCount == 0),
           )
-          .map((c) => folders.firstWhere(
-                (f) => f.name == c.folderName,
-                orElse: () => folders.first,
-              ))
+          .map(
+            (c) => folders.firstWhere(
+              (f) => f.name == c.folderName,
+              orElse: () => folders.first,
+            ),
+          )
           .toList();
 
       final newFolders = folders
@@ -301,8 +393,7 @@ class PauloFlixMoviesService {
         return true;
       }
 
-      onProgress
-          ?.call('Processando ${toProcess.length} pastas no TMDB...');
+      onProgress?.call('Processando ${toProcess.length} pastas no TMDB...');
 
       final List<PauloFlixMovie> contents = [];
       int processed = 0;
@@ -323,8 +414,10 @@ class PauloFlixMoviesService {
                 year: video.year,
                 limit: 3,
               );
-              final match =
-                  tmdb.matchInResults(searchResults, video.cleanedName);
+              final match = tmdb.matchInResults(
+                searchResults,
+                video.cleanedName,
+              );
               if (match != null) {
                 contents.add(
                   PauloFlixMovie.fromTmdb(
@@ -334,8 +427,13 @@ class PauloFlixMoviesService {
                   ),
                 );
               } else {
-                contents.add(_placeholder(folder.name, folder.url,
-                    displayName: video.cleanedName));
+                contents.add(
+                  _placeholder(
+                    folder.name,
+                    folder.url,
+                    displayName: video.cleanedName,
+                  ),
+                );
               }
               break;
 
@@ -352,9 +450,7 @@ class PauloFlixMoviesService {
               break;
 
             case MovieFolderType.empty:
-              contents.add(
-                _placeholder(folder.name, folder.url),
-              );
+              contents.add(_placeholder(folder.name, folder.url));
               break;
           }
         } catch (e) {
@@ -399,11 +495,10 @@ class PauloFlixMoviesService {
     // folderUrl já aponta para a sub-pasta; estima-se que é um filme.
     // Reaproveita inspectFolder para reutilizar a lógica de detecção.
     final segments = folderUrl.split('/');
-    final folderName = Uri.decodeComponent(
-      segments[segments.length - 2].isEmpty
-          ? segments[segments.length - 1]
-          : segments[segments.length - 2],
-    );
+    final rawName = segments[segments.length - 2].isEmpty
+        ? segments[segments.length - 1]
+        : segments[segments.length - 2];
+    final folderName = safeDecodeComponent(rawName);
     final inspected = await inspectFolder(folderName, folderUrl);
     if (inspected.type == MovieFolderType.single) {
       return inspected.videoFile;

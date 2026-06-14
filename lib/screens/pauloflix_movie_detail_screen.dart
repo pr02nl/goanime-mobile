@@ -107,9 +107,10 @@ class _PauloFlixMovieDetailScreenState
       if (href.isEmpty || href == '../' || text.isEmpty || text == '../') {
         continue;
       }
-      final name = Uri.decodeComponent(
-        text.endsWith('/') ? text.substring(0, text.length - 1) : text,
-      );
+      final rawName = text.endsWith('/')
+          ? text.substring(0, text.length - 1)
+          : text;
+      final name = PauloFlixMoviesService.safeDecodeComponent(rawName);
       entries.add(_LinkEntry(href: href, name: name));
     }
     return entries;
