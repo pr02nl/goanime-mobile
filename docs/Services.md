@@ -288,6 +288,9 @@ Cliente para a API v3 do The Movie Database (https://api.themoviedb.org/3).
 ### Configuração
 A chave de API (v3) é configurada pelo usuário em Settings → API Keys e persistida via SharedPreferences. Lida no boot pelo `main.dart` antes de qualquer tela carregar.
 
+### Autenticação
+Conforme [doc oficial](https://developer.themoviedb.org/reference/intro/getting-started), o cliente envia a chave via `Authorization: Bearer *** Bearer Token também funciona com a api_key v3). Headers obrigatórios `accept: application/json` são incluídos em toda request.
+
 ### Métodos Principais
 
 #### `configureFromSettings()`
@@ -296,17 +299,43 @@ Carrega a chave persistida em SharedPreferences no boot do app.
 #### `setApiKey(String? key)`
 Define a chave em memória diretamente (uso em testes / reset).
 
+#### `clear()`
+Limpa caches + chave em memória (logout / reconfig).
+
 #### `isConfigured`
 `true` se a chave de API estiver presente e não vazia.
 
-#### `searchMovies(String query, {int? year, int limit})`
-Busca filmes pelo título. Aceita parâmetro `year` para refinar resultados.
+#### `searchMovies(String query, {int? year, int? primaryReleaseYear, String? region, int page, int limit})`
+Busca filmes pelo título. Suporta todos os parâmetros oficiais:
+- `query` (obrigatório)
+- `year` (filtro permissivo por ano)
+- `primary_release_year` (filtro estrito por data de estreia)
+- `region` (ISO 3166-1 — ex. "BR")
+- `page` (paginação)
+- `limit` (cliente — quantos resultados retornar)
 
-#### `getMovieDetails(int tmdbId)`
-Detalhe de um filme específico com `runtime`, `tagline`, `genres` e `status`.
+#### `getMovieDetails(int tmdbId, {List<String> appendToResponse})`
+Detalhe completo de um filme. Suporta `append_to_response` para reduzir requests (até 20 sub-endpoints em uma chamada — ex: `['credits', 'videos']`).
+
+Retorna `null` em caso de erro genérico; lança `TmdbAuthException` ou `TmdbRateLimitException` quando aplicável.
 
 #### `matchInResults(List<TmdbMovie> results, String query)`
 Prefere match exato → match parcial (contains) → primeiro resultado.
+
+### Exceções
+```dart
+sealed class TmdbException implements Exception { ... }
+class TmdbNotConfiguredException extends TmdbException { ... }
+class TmdbAuthException extends TmdbException { ... }       // 401
+class TmdbRateLimitException extends TmdbException { ... }  // 429
+class TmdbRequestException extends TmdbException { ... }   // 5xx, timeout, network
+```
+
+Códigos HTTP (doc oficial):
+- `200` — Sucesso
+- `401` — Chave inválida/expirada (caller deve pedir reconfiguração)
+- `429` — Rate limit atingido (caller deve aguardar antes de retentar)
+- 5xx — Erro de servidor (caller pode retentar com backoff)
 
 ### Endpoints utilizados
 - `GET /search/movie?api_key=KEY&query=TITLE&language=pt-BR&year=YEAR`
