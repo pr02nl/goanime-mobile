@@ -5,13 +5,26 @@ class Episode {
   final String? title;
   final String? description;
 
-  /// URL absoluta da legenda (.srt) opcional. Quando presente, é
-  /// carregada pelo [ModernVideoPlayerScreen] via
-  /// `Player.setSubtitleTrack(SubtitleTrack.uri(...))`.
-  final String? subtitleUrl;
+  /// Lista de tracks de legenda opcionais (URLs SRT externas).
+  ///
+  /// O player mescla essas legendas externas com as tracks embutidas
+  /// que o `media_kit` descobre dentro do MKV/MP4. O usuário pode
+  /// alternar entre todas via selector no overlay.
+  ///
+  /// Suporta múltiplas legendas simultâneas no menu (pt-BR, en, es, etc.).
+  ///
+  /// Quando vazio e o vídeo tem legendas embutidas, elas ainda aparecem
+  /// no selector (carregadas dinamicamente via `player.state.tracks`).
+  final List<EpisodeSubtitleTrack> subtitleTracks;
 
-  /// Idioma inferido da legenda (e.g. `"pt-BR"`).
-  final String? subtitleLanguage;
+  /// Mantido por compatibilidade: a URL da primeira legenda da lista
+  /// [subtitleTracks], ou null se vazia.
+  String? get subtitleUrl =>
+      subtitleTracks.isNotEmpty ? subtitleTracks.first.url : null;
+
+  /// Idioma inferido da legenda principal.
+  String? get subtitleLanguage =>
+      subtitleTracks.isNotEmpty ? subtitleTracks.first.language : null;
 
   Episode({
     required this.number,
@@ -19,8 +32,7 @@ class Episode {
     this.thumbnail,
     this.title,
     this.description,
-    this.subtitleUrl,
-    this.subtitleLanguage,
+    this.subtitleTracks = const [],
   });
 
   @override
@@ -28,6 +40,37 @@ class Episode {
 
   /// Get episode thumbnail URL
   String? getImageUrl() => thumbnail;
+}
+
+/// Representa uma legenda individual disponível para o player.
+///
+/// Pode ser uma URL `.srt` externa (PauloFlix) ou um identificador de
+/// track embutida no MKV (preenchido em runtime pelo `media_kit`).
+class EpisodeSubtitleTrack {
+  /// URL absoluta do arquivo `.srt` no servidor, ou null quando for
+  /// uma track embutida no vídeo (descoberta depois do open).
+  final String? url;
+
+  /// Idioma inferido (e.g. `"pt-BR"`, `"en"`). Default é `"pt-BR"`.
+  final String language;
+
+  /// Rótulo para mostrar ao usuário.
+  final String displayName;
+
+  /// Se `true`, é uma legenda "forced" — exibida mesmo com a faixa principal
+  /// desabilitada.
+  final bool forced;
+
+  const EpisodeSubtitleTrack({
+    this.url,
+    required this.language,
+    required this.displayName,
+    this.forced = false,
+  });
+
+  @override
+  String toString() =>
+      'EpisodeSubtitleTrack($language, ${forced ? "forced, " : ""}$url)';
 }
 
 /// Stream Episode List Item with enhanced metadata

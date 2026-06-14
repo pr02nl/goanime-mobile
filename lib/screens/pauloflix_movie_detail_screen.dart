@@ -9,7 +9,6 @@ import '../services/pauloflix_movies_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/pauloflix_movies_badge.dart';
 import 'video_player_screen.dart';
-
 class PauloFlixMovieDetailScreen extends StatefulWidget {
   final PauloFlixMovie content;
 
@@ -28,8 +27,7 @@ class _PauloFlixMovieDetailScreenState
 
   // Para filme individual
   String? _movieVideoUrl;
-  String? _movieSubtitleUrl;
-  String? _movieSubtitleLanguage;
+  List<SubtitleTrackInfo> _movieSubtitles = const [];
   bool _isResolvingSingle = false;
 
   @override
@@ -51,8 +49,7 @@ class _PauloFlixMovieDetailScreenState
       if (!mounted) return;
       setState(() {
         _movieVideoUrl = file?.videoUrl;
-        _movieSubtitleUrl = file?.subtitleUrl;
-        _movieSubtitleLanguage = file?.subtitleLanguage;
+        _movieSubtitles = file?.subtitles ?? const [];
         _isResolvingSingle = false;
       });
     } catch (e) {
@@ -123,9 +120,20 @@ class _PauloFlixMovieDetailScreenState
   void _openPlayer(
     String videoUrl,
     String title, {
-    String? subtitleUrl,
-    String? subtitleLanguage,
+    List<SubtitleTrackInfo> subtitles = const [],
   }) {
+    // Converte SubtitleTrackInfo → EpisodeSubtitleTrack para passar pro player.
+    final episodeTracks = subtitles
+        .map(
+          (s) => EpisodeSubtitleTrack(
+            url: s.url,
+            language: s.language,
+            displayName: s.displayName,
+            forced: s.forced,
+          ),
+        )
+        .toList();
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -133,8 +141,7 @@ class _PauloFlixMovieDetailScreenState
           episode: Episode(
             number: '1',
             url: videoUrl,
-            subtitleUrl: subtitleUrl,
-            subtitleLanguage: subtitleLanguage,
+            subtitleTracks: episodeTracks,
           ),
           animeTitle: title,
           anime: Anime(
@@ -156,8 +163,7 @@ class _PauloFlixMovieDetailScreenState
         _openPlayer(
           file.videoUrl,
           file.cleanedName.isEmpty ? sub.name : file.cleanedName,
-          subtitleUrl: file.subtitleUrl,
-          subtitleLanguage: file.subtitleLanguage,
+          subtitles: file.subtitles,
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -382,8 +388,7 @@ class _PauloFlixMovieDetailScreenState
               : () => _openPlayer(
                   _movieVideoUrl!,
                   widget.content.displayName,
-                  subtitleUrl: _movieSubtitleUrl,
-                  subtitleLanguage: _movieSubtitleLanguage,
+                  subtitles: _movieSubtitles,
                 ),
           icon: _isResolvingSingle
               ? const SizedBox(

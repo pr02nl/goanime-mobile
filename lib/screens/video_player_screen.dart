@@ -57,6 +57,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   Timer? _overlayControlsTimer;
   static const Duration _overlayControlsAutoHideDuration = Duration(seconds: 3);
 
+  /// Tracks de legenda embutidas no MKV (lidas via `Player.state.tracks.subtitle`
+  /// assim que o `Media.open` finaliza).
+  List<SubtitleTrack> _embeddedSubtitleTracks = const [];
+
   // --- VideoPlayerAniSkipMixin abstract member implementations ---
 
   @override
@@ -388,23 +392,55 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         );
       }
 
+      // Aguarda o media_kit parsear o contêiner e popular as tracks
+      // embutidas. Pequeno delay é necessário porque `state.tracks`
+      // é populado de forma assíncrona após `Media.open`.
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted && _player != null) {
+        final embeds = _player!.state.tracks.subtitle;
+        debugPrint('[VideoPlayer] Embedded subtitle tracks: ${embeds.length}');
+        for (final t in embeds) {
+          debugPrint(
+            '[VideoPlayer]   embed: id=${t.id}, title=${t.title}, '
+            'lang=${t.language}',
+          );
+        }
+        if (mounted) {
+          setState(() {
+            _embeddedSubtitleTracks = embeds;
+          });
+        }
+      }
+
       // Carrega legenda (.srt) externa, se fornecida via Episode.subtitleUrl.
       // Equivale a `ffmpeg -i video.mp4 -i legend.srt -c copy out.mkv`, mas
       // sem precisar re-encodar: o media_kit expõe a legenda como track.
-      final subtitleUrl = widget.episode.subtitleUrl;
-      if (subtitleUrl != null && subtitleUrl.isNotEmpty) {
+      final externalSubtitles = widget.episode.subtitleTracks
+          .where((s) => s.url != null)
+          .toList();
+      if (externalSubtitles.isNotEmpty) {
+        // Auto-seleciona a PRIMEIRA legenda externa (PT-BR preferida pelo ranking).
         try {
-          final langCode = widget.episode.subtitleLanguage ?? 'pt-BR';
+          final s = externalSubtitles.first;
           final subtitle = SubtitleTrack.uri(
-            subtitleUrl,
-            title: langCode,
-            language: langCode,
+            s.url!,
+            title: s.displayName,
+            language: s.language,
           );
           await _player!.setSubtitleTrack(subtitle);
-          debugPrint('[VideoPlayer] Subtitle loaded: $langCode');
+          debugPrint('[VideoPlayer] Subtitle loaded: ${s.displayName}');
         } catch (e) {
           debugPrint('[VideoPlayer] Failed to load subtitle: $e');
           // Não derruba a reprodução — vídeo continua sem legenda.
+        }
+      } else if (_embeddedSubtitleTracks.isNotEmpty) {
+        // Sem legenda externa, ativa "Auto" no media_kit para usar o
+        // detectado nas embutidas.
+        try {
+          await _player!.setSubtitleTrack(SubtitleTrack.auto());
+          debugPrint('[VideoPlayer] Subtitle auto (from embedded tracks)');
+        } catch (e) {
+          debugPrint('[VideoPlayer] Failed auto subtitle: $e');
         }
       }
 
@@ -1042,7 +1078,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                   ),
                   const SizedBox(height: 20),
 
-                  // Quality Tags
+                  // Quality Tags + Action buttons
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -1063,6 +1099,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                           const Color(0xFF4CAF50),
                           Icons.cloud_done_rounded,
                         ),
+                      // Botão selector de legenda —só aparece se houver tracks
+                      if (_hasAnySubtitleTrack())
+                        _buildSubtitleSelectorTag(context),
                     ],
                   ),
 
@@ -1225,5 +1264,302 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         ],
       ),
     );
+  }
+
+  // ---------------- Subtitle selector ----------------
+
+  /// Retorna `true` se o player tem pelo menos uma legenda disponível —
+  /// seja embutida no MKV ou externa (.srt) do PauloFlix.
+  bool _hasAnySubtitleTrack() {
+    return _embeddedSubtitleTracks.isNotEmpty ||
+        widget.episode.subtitleTracks.any((s) => s.url != null);
+  }
+
+  /// Tag clicável que abre o [_showSubtitleSheet].
+  ///
+  /// Indica visualmente qual legenda está ativa.
+  Widget _buildSubtitleSelectorTag(BuildContext context) {
+    final active = _effectiveActiveSubtitleLabel();
+    return InkWell(
+      onTap: () => _showSubtitleSheet(context),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEF4444).withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: const Color(0xFFEF4444).withValues(alpha: 0.4),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.closed_caption_rounded,
+              color: Color(0xFFEF4444),
+              size: 14,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              active ?? 'Legendas',
+              style: const TextStyle(
+                color: Color(0xFFEF4444),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const Icon(
+              Icons.arrow_drop_down_rounded,
+              color: Color(0xFFEF4444),
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Devolve o rótulo da faixa ativa, ou null se está em "Auto"/desconhecido.
+  String? _effectiveActiveSubtitleLabel() {
+    final current = _player?.state.track.subtitle;
+    if (current == null) return null;
+    if (current.id == 'no') return 'Sem legenda';
+    if (current.id == 'auto') return 'Auto';
+    // Tenta achar entre externas
+    for (final ext in widget.episode.subtitleTracks) {
+      if (ext.url != null && current.id == ext.url) return ext.displayName;
+    }
+    // Tenta achar entre embutidas
+    for (final embed in _embeddedSubtitleTracks) {
+      if (current.id == embed.id) {
+        return embed.title ?? embed.language ?? 'Embutida';
+      }
+    }
+    return current.title ?? current.language;
+  }
+
+  /// Mostra o bottom sheet com a lista completa de legendas
+  /// (embutidas + externas) + opções "Auto" e "Sem legenda".
+  Future<void> _showSubtitleSheet(BuildContext context) async {
+    final external = widget.episode.subtitleTracks
+        .where((s) => s.url != null)
+        .toList();
+    final embedded = _embeddedSubtitleTracks;
+    if (external.isEmpty && embedded.isEmpty) return;
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.closed_caption_rounded,
+                        color: Color(0xFFEF4444),
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Legendas',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: Colors.white12),
+                // Auto: deixa media_kit decidir
+                _buildSubtitleSheetOption(
+                  icon: Icons.auto_awesome_rounded,
+                  label: 'Auto (recomendado)',
+                  subtitle: 'Deixa o media_kit escolher a melhor faixa.',
+                  isActive: _isCurrentSubtitleAuto(),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _selectSubtitle(SubtitleTrack.auto(), label: 'Auto');
+                  },
+                ),
+                // Sem legenda
+                _buildSubtitleSheetOption(
+                  icon: Icons.subtitles_off_rounded,
+                  label: 'Sem legenda',
+                  subtitle: 'Desativa todas as legendas.',
+                  isActive: _isCurrentSubtitleNone(),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _selectSubtitle(
+                      SubtitleTrack.no(),
+                      label: 'Sem legenda',
+                    );
+                  },
+                ),
+                // Embutidas do vídeo
+                if (embedded.isNotEmpty) ...[
+                  _buildSectionHeader('Embutidas no vídeo'),
+                  for (final t in embedded)
+                    _buildSubtitleSheetOption(
+                      icon: Icons.movie_outlined,
+                      label: t.title ?? t.language ?? 'Track ${t.id}',
+                      subtitle: t.language ?? 'Idioma desconhecido',
+                      isActive: _isCurrentSubtitleTrack(t),
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        await _selectSubtitle(
+                          t,
+                          label: t.title ?? t.language ?? 'Embutida',
+                        );
+                      },
+                    ),
+                ],
+                // Externas
+                if (external.isNotEmpty) ...[
+                  _buildSectionHeader('Externas (.srt)'),
+                  for (final s in external)
+                    _buildSubtitleSheetOption(
+                      icon: Icons.subtitles_rounded,
+                      label: s.displayName,
+                      subtitle: '${s.language} • .srt',
+                      isActive: _isCurrentExternalSubtitle(s),
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        await _selectSubtitle(
+                          SubtitleTrack.uri(
+                            s.url!,
+                            title: s.displayName,
+                            language: s.language,
+                          ),
+                          label: s.displayName,
+                        );
+                      },
+                    ),
+                ],
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSubtitleSheetOption({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isActive ? const Color(0xFFEF4444) : Colors.white60,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isActive ? Colors.white : Colors.white70,
+                      fontSize: 14,
+                      fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            if (isActive)
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFFEF4444),
+                size: 22,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white54,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  bool _isCurrentSubtitleAuto() {
+    final cur = _player?.state.track.subtitle;
+    if (cur == null) return true;
+    return cur.id == 'auto';
+  }
+
+  bool _isCurrentSubtitleNone() {
+    final cur = _player?.state.track.subtitle;
+    return cur?.id == 'no';
+  }
+
+  bool _isCurrentSubtitleTrack(SubtitleTrack t) {
+    final cur = _player?.state.track.subtitle;
+    return cur != null && cur.id == t.id;
+  }
+
+  bool _isCurrentExternalSubtitle(EpisodeSubtitleTrack ext) {
+    final cur = _player?.state.track.subtitle;
+    if (cur == null || ext.url == null) return false;
+    return cur.id == ext.url;
+  }
+
+  /// Aplica a track selecionada no media_kit, com fallback silencioso.
+  Future<void> _selectSubtitle(SubtitleTrack track, {String? label}) async {
+    try {
+      await _player?.setSubtitleTrack(track);
+      debugPrint('[VideoPlayer] Subtitle changed to: ${label ?? track.id}');
+    } catch (e) {
+      debugPrint('[VideoPlayer] Failed to change subtitle: $e');
+    }
+    if (mounted) setState(() {});
   }
 }

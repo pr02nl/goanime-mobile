@@ -123,14 +123,14 @@ class PauloFlixMoviesService {
 
       final links = _parseLinks(response.body);
 
-      // Arquivos de legenda (.srt)
+      // Arquivos de legenda (.srt) —lista completa, ranking aplicado depois.
       final subtitleFiles = links
           .where(
             (l) => l.href.toLowerCase().endsWith('.srt') ||
                 l.name.toLowerCase().endsWith('.srt'),
           )
           .toList();
-      final subtitlePick = _pickBestSubtitle(subtitleFiles, folderName);
+      final rankedSubtitles = _rankAllSubtitles(subtitleFiles, folderUrl);
 
       // Arquivos de vídeo (sem '/' no href)
       final videoFiles = links
@@ -165,8 +165,7 @@ class PauloFlixMoviesService {
             videoUrl: videoUrl,
             cleanedName: folderTitle,
             year: folderYear,
-            subtitleUrl: subtitlePick?.$1,
-            subtitleLanguage: subtitlePick?.$2,
+            subtitles: rankedSubtitles,
           ),
         );
       }
@@ -302,63 +301,80 @@ class PauloFlixMoviesService {
   static final RegExp _forcedSrtPattern =
       RegExp(r'\.forced\.srt$', caseSensitive: false);
 
-  /// Seleciona a melhor legenda (.srt) entre candidatos.
+  /// Rótulos amigáveis para o selector no player. Mantém ordem
+  /// canônica para conseguir match determinístico.
+  static const Map<String, String> _languageDisplayNames = {
+    'pt-BR': 'Português (Brasil)',
+    'pt': 'Português',
+    'en': 'Inglês',
+    'es': 'Espanhol',
+    'fr': 'Francês',
+    'de': 'Alemão',
+    'it': 'Italiano',
+    'ja': 'Japonês',
+  };
+
+  /// Retorna TODAS as legendas candidatas (ordenadas por prioridade),
+  /// com `SubtitleTrackInfo` completo para cada uma —incluindo o
+  /// displayName amigável.
   ///
-  /// Heurística de prioridade (do melhor para o pior):
-  /// 1. PT-BR (`.pob.srt`, `.pt-br.srt`, `.por.srt`).
-  /// 2. PT-BR `.forced.srt` (faixa obrigatória em PT-BR).
-  /// 3. PT genérico (`.pt.srt`).
-  /// 4. Qualquer outra legenda cujo nome bata num [_subtitleLanguageTokens].
-  /// 5. Qualquer `.srt` (fallback final).
-  ///
-  /// Retorna `(url, languageCode)?` — null se nenhum .srt.
-  static (String, String)? _pickBestSubtitle(
+  /// Quando não há nenhum `.srt` na pasta, retorna lista vazia.
+  static List<SubtitleTrackInfo> _rankAllSubtitles(
     List<_LinkEntry> subtitleFiles,
     String folderUrl,
   ) {
-    if (subtitleFiles.isEmpty) return null;
+    if (subtitleFiles.isEmpty) return const [];
 
-    // Pontuação de prioridade: quanto maior, melhor.
     int score(_LinkEntry l) {
       final fileName = _safeBase(l.href).toLowerCase();
       if (fileName.endsWith('.pob.srt') ||
           fileName.endsWith('.pt-br.srt') ||
           fileName.endsWith('.por.srt')) {
-        return 100; // PT-BR explícito
+        return 100;
       }
       if (_forcedSrtPattern.hasMatch(fileName)) {
-        // Forced sem tag de idioma → assumir PT-BR (público brasileiro).
         if (fileName.contains('.pob.') || fileName.contains('.pt-br.')) {
           return 95;
         }
-        return 60; // Forced genérico
+        return 60;
       }
-      if (fileName.endsWith('.pt.srt')) return 90; // PT genérico
-      // Idioma conhecido (eng, en, spa, es, fra, fr, deu, ger, de, ita, it, jpn, jp)
+      if (fileName.endsWith('.pt.srt')) return 90;
       for (final entry in _subtitleLanguageTokens.entries) {
         if (entry.key.hasMatch(fileName)) return 80;
       }
-      return 50; // qualquer .srt
+      return 50;
     }
 
     final sorted = [...subtitleFiles]
       ..sort((a, b) => score(b).compareTo(score(a)));
 
-    final chosen = sorted.first;
-    final base = _safeBase(chosen.href).toLowerCase();
-    String? langCode;
-    for (final entry in _subtitleLanguageTokens.entries) {
-      if (entry.key.hasMatch(base)) {
-        langCode = entry.value;
-        break;
+    return sorted.map((entry) {
+      final base = _safeBase(entry.href).toLowerCase();
+      // Detecta idioma
+      String? langCode;
+      for (final token in _subtitleLanguageTokens.entries) {
+        if (token.key.hasMatch(base)) {
+          langCode = token.value;
+          break;
+        }
       }
-    }
-    // Sem tag de idioma reconhecida: assumir PT-BR (release brasileiro também
-    // usa `.srt` sem sufixo de idioma; o media_kit vai exibir "Português" no menu).
-    langCode ??= 'pt-BR';
+      langCode ??= 'pt-BR';
 
-    final subtitleUrl = '$folderUrl${Uri.encodeComponent(chosen.name)}';
-    return (subtitleUrl, langCode);
+      // Detecta forced
+      final forced = _forcedSrtPattern.hasMatch(base);
+
+      // Display name: "[Idioma] (forçado)" se forced, senão só "[Idioma]"
+      final displayName = _languageDisplayNames[langCode] ?? langCode;
+      final fullDisplayName = forced ? '$displayName (forçado)' : displayName;
+
+      final url = '$folderUrl${Uri.encodeComponent(entry.name)}';
+      return SubtitleTrackInfo(
+        url: url,
+        language: langCode,
+        displayName: fullDisplayName,
+        forced: forced,
+      );
+    }).toList();
   }
 
   /// Extrai só o nome do arquivo de uma URL ou nome completo (sem separadores
