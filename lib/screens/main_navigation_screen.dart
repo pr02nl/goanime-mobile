@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../widgets/content_type_selector.dart';
 import 'home_screen.dart';
 import 'pauloflix_movies_home_screen.dart';
+import 'pauloflix_movies_search_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
 import 'watchlist_screen.dart';
@@ -61,10 +62,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
+  /// Roteia para a tela de busca adequada conforme o [_contentType] ativo:
+  /// - Animes → [SearchScreen] (busca via Jikan, com histórico/sugestões)
+  /// - Filmes  → [PauloFlixMoviesSearchScreen] (snapshot local do
+  ///   PauloFlixMoviesProvider, filtros por título/gênero)
+  ///
+  /// Antes, o ícone de busca abria SEMPRE a [SearchScreen] de animes,
+  /// deixando o campo de busca de filmes "preso" dentro da home de filmes.
   void _openSearch() {
+    final Widget target = _contentType == ContentType.movie
+        ? const PauloFlixMoviesSearchScreen()
+        : const SearchScreen();
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const SearchScreen()),
+      MaterialPageRoute(builder: (context) => target),
     );
   }
 

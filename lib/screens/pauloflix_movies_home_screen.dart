@@ -20,8 +20,10 @@ class PauloFlixMoviesHomeScreen extends StatefulWidget {
 
 class _PauloFlixMoviesHomeScreenState
     extends State<PauloFlixMoviesHomeScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  // A busca de filmes foi movida para PauloFlixMoviesSearchScreen
+  // (acionada pelo IconButton.search na AppBar do MainNavigationScreen).
+  // Manter o TextField aqui travava o foco de teclado no desktop/d-pad —
+  // só Tab conseguia sair.
   bool _checkedInitialSync = false;
   bool _isTV = false;
 
@@ -63,7 +65,8 @@ class _PauloFlixMoviesHomeScreenState
 
   @override
   void dispose() {
-    _searchController.dispose();
+    // _searchController.dispose() removido quando a busca migrou para
+    // PauloFlixMoviesSearchScreen.
     super.dispose();
   }
 
@@ -89,13 +92,6 @@ class _PauloFlixMoviesHomeScreenState
         ],
       ),
     );
-  }
-
-  void _onSearchChanged(String query) {
-    setState(() {
-      _searchQuery = query;
-    });
-    context.read<PauloFlixMoviesProvider>().search(query);
   }
 
   void _syncContent() {
@@ -202,49 +198,9 @@ class _PauloFlixMoviesHomeScreenState
               ),
             ),
 
-          // Busca
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _searchController,
-                onChanged: _onSearchChanged,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Buscar filme...',
-                  hintStyle: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.white54),
-                          onPressed: () {
-                            _searchController.clear();
-                            _onSearchChanged('');
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFDC2626),
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Busca foi movida para a action bar (AppBar) do
+          // MainNavigationScreen via PauloFlixMoviesSearchScreen — ver
+          // commit/diff que removeu o TextField local.
 
           // Contador
           SliverToBoxAdapter(
