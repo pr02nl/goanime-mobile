@@ -275,6 +275,134 @@ Retorna estatísticas (total, available, withMetadata).
 
 ---
 
+## TmdbService
+
+Cliente para a API v3 do The Movie Database (https://api.themoviedb.org/3).
+
+### Características
+- Singleton
+- Cache em memória (30 minutos) por query
+- Rate throttle: 25 req/s (limite TMDB é 50 req/s)
+- Idioma padrão: `pt-BR`
+
+### Configuração
+A chave de API (v3) é configurada pelo usuário em Settings → API Keys e persistida via SharedPreferences. Lida no boot pelo `main.dart` antes de qualquer tela carregar.
+
+### Métodos Principais
+
+#### `configureFromSettings()`
+Carrega a chave persistida em SharedPreferences no boot do app.
+
+#### `setApiKey(String? key)`
+Define a chave em memória diretamente (uso em testes / reset).
+
+#### `isConfigured`
+`true` se a chave de API estiver presente e não vazia.
+
+#### `searchMovies(String query, {int? year, int limit})`
+Busca filmes pelo título. Aceita parâmetro `year` para refinar resultados.
+
+#### `getMovieDetails(int tmdbId)`
+Detalhe de um filme específico com `runtime`, `tagline`, `genres` e `status`.
+
+#### `matchInResults(List<TmdbMovie> results, String query)`
+Prefere match exato → match parcial (contains) → primeiro resultado.
+
+### Endpoints utilizados
+- `GET /search/movie?api_key=KEY&query=TITLE&language=pt-BR&year=YEAR`
+- `GET /movie/{id}?api_key=KEY&language=pt-BR`
+
+### Imagens
+Base URL: `https://image.tmdb.org/t/p/`
+- Poster: `w500`
+- Backdrop: `w1280`
+
+---
+
+## PauloFlixMoviesService
+
+Serviço de scraping do PauloFlix Movies (HTTP file server) com enriquecimento TMDB.
+
+### Servidor
+URL base: `http://100.95.105.113:8300/movies/`
+
+### Persistência
+Delegada a `PauloFlixMoviesDatabaseService` (SQLite `pauloflix_movies.db`).
+
+### Algoritmo de limpeza de nome (CRÍTICO)
+Os nomes das pastas/arquivos são bagunçados (com tags de qualidade, codecs, grupos). A função estática `cleanMovieName(String)` aplica 4 passes:
+
+1. Remove extensão (`.mkv`/`.mp4`/...)
+2. Remove ano entre parênteses/colchetes: `(2010)`, `[1985]`
+3. Remove tags (case-insensitive) em ordem:
+   - Qualidade: 1080p, 720p, 4K, BluRay, WEB-DL, Open.Matte, Directors.Cut, ...
+   - Codecs: x264, x265, HEVC, AV1, 10bit, ...
+   - Áudio: DUAL, Dublado, 5.1, AAC, ...
+   - Grupos: WWW.BLUDV.COM, GalaxyRG, YTS.MX, KONTRAST, ...
+4. Normaliza múltiplos espaços, remove pontos e caracteres especiais
+
+**Saídas esperadas:**
+- `"A Origem (2010) 1080p - 210GJI.mp4"` → `"A Origem"`
+- `"Amadeus.1984.Directors.Cut.1080p.BluRay.H264.AAC-RARBG.mkv"` → `"Amadeus"`
+- `"Deadpool.and.Wolverine.2024...GalaxyRG[TGx]"` → `"Deadpool and Wolverine"`
+
+### Detecção de tipo (filme vs coleção)
+- Pasta contém `.mkv`/`.mp4` direto → **filme individual**
+- Pasta contém apenas sub-pastas → **coleção** (banner + lista de sub-filmes)
+- Vazia → marcada como removida
+
+### Métodos Principais
+
+#### `fetchRootFolders()`
+Lista todas as pastas raiz de `/movies/`.
+
+#### `inspectFolder(folderName, folderUrl)`
+Detecta se a pasta é filme individual ou coleção e inspeciona o conteúdo.
+
+#### `extractYear(String text)`
+Regex que retorna o ano (YYYY) encontrado no texto, ou `null`.
+
+#### `cleanMovieName(String rawName)`
+Aplica o algoritmo de 4 passes descrito acima.
+
+#### `syncContent({onProgress, onError})`
+Sincronização completa:
+1. Marca como indisponível o que não está mais no servidor
+2. Enriquece com TMDB apenas o que é novo OU está sem imagem
+3. Salva em batch via `PauloFlixMoviesDatabaseService`
+4. Emite progresso via `onProgress`
+5. Manda erro via `onError`
+
+#### `fetchMovieFile(String folderUrl)`
+Resolve a URL final do `.mkv`/`.mp4` dentro de uma pasta de filme.
+
+---
+
+## PauloFlixMoviesDatabaseService
+
+SQLite para filmes PauloFlix (`pauloflix_movies.db`, separado do banco de animes).
+
+### Schema
+```
+id, folderName, displayName, serverUrl, imageUrl, bannerUrl,
+description, score, genres, releaseDate, runtime, year, tmdbId,
+isCollection, availableMovieCount, lastSynced, isAvailable
+```
+
+### Métodos
+Espelha `PauloFlixDatabaseService` mas adaptado para filmes (inclui `isCollection` e `availableMovieCount`). Ver `PauloFlixMoviesDatabaseService` source.
+
+---
+
+## ApiKeySettingsService
+
+Persiste chaves de API do usuário em SharedPreferences.
+
+### Métodos
+- `getTmdbApiKey()` / `setTmdbApiKey(key)` / `clearTmdbApiKey()` / `isTmdbConfigured()`
+
+---
+
 ## Resumo de Persistência
 
 | Serviço | Tecnologia | Chave/Arquivo |

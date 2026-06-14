@@ -33,8 +33,12 @@ lib/
 │   ├── pauloflix_section.dart  # PauloFlix section widget
 │   └── ...
 ├── services/                 # API services
-│   ├── pauloflix_service.dart  # PauloFlix file server service
-│   └── pauloflix_database_service.dart  # PauloFlix database
+│   ├── pauloflix_service.dart  # PauloFlix de animes: scraping HTML do servidor
+│   ├── pauloflix_database_service.dart  # SQLite animes PauloFlix
+│   ├── pauloflix_movies_service.dart  # PauloFlix Movies: scraping + TMDB
+│   ├── pauloflix_movies_database_service.dart  # SQLite filmes PauloFlix
+│   ├── tmdb_service.dart  # Cliente TMDB API v3 com cache
+│   └── api_key_settings_service.dart  # Persiste TMDB API key em SharedPreferences
 ├── theme/                    # App theming
 │   ├── app_theme.dart        # Unified theme
 │   ├── netflix_theme.dart    # Netflix-inspired theme
@@ -46,7 +50,8 @@ lib/
 │   └── video_player_aniskip_mixin.dart  # AniSkip integration mixin
 ├── providers/                # State management providers
 │   ├── theme_provider.dart   # Theme state management
-│   └── pauloflix_provider.dart  # PauloFlix content state
+│   ├── pauloflix_provider.dart  # PauloFlix animes content state
+│   └── pauloflix_movies_provider.dart  # PauloFlix filmes content state
 ├── l10n/                     # Localization files
 │   └── app_localizations.dart # Internationalization support
 ├── google_video_proxy.dart   # Google Video proxy for streams
