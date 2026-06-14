@@ -5,6 +5,8 @@ import '../models/pauloflix_movie.dart';
 import '../providers/pauloflix_movies_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
+import '../utils/tv_detector.dart';
+import '../widgets/netflix_card.dart';
 import '../widgets/pauloflix_movies_badge.dart';
 import 'pauloflix_movie_detail_screen.dart';
 
@@ -21,6 +23,7 @@ class _PauloFlixMoviesHomeScreenState
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _checkedInitialSync = false;
+  bool _isTV = false;
 
   @override
   void initState() {
@@ -43,6 +46,17 @@ class _PauloFlixMoviesHomeScreenState
         if (provider.contents.isEmpty) {
           provider.syncContent();
         }
+      }
+      // Detecção de TV para acionar anel de foco + d-pad no NetflixCard.
+      // Usa TVDetector direto + largura via PlatformDispatcher para evitar
+      // BuildContext-across-async-gap.
+      final screenWidth =
+          WidgetsBinding.instance.platformDispatcher.views.first.physicalSize.width /
+              WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+      final isTvBuild = await TVDetector.isTV;
+      if (mounted) {
+        setState(() =>
+            _isTV = isTvBuild || screenWidth >= Responsive.tabletMaxWidth);
       }
     });
   }
@@ -327,7 +341,20 @@ class _PauloFlixMoviesHomeScreenState
   }
 
   Widget _buildCard(BuildContext context, PauloFlixMovie content) {
-    return GestureDetector(
+    // Padrão NetflixCard garante:
+    //  - Focus + onKeyEvent (Select/Enter dispara onTap em TV/d-pad)
+    //  - Anel de foco visível quando isTV=true
+    //  - Hover/scale em mouse/touch
+    //  - CachedNetworkImage com placeholder/error consistentes
+    return NetflixCard(
+      imageUrl: content.imageUrl ?? '',
+      title: content.displayName,
+      rating: content.score,
+      width: double.infinity,
+      height: double.infinity,
+      isTV: _isTV,
+      showTitle: true,
+      showRating: content.score != null,
       onTap: () {
         Navigator.push(
           context,
@@ -337,101 +364,9 @@ class _PauloFlixMoviesHomeScreenState
           ),
         );
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                if ((content.imageUrl ?? '').isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      content.imageUrl!,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, e, s) => Container(
-                        color: AppColors.surface,
-                        child: const Icon(
-                          Icons.movie_outlined,
-                          color: Colors.white24,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.movie_outlined,
-                      color: Colors.white24,
-                      size: 48,
-                    ),
-                  ),
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: content.isCollection
-                      ? const CollectionBadge()
-                      : const PauloFlixMoviesBadge(),
-                ),
-                if (content.score != null)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star,
-                              color: Colors.amber, size: 12),
-                          const SizedBox(width: 2),
-                          Text(
-                            content.score!.toStringAsFixed(1),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            content.displayName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (content.year != null)
-            Text(
-              content.year!.toString(),
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 11,
-              ),
-            ),
-        ],
-      ),
+      overlayWidget: content.isCollection
+          ? const CollectionBadge()
+          : const PauloFlixMoviesBadge(),
     );
   }
 }
