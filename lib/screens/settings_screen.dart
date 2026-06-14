@@ -57,9 +57,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _saveTmdbKey() async {
     final raw = _tmdbKeyController.text.trim();
     if (raw.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Digite uma chave válida')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Digite uma chave válida')));
       return;
     }
     await _apiKeys.setTmdbApiKey(raw);
@@ -82,9 +82,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _tmdbKeyController.clear();
     await _loadTmdbStatus();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Chave do TMDB removida')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Chave do TMDB removida')));
   }
 
   Future<void> _detectTVMode() async {
@@ -210,8 +210,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.movie_outlined,
-                          color: Color(0xFFDC2626), size: 20),
+                      const Icon(
+                        Icons.movie_outlined,
+                        color: Color(0xFFDC2626),
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       const Text(
                         'The Movie Database (TMDB)',
@@ -224,7 +227,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const Spacer(),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: _isTmdbConfigured
                               ? Colors.green.withValues(alpha: 0.2)
@@ -234,7 +239,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Text(
                           _isTmdbConfigured ? 'Configurado' : 'Não configurado',
                           style: TextStyle(
-                            color: _isTmdbConfigured ? Colors.green : Colors.orange,
+                            color: _isTmdbConfigured
+                                ? Colors.green
+                                : Colors.orange,
                             fontWeight: FontWeight.w600,
                             fontSize: 11,
                           ),
@@ -287,8 +294,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onPressed: _saveTmdbKey,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFDC2626),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             child: const Text('Salvar'),
                           ),
@@ -304,8 +310,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               side: BorderSide(
                                 color: Colors.white.withValues(alpha: 0.3),
                               ),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             child: const Text(
                               'Cancelar',
@@ -324,12 +329,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 setState(() => _showTmdbField = true),
                             icon: const Icon(Icons.add, size: 18),
                             label: Text(
-                              _isTmdbConfigured ? 'Atualizar chave' : 'Adicionar chave',
+                              _isTmdbConfigured
+                                  ? 'Atualizar chave'
+                                  : 'Adicionar chave',
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFDC2626),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                           ),
                         ),
@@ -347,8 +353,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () {
+                  // FocusableWidget: link de ajuda acessível via d-pad em TV.
+                  // Em mobile/tablet cai no fallback GestureDetector puro.
+                  FocusableWidget(
+                    onSelect: () {
                       // Abre link externo via url_launcher? Mantemos simples:
                       // Mostra um snackbar com a URL
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -360,6 +368,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       );
                     },
+                    borderRadius: 6,
+                    focusPadding: EdgeInsets.zero,
+                    focusScale: 1.0,
                     child: Row(
                       children: [
                         Icon(
