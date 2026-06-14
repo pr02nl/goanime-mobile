@@ -618,18 +618,42 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
             ),
             const SizedBox(height: 12),
           ],
-          ElevatedButton.icon(
-            onPressed: _initializeVideoPlayer,
-            icon: const Icon(Icons.refresh),
-            label: Text(AppLocalizations.of(context).retry),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          Wrap(
+            spacing: 12,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _initializeVideoPlayer,
+                icon: const Icon(Icons.refresh),
+                label: Text(AppLocalizations.of(context).retry),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
-            ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+                label: Text(AppLocalizations.of(context).close),
+                style: ElevatedButton.styleFrom(
+                  // backgroundColor: Colors.orange,
+                  // foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
