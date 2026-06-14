@@ -508,8 +508,14 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
+    // FocusableWidget adiciona d-pad: na TV, o usuário alterna entre lista e
+    // grade com Enter/Select no botão focado. Em mobile/tablet cai no fallback
+    // GestureDetector puro (lib/widgets/focusable_widget.dart:115).
+    return FocusableWidget(
+      onSelect: onTap,
+      borderRadius: 12,
+      focusPadding: EdgeInsets.zero,
+      focusScale: 1.0,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
