@@ -15,6 +15,7 @@ import '../services/anime_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/episode_utils.dart';
 import '../utils/tv_detector.dart';
+import '../widgets/focusable_widget.dart';
 import '../widgets/skip_button.dart';
 import 'blogger_webview_screen.dart';
 
@@ -832,9 +833,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                         color: Colors.transparent,
                         child: Row(
                           children: [
-                            InkWell(
-                              onTap: _exitFullscreen,
-                              borderRadius: BorderRadius.circular(50),
+                            // FocusableWidget: botão "voltar" do overlay
+                            // acessível via d-pad em TV. Em mobile/tablet cai
+                            // no fallback GestureDetector puro.
+                            FocusableWidget(
+                              onSelect: _exitFullscreen,
+                              borderRadius: 24,
+                              focusPadding: EdgeInsets.zero,
+                              focusScale: 1.05,
                               child: Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
@@ -1304,9 +1310,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// Indica visualmente qual legenda está ativa.
   Widget _buildSubtitleSelectorTag(BuildContext context) {
     final active = _effectiveActiveSubtitleLabel();
-    return InkWell(
-      onTap: () => _showSubtitleSheet(context),
-      borderRadius: BorderRadius.circular(6),
+    // FocusableWidget: tag de seleção de legenda acessível via d-pad em TV.
+    // Em mobile/tablet cai no fallback GestureDetector puro.
+    return FocusableWidget(
+      onSelect: () => _showSubtitleSheet(context),
+      borderRadius: 6,
+      focusPadding: EdgeInsets.zero,
+      focusScale: 1.0,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
@@ -1495,8 +1505,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     required bool isActive,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
+    // FocusableWidget: opção do sheet de legendas acessível via d-pad em TV.
+    // Cada opção da sheet recebe seu próprio nó de foco para navegação.
+    // Em mobile/tablet cai no fallback GestureDetector puro.
+    return FocusableWidget(
+      onSelect: onTap,
+      borderRadius: 8,
+      focusPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      focusScale: 1.0,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
