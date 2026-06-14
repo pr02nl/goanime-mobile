@@ -58,6 +58,20 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   Timer? _overlayControlsTimer;
   static const Duration _overlayControlsAutoHideDuration = Duration(seconds: 3);
 
+  // Stream subscriptions — guardadas para cancelar em _cleanupControls e
+  // evitar listeneres órfãos que disparam setState após troca de episódio.
+  StreamSubscription? _errorSub;
+  StreamSubscription? _playingSub;
+  StreamSubscription? _completedSub;
+  StreamSubscription<Tracks>? _tracksSub;
+
+  // Handler global de hardware keyboard. Usamos HardwareKeyboard em vez de
+  // Focus/CallbackShortcuts para interceptar teclas SEM competir pelo foco
+  // de teclado da árvore (Focus). Isso é crítico porque o Focus interno do
+  // MaterialDesktopVideoControls precisa estar focado para os atalhos
+  // space/setas/J/K/F funcionarem via CallbackShortcuts nativo do package.
+  bool _hardwareKeyboardHandlerInstalled = false;
+
   /// Tracks de legenda embutidas no MKV (lidas via `Player.state.tracks.subtitle`
   /// assim que o `Media.open` finaliza).
   List<SubtitleTrack> _embeddedSubtitleTracks = const [];
@@ -97,6 +111,46 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     _enterFullscreen();
     _initializeVideoPlayer();
     _detectDeviceAndEnterFullscreen();
+    _installHardwareKeyboardHandler();
+  }
+
+  /// Handler global de teclado. Usamos HardwareKeyboard em vez de Focus/
+  /// CallbackShortcuts porque ele intercepta o evento ANTES da árvore de
+  /// Focus, sem competir pelo foco do MaterialDesktopVideoControls.
+  ///
+  /// Função: capturar Esc (sai do fullscreen limpando nosso estado) e
+  /// ressuscitar o overlay em qualquer outra tecla.
+  ///
+  /// NÃO interceptamos Space/setas/J/K/F aqui — eles devem ser
+  /// processados pelo MaterialDesktopVideoControls (CallbackShortcuts
+  /// nativo do package), que precisa estar com foco.
+  void _installHardwareKeyboardHandler() {
+    if (_hardwareKeyboardHandlerInstalled) return;
+    _hardwareKeyboardHandlerInstalled = true;
+    HardwareKeyboard.instance.addHandler(_onHardwareKey);
+  }
+
+  bool _onHardwareKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+
+    // Esc: sai do fullscreen limpando estado local. O
+    // MaterialDesktopVideoControls já trata Esc internamente (chama
+    // exitFullscreen do package), mas NÃO atualiza nosso `_isFullscreen`
+    // nem limpa SystemUiMode no desktop. Fazemos aqui.
+    if (event.logicalKey == LogicalKeyboardKey.escape && _isFullscreen) {
+      _exitFullscreen();
+      return true; // consome o evento
+    }
+
+    // Qualquer outra tecla: re-mostra overlay.
+    _showOverlayControlsAndResetTimer();
+    return false; // deixa propagar (espaco/setas/J/K/F vão para controls)
+  }
+
+  void _uninstallHardwareKeyboardHandler() {
+    if (!_hardwareKeyboardHandlerInstalled) return;
+    _hardwareKeyboardHandlerInstalled = false;
+    HardwareKeyboard.instance.removeHandler(_onHardwareKey);
   }
 
   /// Detecta o tipo de dispositivo e configura comportamentos específicos (TV, etc.)
@@ -185,6 +239,61 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       skipButtonLabel = '';
 
       _initializeVideoPlayer();
+    }
+  }
+
+  /// Espera o `Player.stream.tracks` emitir um snapshot com pelo menos
+  /// uma faixa de legenda (embutida) ou atingir o timeout. Substitui o
+  /// `Future.delayed(500ms)` mágico, que falhava em streams lentos.
+  ///
+  /// Se o vídeo não tiver legendas embutidas, o snapshot chegará com
+  /// `subtitle` vazio — o método retorna OK nesse caso após o timeout.
+  Future<void> _waitForEmbeddedSubtitleTracks(String episodeKey) async {
+    final player = _player;
+    if (player == null) return;
+
+    // Captura a subscription para cancelar em troca de episódio.
+    _tracksSub?.cancel();
+    final completer = Completer<void>();
+
+    Timer? timeoutTimer;
+    StreamSubscription<Tracks>? sub;
+
+    void finish() {
+      timeoutTimer?.cancel();
+      sub?.cancel();
+      if (!completer.isCompleted) completer.complete();
+    }
+
+    timeoutTimer = Timer(const Duration(seconds: 5), () {
+      debugPrint('[VideoPlayer] Tracks stream timeout (5s)');
+      finish();
+    });
+
+    try {
+      sub = player.stream.tracks.listen((t) {
+        debugPrint(
+          '[VideoPlayer] Embedded subtitle tracks: ${t.subtitle.length}',
+        );
+        for (final st in t.subtitle) {
+          debugPrint(
+            '[VideoPlayer]   embed: id=${st.id}, '
+            'title=${st.title}, lang=${st.language}',
+          );
+        }
+        if (mounted) {
+          setState(() {
+            _embeddedSubtitleTracks = t.subtitle;
+          });
+        }
+        // Aceita o PRIMEIRO snapshot com tracks populadas OU vazias —
+        // significa que o media_kit terminou o parse.
+        if (!completer.isCompleted) finish();
+      });
+      _tracksSub = sub;
+      await completer.future;
+    } catch (e) {
+      debugPrint('[VideoPlayer] Error waiting for embedded tracks: $e');
     }
   }
 
@@ -334,8 +443,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
             onTimeout: () => debugPrint('[VideoPlayer] Surface init timeout'),
           );
 
-      // Listen to player streams for error handling
-      _player?.stream.error.listen((error) {
+      // Listen to player streams for error handling.
+      // IMPORTANTE: cancelar subscription anterior ANTES de reassinar —
+      // caso contrário, troca rápida de episódio acumula listeners
+      // zumbis que disparam setState em widgets desmontados.
+      _errorSub?.cancel();
+      _errorSub = _player?.stream.error.listen((error) {
         debugPrint('[VideoPlayer] Error stream received: $error');
         if (error.toString().isNotEmpty && mounted) {
           setState(() {
@@ -346,11 +459,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       });
 
       // Log playback state changes for debugging
-      _player?.stream.playing.listen((playing) {
+      _playingSub?.cancel();
+      _playingSub = _player?.stream.playing.listen((playing) {
         debugPrint('[VideoPlayer] Playing state: $playing');
       });
 
-      _player?.stream.completed.listen((completed) {
+      _completedSub?.cancel();
+      _completedSub = _player?.stream.completed.listen((completed) {
         debugPrint('[VideoPlayer] Completed: $completed');
       });
 
@@ -393,24 +508,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         );
       }
 
-      // Aguarda o media_kit parsear o contêiner e popular as tracks
-      // embutidas. Pequeno delay é necessário porque `state.tracks`
-      // é populado de forma assíncrona após `Media.open`.
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted && _player != null) {
-        final embeds = _player!.state.tracks.subtitle;
-        debugPrint('[VideoPlayer] Embedded subtitle tracks: ${embeds.length}');
-        for (final t in embeds) {
-          debugPrint(
-            '[VideoPlayer]   embed: id=${t.id}, title=${t.title}, '
-            'lang=${t.language}',
-          );
-        }
-        if (mounted) {
-          setState(() {
-            _embeddedSubtitleTracks = embeds;
-          });
-        }
+      // Espera o media_kit parsear o contêiner e popular as tracks
+      // embutidas. O `state.tracks` é populado de forma assíncrona após
+      // `Media.open`, então ouvimos o `stream.tracks` em vez de assumir um
+      // delay fixo (que falha em streams lentos / contêineres grandes).
+      await _waitForEmbeddedSubtitleTracks(episodeKey);
+      if (!isActiveEpisode(episodeKey)) {
+        debugPrint('[VideoPlayer] Tracks wait ignored (episode changed).');
+        return;
       }
 
       // Carrega legenda (.srt) externa, se fornecida via Episode.subtitleUrl.
@@ -527,6 +632,18 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   Future<void> _cleanupControllers() async {
     positionTimer?.cancel();
     skipButtonAutoHideTimer?.cancel();
+
+    // Cancela stream subscriptions para que listeners não disparem
+    // setState em State desmontada após troca rápida de episódio.
+    await _errorSub?.cancel();
+    await _playingSub?.cancel();
+    await _completedSub?.cancel();
+    await _tracksSub?.cancel();
+    _errorSub = null;
+    _playingSub = null;
+    _completedSub = null;
+    _tracksSub = null;
+
     await _player?.dispose();
     _player = null;
     _videoController = null;
@@ -664,6 +781,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   @override
   void dispose() {
     _overlayControlsTimer?.cancel();
+    _uninstallHardwareKeyboardHandler();
     SystemChrome.setSystemUIChangeCallback(null); // Remove o listener
     _cleanupControllers();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -778,115 +896,113 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   Widget _buildFullscreenContent() {
     final isTV = _isTVDevice == true;
-    // Detector de interação para mostrar/esconder controles
+    // IMPORTANTE: NÃO envolver o player em Focus/CallbackShortcuts nesta
+    // camada. O MaterialDesktopVideoControls traz internamente um Focus com
+    // seu próprio focusNode e atalhos via CallbackShortcuts (space, setas,
+    // J/K/L, F). Um Focus externo roubaria o foco e silenciaria TODOS os
+    // atalhos do player. Capturas globais de teclado (Esc) ficam em
+    // HardwareKeyboard handler instalado no initState.
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _showOverlayControlsAndResetTimer,
       child: MouseRegion(
         onHover: (_) => _showOverlayControlsAndResetTimer(),
-        child: Focus(
-          autofocus: true,
-          onKeyEvent: (node, event) {
-            _showOverlayControlsAndResetTimer();
-            return KeyEventResult.ignored;
-          },
-          child: SizedBox.expand(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Video ocupa toda a tela
-                _videoController != null
-                    ? (isTV
-                          ? MaterialDesktopVideoControlsTheme(
-                              normal:
-                                  const MaterialDesktopVideoControlsThemeData(
-                                    visibleOnMount: true,
-                                    playAndPauseOnTap: true,
-                                  ),
-                              fullscreen:
-                                  const MaterialDesktopVideoControlsThemeData(
-                                    visibleOnMount: true,
-                                    playAndPauseOnTap: true,
-                                  ),
-                              child: Video(
-                                controller: _videoController!,
-                                fit: BoxFit.contain,
-                                controls: MaterialDesktopVideoControls,
-                              ),
-                            )
-                          : Video(
+        child: SizedBox.expand(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Video ocupa toda a tela
+              _videoController != null
+                  ? (isTV
+                        ? MaterialDesktopVideoControlsTheme(
+                            normal:
+                                const MaterialDesktopVideoControlsThemeData(
+                                  visibleOnMount: true,
+                                  playAndPauseOnTap: true,
+                                ),
+                            fullscreen:
+                                const MaterialDesktopVideoControlsThemeData(
+                                  visibleOnMount: true,
+                                  playAndPauseOnTap: true,
+                                ),
+                            child: Video(
                               controller: _videoController!,
                               fit: BoxFit.contain,
-                              // Phone: AdaptiveVideoControls = touch controls padrao
-                              controls: AdaptiveVideoControls,
-                            ))
-                    : Container(color: Colors.black),
-                // Botão flutuante voltar
-                Positioned(
-                  top: isTV ? 16 : 8,
-                  left: isTV ? 16 : 8,
-                  child: AnimatedOpacity(
-                    opacity: _showOverlayControls ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: SafeArea(
-                      child: Material(
-                        color: Colors.transparent,
-                        child: Row(
-                          children: [
-                            // FocusableWidget: botão "voltar" do overlay
-                            // acessível via d-pad em TV. Em mobile/tablet cai
-                            // no fallback GestureDetector puro.
-                            FocusableWidget(
-                              onSelect: _exitFullscreen,
-                              borderRadius: 24,
-                              focusPadding: EdgeInsets.zero,
-                              focusScale: 1.05,
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.4),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                              ),
+                              controls: MaterialDesktopVideoControls,
                             ),
-                            Text(
-                              '  ${widget.animeTitle} - Ep ${extractEpisodeNumber(widget.episode.number)}',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Skip Button Overlay
-                Positioned(
-                  bottom: isTV ? 40 : 80,
-                  right: isTV ? 40 : 24,
+                          )
+                        : Video(
+                            controller: _videoController!,
+                            fit: BoxFit.contain,
+                            // Phone: AdaptiveVideoControls = touch controls padrao
+                            controls: AdaptiveVideoControls,
+                          ))
+                  : Container(color: Colors.black),
+              // Botão flutuante voltar
+              Positioned(
+                top: isTV ? 16 : 8,
+                left: isTV ? 16 : 8,
+                child: AnimatedOpacity(
+                  opacity: _showOverlayControls ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
                   child: SafeArea(
-                    child: IgnorePointer(
-                      ignoring: !showSkipButton,
-                      child: SkipButton(
-                        onSkip: skipIntroOutro,
-                        label: skipButtonLabel,
-                        show: showSkipButton,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Row(
+                        children: [
+                          // FocusableWidget: botão "voltar" do overlay
+                          // acessível via d-pad em TV. Em mobile/tablet cai
+                          // no fallback GestureDetector puro.
+                          FocusableWidget(
+                            onSelect: _exitFullscreen,
+                            borderRadius: 24,
+                            focusPadding: EdgeInsets.zero,
+                            focusScale: 1.05,
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.4),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '  ${widget.animeTitle} - Ep ${extractEpisodeNumber(widget.episode.number)}',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              // Skip Button Overlay
+              Positioned(
+                bottom: isTV ? 40 : 80,
+                right: isTV ? 40 : 24,
+                child: SafeArea(
+                  child: IgnorePointer(
+                    ignoring: !showSkipButton,
+                    child: SkipButton(
+                      onSkip: skipIntroOutro,
+                      label: skipButtonLabel,
+                      show: showSkipButton,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
