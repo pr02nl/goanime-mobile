@@ -560,11 +560,6 @@ class _EpisodeCard extends StatelessWidget {
       onSelect: onTap,
       borderRadius: 24,
       focusPadding: EdgeInsets.zero,
-      child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
-      splashColor: colorScheme.primary.withValues(alpha: 0.08),
-      highlightColor: Colors.transparent,
       child: Ink(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
@@ -655,7 +650,6 @@ class _EpisodeCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
       ),
     );
   }
