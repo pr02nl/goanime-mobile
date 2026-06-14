@@ -4,11 +4,13 @@ import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'helpers/database_helper.dart';
 import 'l10n/app_localizations.dart';
+import 'providers/pauloflix_movies_provider.dart';
 import 'providers/pauloflix_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/main_navigation_screen.dart';
 import 'services/download_service.dart';
 import 'services/locale_service.dart';
+import 'services/tmdb_service.dart';
 import 'theme/app_theme.dart';
 import 'utils/performance_config.dart';
 
@@ -28,6 +30,9 @@ void main() async {
   // Cria instância do ThemeProvider para uso global
   final themeProvider = ThemeProvider();
 
+  // Carrega TMDB API key persistida antes da primeira tela
+  await TmdbService().configureFromSettings();
+
   // Inicializar banco de dados
   await DatabaseHelper.initializeAll();
 
@@ -38,6 +43,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => LocaleService()),
         ChangeNotifierProvider.value(value: downloadService),
         ChangeNotifierProvider(create: (_) => PauloFlixProvider()),
+        ChangeNotifierProvider(create: (_) => PauloFlixMoviesProvider()),
       ],
       child: const MyApp(),
     ),

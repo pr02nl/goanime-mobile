@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/api_key_settings_service.dart';
 import '../services/locale_service.dart';
+import '../services/tmdb_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/focusable_widget.dart';
@@ -18,11 +20,71 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isTV = false;
+  final ApiKeySettingsService _apiKeys = ApiKeySettingsService();
+  final TextEditingController _tmdbKeyController = TextEditingController();
+  bool _isTmdbConfigured = false;
+  String _maskedTmdbKey = '';
+  bool _showTmdbField = false;
 
   @override
   void initState() {
     super.initState();
     _detectTVMode();
+    _loadTmdbStatus();
+  }
+
+  Future<void> _loadTmdbStatus() async {
+    final key = await _apiKeys.getTmdbApiKey();
+    if (!mounted) return;
+    setState(() {
+      _isTmdbConfigured = key != null && key.isNotEmpty;
+      _maskedTmdbKey = _maskKey(key);
+    });
+  }
+
+  String _maskKey(String? key) {
+    if (key == null || key.isEmpty) return '';
+    if (key.length <= 8) return '••••••••';
+    return '${key.substring(0, 4)}${'•' * (key.length - 8)}${key.substring(key.length - 4)}';
+  }
+
+  @override
+  void dispose() {
+    _tmdbKeyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveTmdbKey() async {
+    final raw = _tmdbKeyController.text.trim();
+    if (raw.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Digite uma chave válida')),
+      );
+      return;
+    }
+    await _apiKeys.setTmdbApiKey(raw);
+    TmdbService().setApiKey(raw);
+    _tmdbKeyController.clear();
+    await _loadTmdbStatus();
+    if (!mounted) return;
+    setState(() => _showTmdbField = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Chave do TMDB salva com sucesso'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Future<void> _removeTmdbKey() async {
+    await _apiKeys.clearTmdbApiKey();
+    TmdbService().setApiKey(null);
+    _tmdbKeyController.clear();
+    await _loadTmdbStatus();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Chave do TMDB removida')),
+    );
   }
 
   Future<void> _detectTVMode() async {
@@ -129,6 +191,196 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
               ],
+            ),
+          ),
+
+          SizedBox(height: isTV ? 28 : 20),
+
+          // API Keys (TMDB)
+          _buildSectionCard(
+            context,
+            title: 'API Keys',
+            icon: Icons.vpn_key_outlined,
+            iconColor: const Color(0xFFDC2626),
+            isTV: isTV,
+            child: Padding(
+              padding: EdgeInsets.all(isTV ? 24 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.movie_outlined,
+                          color: Color(0xFFDC2626), size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'The Movie Database (TMDB)',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _isTmdbConfigured
+                              ? Colors.green.withValues(alpha: 0.2)
+                              : Colors.orange.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _isTmdbConfigured ? 'Configurado' : 'Não configurado',
+                          style: TextStyle(
+                            color: _isTmdbConfigured ? Colors.green : Colors.orange,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _isTmdbConfigured
+                        ? 'Chave salva: $_maskedTmdbKey'
+                        : 'Adicione sua chave v3 da TMDB para sincronizar filmes do PauloFlix com metadados.',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_showTmdbField) ...[
+                    TextField(
+                      controller: _tmdbKeyController,
+                      obscureText: false,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Cole aqui sua API key v3',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 13,
+                        ),
+                        filled: true,
+                        fillColor: AppColors.background,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFDC2626),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _saveTmdbKey,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('Salvar'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setState(() => _showTmdbField = false);
+                              _tmdbKeyController.clear();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.3),
+                              ),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text(
+                              'Cancelar',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () =>
+                                setState(() => _showTmdbField = true),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: Text(
+                              _isTmdbConfigured ? 'Atualizar chave' : 'Adicionar chave',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                        if (_isTmdbConfigured) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            tooltip: 'Remover chave',
+                            onPressed: _removeTmdbKey,
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () {
+                      // Abre link externo via url_launcher? Mantemos simples:
+                      // Mostra um snackbar com a URL
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Gere sua chave em: https://www.themoviedb.org/settings/api',
+                          ),
+                          duration: Duration(seconds: 5),
+                        ),
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 14,
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Como obter uma chave?',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 12,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
