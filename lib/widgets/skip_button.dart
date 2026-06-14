@@ -82,24 +82,17 @@ class _SkipButtonState extends State<SkipButton>
       focusPadding: EdgeInsets.zero,
       focusScale: 1.05,
       child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: Semantics(
-            button: true,
-            label: widget.label,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: widget.onSkip,
-                    borderRadius: BorderRadius.circular(12),
-                    splashColor: AppColors.primary.withValues(alpha: 0.2),
-                    highlightColor: AppColors.primary.withValues(alpha: 0.15),
-                    child: AnimatedContainer(
+      opacity: _fadeAnimation,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: Semantics(
+          button: true,
+          label: widget.label,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOut,
                       constraints: const BoxConstraints(
@@ -159,8 +152,6 @@ class _SkipButtonState extends State<SkipButton>
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 }

@@ -192,26 +192,22 @@ class _WatchlistScreenState extends State<WatchlistScreen>
             right: NetflixTheme.sm,
             // FocusableWidget: nó de foco independente para o d-pad alternar
             // entre o card (navegar para o anime) e o botão X (remover da watchlist).
-            // Em mobile/tablet cai no fallback GestureDetector puro.
+            // O FocusableWidget injeta splash nativo via Material+InkWell.
             child: FocusableWidget(
               onSelect: () => _removeFromWatchlist(anime),
-              borderRadius: 20,
+              borderRadius: 24,
               focusPadding: EdgeInsets.zero,
-              focusScale: 1.0,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: () => _removeFromWatchlist(anime),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: NetflixTheme.background.withValues(alpha: 0.6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    color: NetflixTheme.textPrimary,
-                    size: 20,
-                  ),
+              focusScale: 1.05,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: NetflixTheme.background.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close,
+                  color: NetflixTheme.textPrimary,
+                  size: 20,
                 ),
               ),
             ),

@@ -353,8 +353,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   const SizedBox(height: 12),
-                  // FocusableWidget: link de ajuda acessível via d-pad em TV.
-                  // Em mobile/tablet cai no fallback GestureDetector puro.
+                  // FocusableWidget injeta splash nativo via Material+InkWell
+                  // (lib/widgets/focusable_widget.dart). Em TV, desenha anel
+                  // de foco e responde a d-pad via onKeyEvent.
                   FocusableWidget(
                     onSelect: () {
                       // Abre link externo via url_launcher? Mantemos simples:

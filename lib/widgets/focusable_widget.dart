@@ -110,14 +110,35 @@ class _FocusableWidgetState extends State<FocusableWidget>
 
   @override
   Widget build(BuildContext context) {
-    // Se não for TV e não tiver navegação D-pad habilitada, retorna widget normal
-    if (!_isTV && !widget.enableDpadNavigation) {
-      return GestureDetector(onTap: widget.onSelect, child: widget.child);
+    final splash = (widget.focusColor ?? Theme.of(context).colorScheme.primary)
+        .withValues(alpha: 0.18);
+    final highlight = (widget.focusColor ?? Theme.of(context).colorScheme.primary)
+        .withValues(alpha: 0.08);
+
+    // Ramo mobile/tablet: Material + InkWell garante splash nativo sem perder
+    // o callback de tap (o FocusableWidget já deriva em TV pela detecção interna).
+    Widget tapWrapper(Widget child) {
+      return Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(widget.borderRadius),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onSelect,
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+          splashColor: splash,
+          highlightColor: highlight,
+          child: child,
+        ),
+      );
     }
 
-    return GestureDetector(
-      onTap: widget.onSelect,
-      child: Focus(
+    // Se não for TV e não tiver navegação D-pad habilitada, retorna widget normal
+    if (!_isTV && !widget.enableDpadNavigation) {
+      return tapWrapper(widget.child);
+    }
+
+    return tapWrapper(
+      Focus(
         focusNode: _focusNode,
         autofocus: widget.autoFocus,
         onKeyEvent: (node, event) {
