@@ -24,26 +24,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // Animes = HomeScreen atual; Filmes = PauloFlixMoviesHomeScreen.
   ContentType _contentType = ContentType.anime;
 
-  late final List<Widget> _screens;
-
   // FocusNodes for each nav item so TV d-pad can move between them.
+  // Mantidos como campos da classe para que o dispose os limpe,
+  // mas só as primeiras 4 entradas são usadas para a tab inferior real.
   final List<FocusNode> _navFocusNodes = List.generate(5, (_) => FocusNode());
-
-  @override
-  void initState() {
-    super.initState();
-    _rebuildScreens();
-  }
-
-  void _rebuildScreens() {
-    _screens = [
-      if (_contentType == ContentType.anime) const HomeScreen() else const PauloFlixMoviesHomeScreen(),
-      const SearchScreen(),
-      const WatchlistScreen(),
-      const DownloadsScreen(),
-      SettingsScreen(onBackPressed: _navigateToHome),
-    ];
-  }
 
   @override
   void dispose() {
@@ -64,12 +48,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     setState(() {
       _contentType = type;
       _currentIndex = 0;
-      _rebuildScreens();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Construímos a lista em todo build. O `IndexedStack` mantém o estado
+    // dos filhos pelo índice, então não há perda de scroll/state ao trocar
+    // o tipo de conteúdo.
+    final screens = <Widget>[
+      _contentType == ContentType.anime
+          ? const HomeScreen()
+          : const PauloFlixMoviesHomeScreen(),
+      const SearchScreen(),
+      const WatchlistScreen(),
+      const DownloadsScreen(),
+      SettingsScreen(onBackPressed: _navigateToHome),
+    ];
+
     return PopScope(
       canPop: _currentIndex == 0 && _contentType == ContentType.anime,
       onPopInvokedWithResult: (didPop, result) {
@@ -79,7 +75,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             setState(() {
               _contentType = ContentType.anime;
               _currentIndex = 0;
-              _rebuildScreens();
             });
             return;
           }
@@ -92,7 +87,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: _buildAppBar(),
-        body: IndexedStack(index: _currentIndex, children: _screens),
+        body: IndexedStack(index: _currentIndex, children: screens),
       ),
     );
   }
@@ -157,8 +152,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           selected: _contentType,
           onChanged: _onContentTypeChanged,
         ),
-        // Demais actions só fazem sentido quando estamos na aba Animes.
-        // Mantemos Search/Bookmark/Settings acessíveis sempre.
         IconButton(
           icon: const Icon(Icons.search, color: Colors.white, size: 24),
           tooltip: 'Search',
