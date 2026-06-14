@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/content_type_selector.dart';
-import '../widgets/focusable_widget.dart';
 import 'home_screen.dart';
 import 'pauloflix_movies_home_screen.dart';
 import 'search_screen.dart';
@@ -79,16 +78,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void _openSettings() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const SettingsScreen(),
-      ),
-    );
-  }
-
-  void _openRootHome() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => _buildRootScreen()),
+      MaterialPageRoute(builder: (context) => const SettingsScreen()),
     );
   }
 
@@ -126,38 +116,26 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       // puro (lib/widgets/focusable_widget.dart:115), preservando o tap.
       // focusScale: 1.0 evita que a box-shadow do logo seja cortada pelo
       // Transform.scale do widget (a sombra ultrapassa o container).
-      title: FocusableWidget(
-        onSelect: _openRootHome,
-        borderRadius: 12,
-        focusPadding: EdgeInsets.zero,
-        focusScale: 1.0,
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primary, AppColors.primaryDark],
+      title: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.primary, AppColors.primaryDark],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.play_circle_filled,
-            color: Colors.white,
-          ),
+          ],
         ),
+        child: const Icon(Icons.play_circle_filled, color: Colors.white),
       ),
       centerTitle: false,
       actions: [
-        ContentTypeSelector(
-          selected: _contentType,
-          onChanged: _setRootContent,
-        ),
+        ContentTypeSelector(selected: _contentType, onChanged: _setRootContent),
         IconButton(
           icon: const Icon(Icons.search, color: Colors.white, size: 24),
           tooltip: 'Search',

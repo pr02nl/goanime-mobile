@@ -85,11 +85,7 @@ class _Chip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: active ? Colors.white : Colors.white60,
-            ),
+            Icon(icon, size: 16, color: active ? Colors.white : Colors.white60),
             const SizedBox(width: 6),
             Text(
               label,
