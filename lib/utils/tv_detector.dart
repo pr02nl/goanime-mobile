@@ -30,6 +30,7 @@ class TVDetector {
       final bool? isTV = await platform.invokeMethod('isTV');
       return isTV ?? _detectTVFallback();
     } catch (e) {
+      debugPrint('[TVDetector] Platform channel failed: $e');
       return _detectTVFallback();
     }
   }
@@ -46,6 +47,7 @@ class TVDetector {
           product.toLowerCase().contains('tv') ||
           product.toLowerCase().contains('atv'); // Android TV
     } catch (e) {
+      debugPrint('[TVDetector] Fallback detection failed: $e');
       return false;
     }
   }

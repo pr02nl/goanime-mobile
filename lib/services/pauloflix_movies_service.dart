@@ -63,7 +63,8 @@ class PauloFlixMoviesService {
       }
       buf.write(input.substring(lastEnd));
       return buf.toString();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[PauloFlix Movies] Erro ao decodificar URL manualmente: $e');
       return input;
     }
   }
