@@ -187,93 +187,125 @@ class PauloFlixService {
         onError?.call('Nenhum show encontrado no PauloFlix');
         return false;
       }
-      onProgress?.call(
-        'Encontrados ${shows.length} shows. Buscando metadados...',
-      );
+
       final dbService = PauloFlixDatabaseService();
       final existingContent = await dbService.getAllContent();
-      final existingFolderNames = existingContent
-          .map((c) => c.folderName)
-          .toSet();
-      final currentFolderNames = shows.map((s) => s.name).toSet();
-      final removedFolderNames = existingFolderNames.difference(
-        currentFolderNames,
+      final showsToProcess = await _computeShowsToProcess(
+        dbService, shows, existingContent, onProgress,
       );
-      if (removedFolderNames.isNotEmpty) {
-        onProgress?.call(
-          'Marcando ${removedFolderNames.length} shows removidos...',
-        );
-        for (final folderName in removedFolderNames) {
-          await dbService.markAsUnavailable(folderName);
-        }
-      }
-      final newShows = shows
-          .where((s) => !existingFolderNames.contains(s.name))
-          .toList();
-      final needsUpdate = existingContent
-          .where(
-            (c) =>
-                c.imageUrl == null && currentFolderNames.contains(c.folderName),
-          )
-          .toList();
-      final showsToProcess = [...newShows];
-      for (final content in needsUpdate) {
-        final match = shows.where((s) => s.name == content.folderName);
-        if (match.isNotEmpty) {
-          final show = match.first;
-          if (!showsToProcess.any((s) => s.name == show.name)) {
-            showsToProcess.add(show);
-          }
-        }
-      }
+
       if (showsToProcess.isEmpty) {
         onProgress?.call(
           'Sincronizacao completa: ${existingContent.length} shows',
         );
         return true;
       }
-      onProgress?.call(
-        'Processando ${showsToProcess.length} novos/atualizados...',
+
+      final contents = await _enrichShowsWithJikan(
+        showsToProcess, onProgress,
       );
-      final jikanService = JikanService();
-      final List<PauloFlixContent> contents = [];
-      int processed = 0;
-      for (final show in showsToProcess) {
-        processed++;
-        onProgress?.call(
-          'Processando ${show.name} ($processed/${showsToProcess.length})',
+
+      onProgress?.call(
+        'Salvando ${contents.length} items no banco de dados...',
+      );
+      await dbService.saveBatch(contents);
+
+      final currentFolderNames = shows.map((s) => s.name).toSet();
+      final removedCount = existingContent
+          .where((c) => !currentFolderNames.contains(c.folderName))
+          .length;
+      final totalAvailable = existingContent.length - removedCount +
+          showsToProcess.length;
+      onProgress?.call('Sincronizacao completa: $totalAvailable shows');
+      return true;
+    } catch (e) {
+      debugPrint('[PauloFlix] Sync error: $e');
+      onError?.call('Erro na sincronizacao: $e');
+      return false;
+    }
+  }
+
+  static Future<List<PauloFlixShow>> _computeShowsToProcess(
+    PauloFlixDatabaseService dbService,
+    List<PauloFlixShow> shows,
+    List<PauloFlixContent> existingContent,
+    void Function(String progress)? onProgress,
+  ) async {
+    final existingFolderNames = existingContent
+        .map((c) => c.folderName)
+        .toSet();
+    final currentFolderNames = shows.map((s) => s.name).toSet();
+
+    final removedFolderNames = existingFolderNames.difference(
+      currentFolderNames,
+    );
+    if (removedFolderNames.isNotEmpty) {
+      onProgress?.call(
+        'Marcando ${removedFolderNames.length} shows removidos...',
+      );
+      for (final folderName in removedFolderNames) {
+        await dbService.markAsUnavailable(folderName);
+      }
+    }
+
+    final newShows = shows
+        .where((s) => !existingFolderNames.contains(s.name))
+        .toList();
+    final needsUpdate = existingContent
+        .where(
+          (c) =>
+              c.imageUrl == null && currentFolderNames.contains(c.folderName),
+        )
+        .toList();
+
+    final result = [...newShows];
+    for (final content in needsUpdate) {
+      final match = shows.where((s) => s.name == content.folderName);
+      if (match.isNotEmpty) {
+        final show = match.first;
+        if (!result.any((s) => s.name == show.name)) {
+          result.add(show);
+        }
+      }
+    }
+    return result;
+  }
+
+  static Future<List<PauloFlixContent>> _enrichShowsWithJikan(
+    List<PauloFlixShow> shows,
+    void Function(String progress)? onProgress,
+  ) async {
+    final total = shows.length;
+    final jikanService = JikanService();
+    final List<PauloFlixContent> contents = [];
+    int processed = 0;
+
+    for (final show in shows) {
+      processed++;
+      onProgress?.call(
+        'Processando ${show.name} ($processed/$total)',
+      );
+      try {
+        final searchResults = await jikanService.searchAnimes(
+          show.name,
+          limit: 5,
         );
-        try {
-          final searchResults = await jikanService.searchAnimes(
-            show.name,
-            limit: 5,
+        JikanAnime? matchedAnime;
+        if (searchResults.isNotEmpty) {
+          matchedAnime = searchResults
+              .where((a) => a.title.toLowerCase() == show.name.toLowerCase())
+              .firstOrNull;
+          matchedAnime ??= searchResults.first;
+        }
+        if (matchedAnime != null) {
+          contents.add(
+            PauloFlixContent.fromJikan(
+              folderName: show.name,
+              serverUrl: show.url,
+              jikanAnime: matchedAnime,
+            ),
           );
-          JikanAnime? matchedAnime;
-          if (searchResults.isNotEmpty) {
-            matchedAnime = searchResults
-                .where((a) => a.title.toLowerCase() == show.name.toLowerCase())
-                .firstOrNull;
-            matchedAnime ??= searchResults.first;
-          }
-          if (matchedAnime != null) {
-            contents.add(
-              PauloFlixContent.fromJikan(
-                folderName: show.name,
-                serverUrl: show.url,
-                jikanAnime: matchedAnime,
-              ),
-            );
-          } else {
-            contents.add(
-              PauloFlixContent(
-                folderName: show.name,
-                serverUrl: show.url,
-                displayName: show.name,
-              ),
-            );
-          }
-        } catch (e) {
-          debugPrint('[PauloFlix] Error processing ${show.name}: $e');
+        } else {
           contents.add(
             PauloFlixContent(
               folderName: show.name,
@@ -282,23 +314,21 @@ class PauloFlixService {
             ),
           );
         }
-        if (processed % 3 == 0) {
-          await Future.delayed(const Duration(seconds: 1));
-        }
+      } catch (e) {
+        debugPrint('[PauloFlix] Error processing ${show.name}: $e');
+        contents.add(
+          PauloFlixContent(
+            folderName: show.name,
+            serverUrl: show.url,
+            displayName: show.name,
+          ),
+        );
       }
-      onProgress?.call(
-        'Salvando ${contents.length} items no banco de dados...',
-      );
-      await dbService.saveBatch(contents);
-      final totalAvailable =
-          existingContent.length - removedFolderNames.length + newShows.length;
-      onProgress?.call('Sincronizacao completa: $totalAvailable shows');
-      return true;
-    } catch (e) {
-      debugPrint('[PauloFlix] Sync error: $e');
-      onError?.call('Erro na sincronizacao: $e');
-      return false;
+      if (processed % 3 == 0) {
+        await Future.delayed(const Duration(seconds: 1));
+      }
     }
+    return contents;
   }
 }
 

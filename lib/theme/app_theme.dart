@@ -10,7 +10,9 @@ class AppTheme {
   AppTheme._();
 
   /// Unified dark theme - Netflix style with GoAnime colors
-  static ThemeData get darkTheme {
+  static final ThemeData darkTheme = _buildDarkTheme();
+
+  static ThemeData _buildDarkTheme() {
     final netflixBase = NetflixTheme.darkTheme;
     final tvBase = TVTheme.darkTheme;
 
@@ -79,7 +81,9 @@ class AppTheme {
   }
 
   /// Unified light theme - Netflix style with GoAnime colors
-  static ThemeData get lightTheme {
+  static final ThemeData lightTheme = _buildLightTheme();
+
+  static ThemeData _buildLightTheme() {
     final netflixBase = NetflixTheme.lightTheme;
     final tvBase = TVTheme.lightTheme;
 
@@ -107,6 +111,7 @@ class AppTheme {
           ),
         ),
       ),
+      cardTheme: netflixBase.cardTheme,
       textTheme: netflixBase.textTheme.copyWith(
         displayLarge: netflixBase.textTheme.displayLarge?.copyWith(
           color: Colors.black87,
@@ -132,6 +137,14 @@ class AppTheme {
         bodyMedium: netflixBase.textTheme.bodyMedium?.copyWith(
           color: Colors.black54,
         ),
+      ),
+      iconTheme: const IconThemeData(color: Colors.black87),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: Colors.black54,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
       ),
     );
   }

@@ -196,205 +196,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           SizedBox(height: isTV ? 28 : 20),
 
-          // API Keys (TMDB)
-          _buildSectionCard(
-            context,
-            title: 'API Keys',
-            icon: Icons.vpn_key_outlined,
-            iconColor: const Color(0xFFDC2626),
-            isTV: isTV,
-            child: Padding(
-              padding: EdgeInsets.all(isTV ? 24 : 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.movie_outlined,
-                        color: Color(0xFFDC2626),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'The Movie Database (TMDB)',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _isTmdbConfigured
-                              ? Colors.green.withValues(alpha: 0.2)
-                              : Colors.orange.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _isTmdbConfigured ? 'Configurado' : 'Não configurado',
-                          style: TextStyle(
-                            color: _isTmdbConfigured
-                                ? Colors.green
-                                : Colors.orange,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _isTmdbConfigured
-                        ? 'Chave salva: $_maskedTmdbKey'
-                        : 'Adicione sua chave v3 da TMDB para sincronizar filmes do PauloFlix com metadados.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_showTmdbField) ...[
-                    TextField(
-                      controller: _tmdbKeyController,
-                      obscureText: false,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Cole aqui sua API key v3',
-                        hintStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 13,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.background,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFDC2626),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _saveTmdbKey,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFDC2626),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: const Text('Salvar'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              setState(() => _showTmdbField = false);
-                              _tmdbKeyController.clear();
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.3),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: const Text(
-                              'Cancelar',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () =>
-                                setState(() => _showTmdbField = true),
-                            icon: const Icon(Icons.add, size: 18),
-                            label: Text(
-                              _isTmdbConfigured
-                                  ? 'Atualizar chave'
-                                  : 'Adicionar chave',
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFDC2626),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                        if (_isTmdbConfigured) ...[
-                          const SizedBox(width: 8),
-                          IconButton(
-                            tooltip: 'Remover chave',
-                            onPressed: _removeTmdbKey,
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  const SizedBox(height: 12),
-                  // FocusableWidget injeta splash nativo via Material+InkWell
-                  // (lib/widgets/focusable_widget.dart). Em TV, desenha anel
-                  // de foco e responde a d-pad via onKeyEvent.
-                  FocusableWidget(
-                    onSelect: () {
-                      // Abre link externo via url_launcher? Mantemos simples:
-                      // Mostra um snackbar com a URL
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Gere sua chave em: https://www.themoviedb.org/settings/api',
-                          ),
-                          duration: Duration(seconds: 5),
-                        ),
-                      );
-                    },
-                    borderRadius: 6,
-                    focusPadding: EdgeInsets.zero,
-                    focusScale: 1.0,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 14,
-                          color: Colors.white.withValues(alpha: 0.6),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Como obter uma chave?',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 12,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildApiKeysSection(isTV: isTV),
 
           SizedBox(height: isTV ? 28 : 20),
 
@@ -454,29 +256,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          if (isTV) ...[
-            SizedBox(height: isTV ? 28 : 20),
-            _buildSectionCard(
-              context,
-              title: 'TV Mode',
-              icon: Icons.tv,
-              iconColor: AppColors.accent,
-              isTV: isTV,
-              child: Padding(
-                padding: EdgeInsets.all(isTV ? 24 : 16),
-                child: Text(
-                  'Use your remote control to navigate:\n'
-                  '• D-Pad: Navigate between items\n'
-                  '• Center button: Select\n'
-                  '• Back button: Go back',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: isTV ? 16 : 13,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          if (isTV) _buildTVModeSection(isTV: isTV),
         ],
       ),
     );
@@ -592,5 +372,220 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return InkWell(onTap: onTap, child: content);
+  }
+
+  Widget _buildApiKeysSection({required bool isTV}) {
+    return _buildSectionCard(
+      context,
+      title: 'API Keys',
+      icon: Icons.vpn_key_outlined,
+      iconColor: const Color(0xFFDC2626),
+      isTV: isTV,
+      child: Padding(
+        padding: EdgeInsets.all(isTV ? 24 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.movie_outlined,
+                  color: Color(0xFFDC2626),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'The Movie Database (TMDB)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _isTmdbConfigured
+                        ? Colors.green.withValues(alpha: 0.2)
+                        : Colors.orange.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _isTmdbConfigured ? 'Configurado' : 'Não configurado',
+                    style: TextStyle(
+                      color: _isTmdbConfigured ? Colors.green : Colors.orange,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _isTmdbConfigured
+                  ? 'Chave salva: $_maskedTmdbKey'
+                  : 'Adicione sua chave v3 da TMDB para sincronizar filmes do PauloFlix com metadados.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_showTmdbField) ...[
+              TextField(
+                controller: _tmdbKeyController,
+                obscureText: false,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Cole aqui sua API key v3',
+                  hintStyle: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 13,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFDC2626),
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _saveTmdbKey,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('Salvar'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() => _showTmdbField = false);
+                        _tmdbKeyController.clear();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ] else
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => setState(() => _showTmdbField = true),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: Text(
+                        _isTmdbConfigured
+                            ? 'Atualizar chave'
+                            : 'Adicionar chave',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  if (_isTmdbConfigured) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Remover chave',
+                      onPressed: _removeTmdbKey,
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    ),
+                  ],
+                ],
+              ),
+            const SizedBox(height: 12),
+            FocusableWidget(
+              onSelect: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Gere sua chave em: https://www.themoviedb.org/settings/api',
+                    ),
+                    duration: Duration(seconds: 5),
+                  ),
+                );
+              },
+              borderRadius: 6,
+              focusPadding: EdgeInsets.zero,
+              focusScale: 1.0,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 14,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Como obter uma chave?',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 12,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTVModeSection({required bool isTV}) {
+    return Column(
+      children: [
+        SizedBox(height: isTV ? 28 : 20),
+        _buildSectionCard(
+          context,
+          title: 'TV Mode',
+          icon: Icons.tv,
+          iconColor: AppColors.accent,
+          isTV: isTV,
+          child: Padding(
+            padding: EdgeInsets.all(isTV ? 24 : 16),
+            child: Text(
+              'Use your remote control to navigate:\n'
+              '• D-Pad: Navigate between items\n'
+              '• Center button: Select\n'
+              '• Back button: Go back',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: isTV ? 16 : 13,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

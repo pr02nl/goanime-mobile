@@ -7,7 +7,10 @@ import '../services/pauloflix_service.dart';
 enum PauloFlixStatus { initial, loading, loaded, error }
 
 class PauloFlixProvider extends ChangeNotifier {
-  final PauloFlixDatabaseService _dbService = PauloFlixDatabaseService();
+  final PauloFlixDatabaseService _dbService;
+
+  PauloFlixProvider({PauloFlixDatabaseService? databaseService})
+      : _dbService = databaseService ?? PauloFlixDatabaseService();
 
   PauloFlixStatus _status = PauloFlixStatus.initial;
   List<PauloFlixContent> _contents = [];

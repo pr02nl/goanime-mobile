@@ -10,10 +10,17 @@ enum PauloFlixMoviesStatus { initial, loading, loaded, error }
 
 /// Provider da área de filmes PauloFlix.
 class PauloFlixMoviesProvider extends ChangeNotifier {
-  final PauloFlixMoviesDatabaseService _dbService =
-      PauloFlixMoviesDatabaseService();
-  final TmdbService _tmdb = TmdbService();
-  final ApiKeySettingsService _settings = ApiKeySettingsService();
+  final PauloFlixMoviesDatabaseService _dbService;
+  final TmdbService _tmdb;
+  final ApiKeySettingsService _settings;
+
+  PauloFlixMoviesProvider({
+    PauloFlixMoviesDatabaseService? databaseService,
+    TmdbService? tmdbService,
+    ApiKeySettingsService? settingsService,
+  })  : _dbService = databaseService ?? PauloFlixMoviesDatabaseService(),
+        _tmdb = tmdbService ?? TmdbService(),
+        _settings = settingsService ?? ApiKeySettingsService();
 
   PauloFlixMoviesStatus _status = PauloFlixMoviesStatus.initial;
   List<PauloFlixMovie> _contents = [];
