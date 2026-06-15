@@ -8,8 +8,8 @@ Flutter-based mobile implementation of GoAnime TUI for anime streaming on iOS an
 - **Language**: Dart
 - **Video Player**: media_kit (high-performance native Flutter player)
 - **State Management**: Provider
-- **Navigation**: MaterialApp with Navigator 2.0
-- **API**: Jikan API (MyAnimeList)
+- **Navigation**: MaterialApp with Navigator 1.0 (push/pop)
+- **APIs**: Jikan API (MyAnimeList), AniList GraphQL, TMDB v3
 
 ## Project Structure
 ```
@@ -242,7 +242,6 @@ All project documentation is in the `docs/` folder:
 - `Services.md` - Service layer documentation
 - `TV_SUPPORT.md` - TV support guide
 - `UI.md` - UI components documentation
-- `HOMESCREEN_MIGRATION.md` - HomeScreen Netflix migration guide
 - `NETFLIX_REFACTORING.md` - Netflix UI/UX refactoring documentation
 
 ## Common Patterns
