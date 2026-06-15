@@ -1692,13 +1692,21 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     return cur.id == ext.url;
   }
 
-  /// Aplica a track selecionada no media_kit, com fallback silencioso.
   Future<void> _selectSubtitle(SubtitleTrack track, {String? label}) async {
     try {
       await _player?.setSubtitleTrack(track);
       debugPrint('[VideoPlayer] Subtitle changed to: ${label ?? track.id}');
     } catch (e) {
       debugPrint('[VideoPlayer] Failed to change subtitle: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao trocar legenda: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
     if (mounted) setState(() {});
   }
