@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
+import '../widgets/focusable_widget.dart';
 import '../widgets/netflix_card.dart';
 import '../widgets/netflix_carousel.dart';
 import '../widgets/pauloflix_section.dart';
@@ -371,8 +372,12 @@ class _HomeScreenState extends State<HomeScreen>
       height: sectionHeight,
       isTV: _isTV,
       trailing: genreId != null
-          ? TextButton(
-              onPressed: () {
+          ? FocusableWidget(
+              // `FocusableWidget` traduz Select/Enter/Space → onSelect
+              // (teclado/d-pad). Parâmetros: TextButton já tem padding
+              // próprio do Material, então focusPadding=zero para não
+              // dobrar visualmente; borderRadius 12 = botão estilo chip.
+              onSelect: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -385,6 +390,9 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 );
               },
+              borderRadius: 12,
+              focusPadding: EdgeInsets.zero,
+              focusScale: 1.05,
               child: Text(
                 l10n.seeAll,
                 style: const TextStyle(
