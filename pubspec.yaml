@@ -67,6 +67,8 @@ dependencies:
   # lucide_icons removed - using Material Icons instead
   # Animated widgets
   animated_item: ^0.0.2
+  # QR Code generation for TV API key setup
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

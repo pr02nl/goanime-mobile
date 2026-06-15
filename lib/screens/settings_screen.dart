@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../services/api_key_settings_service.dart';
 import '../services/locale_service.dart';
 import '../services/tmdb_service.dart';
+import '../screens/tv_qr_setup_dialog.dart';
 import '../theme/app_colors.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/focusable_widget.dart';
@@ -88,6 +89,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.tmdbKeyRemoved)),
     );
+  }
+
+  /// Abre o dialog QR code para configurar a API key via celular (TV only)
+  Future<void> _showQrSetup() async {
+    final success = await TvQrSetupDialog.show(context);
+    if (success && mounted) {
+      await _loadTmdbStatus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('API key configurada com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _detectTVMode() async {
@@ -497,7 +514,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
-            ] else
+            ] else if (isTV)
+              // TV: Mostra botão QR code para configurar via celular
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _showQrSetup,
+                      icon: const Icon(Icons.qr_code_2, size: 20),
+                      label: Text(
+                        _isTmdbConfigured
+                            ? 'Reconfigurar via QR Code'
+                            : 'Configurar via QR Code',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  if (_isTmdbConfigured) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Remover chave',
+                      onPressed: _removeTmdbKey,
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    ),
+                  ],
+                ],
+              )
+            else
+              // Mobile: Mostra input de texto
               Row(
                 children: [
                   Expanded(
