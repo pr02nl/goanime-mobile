@@ -140,7 +140,7 @@ class JikanService {
   }
 
   /// MÉTODO PRINCIPAL: Carrega TODOS os dados da Home de uma vez
-  /// Usa paralelo controlado para buscar tudo rapidamente
+  /// Usa sequência controlada para respeitar rate limit (3 req/s)
   /// Retorna cache se disponível, senão busca da API
   Future<HomeData> loadHomeData({bool forceRefresh = false}) async {
     // Retorna cache em memória se disponível
@@ -169,37 +169,35 @@ class JikanService {
     }
 
     _isLoadingHome = true;
-    debugPrint('[JikanService] Loading all home data in parallel...');
+    debugPrint('[JikanService] Loading all home data sequentially...');
 
     try {
-      // Busca todos os dados em PARALELO (máximo 3 por segundo da API)
-      // Dividimos em 2 batches para respeitar rate limit
+      // Busca dados SEQUENCIALMENTE para respeitar rate limit (3 req/s)
+      // Cada _fetchWithRetry já chama _waitForRateLimit (400ms mínimo)
       final stopwatch = Stopwatch()..start();
 
       // Batch 1: Season + Top + Action (3 requisições)
-      final batch1 = await Future.wait([
-        _fetchWithRetry('$baseUrl/seasons/now?limit=15'),
-        _fetchWithRetry('$baseUrl/top/anime?limit=15'),
-        _fetchWithRetry(
-          '$baseUrl/anime?genres=${JikanGenreIds.action}&limit=15&order_by=score&sort=desc',
-        ),
-      ]);
+      final season = await _fetchWithRetry('$baseUrl/seasons/now?limit=15');
+      final top = await _fetchWithRetry('$baseUrl/top/anime?limit=15');
+      final action = await _fetchWithRetry(
+        '$baseUrl/anime?genres=${JikanGenreIds.action}&limit=15&order_by=score&sort=desc',
+      );
+      final batch1 = [season, top, action];
 
-      // Pequena pausa para rate limit
-      await Future.delayed(const Duration(milliseconds: 400));
+      // Pausa entre batches para respeitar rate limit
+      await Future.delayed(const Duration(milliseconds: 1200));
 
       // Batch 2: Romance + Comedy + Fantasy (3 requisições)
-      final batch2 = await Future.wait([
-        _fetchWithRetry(
-          '$baseUrl/anime?genres=${JikanGenreIds.romance}&limit=15&order_by=score&sort=desc',
-        ),
-        _fetchWithRetry(
-          '$baseUrl/anime?genres=${JikanGenreIds.comedy}&limit=15&order_by=score&sort=desc',
-        ),
-        _fetchWithRetry(
-          '$baseUrl/anime?genres=${JikanGenreIds.fantasy}&limit=15&order_by=score&sort=desc',
-        ),
-      ]);
+      final romance = await _fetchWithRetry(
+        '$baseUrl/anime?genres=${JikanGenreIds.romance}&limit=15&order_by=score&sort=desc',
+      );
+      final comedy = await _fetchWithRetry(
+        '$baseUrl/anime?genres=${JikanGenreIds.comedy}&limit=15&order_by=score&sort=desc',
+      );
+      final fantasy = await _fetchWithRetry(
+        '$baseUrl/anime?genres=${JikanGenreIds.fantasy}&limit=15&order_by=score&sort=desc',
+      );
+      final batch2 = [romance, comedy, fantasy];
 
       stopwatch.stop();
       debugPrint(
@@ -236,22 +234,30 @@ class JikanService {
     }
   }
 
-  /// Faz requisição HTTP com retry automático
+  /// Faz requisição HTTP com retry automático e rate limiting
   Future<http.Response> _fetchWithRetry(
     String url, {
-    int maxRetries = 2,
+    int maxRetries = 3,
   }) async {
     for (int i = 0; i <= maxRetries; i++) {
       try {
+        // Aguarda intervalo mínimo entre requisições
+        await _waitForRateLimit();
         final response = await http
             .get(Uri.parse(url))
             .timeout(const Duration(seconds: 10));
         if (response.statusCode == 200) {
           return response;
         } else if (response.statusCode == 429 && i < maxRetries) {
-          // Rate limited, espera e tenta novamente
-          debugPrint('[JikanService] Rate limited, retrying in 1s...');
-          await Future.delayed(const Duration(seconds: 1));
+          // Rate limited: lê o header Retry-After ou usa default de 2s
+          final retryAfter = response.headers['retry-after'];
+          final waitSeconds = retryAfter != null
+              ? (int.tryParse(retryAfter) ?? 2)
+              : 2;
+          debugPrint(
+            '[JikanService] Rate limited (429), waiting ${waitSeconds}s before retry...',
+          );
+          await Future.delayed(Duration(seconds: waitSeconds));
         } else {
           throw Exception('HTTP ${response.statusCode}');
         }
