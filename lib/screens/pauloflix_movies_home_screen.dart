@@ -20,10 +20,6 @@ class PauloFlixMoviesHomeScreen extends StatefulWidget {
 
 class _PauloFlixMoviesHomeScreenState
     extends State<PauloFlixMoviesHomeScreen> {
-  // A busca de filmes foi movida para PauloFlixMoviesSearchScreen
-  // (acionada pelo IconButton.search na AppBar do MainNavigationScreen).
-  // Manter o TextField aqui travava o foco de teclado no desktop/d-pad —
-  // só Tab conseguia sair.
   bool _checkedInitialSync = false;
   bool _isTV = false;
 
@@ -49,9 +45,6 @@ class _PauloFlixMoviesHomeScreenState
           provider.syncContent();
         }
       }
-      // Detecção de TV para acionar anel de foco + d-pad no NetflixCard.
-      // Usa TVDetector direto + largura via PlatformDispatcher para evitar
-      // BuildContext-across-async-gap.
       final screenWidth =
           WidgetsBinding.instance.platformDispatcher.views.first.physicalSize.width /
               WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
@@ -61,13 +54,6 @@ class _PauloFlixMoviesHomeScreenState
             _isTV = isTvBuild || screenWidth >= Responsive.tabletMaxWidth);
       }
     });
-  }
-
-  @override
-  void dispose() {
-    // _searchController.dispose() removido quando a busca migrou para
-    // PauloFlixMoviesSearchScreen.
-    super.dispose();
   }
 
   void _showTmdbMissingBanner() {
@@ -198,10 +184,6 @@ class _PauloFlixMoviesHomeScreenState
               ),
             ),
 
-          // Busca foi movida para a action bar (AppBar) do
-          // MainNavigationScreen via PauloFlixMoviesSearchScreen — ver
-          // commit/diff que removeu o TextField local.
-
           // Contador
           SliverToBoxAdapter(
             child: Padding(
@@ -297,11 +279,6 @@ class _PauloFlixMoviesHomeScreenState
   }
 
   Widget _buildCard(BuildContext context, PauloFlixMovie content) {
-    // Padrão NetflixCard garante:
-    //  - Focus + onKeyEvent (Select/Enter dispara onTap em TV/d-pad)
-    //  - Anel de foco visível quando isTV=true
-    //  - Hover/scale em mouse/touch
-    //  - CachedNetworkImage com placeholder/error consistentes
     return NetflixCard(
       imageUrl: content.imageUrl ?? '',
       title: content.displayName,

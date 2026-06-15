@@ -163,7 +163,9 @@ class GoogleVideoProxy {
       debugPrint('$stackTrace');
       try {
         await request.response.close();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('GoogleVideoProxy response close error: $e');
+      }
     }
   }
 

@@ -263,12 +263,6 @@ class PauloFlixMoviesService {
     'ThePirateFilmes', 'The.Pirate.Filmes',
   ];
 
-  /// Versão antiga mantida por compatibilidade com testes/código legado —
-  /// usa o algoritmo pesado original (case-sensitivity do código antigo).
-  /// Novas chamadas devem preferir [cleanTitleForTmdb].
-  @Deprecated('Use cleanTitleForTmdb - extrai título do nome da pasta.')
-  static String cleanMovieName(String rawName) => cleanTitleForTmdb(rawName);
-
   /// Mapa estático (não const porque `RegExp` não tem construtor const)
   /// de tokens de idioma comum em legendas SRT → código BCP-47.
   ///
@@ -385,7 +379,9 @@ class PauloFlixMoviesService {
     // Decodifica %XX se houver
     try {
       last = Uri.decodeComponent(last);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Erro ao decodificar URL component: $e');
+    }
     return last;
   }
 

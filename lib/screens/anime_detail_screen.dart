@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/anime.dart';
+import '../utils/text_utils.dart';
 import '../widgets/focusable_widget.dart';
 import 'episode_list_screen.dart';
 
@@ -497,27 +498,7 @@ class AnimeDetailScreen extends StatelessWidget {
     );
   }
 
-  String _cleanDescription(String description) {
-    // Remove HTML tags
-    String cleaned = description.replaceAll(RegExp(r'<[^>]*>'), '');
-    // Remove extra whitespace
-    cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
-    // Decode HTML entities
-    cleaned = cleaned
-        .replaceAll('&quot;', '"')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&#039;', "'")
-        .replaceAll('&rsquo;', "'")
-        .replaceAll('&lsquo;', "'")
-        .replaceAll('&rdquo;', '"')
-        .replaceAll('&ldquo;', '"')
-        .replaceAll('<br>', '\n')
-        .replaceAll('<br/>', '\n')
-        .replaceAll('<br />', '\n');
-    return cleaned;
-  }
+  String _cleanDescription(String description) => stripHtml(description);
 
   String _translateStatus(String status) {
     switch (status.toUpperCase()) {

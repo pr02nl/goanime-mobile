@@ -373,10 +373,6 @@ class _HomeScreenState extends State<HomeScreen>
       isTV: _isTV,
       trailing: genreId != null
           ? FocusableWidget(
-              // `FocusableWidget` traduz Select/Enter/Space → onSelect
-              // (teclado/d-pad). Parâmetros: TextButton já tem padding
-              // próprio do Material, então focusPadding=zero para não
-              // dobrar visualmente; borderRadius 12 = botão estilo chip.
               onSelect: () {
                 Navigator.push(
                   context,

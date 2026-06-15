@@ -7,23 +7,10 @@ import '../models/episode.dart';
 import '../services/anime_service.dart';
 import '../services/download_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/text_utils.dart';
 import '../widgets/download_button.dart';
 import '../widgets/focusable_widget.dart';
 import 'video_player_screen.dart';
-
-// Function to remove HTML tags from description
-String _removeHtmlTags(String htmlText) {
-  return htmlText
-      .replaceAll(RegExp(r'<br>|<br/>|<br />'), '\n')
-      .replaceAll(RegExp(r'<[^>]*>'), '')
-      .replaceAll('&nbsp;', ' ')
-      .replaceAll('&amp;', '&')
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&#39;', "'")
-      .trim();
-}
 
 // Function to extract only the episode number
 String _getEpisodeNumber(String episodeText, int index) {
@@ -394,7 +381,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
           if (hasDescription) ...[
             const SizedBox(height: 20),
             Text(
-              _removeHtmlTags(anime.description),
+              stripHtml(anime.description),
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 14,

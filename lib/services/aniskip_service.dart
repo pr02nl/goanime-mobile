@@ -120,21 +120,6 @@ class AniSkipService {
     return SkipTimes.empty();
   }
 
-  /// Legacy method for backward compatibility
-  /// Use [getSkipTimesMultiStrategy] instead for better fallback support
-  @Deprecated('Use getSkipTimesMultiStrategy for better fallback support')
-  static Future<SkipTimes> getSkipTimes(
-    int malId,
-    int episodeNumber, {
-    int? episodeLengthSeconds,
-  }) async {
-    return getSkipTimesMultiStrategy(
-      malId: malId,
-      episodeNumber: episodeNumber,
-      episodeLengthSeconds: episodeLengthSeconds,
-    );
-  }
-
   /// Rounds a time value to the specified precision
   static double roundTime(double timeValue, int precision) {
     final multiplier = 1.0 * (10 ^ precision);

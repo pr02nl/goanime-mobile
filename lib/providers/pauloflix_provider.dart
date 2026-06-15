@@ -91,7 +91,8 @@ class PauloFlixProvider extends ChangeNotifier {
   PauloFlixContent? getByMalId(int malId) {
     try {
       return _contents.firstWhere((c) => c.malId == malId);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('getByMalId: $malId not found — $e');
       return null;
     }
   }
