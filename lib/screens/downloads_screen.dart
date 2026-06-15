@@ -4,6 +4,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/download_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/focusable_widget.dart';
@@ -39,9 +40,9 @@ class _DownloadsScreenState extends State<DownloadsScreen>
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        title: const Text(
-          'Downloads',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context).downloads,
+          style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -58,9 +59,9 @@ class _DownloadsScreenState extends State<DownloadsScreen>
           indicatorColor: AppColors.accent,
           labelColor: AppColors.accent,
           unselectedLabelColor: AppColors.textSecondary,
-          tabs: const [
-            Tab(text: 'Active'),
-            Tab(text: 'Completed'),
+          tabs: [
+            Tab(text: AppLocalizations.of(context).activeTab),
+            Tab(text: AppLocalizations.of(context).completedTab),
           ],
         ),
       ),
@@ -78,17 +79,17 @@ class _DownloadsScreenState extends State<DownloadsScreen>
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text(
-          'Download Settings',
-          style: TextStyle(color: AppColors.textPrimary),
+        title: Text(
+          AppLocalizations.of(context).downloadSettings,
+          style: const TextStyle(color: AppColors.textPrimary),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              title: const Text(
-                'Max Concurrent Downloads',
-                style: TextStyle(color: AppColors.textPrimary),
+              title: Text(
+                AppLocalizations.of(context).maxConcurrentDownloads,
+                style: const TextStyle(color: AppColors.textPrimary),
               ),
               subtitle: Slider(
                 value: downloadService.maxConcurrentDownloads.toDouble(),
@@ -108,14 +109,14 @@ class _DownloadsScreenState extends State<DownloadsScreen>
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Clear All Completed'),
+              child: Text(AppLocalizations.of(context).clearAllCompleted),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(AppLocalizations.of(context).close),
           ),
         ],
       ),
@@ -134,19 +135,19 @@ class _ActiveDownloadsTab extends StatelessWidget {
         final activeDownloads = downloadService.activeDownloads;
 
         if (activeDownloads.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
+                const Icon(
                   Icons.download_outlined,
                   size: 64,
                   color: AppColors.textSecondary,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text(
-                  'No active downloads',
-                  style: TextStyle(
+                  AppLocalizations.of(context).noActiveDownloads,
+                  style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 18,
                   ),
@@ -180,19 +181,19 @@ class _CompletedDownloadsTab extends StatelessWidget {
         final completedDownloads = downloadService.completedDownloads;
 
         if (completedDownloads.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
+                const Icon(
                   Icons.check_circle_outline,
                   size: 64,
                   color: AppColors.textSecondary,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text(
-                  'No completed downloads',
-                  style: TextStyle(
+                  AppLocalizations.of(context).noCompletedDownloads,
+                  style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 18,
                   ),
@@ -285,7 +286,7 @@ class _DownloadCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Episode ${download.episodeNumber}',
+                    AppLocalizations.of(context).episode(download.episodeNumber),
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 14,
@@ -304,7 +305,7 @@ class _DownloadCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     // Status text
                     Text(
-                      _getStatusText(download, downloadService),
+                      _getStatusText(context, download, downloadService),
                       style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
@@ -369,9 +370,11 @@ class _DownloadCard extends StatelessWidget {
   }
 
   String _getStatusText(
+    BuildContext context,
     DownloadItem download,
     DownloadService downloadService,
   ) {
+    final l10n = AppLocalizations.of(context);
     switch (download.status) {
       case DownloadStatus.downloading:
         final percentage = (download.progress * 100).toStringAsFixed(1);
@@ -381,11 +384,11 @@ class _DownloadCard extends StatelessWidget {
         final total = downloadService.formatBytes(download.totalBytes);
         return '$percentage% • $downloaded / $total';
       case DownloadStatus.paused:
-        return 'Paused';
+        return l10n.paused;
       case DownloadStatus.queued:
-        return 'Waiting...';
+        return l10n.waiting;
       case DownloadStatus.failed:
-        return 'Failed: ${download.error ?? "Unknown error"}';
+        return l10n.failedWith(download.error ?? l10n.unknownError);
       default:
         return '';
     }
@@ -400,18 +403,18 @@ class _DownloadCard extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text(
-          'Delete Download',
-          style: TextStyle(color: AppColors.textPrimary),
+        title: Text(
+          AppLocalizations.of(context).deleteDownload,
+          style: const TextStyle(color: AppColors.textPrimary),
         ),
         content: Text(
-          'Are you sure you want to delete this download?',
+          AppLocalizations.of(context).deleteDownloadConfirmation,
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           TextButton(
             onPressed: () {
@@ -419,7 +422,7 @@ class _DownloadCard extends StatelessWidget {
               Navigator.pop(context);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context).delete),
           ),
         ],
       ),
@@ -500,7 +503,7 @@ class _AnimeDownloadGroupState extends State<_AnimeDownloadGroup> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${widget.episodes.length} episodes',
+                          AppLocalizations.of(context).episodesCount(widget.episodes.length),
                           style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
@@ -617,10 +620,10 @@ class _EpisodeListItem extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _LocalVideoPlayerScreen(
-          filePath: episode.filePath!,
-          episodeTitle: 'Episode ${episode.episodeNumber}',
-        ),
+          builder: (context) => _LocalVideoPlayerScreen(
+            filePath: episode.filePath!,
+            episodeTitle: AppLocalizations.of(context).episode(episode.episodeNumber),
+          ),
       ),
     );
   }
@@ -703,7 +706,7 @@ class _LocalVideoPlayerScreenState extends State<_LocalVideoPlayerScreen> {
                   const Icon(Icons.error_outline, color: Colors.red, size: 60),
                   const SizedBox(height: 16),
                   Text(
-                    'Error: $_errorMessage',
+                    '${AppLocalizations.of(context).error}: $_errorMessage',
                     style: const TextStyle(color: Colors.white),
                     textAlign: TextAlign.center,
                   ),

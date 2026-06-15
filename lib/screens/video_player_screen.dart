@@ -1088,284 +1088,314 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   Widget _buildLoadedContent() {
     if (_isTVDevice == true) {
-      return Stack(
-        children: [
-          SizedBox.expand(
-            child: _videoController != null
-                ? MaterialDesktopVideoControlsTheme(
-                    normal: const MaterialDesktopVideoControlsThemeData(
-                      visibleOnMount: true,
-                      playAndPauseOnTap: true,
-                    ),
-                    fullscreen: const MaterialDesktopVideoControlsThemeData(
-                      visibleOnMount: true,
-                      playAndPauseOnTap: true,
-                    ),
-                    child: Video(
-                      controller: _videoController!,
-                      fit: BoxFit.cover,
-                      controls: MaterialDesktopVideoControls,
-                    ),
-                  )
-                : Container(color: Colors.black),
-          ),
-          Positioned(
-            bottom: 40,
-            right: 40,
-            child: IgnorePointer(
-              ignoring: !showSkipButton,
-              child: SkipButton(
-                onSkip: skipIntroOutro,
-                label: skipButtonLabel,
-                show: showSkipButton,
-              ),
-            ),
-          ),
-        ],
-      );
+      return _buildTVPlayerLayout();
     }
 
     return Column(
       children: [
-        Container(
-          margin: const EdgeInsets.all(16),
-          child: Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: AspectRatio(
-                    aspectRatio: _calculateAspectRatio(),
-                    child: _videoController != null
-                        ? Video(
-                            controller: _videoController!,
-                            fit: BoxFit.contain,
-                          )
-                        : Container(color: Colors.black),
+        _buildVideoPlayerCard(),
+        _buildInfoPanel(),
+      ],
+    );
+  }
+
+  Widget _buildTVPlayerLayout() {
+    return Stack(
+      children: [
+        SizedBox.expand(
+          child: _videoController != null
+              ? MaterialDesktopVideoControlsTheme(
+                  normal: const MaterialDesktopVideoControlsThemeData(
+                    visibleOnMount: true,
+                    playAndPauseOnTap: true,
                   ),
-                ),
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  ignoring: !showSkipButton,
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 24, right: 16),
-                      child: Align(
-                        alignment: Alignment.bottomRight,
-                        child: SkipButton(
-                          onSkip: skipIntroOutro,
-                          label: skipButtonLabel,
-                          show: showSkipButton,
-                        ),
-                      ),
-                    ),
+                  fullscreen: const MaterialDesktopVideoControlsThemeData(
+                    visibleOnMount: true,
+                    playAndPauseOnTap: true,
                   ),
-                ),
-              ),
-            ],
-          ),
+                  child: Video(
+                    controller: _videoController!,
+                    fit: BoxFit.cover,
+                    controls: MaterialDesktopVideoControls,
+                  ),
+                )
+              : Container(color: Colors.black),
         ),
-
-        Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.surface.withValues(alpha: 0.8),
-                AppColors.surfaceLight.withValues(alpha: 0.6),
-              ],
+        Positioned(
+          bottom: 40,
+          right: 40,
+          child: IgnorePointer(
+            ignoring: !showSkipButton,
+            child: SkipButton(
+              onSkip: skipIntroOutro,
+              label: skipButtonLabel,
+              show: showSkipButton,
             ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.animeTitle,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Episode ${extractEpisodeNumber(widget.episode.number)}',
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildTag(
-                    AppLocalizations.of(context).dynamicQuality,
-                    const Color(0xFF9C27B0),
-                    Icons.high_quality_rounded,
-                  ),
-                  _buildTag(
-                    AppLocalizations.of(context).optimizedPlayer,
-                    const Color(0xFF2196F3),
-                    Icons.offline_bolt_rounded,
-                  ),
-                  if (_isGoogleStream)
-                    _buildTag(
-                      AppLocalizations.of(context).googleVideo,
-                      const Color(0xFF4CAF50),
-                      Icons.cloud_done_rounded,
-                    ),
-                  if (_hasAnySubtitleTrack())
-                    _buildSubtitleSelectorTag(context),
-                ],
-              ),
-
-              if (_currentVideoUrl != null) ...[
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          gradient: AppColors.getPrimaryGradient(),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.sensors,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppLocalizations.of(context).serverInUse,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              Uri.parse(_currentVideoUrl!).host,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 12,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _copyStreamLink,
-                        icon: const Icon(
-                          Icons.copy,
-                          color: AppColors.primary,
-                        ),
-                        tooltip: AppLocalizations.of(context).copyLink,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _initializeVideoPlayer,
-                      icon: const Icon(Icons.refresh),
-                      label: Text(AppLocalizations.of(context).syncStream),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _currentVideoUrl == null
-                          ? null
-                          : _copyStreamLink,
-                      icon: const Icon(Icons.link),
-                      label: Text(AppLocalizations.of(context).copyLink),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              if (_showWebViewOption && _bloggerVideoUrl != null) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _openWebViewFallback,
-                    icon: const Icon(Icons.open_in_browser),
-                    label: Text(
-                      AppLocalizations.of(context).alternativePlayer,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildVideoPlayerCard() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: AspectRatio(
+                aspectRatio: _calculateAspectRatio(),
+                child: _videoController != null
+                    ? Video(
+                        controller: _videoController!,
+                        fit: BoxFit.contain,
+                      )
+                    : Container(color: Colors.black),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: !showSkipButton,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 24, right: 16),
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: SkipButton(
+                      onSkip: skipIntroOutro,
+                      label: skipButtonLabel,
+                      show: showSkipButton,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoPanel() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.surface.withValues(alpha: 0.8),
+            AppColors.surfaceLight.withValues(alpha: 0.6),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTitleSection(),
+          const SizedBox(height: 20),
+          _buildTagsRow(),
+          if (_currentVideoUrl != null) ...[
+            const SizedBox(height: 20),
+            _buildServerInfoSection(),
+          ],
+          const SizedBox(height: 20),
+          _buildActionButtons(),
+          if (_showWebViewOption && _bloggerVideoUrl != null) ...[
+            const SizedBox(height: 12),
+            _buildAlternativePlayerButton(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTitleSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.animeTitle,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          AppLocalizations.of(context).episode(extractEpisodeNumber(widget.episode.number)),
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagsRow() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _buildTag(
+          AppLocalizations.of(context).dynamicQuality,
+          const Color(0xFF9C27B0),
+          Icons.high_quality_rounded,
+        ),
+        _buildTag(
+          AppLocalizations.of(context).optimizedPlayer,
+          const Color(0xFF2196F3),
+          Icons.offline_bolt_rounded,
+        ),
+        if (_isGoogleStream)
+          _buildTag(
+            AppLocalizations.of(context).googleVideo,
+            const Color(0xFF4CAF50),
+            Icons.cloud_done_rounded,
+          ),
+        if (_hasAnySubtitleTrack())
+          _buildSubtitleSelectorTag(context),
+      ],
+    );
+  }
+
+  Widget _buildServerInfoSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: AppColors.getPrimaryGradient(),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.sensors,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppLocalizations.of(context).serverInUse,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  Uri.parse(_currentVideoUrl!).host,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _copyStreamLink,
+            icon: const Icon(
+              Icons.copy,
+              color: AppColors.primary,
+            ),
+            tooltip: AppLocalizations.of(context).copyLink,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _initializeVideoPlayer,
+            icon: const Icon(Icons.refresh),
+            label: Text(AppLocalizations.of(context).syncStream),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _currentVideoUrl == null ? null : _copyStreamLink,
+            icon: const Icon(Icons.link),
+            label: Text(AppLocalizations.of(context).copyLink),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlternativePlayerButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _openWebViewFallback,
+        icon: const Icon(Icons.open_in_browser),
+        label: Text(
+          AppLocalizations.of(context).alternativePlayer,
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.deepPurple,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1437,7 +1467,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
             ),
             const SizedBox(width: 5),
             Text(
-              active ?? 'Legendas',
+              active ?? AppLocalizations.of(context).subtitles,
               style: const TextStyle(
                 color: Color(0xFFEF4444),
                 fontSize: 11,
@@ -1460,29 +1490,27 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   String? _effectiveActiveSubtitleLabel() {
     final current = _player?.state.track.subtitle;
     if (current == null) return null;
-    if (current.id == 'no') return 'Sem legenda';
-    if (current.id == 'auto') return 'Auto';
-    // Tenta achar entre externas
+    if (current.id == 'no') return AppLocalizations.of(context).noSubtitle;
+    if (current.id == 'auto') return AppLocalizations.of(context).auto;
     for (final ext in widget.episode.subtitleTracks) {
       if (ext.url != null && current.id == ext.url) return ext.displayName;
     }
-    // Tenta achar entre embutidas
     for (final embed in _embeddedSubtitleTracks) {
       if (current.id == embed.id) {
-        return embed.title ?? embed.language ?? 'Embutida';
+        return embed.title ?? embed.language ?? AppLocalizations.of(context).subtitleEmbedded;
       }
     }
     return current.title ?? current.language;
   }
 
-  /// Mostra o bottom sheet com a lista completa de legendas
-  /// (embutidas + externas) + opções "Auto" e "Sem legenda".
   Future<void> _showSubtitleSheet(BuildContext context) async {
     final external = widget.episode.subtitleTracks
         .where((s) => s.url != null)
         .toList();
     final embedded = _embeddedSubtitleTracks;
     if (external.isEmpty && embedded.isEmpty) return;
+
+    final l10n = AppLocalizations.of(context);
 
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -1512,9 +1540,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                         size: 22,
                       ),
                       const SizedBox(width: 12),
-                      const Text(
-                        'Legendas',
-                        style: TextStyle(
+                      Text(
+                        l10n.subtitles,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -1524,52 +1552,48 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                   ),
                 ),
                 const Divider(height: 1, color: Colors.white12),
-                // Auto: deixa media_kit decidir
                 _buildSubtitleSheetOption(
                   icon: Icons.auto_awesome_rounded,
-                  label: 'Auto (recomendado)',
-                  subtitle: 'Deixa o media_kit escolher a melhor faixa.',
+                  label: l10n.autoRecommended,
+                  subtitle: l10n.autoDescription,
                   isActive: _isCurrentSubtitleAuto(),
                   onTap: () async {
                     Navigator.pop(sheetContext);
-                    await _selectSubtitle(SubtitleTrack.auto(), label: 'Auto');
+                    await _selectSubtitle(SubtitleTrack.auto(), label: l10n.auto);
                   },
                 ),
-                // Sem legenda
                 _buildSubtitleSheetOption(
                   icon: Icons.subtitles_off_rounded,
-                  label: 'Sem legenda',
-                  subtitle: 'Desativa todas as legendas.',
+                  label: l10n.subtitlesOff,
+                  subtitle: l10n.subtitlesOffDescription,
                   isActive: _isCurrentSubtitleNone(),
                   onTap: () async {
                     Navigator.pop(sheetContext);
                     await _selectSubtitle(
                       SubtitleTrack.no(),
-                      label: 'Sem legenda',
+                      label: l10n.subtitlesOff,
                     );
                   },
                 ),
-                // Embutidas do vídeo
                 if (embedded.isNotEmpty) ...[
-                  _buildSectionHeader('Embutidas no vídeo'),
+                  _buildSectionHeader(l10n.embeddedSubtitles),
                   for (final t in embedded)
                     _buildSubtitleSheetOption(
                       icon: Icons.movie_outlined,
                       label: t.title ?? t.language ?? 'Track ${t.id}',
-                      subtitle: t.language ?? 'Idioma desconhecido',
+                      subtitle: t.language ?? l10n.unknownLanguage,
                       isActive: _isCurrentSubtitleTrack(t),
                       onTap: () async {
                         Navigator.pop(sheetContext);
                         await _selectSubtitle(
                           t,
-                          label: t.title ?? t.language ?? 'Embutida',
+                          label: t.title ?? t.language ?? l10n.subtitleEmbedded,
                         );
                       },
                     ),
                 ],
-                // Externas
                 if (external.isNotEmpty) ...[
-                  _buildSectionHeader('Externas (.srt)'),
+                  _buildSectionHeader(l10n.externalSubtitles),
                   for (final s in external)
                     _buildSubtitleSheetOption(
                       icon: Icons.subtitles_rounded,
@@ -1701,7 +1725,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao trocar legenda: $e'),
+            content: Text(AppLocalizations.of(context).subtitleError('$e')),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),

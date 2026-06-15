@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../helpers/database_helper.dart';
+import '../l10n/app_localizations.dart';
 import '../models/anime.dart';
 import '../providers/theme_provider.dart';
 import '../services/anime_service.dart';
@@ -74,7 +75,7 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Buscar por título, saga ou estúdio...',
+              hintText: AppLocalizations.of(context).searchHint,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 20,
@@ -95,7 +96,7 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
                     : FilledButton.tonalIcon(
                         onPressed: _searchAnime,
                         icon: const Icon(Icons.arrow_forward_rounded),
-                        label: const Text('Buscar'),
+                        label: Text(AppLocalizations.of(context).search),
                       ),
               ),
             ),
@@ -139,10 +140,10 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Procurando pelos melhores episódios...'),
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(AppLocalizations.of(context).searchingBestEpisodes),
           ],
         ),
       ),
@@ -166,14 +167,14 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
           Icon(Icons.airplay_rounded, size: 64, color: colorScheme.primary),
           const SizedBox(height: 16),
           Text(
-            'Explore o catálogo',
+            AppLocalizations.of(context).exploreCatalog,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Pesquise por títulos populares, gêneros ou utilize sua lista de favoritos.',
+            AppLocalizations.of(context).searchPrompt,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
@@ -205,7 +206,7 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Não foi possível concluir sua busca',
+            AppLocalizations.of(context).searchErrorTitle,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: colorScheme.onErrorContainer,
@@ -214,7 +215,7 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _errorMessage ?? 'Tente novamente em instantes.',
+            _errorMessage ?? AppLocalizations.of(context).tryAgainLater,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onErrorContainer.withValues(alpha: 0.85),
             ),
@@ -224,7 +225,7 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
           FilledButton.tonalIcon(
             onPressed: _searchAnime,
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Tentar novamente'),
+            label: Text(AppLocalizations.of(context).retry),
             style: FilledButton.styleFrom(
               foregroundColor: colorScheme.onErrorContainer,
               backgroundColor: colorScheme.onErrorContainer.withValues(
@@ -239,8 +240,7 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
 
   Widget _buildResultsList() {
     final theme = Theme.of(context);
-    final label =
-        '${_searchResults.length} resultado${_searchResults.length == 1 ? '' : 's'} encontrados';
+    final label = AppLocalizations.of(context).resultsFound(_searchResults.length);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,8 +346,8 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
                     HapticFeedback.lightImpact();
                   },
                   tooltip: widget.themeProvider.isDarkMode
-                      ? 'Tema claro'
-                      : 'Tema escuro',
+                      ? AppLocalizations.of(context).lightMode
+                      : AppLocalizations.of(context).darkMode,
                 ),
               ],
             ),
@@ -361,14 +361,14 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Comece uma nova maratona',
+                      AppLocalizations.of(context).startMarathon,
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Pesquise por títulos, sagas ou estúdios para encontrar seu anime.',
+                      AppLocalizations.of(context).searchScreenSubtitle,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.72,

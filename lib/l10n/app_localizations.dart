@@ -81,6 +81,35 @@ class AppLocalizations {
   // Search Screen
   String get searchAnime =>
       locale.languageCode == 'pt' ? 'Buscar Anime...' : 'Search Anime...';
+  String get searchHint => locale.languageCode == 'pt'
+      ? 'Buscar por título, saga ou estúdio...'
+      : 'Search by title, saga or studio...';
+  String get searchingBestEpisodes => locale.languageCode == 'pt'
+      ? 'Procurando pelos melhores episódios...'
+      : 'Searching for the best episodes...';
+  String get exploreCatalog =>
+      locale.languageCode == 'pt' ? 'Explore o catálogo' : 'Explore the catalog';
+  String get searchPrompt => locale.languageCode == 'pt'
+      ? 'Pesquise por títulos populares, gêneros ou utilize sua lista de favoritos.'
+      : 'Search for popular titles, genres or use your favorites list.';
+  String get searchErrorTitle => locale.languageCode == 'pt'
+      ? 'Não foi possível concluir sua busca'
+      : 'Could not complete your search';
+  String get tryAgainLater => locale.languageCode == 'pt'
+      ? 'Tente novamente em instantes.'
+      : 'Try again in a moment.';
+  String resultsFound(int count) => locale.languageCode == 'pt'
+      ? '$count resultado${count == 1 ? '' : 's'} encontrado${count == 1 ? '' : 's'}'
+      : '$count result${count == 1 ? '' : 's'} found';
+  String get lightMode =>
+      locale.languageCode == 'pt' ? 'Tema claro' : 'Light mode';
+  String get darkMode =>
+      locale.languageCode == 'pt' ? 'Tema escuro' : 'Dark mode';
+  String get startMarathon =>
+      locale.languageCode == 'pt' ? 'Comece uma nova maratona' : 'Start a new marathon';
+  String get searchScreenSubtitle => locale.languageCode == 'pt'
+      ? 'Pesquise por títulos, sagas ou estúdios para encontrar seu anime.'
+      : 'Search for titles, sagas or studios to find your anime.';
   String get recentSearches =>
       locale.languageCode == 'pt' ? 'Buscas Recentes' : 'Recent Searches';
   String get trending30Days =>
@@ -166,6 +195,36 @@ class AppLocalizations {
       : 'The key was not saved';
 
   // Downloads Screen
+  String get downloads =>
+      locale.languageCode == 'pt' ? 'Downloads' : 'Downloads';
+  String get activeTab =>
+      locale.languageCode == 'pt' ? 'Ativos' : 'Active';
+  String get completedTab =>
+      locale.languageCode == 'pt' ? 'Concluídos' : 'Completed';
+  String get downloadSettings =>
+      locale.languageCode == 'pt' ? 'Configurações de Download' : 'Download Settings';
+  String get maxConcurrentDownloads => locale.languageCode == 'pt'
+      ? 'Downloads Simultâneos'
+      : 'Max Concurrent Downloads';
+  String get noActiveDownloads =>
+      locale.languageCode == 'pt' ? 'Nenhum download ativo' : 'No active downloads';
+  String get noCompletedDownloads =>
+      locale.languageCode == 'pt' ? 'Nenhum download concluído' : 'No completed downloads';
+  String get deleteDownload =>
+      locale.languageCode == 'pt' ? 'Excluir Download' : 'Delete Download';
+  String get deleteDownloadConfirmation => locale.languageCode == 'pt'
+      ? 'Tem certeza que deseja excluir este download?'
+      : 'Are you sure you want to delete this download?';
+  String episodesCount(int count) => locale.languageCode == 'pt'
+      ? '$count ${count == 1 ? 'episódio' : 'episódios'}'
+      : '$count ${count == 1 ? 'episode' : 'episodes'}';
+  String get paused => locale.languageCode == 'pt' ? 'Pausado' : 'Paused';
+  String get waiting => locale.languageCode == 'pt' ? 'Aguardando...' : 'Waiting...';
+  String failedWith(String error) => locale.languageCode == 'pt'
+      ? 'Falhou: $error'
+      : 'Failed: $error';
+  String get unknownError =>
+      locale.languageCode == 'pt' ? 'Erro desconhecido' : 'Unknown error';
   String get clearAllCompleted =>
       locale.languageCode == 'pt' ? 'Limpar Concluídos' : 'Clear All Completed';
   String get delete => locale.languageCode == 'pt' ? 'Excluir' : 'Delete';
@@ -239,6 +298,36 @@ class AppLocalizations {
       locale.languageCode == 'pt' ? 'Pular Intro' : 'Skip Intro';
   String get skipOutro =>
       locale.languageCode == 'pt' ? 'Pular Encerramento' : 'Skip Outro';
+  String get subtitles =>
+      locale.languageCode == 'pt' ? 'Legendas' : 'Subtitles';
+  String get subtitleSelector =>
+      locale.languageCode == 'pt' ? 'Legendas' : 'Subtitles';
+  String get autoRecommended => locale.languageCode == 'pt'
+      ? 'Automático (recomendado)'
+      : 'Auto (recommended)';
+  String get autoDescription => locale.languageCode == 'pt'
+      ? 'Deixa o media_kit escolher a melhor faixa.'
+      : 'Let media_kit choose the best track.';
+  String get auto => locale.languageCode == 'pt' ? 'Automático' : 'Auto';
+  String get subtitlesOff =>
+      locale.languageCode == 'pt' ? 'Sem legenda' : 'Subtitles Off';
+  String get subtitlesOffDescription => locale.languageCode == 'pt'
+      ? 'Desativa todas as legendas.'
+      : 'Disable all subtitles.';
+  String get embeddedSubtitles => locale.languageCode == 'pt'
+      ? 'Embutidas no vídeo'
+      : 'Embedded in video';
+  String get externalSubtitles =>
+      locale.languageCode == 'pt' ? 'Externas (.srt)' : 'External (.srt)';
+  String get unknownLanguage =>
+      locale.languageCode == 'pt' ? 'Idioma desconhecido' : 'Unknown language';
+  String subtitleError(String error) => locale.languageCode == 'pt'
+      ? 'Erro ao trocar legenda: $error'
+      : 'Error switching subtitle: $error';
+  String get subtitleEmbedded =>
+      locale.languageCode == 'pt' ? 'Embutida' : 'Embedded';
+  String get noSubtitle =>
+      locale.languageCode == 'pt' ? 'Sem legenda' : 'No subtitle';
 
   // Watchlist Screen
   String get watchlist =>

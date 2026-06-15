@@ -83,7 +83,7 @@ class PauloFlixMoviesService {
           continue;
         }
         final rawName =
-            text.endsWith('/') ? text.substring(0, text.length - 1) : text;
+            href.endsWith('/') ? href.substring(0, href.length - 1) : href;
         links.add(_LinkEntry(href: href, name: safeDecodeComponent(rawName)));
       }
       return links;

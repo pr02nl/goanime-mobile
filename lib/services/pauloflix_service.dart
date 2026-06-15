@@ -27,15 +27,14 @@ class PauloFlixService {
       List<PauloFlixShow> shows = [];
       for (var element in linkElements) {
         final href = element.attributes['href'] ?? '';
-        final name = element.text.trim();
-        if (href == '../' || href.isEmpty || name.isEmpty || name == '../') {
+        final text = element.text.trim();
+        if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {
           continue;
         }
         if (!href.endsWith('/')) continue;
-        final decodedName = Uri.decodeComponent(
-          name.endsWith('/') ? name.substring(0, name.length - 1) : name,
-        );
-        final absoluteUrl = '$baseUrl${Uri.encodeComponent(decodedName)}/';
+        final rawName = href.substring(0, href.length - 1);
+        final decodedName = Uri.decodeComponent(rawName);
+        final absoluteUrl = '$baseUrl$href';
         shows.add(PauloFlixShow(name: decodedName, url: absoluteUrl));
       }
       debugPrint('[PauloFlix] Found ${shows.length} shows');
@@ -63,17 +62,16 @@ class PauloFlixService {
       List<PauloFlixSeason> seasons = [];
       for (var element in linkElements) {
         final href = element.attributes['href'] ?? '';
-        final name = element.text.trim();
-        if (href == '../' || href.isEmpty || name.isEmpty || name == '../') {
+        final text = element.text.trim();
+        if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {
           continue;
         }
         if (!href.endsWith('/')) continue;
-        final decodedName = Uri.decodeComponent(
-          name.endsWith('/') ? name.substring(0, name.length - 1) : name,
-        );
+        final rawName = href.substring(0, href.length - 1);
+        final decodedName = Uri.decodeComponent(rawName);
         final seasonNumber = _extractSeasonNumber(decodedName);
         if (seasonNumber == null) continue;
-        final absoluteUrl = '$showUrl${Uri.encodeComponent(decodedName)}/';
+        final absoluteUrl = '$showUrl$href';
         seasons.add(
           PauloFlixSeason(
             name: decodedName,
@@ -115,16 +113,17 @@ class PauloFlixService {
       List<PauloFlixEpisode> episodes = [];
       for (var element in linkElements) {
         final href = element.attributes['href'] ?? '';
-        final name = element.text.trim();
-        if (href == '../' || href.isEmpty || name.isEmpty || name == '../') {
+        final text = element.text.trim();
+        if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {
           continue;
         }
-        final lowerName = name.toLowerCase();
-        final hasVideoExtension = videoExtensions.any((ext) => lowerName.endsWith(ext));
+        final lowerHref = href.toLowerCase();
+        final hasVideoExtension = videoExtensions.any((ext) => lowerHref.endsWith(ext));
         if (!hasVideoExtension) continue;
-        final episodeInfo = _extractEpisodeInfo(name);
+        final decodedName = Uri.decodeComponent(href);
+        final episodeInfo = _extractEpisodeInfo(decodedName);
         if (episodeInfo == null) continue;
-        final absoluteUrl = '$seasonUrl${Uri.encodeComponent(name)}';
+        final absoluteUrl = '$seasonUrl$href';
         episodes.add(
           PauloFlixEpisode(
             number: episodeInfo.number,
