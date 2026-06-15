@@ -10,6 +10,7 @@ import 'pauloflix_database_service.dart';
 
 class PauloFlixService {
   static const String baseUrl = 'http://100.95.105.113:8300/tvshows/';
+  static const Duration reEnrichThreshold = Duration(days: 7);
 
   static Future<List<PauloFlixShow>> fetchAllShows() async {
     try {
@@ -190,19 +191,24 @@ class PauloFlixService {
 
       final dbService = PauloFlixDatabaseService();
       final existingContent = await dbService.getAllContent();
-      final showsToProcess = await _computeShowsToProcess(
-        dbService, shows, existingContent, onProgress,
-      );
+      final result = await _computeShowsToProcess(shows, existingContent);
 
-      if (showsToProcess.isEmpty) {
+      if (result.removedFolderNames.isNotEmpty) {
+        onProgress?.call(
+          'Marcando ${result.removedFolderNames.length} shows removidos...',
+        );
+      }
+
+      if (result.showsToProcess.isEmpty) {
         onProgress?.call(
           'Sincronizacao completa: ${existingContent.length} shows',
         );
+        await _finishSync(dbService, result.removedFolderNames);
         return true;
       }
 
       final contents = await _enrichShowsWithJikan(
-        showsToProcess, onProgress,
+        result.showsToProcess, onProgress,
       );
 
       onProgress?.call(
@@ -210,12 +216,11 @@ class PauloFlixService {
       );
       await dbService.saveBatch(contents);
 
-      final currentFolderNames = shows.map((s) => s.name).toSet();
-      final removedCount = existingContent
-          .where((c) => !currentFolderNames.contains(c.folderName))
-          .length;
-      final totalAvailable = existingContent.length - removedCount +
-          showsToProcess.length;
+      await _finishSync(dbService, result.removedFolderNames);
+
+      final totalAvailable = existingContent.length -
+          result.removedFolderNames.length +
+          result.showsToProcess.length;
       onProgress?.call('Sincronizacao completa: $totalAvailable shows');
       return true;
     } catch (e) {
@@ -225,11 +230,9 @@ class PauloFlixService {
     }
   }
 
-  static Future<List<PauloFlixShow>> _computeShowsToProcess(
-    PauloFlixDatabaseService dbService,
+  static Future<_ComputeResult> _computeShowsToProcess(
     List<PauloFlixShow> shows,
     List<PauloFlixContent> existingContent,
-    void Function(String progress)? onProgress,
   ) async {
     final existingFolderNames = existingContent
         .map((c) => c.folderName)
@@ -239,14 +242,8 @@ class PauloFlixService {
     final removedFolderNames = existingFolderNames.difference(
       currentFolderNames,
     );
-    if (removedFolderNames.isNotEmpty) {
-      onProgress?.call(
-        'Marcando ${removedFolderNames.length} shows removidos...',
-      );
-      for (final folderName in removedFolderNames) {
-        await dbService.markAsUnavailable(folderName);
-      }
-    }
+
+    final staleThreshold = DateTime.now().subtract(reEnrichThreshold);
 
     final newShows = shows
         .where((s) => !existingFolderNames.contains(s.name))
@@ -254,21 +251,27 @@ class PauloFlixService {
     final needsUpdate = existingContent
         .where(
           (c) =>
-              c.imageUrl == null && currentFolderNames.contains(c.folderName),
+              currentFolderNames.contains(c.folderName) &&
+              (c.imageUrl == null ||
+                  c.imageUrl!.isEmpty ||
+                  c.lastSynced.isBefore(staleThreshold)),
         )
         .toList();
 
-    final result = [...newShows];
+    final showsToProcess = [...newShows];
     for (final content in needsUpdate) {
       final match = shows.where((s) => s.name == content.folderName);
       if (match.isNotEmpty) {
         final show = match.first;
-        if (!result.any((s) => s.name == show.name)) {
-          result.add(show);
+        if (!showsToProcess.any((s) => s.name == show.name)) {
+          showsToProcess.add(show);
         }
       }
     }
-    return result;
+    return _ComputeResult(
+      showsToProcess: showsToProcess,
+      removedFolderNames: removedFolderNames.toList(),
+    );
   }
 
   static Future<List<PauloFlixContent>> _enrichShowsWithJikan(
@@ -330,10 +333,29 @@ class PauloFlixService {
     }
     return contents;
   }
+
+  static Future<void> _finishSync(
+    PauloFlixDatabaseService dbService,
+    List<String> removedFolderNames,
+  ) async {
+    for (final folderName in removedFolderNames) {
+      await dbService.markAsUnavailable(folderName);
+    }
+    await dbService.removeStaleContent();
+  }
 }
 
 class _EpisodeInfo {
   final int number;
   final String title;
   const _EpisodeInfo({required this.number, required this.title});
+}
+
+class _ComputeResult {
+  final List<PauloFlixShow> showsToProcess;
+  final List<String> removedFolderNames;
+  const _ComputeResult({
+    required this.showsToProcess,
+    required this.removedFolderNames,
+  });
 }

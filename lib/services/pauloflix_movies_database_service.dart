@@ -170,6 +170,17 @@ class PauloFlixMoviesDatabaseService {
     );
   }
 
+  Future<void> removeStaleContent({int maxDays = 30}) async {
+    final db = await database;
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: maxDays))
+        .toIso8601String();
+    db.execute(
+      'DELETE FROM $_tableName WHERE lastSynced < ? AND isAvailable = 0',
+      [cutoff],
+    );
+  }
+
   Future<Map<String, int>> getStats() async {
     final db = await database;
     final total = db

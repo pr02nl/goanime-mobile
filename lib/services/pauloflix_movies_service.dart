@@ -30,6 +30,7 @@ import 'tmdb_service.dart';
 /// streaming — nunca é passado pro TMDB.
 class PauloFlixMoviesService {
   static const String baseUrl = 'http://100.95.105.113:8300/movies/';
+  static const Duration reEnrichThreshold = Duration(days: 7);
 
   /// Extensões de vídeo reconhecidas.
   static const Set<String> videoExtensions = {
@@ -454,22 +455,18 @@ class PauloFlixMoviesService {
       final existingFolders = existing.map((c) => c.folderName).toSet();
       final currentFolders = folders.map((f) => f.name).toSet();
 
-      // Marca removidos
       final removed = existingFolders.difference(currentFolders);
-      if (removed.isNotEmpty) {
-        onProgress?.call('Marcando ${removed.length} filmes removidos...');
-        for (final name in removed) {
-          await db.markAsUnavailable(name);
-        }
-      }
+      final staleThreshold = DateTime.now().subtract(reEnrichThreshold);
 
       // Coleta tudo o que precisa enriquecer
       final needsEnrich = existing
           .where(
             (c) =>
-                c.imageUrl == null ||
-                c.imageUrl!.isEmpty ||
-                (c.isCollection == false && c.availableMovieCount == 0),
+                currentFolders.contains(c.folderName) &&
+                (c.imageUrl == null ||
+                    c.imageUrl!.isEmpty ||
+                    (c.isCollection == false && c.availableMovieCount == 0) ||
+                    c.lastSynced.isBefore(staleThreshold)),
           )
           .map((c) {
             final match = folders.where((f) => f.name == c.folderName);
@@ -489,6 +486,12 @@ class PauloFlixMoviesService {
 
       if (toProcess.isEmpty) {
         onProgress?.call('Sincronização completa: ${existing.length} itens');
+        if (removed.isNotEmpty) {
+          for (final name in removed) {
+            await db.markAsUnavailable(name);
+          }
+        }
+        await db.removeStaleContent();
         return true;
       }
 
@@ -563,6 +566,14 @@ class PauloFlixMoviesService {
 
       onProgress?.call('Salvando ${contents.length} itens no banco...');
       await db.saveBatch(contents);
+
+      if (removed.isNotEmpty) {
+        onProgress?.call('Marcando ${removed.length} filmes removidos...');
+        for (final name in removed) {
+          await db.markAsUnavailable(name);
+        }
+      }
+      await db.removeStaleContent();
 
       final totalAvailable =
           existing.length - removed.length + newFolders.length;
