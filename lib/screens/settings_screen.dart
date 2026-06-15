@@ -57,9 +57,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _saveTmdbKey() async {
     final raw = _tmdbKeyController.text.trim();
     if (raw.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Digite uma chave válida')));
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.validKeyRequired)),
+      );
       return;
     }
     await _apiKeys.setTmdbApiKey(raw);
@@ -68,9 +69,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _loadTmdbStatus();
     if (!mounted) return;
     setState(() => _showTmdbField = false);
+    final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Chave do TMDB salva com sucesso'),
+      SnackBar(
+        content: Text(l10n.tmdbKeySaved),
         backgroundColor: Colors.green,
       ),
     );
@@ -82,9 +84,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _tmdbKeyController.clear();
     await _loadTmdbStatus();
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Chave do TMDB removida')));
+    final l10n = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.tmdbKeyRemoved)),
+    );
   }
 
   Future<void> _detectTVMode() async {
@@ -375,9 +378,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildApiKeysSection({required bool isTV}) {
+    final l10n = AppLocalizations.of(context);
     return _buildSectionCard(
       context,
-      title: 'API Keys',
+      title: l10n.apiKeys,
       icon: Icons.vpn_key_outlined,
       iconColor: const Color(0xFFDC2626),
       isTV: isTV,
@@ -394,9 +398,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'The Movie Database (TMDB)',
-                  style: TextStyle(
+                Text(
+                  l10n.theMovieDatabase,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -412,7 +416,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    _isTmdbConfigured ? 'Configurado' : 'Não configurado',
+                    _isTmdbConfigured ? l10n.configured : l10n.notConfigured,
                     style: TextStyle(
                       color: _isTmdbConfigured ? Colors.green : Colors.orange,
                       fontWeight: FontWeight.w600,
@@ -425,8 +429,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             Text(
               _isTmdbConfigured
-                  ? 'Chave salva: $_maskedTmdbKey'
-                  : 'Adicione sua chave v3 da TMDB para sincronizar filmes do PauloFlix com metadados.',
+                  ? '${l10n.configured}: $_maskedTmdbKey'
+                  : l10n.addYourKey,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 13,
@@ -439,7 +443,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 obscureText: false,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'Cole aqui sua API key v3',
+                  hintText: l10n.pasteApiKeyHint,
                   hintStyle: TextStyle(
                     color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 13,
@@ -469,7 +473,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         backgroundColor: const Color(0xFFDC2626),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: const Text('Salvar'),
+                      child: Text(l10n.save),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -485,9 +489,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: const Text(
-                        'Cancelar',
-                        style: TextStyle(color: Colors.white70),
+                      child: Text(
+                        l10n.cancel,
+                        style: const TextStyle(color: Colors.white70),
                       ),
                     ),
                   ),

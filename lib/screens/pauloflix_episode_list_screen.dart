@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/anime.dart';
 import '../models/episode.dart';
 import '../models/pauloflix_content.dart';
@@ -49,6 +50,7 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
@@ -198,7 +200,7 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadSeasons,
-                      child: const Text('Tentar Novamente'),
+                        child: Text(l10n.retry),
                     ),
                   ],
                 ),

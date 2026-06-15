@@ -29,6 +29,36 @@ class AppLocalizations {
       locale.languageCode == 'pt' ? 'Tentar Novamente' : 'Retry';
   String get close => locale.languageCode == 'pt' ? 'Fechar' : 'Close';
 
+  // Anime Detail Screen
+  String get watchEpisodes =>
+      locale.languageCode == 'pt' ? 'Assistir Episódios' : 'Watch Episodes';
+  String get genres => locale.languageCode == 'pt' ? 'Gêneros' : 'Genres';
+  String get synopsis =>
+      locale.languageCode == 'pt' ? 'Sinopse' : 'Synopsis';
+  String get information =>
+      locale.languageCode == 'pt' ? 'Informações' : 'Information';
+  String get seasonLabel =>
+      locale.languageCode == 'pt' ? 'Temporada' : 'Season';
+  String get anilistId => locale.languageCode == 'pt' ? 'AniList ID' : 'AniList ID';
+  String get malId =>
+      locale.languageCode == 'pt' ? 'MyAnimeList ID' : 'MyAnimeList ID';
+  String get popularity =>
+      locale.languageCode == 'pt' ? 'Popularidade' : 'Popularity';
+  String get winter => locale.languageCode == 'pt' ? 'Inverno' : 'Winter';
+  String get spring => locale.languageCode == 'pt' ? 'Primavera' : 'Spring';
+  String get summer => locale.languageCode == 'pt' ? 'Verão' : 'Summer';
+  String get fall => locale.languageCode == 'pt' ? 'Outono' : 'Fall';
+  String get aired =>
+      locale.languageCode == 'pt' ? 'Lançado' : 'Aired';
+  String get notYetAired =>
+      locale.languageCode == 'pt' ? 'Não Lançado' : 'Not Yet Aired';
+  String get currentlyAiring =>
+      locale.languageCode == 'pt' ? 'Em Exibição' : 'Currently Airing';
+  String get cancelled =>
+      locale.languageCode == 'pt' ? 'Cancelado' : 'Cancelled';
+  String get hiatus =>
+      locale.languageCode == 'pt' ? 'Em Hiato' : 'On Hiatus';
+
   // Home Screen
   String get home => locale.languageCode == 'pt' ? 'Início' : 'Home';
   String get trending => locale.languageCode == 'pt' ? 'Em Alta' : 'Trending';
@@ -86,6 +116,59 @@ class AppLocalizations {
   String get sports => locale.languageCode == 'pt' ? 'Esportes' : 'Sports';
   String get sliceOfLife =>
       locale.languageCode == 'pt' ? 'Slice of Life' : 'Slice of Life';
+
+  // PauloFlix / Movies
+  String get pauloFlix =>
+      locale.languageCode == 'pt' ? 'PauloFlix' : 'PauloFlix';
+  String get sync =>
+      locale.languageCode == 'pt' ? 'Sincronizar' : 'Sync';
+  String get movies =>
+      locale.languageCode == 'pt' ? 'Filmes' : 'Movies';
+  String movieCount(int count) => locale.languageCode == 'pt'
+      ? '$count ${count == 1 ? 'filme' : 'filmes'}'
+      : '$count ${count == 1 ? 'movie' : 'movies'}';
+  String get noMoviesAvailable =>
+      locale.languageCode == 'pt' ? 'Nenhum filme disponível' : 'No movies available';
+  String get syncMovies =>
+      locale.languageCode == 'pt' ? 'Sincronizar Filmes' : 'Sync Movies';
+  String get syncContent =>
+      locale.languageCode == 'pt' ? 'Sincronizar Conteúdo' : 'Sync Content';
+  String get tmdbNotConfigured => locale.languageCode == 'pt'
+      ? 'TMDB não configurado. Vá em Configurações → API Keys para adicionar a chave.'
+      : 'TMDB not configured. Go to Settings → API Keys to add the key.';
+  String get availableEpisodes =>
+      locale.languageCode == 'pt' ? 'Episódios disponíveis' : 'Available Episodes';
+
+  // Settings Screen
+  String get apiKeys =>
+      locale.languageCode == 'pt' ? 'API Keys' : 'API Keys';
+  String get theMovieDatabase =>
+      locale.languageCode == 'pt' ? 'The Movie Database (TMDB)' : 'The Movie Database (TMDB)';
+  String get configured =>
+      locale.languageCode == 'pt' ? 'Configurado' : 'Configured';
+  String get notConfigured =>
+      locale.languageCode == 'pt' ? 'Não configurado' : 'Not Configured';
+  String get addYourKey =>
+      locale.languageCode == 'pt' ? 'Adicione sua chave TMDB' : 'Add your TMDB key';
+  String get pasteApiKeyHint =>
+      locale.languageCode == 'pt' ? 'Cole aqui sua API key v3' : 'Paste your API key v3 here';
+  String get save => locale.languageCode == 'pt' ? 'Salvar' : 'Save';
+  String get validKeyRequired =>
+      locale.languageCode == 'pt' ? 'Digite uma chave válida' : 'Enter a valid key';
+  String get tmdbKeySaved => locale.languageCode == 'pt'
+      ? 'Chave do TMDB salva com sucesso'
+      : 'TMDB key saved successfully';
+  String get tmdbKeyRemoved => locale.languageCode == 'pt'
+      ? 'Chave do TMDB removida'
+      : 'TMDB key removed';
+  String get unsavedWarning => locale.languageCode == 'pt'
+      ? 'A chave não foi salva'
+      : 'The key was not saved';
+
+  // Downloads Screen
+  String get clearAllCompleted =>
+      locale.languageCode == 'pt' ? 'Limpar Concluídos' : 'Clear All Completed';
+  String get delete => locale.languageCode == 'pt' ? 'Excluir' : 'Delete';
 
   // Episode List Screen
   String get episodes => locale.languageCode == 'pt' ? 'Episódios' : 'Episodes';

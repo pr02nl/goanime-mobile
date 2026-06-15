@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/pauloflix_movie.dart';
 import '../providers/pauloflix_movies_provider.dart';
 import '../theme/app_colors.dart';
@@ -57,12 +58,13 @@ class _PauloFlixMoviesHomeScreenState
   }
 
   void _showTmdbMissingBanner() {
+    final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showMaterialBanner(
       MaterialBanner(
         backgroundColor: const Color(0xFFDC2626).withValues(alpha: 0.15),
-        content: const Text(
-          'TMDB não configurado. Vá em Configurações → API Keys para adicionar a chave.',
-          style: TextStyle(color: Colors.white),
+        content: Text(
+          l10n.tmdbNotConfigured,
+          style: const TextStyle(color: Colors.white),
         ),
         leading: const Icon(Icons.key_off, color: Color(0xFFDC2626)),
         actions: [
@@ -93,6 +95,7 @@ class _PauloFlixMoviesHomeScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final provider = context.watch<PauloFlixMoviesProvider>();
     final contents = provider.contents;
     final crossAxisCount = _getCrossAxisCount(context);
@@ -122,7 +125,7 @@ class _PauloFlixMoviesHomeScreenState
               else
                 IconButton(
                   icon: const Icon(Icons.sync),
-                  tooltip: 'Sincronizar',
+                  tooltip: l10n.sync,
                   onPressed: _syncContent,
                 ),
             ],
@@ -130,11 +133,11 @@ class _PauloFlixMoviesHomeScreenState
               titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 14),
               title: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  PauloFlixMoviesBadge(fontSize: 13, padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
-                  SizedBox(width: 8),
+                children: [
+                  const PauloFlixMoviesBadge(fontSize: 13, padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
+                  const SizedBox(width: 8),
                   Text(
-                    'Filmes',
+                    l10n.movies,
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -189,7 +192,7 @@ class _PauloFlixMoviesHomeScreenState
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                '${contents.length} ${contents.length == 1 ? "filme" : "filmes"}',
+                l10n.movieCount(contents.length),
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 13,
@@ -214,7 +217,7 @@ class _PauloFlixMoviesHomeScreenState
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Nenhum filme disponível',
+                      l10n.noMoviesAvailable,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 16,
@@ -233,7 +236,7 @@ class _PauloFlixMoviesHomeScreenState
                     ElevatedButton.icon(
                       onPressed: _syncContent,
                       icon: const Icon(Icons.sync),
-                      label: const Text('Sincronizar Filmes'),
+                      label: Text(l10n.syncMovies),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFDC2626),
                         foregroundColor: Colors.white,

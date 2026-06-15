@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/anime.dart';
 import '../utils/text_utils.dart';
 import '../widgets/focusable_widget.dart';
@@ -14,6 +15,7 @@ class AnimeDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final hasBanner = anime.bannerUrl.isNotEmpty;
@@ -214,7 +216,7 @@ class AnimeDetailScreen extends StatelessWidget {
                               _buildInfoRow(
                                 context,
                                 Icons.radio_button_checked,
-                                _translateStatus(anime.status!),
+                                _translateStatus(anime.status!, l10n),
                               ),
                             ],
                             if (anime.aniListData?.format != null) ...[
@@ -262,8 +264,8 @@ class AnimeDetailScreen extends StatelessWidget {
                           );
                         },
                         icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                        label: const Text(
-                          'Assistir Episódios',
+                        label: Text(
+                          l10n.watchEpisodes,
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -290,7 +292,7 @@ class AnimeDetailScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Gêneros',
+                          l10n.genres,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -340,7 +342,7 @@ class AnimeDetailScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Sinopse',
+                          l10n.synopsis,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -379,7 +381,7 @@ class AnimeDetailScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Informações',
+                          l10n.information,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -397,27 +399,27 @@ class AnimeDetailScreen extends StatelessWidget {
                             children: [
                               if (anime.aniListData!.season != null &&
                                   anime.aniListData!.seasonYear != null)
-                                _buildInfoTile(
-                                  context,
-                                  'Temporada',
-                                  '${_translateSeason(anime.aniListData!.season!)} ${anime.aniListData!.seasonYear}',
+                                  _buildInfoTile(
+                                    context,
+                                    l10n.seasonLabel,
+                                    '${_translateSeason(anime.aniListData!.season!, l10n)} ${anime.aniListData!.seasonYear}',
                                 ),
                               if (anime.anilistId != null)
                                 _buildInfoTile(
                                   context,
-                                  'AniList ID',
+                                  l10n.anilistId,
                                   anime.anilistId.toString(),
                                 ),
                               if (anime.malId != null)
                                 _buildInfoTile(
                                   context,
-                                  'MyAnimeList ID',
+                                  l10n.malId,
                                   anime.malId.toString(),
                                 ),
                               if (anime.aniListData!.popularity != null)
                                 _buildInfoTile(
                                   context,
-                                  'Popularidade',
+                                  l10n.popularity,
                                   '#${anime.aniListData!.popularity}',
                                   isLast: true,
                                 ),
@@ -500,33 +502,34 @@ class AnimeDetailScreen extends StatelessWidget {
 
   String _cleanDescription(String description) => stripHtml(description);
 
-  String _translateStatus(String status) {
+  String _translateStatus(String status, AppLocalizations l10n) {
     switch (status.toUpperCase()) {
       case 'FINISHED':
-        return 'Finalizado';
+        return l10n.finished;
       case 'RELEASING':
-        return 'Em Lançamento';
+      case 'CURRENTLY_AIRING':
+        return l10n.currentlyAiring;
       case 'NOT_YET_RELEASED':
-        return 'Não Lançado';
+        return l10n.notYetAired;
       case 'CANCELLED':
-        return 'Cancelado';
+        return l10n.cancelled;
       case 'HIATUS':
-        return 'Em Hiato';
+        return l10n.hiatus;
       default:
         return status;
     }
   }
 
-  String _translateSeason(String season) {
+  String _translateSeason(String season, AppLocalizations l10n) {
     switch (season.toUpperCase()) {
       case 'WINTER':
-        return 'Inverno';
+        return l10n.winter;
       case 'SPRING':
-        return 'Primavera';
+        return l10n.spring;
       case 'SUMMER':
-        return 'Verão';
+        return l10n.summer;
       case 'FALL':
-        return 'Outono';
+        return l10n.fall;
       default:
         return season;
     }

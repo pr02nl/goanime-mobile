@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/pauloflix_content.dart';
 import '../providers/pauloflix_provider.dart';
 import '../theme/app_colors.dart';
@@ -47,6 +48,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final pauloflixProvider = context.watch<PauloFlixProvider>();
     final contents = pauloflixProvider.contents;
     final crossAxisCount = _getCrossAxisCount(context);
@@ -83,7 +85,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
               else
                 IconButton(
                   icon: const Icon(Icons.sync),
-                  tooltip: 'Sincronizar',
+                  tooltip: l10n.sync,
                   onPressed: _syncContent,
                 ),
             ],
@@ -236,7 +238,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
                       ElevatedButton.icon(
                         onPressed: _syncContent,
                         icon: const Icon(Icons.sync),
-                        label: const Text('Sincronizar Conteúdo'),
+                        label: Text(l10n.syncContent),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6366F1),
                           foregroundColor: Colors.white,

@@ -273,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen>
 
                 return SliverToBoxAdapter(
                   child: PauloFlixSection(
-                    title: 'PauloFlix',
+                    title: l10n.pauloFlix,
                     contents: pauloflixProvider.contents.take(15).toList(),
                     isTV: _isTV,
                     onSeeAll: () {
@@ -358,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen>
             height: sectionHeight,
             child: Center(
               child: Text(
-                'Nenhum anime encontrado',
+                l10n.noAnimeFound,
                 style: TextStyle(color: NetflixTheme.textTertiary),
               ),
             ),

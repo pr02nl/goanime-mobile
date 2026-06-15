@@ -327,6 +327,7 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildSearchHeader(bool canPop) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -370,7 +371,7 @@ class _SearchScreenState extends State<SearchScreen>
                     autofocus: !_isTV,
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                     decoration: InputDecoration(
-                      hintText: 'Search animes...',
+                      hintText: l10n.searchAnime,
                       hintStyle: TextStyle(
                         color: Colors.white.withValues(alpha: 0.5),
                       ),
@@ -497,12 +498,13 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildHistoryAndTrending() {
+    final l10n = AppLocalizations.of(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         // Recent Searches (with results)
         if (_recentSearchResults.isNotEmpty) ...[
-          _buildSectionHeader('Recent Searches', Icons.history),
+          _buildSectionHeader(l10n.recentSearches, Icons.history),
           const SizedBox(height: 16),
           SizedBox(
             height: 200,
@@ -533,11 +535,11 @@ class _SearchScreenState extends State<SearchScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildSectionHeader('History', Icons.schedule),
+              _buildSectionHeader(l10n.recentSearches, Icons.schedule),
               TextButton(
                 onPressed: _clearHistory,
-                child: const Text(
-                  'Clear',
+                child: Text(
+                  l10n.clear,
                   style: TextStyle(color: AppColors.primary),
                 ),
               ),
@@ -559,7 +561,7 @@ class _SearchScreenState extends State<SearchScreen>
         ],
 
         // Trending
-        _buildSectionHeader('Trending Now', Icons.local_fire_department),
+        _buildSectionHeader(l10n.trending, Icons.local_fire_department),
         const SizedBox(height: 16),
         if (_isLoadingTrending)
           const Center(

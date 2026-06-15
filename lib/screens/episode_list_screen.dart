@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/anime.dart';
 import '../models/episode.dart';
 import '../screens/video_player_screen.dart';
@@ -120,6 +121,7 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
   }
 
   Widget _buildFlexibleHeader(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final hasBanner = widget.anime.bannerUrl.isNotEmpty;
     final hasImage = widget.anime.imageUrl.isNotEmpty;
@@ -308,7 +310,7 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
                               )
                             else
                               Text(
-                                'Episódios disponíveis',
+                                l10n.availableEpisodes,
                                 style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: Colors.white.withValues(
