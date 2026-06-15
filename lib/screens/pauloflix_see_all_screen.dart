@@ -6,6 +6,7 @@ import '../models/pauloflix_content.dart';
 import '../providers/pauloflix_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
+import '../utils/tv_detector.dart';
 import '../widgets/netflix_card.dart';
 import '../widgets/pauloflix_badge.dart';
 import 'pauloflix_episode_list_screen.dart';
@@ -20,6 +21,18 @@ class PauloFlixSeeAllScreen extends StatefulWidget {
 class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _isTV = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _detectTV();
+  }
+
+  Future<void> _detectTV() async {
+    final isTV = await TVDetector.isTV;
+    if (mounted) setState(() => _isTV = isTV);
+  }
 
   @override
   void dispose() {
@@ -286,7 +299,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       rating: content.score,
       width: cardWidth,
       height: cardHeight,
-      isTV: false,
+      isTV: _isTV,
       onTap: () {
         Navigator.push(
           context,
