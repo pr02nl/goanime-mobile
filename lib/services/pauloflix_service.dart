@@ -218,12 +218,12 @@ class PauloFlixService {
           .toList();
       final showsToProcess = [...newShows];
       for (final content in needsUpdate) {
-        final show = shows.firstWhere(
-          (s) => s.name == content.folderName,
-          orElse: () => shows.first,
-        );
-        if (!showsToProcess.any((s) => s.name == show.name)) {
-          showsToProcess.add(show);
+        final match = shows.where((s) => s.name == content.folderName);
+        if (match.isNotEmpty) {
+          final show = match.first;
+          if (!showsToProcess.any((s) => s.name == show.name)) {
+            showsToProcess.add(show);
+          }
         }
       }
       if (showsToProcess.isEmpty) {

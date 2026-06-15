@@ -17,35 +17,52 @@ class GoogleVideoProxy {
   HttpClient? _client;
   StreamSubscription<HttpRequest>? _subscription;
   Uri? _localUri;
+  bool _starting = false;
+  Completer<Uri>? _startCompleter;
 
   bool get isRunning => _server != null;
 
   Future<Uri> start() async {
-    if (_localUri != null && _server != null) {
+    if (_server != null && _localUri != null) {
       return _localUri!;
     }
 
-    _client = _createHttpClient();
+    if (_starting) {
+      return _startCompleter!.future;
+    }
 
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    _server = server;
-    _localUri = Uri(
-      scheme: 'http',
-      host: server.address.address,
-      port: server.port,
-      path: '/stream',
-    );
+    _starting = true;
+    _startCompleter = Completer<Uri>();
 
-    _subscription = server.listen(
-      _handleRequest,
-      onError: (error, stackTrace) {
-        debugPrint('GoogleVideoProxy server error: $error');
-        debugPrint('$stackTrace');
-      },
-    );
+    try {
+      _client = _createHttpClient();
 
-    debugPrint('GoogleVideoProxy started at $_localUri');
-    return _localUri!;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      _server = server;
+      _localUri = Uri(
+        scheme: 'http',
+        host: server.address.address,
+        port: server.port,
+        path: '/stream',
+      );
+
+      _subscription = server.listen(
+        _handleRequest,
+        onError: (error, stackTrace) {
+          debugPrint('GoogleVideoProxy server error: $error');
+          debugPrint('$stackTrace');
+        },
+      );
+
+      debugPrint('GoogleVideoProxy started at $_localUri');
+      _startCompleter!.complete(_localUri!);
+      return _localUri!;
+    } catch (e) {
+      _startCompleter!.completeError(e);
+      rethrow;
+    } finally {
+      _starting = false;
+    }
   }
 
   Future<void> stop() async {

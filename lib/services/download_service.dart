@@ -442,6 +442,11 @@ class DownloadService extends ChangeNotifier {
     final filePath = path.join(animeDir.path, fileName);
     debugPrint('[Download] Saving to: $filePath');
 
+    // Set filePath immediately so cancel/retry can clean up partial file
+    _downloads[id] = _downloads[id]!.copyWith(filePath: filePath);
+    await _saveDownload(_downloads[id]!);
+    notifyListeners();
+
     // Create HTTP client
     final client = http.Client();
     _downloadClients[id] = client;
@@ -530,7 +535,6 @@ class DownloadService extends ChangeNotifier {
       _downloads[id] = _downloads[id]!.copyWith(
         status: DownloadStatus.completed,
         progress: 1.0,
-        filePath: filePath,
         completedAt: DateTime.now(),
       );
       await _saveDownload(_downloads[id]!);

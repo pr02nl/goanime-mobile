@@ -474,12 +474,11 @@ class PauloFlixMoviesService {
                 c.imageUrl!.isEmpty ||
                 (c.isCollection == false && c.availableMovieCount == 0),
           )
-          .map(
-            (c) => folders.firstWhere(
-              (f) => f.name == c.folderName,
-              orElse: () => folders.first,
-            ),
-          )
+          .map((c) {
+            final match = folders.where((f) => f.name == c.folderName);
+            return match.isNotEmpty ? match.first : null;
+          })
+          .whereType<PauloFlixMovieSubfolder>()
           .toList();
 
       final newFolders = folders

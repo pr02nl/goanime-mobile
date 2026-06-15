@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -7,12 +8,22 @@ import '../services/pauloflix_database_service.dart';
 
 class DatabaseHelper {
   static Database? _database;
+  static Completer<Database>? _initCompleter;
   static const String dbName = 'anime.db';
   static const String animeTable = 'anime';
 
   static Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDatabase();
+    if (_initCompleter != null) return _initCompleter!.future;
+
+    _initCompleter = Completer<Database>();
+    try {
+      _database = await _initDatabase();
+      _initCompleter!.complete(_database!);
+    } catch (e) {
+      _initCompleter!.completeError(e);
+      rethrow;
+    }
     return _database!;
   }
 

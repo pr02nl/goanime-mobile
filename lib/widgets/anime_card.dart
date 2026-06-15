@@ -33,8 +33,8 @@ class AnimeCard extends StatefulWidget {
 class _AnimeCardState extends State<AnimeCard>
     with SingleTickerProviderStateMixin {
   bool _isHovered = false;
-  late AnimationController? _animationController;
-  late Animation<double>? _scaleAnimation;
+  AnimationController? _animationController;
+  Animation<double>? _scaleAnimation;
 
   @override
   void initState() {

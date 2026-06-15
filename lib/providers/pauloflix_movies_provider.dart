@@ -61,24 +61,32 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     _syncProgress = 'Iniciando sincronização de filmes...';
     notifyListeners();
 
-    final success = await PauloFlixMoviesService.syncContent(
-      onProgress: (msg) {
-        _syncProgress = msg;
-        notifyListeners();
-      },
-      onError: (err) {
-        _errorMessage = err;
-      },
-    );
+    try {
+      final success = await PauloFlixMoviesService.syncContent(
+        onProgress: (msg) {
+          _syncProgress = msg;
+          notifyListeners();
+        },
+        onError: (err) {
+          _errorMessage = err;
+          notifyListeners();
+        },
+      );
 
-    if (success) {
-      await loadContents();
-    } else {
+      if (success) {
+        await loadContents();
+      } else {
+        _status = PauloFlixMoviesStatus.error;
+        notifyListeners();
+      }
+
+      return success;
+    } catch (e) {
+      _errorMessage = 'Erro na sincronização de filmes: $e';
       _status = PauloFlixMoviesStatus.error;
       notifyListeners();
+      return false;
     }
-
-    return success;
   }
 
   void search(String query) {

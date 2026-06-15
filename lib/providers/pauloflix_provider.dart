@@ -50,6 +50,7 @@ class PauloFlixProvider extends ChangeNotifier {
         },
         onError: (error) {
           _errorMessage = error;
+          notifyListeners();
         },
       );
 
