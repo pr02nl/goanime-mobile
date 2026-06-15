@@ -380,7 +380,7 @@ class TVTheme {
 /// Extensões para facilitar o uso do tema TV
 extension TVThemeContext on BuildContext {
   /// Retorna se está em modo TV
-  bool get isTVMode => TVDetector.isTV;
+  bool get isTVMode => false; // Substituído pelo TVDetector real (utils/tv_detector.dart)
 
   /// Retorna o tema TV apropriado
   ThemeData get tvTheme => TVTheme.darkTheme;
@@ -393,14 +393,5 @@ extension TVThemeContext on BuildContext {
   /// Retorna o espaçamento adaptativo
   double get adaptiveSpacing {
     return isTVMode ? TVTheme.spacingRegular : 16.0;
-  }
-}
-
-/// Classe utilitária para detectar TV
-class TVDetector {
-  static bool get isTV {
-    // Implementação básica - pode ser estendida
-    // Verifica se é Android TV baseado em características do dispositivo
-    return false; // Default: detectar automaticamente ou via settings
   }
 }

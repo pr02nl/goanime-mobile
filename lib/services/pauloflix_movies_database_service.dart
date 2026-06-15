@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -9,12 +10,23 @@ import '../models/pauloflix_movie.dart';
 /// Persistência SQLite para conteúdo PauloFlix Movies (independente do banco de animes).
 class PauloFlixMoviesDatabaseService {
   static Database? _database;
+  static Completer<Database>? _initCompleter;
   static const String _dbFileName = 'pauloflix_movies.db';
   static const String _tableName = 'pauloflix_movies';
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDatabase();
+    if (_initCompleter != null) return _initCompleter!.future;
+
+    _initCompleter = Completer<Database>();
+    try {
+      _database = await _initDatabase();
+      _initCompleter!.complete(_database!);
+    } catch (e) {
+      _initCompleter!.completeError(e);
+      _initCompleter = null;
+      rethrow;
+    }
     return _database!;
   }
 

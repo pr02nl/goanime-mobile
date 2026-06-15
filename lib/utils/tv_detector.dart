@@ -37,19 +37,10 @@ class TVDetector {
 
   /// Detecção fallback baseada em características do dispositivo
   static bool _detectTVFallback() {
-    // Verifica se está rodando em emulador de TV
-    // Emuladores de TV geralmente têm "tv" no model ou no device
-    try {
-      final deviceInfo = Platform.environment['ANDROID_MODEL'] ?? '';
-      final product = Platform.environment['ANDROID_PRODUCT'] ?? '';
-
-      return deviceInfo.toLowerCase().contains('tv') ||
-          product.toLowerCase().contains('tv') ||
-          product.toLowerCase().contains('atv'); // Android TV
-    } catch (e) {
-      debugPrint('[TVDetector] Fallback detection failed: $e');
-      return false;
-    }
+    // Verifica se não há touchscreen como indicativo de TV
+    // Em TVs Android reais, a MainActivity nativa já responde via MethodChannel.
+    // Este fallback é apenas para casos extremos (ex: emuladores antigos).
+    return false;
   }
 
   /// Força o modo TV (útil para testes ou configurações manuais)

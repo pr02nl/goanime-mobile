@@ -17,24 +17,42 @@ import 'utils/performance_config.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize media_kit
-  MediaKit.ensureInitialized();
+  String? startupError;
 
-  // Inicializa configurações de performance
-  PerformanceConfig.init();
+  try {
+    MediaKit.ensureInitialized();
+  } catch (e) {
+    startupError = 'MediaKit: $e';
+  }
 
-  // Initialize download service
-  final downloadService = DownloadService();
-  await downloadService.initialize();
+  try {
+    PerformanceConfig.init();
+  } catch (e) {
+    startupError ??= 'PerformanceConfig: $e';
+  }
 
-  // Cria instância do ThemeProvider para uso global
+  late final DownloadService downloadService;
+  try {
+    downloadService = DownloadService();
+    await downloadService.initialize();
+  } catch (e) {
+    downloadService = DownloadService();
+    startupError ??= 'DownloadService: $e';
+  }
+
   final themeProvider = ThemeProvider();
 
-  // Carrega TMDB API key persistida antes da primeira tela
-  await TmdbService().configureFromSettings();
+  try {
+    await TmdbService().configureFromSettings();
+  } catch (e) {
+    startupError ??= 'TMDB: $e';
+  }
 
-  // Inicializar banco de dados
-  await DatabaseHelper.initializeAll();
+  try {
+    await DatabaseHelper.initializeAll();
+  } catch (e) {
+    startupError ??= 'Database: $e';
+  }
 
   runApp(
     MultiProvider(
@@ -45,13 +63,14 @@ void main() async {
         ChangeNotifierProvider(create: (_) => PauloFlixProvider()),
         ChangeNotifierProvider(create: (_) => PauloFlixMoviesProvider()),
       ],
-      child: const MyApp(),
+      child: MyApp(startupError: startupError),
     ),
   );
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final String? startupError;
+  const MyApp({super.key, this.startupError});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -77,15 +96,65 @@ class _MyAppState extends State<MyApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
-          // Use unified AppTheme (Netflix-style with GoAnime colors)
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeProvider.isDarkMode
               ? ThemeMode.dark
               : ThemeMode.light,
-          home: const MainNavigationScreen(),
+          home: widget.startupError != null
+              ? _StartupErrorScreen(widget.startupError!)
+              : const MainNavigationScreen(),
         );
       },
+    );
+  }
+}
+
+class _StartupErrorScreen extends StatelessWidget {
+  final String error;
+  const _StartupErrorScreen(this.error);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A2E),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Color(0xFFE94560), size: 64),
+              const SizedBox(height: 24),
+              const Text(
+                'Falha ao iniciar',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                error,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reinicie o aplicativo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE94560),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

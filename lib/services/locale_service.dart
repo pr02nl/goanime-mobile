@@ -3,36 +3,40 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LocaleService extends ChangeNotifier {
   static const String _localeKey = 'app_locale';
-  Locale _locale = const Locale('en', 'US'); // English as default
+  Locale _locale = const Locale('en', 'US');
+  bool _initialized = false;
 
   Locale get locale => _locale;
+  bool get isReady => _initialized;
 
-  LocaleService() {
-    _loadLocale();
-  }
+  LocaleService();
 
-  Future<void> _loadLocale() async {
-    final prefs = await SharedPreferences.getInstance();
-    final languageCode = prefs.getString(_localeKey);
-    
-    if (languageCode != null) {
+  Future<void> init() async {
+    if (_initialized) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final languageCode = prefs.getString(_localeKey);
       if (languageCode == 'pt') {
         _locale = const Locale('pt', 'BR');
-      } else {
-        _locale = const Locale('en', 'US');
       }
+      _initialized = true;
       notifyListeners();
+    } catch (e) {
+      debugPrint('[LocaleService] init failed: $e');
+      _initialized = true;
     }
   }
 
   Future<void> setLocale(Locale locale) async {
     if (_locale == locale) return;
-    
     _locale = locale;
     notifyListeners();
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_localeKey, locale.languageCode);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_localeKey, locale.languageCode);
+    } catch (e) {
+      debugPrint('[LocaleService] setLocale failed: $e');
+    }
   }
 
   Future<void> setEnglish() async {
