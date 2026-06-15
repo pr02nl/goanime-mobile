@@ -1,0 +1,160 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/models/pauloflix_content.dart';
+import 'package:goanime/providers/pauloflix_provider.dart';
+import 'package:goanime/services/pauloflix_database_service.dart';
+
+/// Banco fake que retorna dados em memória, sem precisar de SQLite real.
+class FakePauloFlixDatabaseService extends PauloFlixDatabaseService {
+  final List<PauloFlixContent> fakeData;
+  final bool shouldThrow;
+
+  FakePauloFlixDatabaseService(this.fakeData, {this.shouldThrow = false});
+
+  @override
+  Future<List<PauloFlixContent>> getAllContent() async {
+    if (shouldThrow) throw Exception('DB error');
+    return fakeData;
+  }
+}
+
+void main() {
+  group('PauloFlixProvider', () {
+    final testAnimes = [
+      PauloFlixContent(
+        folderName: 'Naruto',
+        displayName: 'Naruto',
+        serverUrl: 'http://server/naruto/',
+        imageUrl: 'http://img.com/naruto.jpg',
+        genres: ['Action', 'Adventure'],
+        malId: 20,
+      ),
+      PauloFlixContent(
+        folderName: 'One Piece',
+        displayName: 'One Piece',
+        serverUrl: 'http://server/onepiece/',
+        genres: ['Action', 'Comedy'],
+        malId: 21,
+      ),
+      PauloFlixContent(
+        folderName: 'Attack on Titan',
+        displayName: 'Shingeki no Kyojin',
+        serverUrl: 'http://server/aot/',
+        genres: ['Action', 'Drama'],
+        malId: 22,
+      ),
+    ];
+
+    test('status inicial deve ser initial', () {
+      final provider = PauloFlixProvider(
+        databaseService: FakePauloFlixDatabaseService([]),
+      );
+      expect(provider.status, PauloFlixStatus.initial);
+      expect(provider.contents, isEmpty);
+      expect(provider.errorMessage, isNull);
+      expect(provider.isSyncing, false);
+      expect(provider.syncProgress, '');
+    });
+
+    test('loadContents deve carregar dados do banco', () async {
+      final provider = PauloFlixProvider(
+        databaseService: FakePauloFlixDatabaseService(
+          [testAnimes[0], testAnimes[1]],
+        ),
+      );
+
+      await provider.loadContents();
+
+      expect(provider.status, PauloFlixStatus.loaded);
+      expect(provider.contents.length, 2);
+      expect(provider.contents[0].folderName, 'Naruto');
+      expect(provider.contents[1].folderName, 'One Piece');
+    });
+
+    test('loadContents deve lidar com erro do banco', () async {
+      final provider = PauloFlixProvider(
+        databaseService: FakePauloFlixDatabaseService(
+          [],
+          shouldThrow: true,
+        ),
+      );
+
+      await provider.loadContents();
+
+      expect(provider.status, PauloFlixStatus.error);
+      expect(provider.errorMessage, contains('Erro ao carregar conteúdo'));
+    });
+
+    test('search deve filtrar por displayName', () async {
+      final provider = PauloFlixProvider(
+        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      );
+      await provider.loadContents();
+
+      provider.search('naruto');
+
+      expect(provider.contents.length, 1);
+      expect(provider.contents[0].folderName, 'Naruto');
+    });
+
+    test('search deve filtrar por genero', () async {
+      final provider = PauloFlixProvider(
+        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      );
+      await provider.loadContents();
+
+      provider.search('comedy');
+
+      expect(provider.contents.length, 1);
+      expect(provider.contents[0].folderName, 'One Piece');
+    });
+
+    test('search com query vazia deve retornar todos', () async {
+      final provider = PauloFlixProvider(
+        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      );
+      await provider.loadContents();
+
+      provider.search('');
+
+      expect(provider.contents.length, 3);
+    });
+
+    test('clearSearch deve restaurar lista completa', () async {
+      final provider = PauloFlixProvider(
+        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      );
+      await provider.loadContents();
+
+      provider.search('naruto');
+      expect(provider.contents.length, 1);
+
+      provider.clearSearch();
+      expect(provider.contents.length, 3);
+    });
+
+    test('getByMalId deve retornar anime correto', () async {
+      final provider = PauloFlixProvider(
+        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      );
+      await provider.loadContents();
+
+      final found = provider.getByMalId(21);
+      expect(found, isNotNull);
+      expect(found!.folderName, 'One Piece');
+
+      final notFound = provider.getByMalId(999);
+      expect(notFound, isNull);
+    });
+
+    test('isAvailableOnPauloFlix deve verificar por nome', () async {
+      final provider = PauloFlixProvider(
+        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      );
+      await provider.loadContents();
+
+      expect(provider.isAvailableOnPauloFlix('Naruto'), isTrue);
+      expect(provider.isAvailableOnPauloFlix('naruto'), isTrue);
+      expect(provider.isAvailableOnPauloFlix('Bleach'), isFalse);
+    });
+  });
+}
