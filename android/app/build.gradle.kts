@@ -1,6 +1,5 @@
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -60,6 +59,10 @@ android {
             outputImpl.outputFileName = "goanime.apk"
         }
     }
+}
+
+dependencies {
+    implementation("com.google.android.play:core:1.10.3")
 }
 
 flutter {
