@@ -143,6 +143,20 @@ class _FocusableWidgetState extends State<FocusableWidget>
                     autofocus: widget.autoFocus,
                     canRequestFocus: true,
                     onTap: widget.onSelect,
+                    onFocusChange: (hasFocus) {
+                      // Sincroniza foco explicitamente: garante animação
+                      // e borda mesmo quando o listener do FocusNode
+                      // não dispara (ex: foco via mouse no Windows).
+                      if (!mounted) return;
+                      setState(() => _isFocused = hasFocus);
+                      if (hasFocus) {
+                        _animationController.forward();
+                        widget.onFocus?.call();
+                      } else {
+                        _animationController.reverse();
+                        widget.onUnfocus?.call();
+                      }
+                    },
                     borderRadius: BorderRadius.circular(widget.borderRadius),
                     splashColor: splash,
                     highlightColor: highlight,

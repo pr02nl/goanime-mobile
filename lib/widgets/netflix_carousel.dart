@@ -48,7 +48,6 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
 
   void _updateGradientVisibility() {
     if (!mounted) return;
-
     setState(() {
       _showLeftGradient = _scrollController.offset > 0;
       _showRightGradient =
@@ -77,50 +76,53 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
   Widget build(BuildContext context) {
     final defaultHeight = widget.height ?? (widget.isTV ? 360.0 : 280.0);
 
-    // Um único FocusTraversalGroup com OrderedTraversalPolicy abrange toda a
-    // seção (trailing + cards), garantindo que Tab/D-pad possa alcançar o
-    // botão "Ver Todos" (ordem 0) antes de entrar nos cards (ordens 1…N).
-    return FocusTraversalGroup(
-      policy: OrderedTraversalPolicy(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Title row
-          if (widget.showTitle)
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: NetflixTheme.horizontalPadding(context),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: const TextStyle(
-                        color: NetflixTheme.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+    // Estrutura de foco:
+    // • O trailing ("Ver Todos") fica num FocusTraversalGroup próprio com
+    //   policy padrão (WidgetOrderTraversalPolicy), isolado dos cards.
+    //   Isso garante que Tab o alcance independentemente de qualquer
+    //   ListView scrollável abaixo.
+    // • Os cards do carousel ficam num FocusTraversalGroup separado com
+    //   ReadingOrderTraversalPolicy, mantendo navegação esquerda→direita.
+    // Ambos os grupos são filhos diretos da Column, então o grupo pai
+    // (da tela) os visita em ordem de widget: trailing primeiro, cards depois.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── Cabeçalho: título + trailing ──────────────────────────────────
+        if (widget.showTitle)
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: NetflixTheme.horizontalPadding(context),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: const TextStyle(
+                      color: NetflixTheme.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  // trailing recebe ordem 0: é o primeiro elemento no traversal
-                  // da seção, acessível com Tab antes dos cards.
-                  if (widget.trailing != null)
-                    FocusTraversalOrder(
-                      order: const NumericFocusOrder(0),
-                      child: widget.trailing!,
-                    ),
-                ],
-              ),
+                ),
+                // Trailing isolado: FocusTraversalGroup próprio evita que
+                // o ListView horizontal do carousel interfira no traversal.
+                if (widget.trailing != null)
+                  FocusTraversalGroup(child: widget.trailing!),
+              ],
             ),
-          SizedBox(height: widget.showTitle ? NetflixTheme.sm : 0),
-          // Carousel
-          SizedBox(
+          ),
+        SizedBox(height: widget.showTitle ? NetflixTheme.sm : 0),
+
+        // ── Carousel de cards ─────────────────────────────────────────────
+        FocusTraversalGroup(
+          policy: ReadingOrderTraversalPolicy(),
+          child: SizedBox(
             height: defaultHeight,
             child: Stack(
               children: [
-                // Cards recebem ordens 1…N via FocusTraversalOrder interno.
                 ListView.builder(
                   controller: _scrollController,
                   scrollDirection: Axis.horizontal,
@@ -133,18 +135,14 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                       padding: EdgeInsets.only(
                         right: NetflixTheme.cardSpacing(context),
                       ),
-                      child: FocusTraversalOrder(
-                        // +1 para nunca colidir com o trailing (ordem 0).
-                        order: NumericFocusOrder((index + 1).toDouble()),
-                        child: _AutoScrollOnFocus(
-                          scrollController: _scrollController,
-                          child: widget.items[index],
-                        ),
+                      child: _AutoScrollOnFocus(
+                        scrollController: _scrollController,
+                        child: widget.items[index],
                       ),
                     );
                   },
                 ),
-                // Edge gradient fades (painted above content)
+                // Edge gradient fades
                 if (_showLeftGradient)
                   Positioned(
                     left: 0,
@@ -187,10 +185,9 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                       ),
                     ),
                   ),
-                // Navigation buttons (desktop/TV only)
+                // Navigation buttons (desktop only)
                 if (!widget.isTV &&
                     MediaQuery.of(context).size.width > 600) ...[
-                  // Left button
                   if (_showLeftGradient)
                     Positioned(
                       left: 0,
@@ -212,7 +209,6 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                         ),
                       ),
                     ),
-                  // Right button
                   if (_showRightGradient)
                     Positioned(
                       right: 0,
@@ -238,8 +234,8 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -313,7 +309,7 @@ class NetflixCarouselShimmer extends StatelessWidget {
   }
 }
 
-/// Helper widget that scrolls the carousel when a child receives focus
+/// Faz scroll automático quando um card filho recebe foco
 class _AutoScrollOnFocus extends StatefulWidget {
   final Widget child;
   final ScrollController scrollController;
@@ -333,9 +329,7 @@ class _AutoScrollOnFocusState extends State<_AutoScrollOnFocus> {
     return NotificationListener<ScrollNotification>(
       child: Focus(
         onFocusChange: (hasFocus) {
-          if (hasFocus) {
-            _scrollToVisible();
-          }
+          if (hasFocus) _scrollToVisible();
         },
         skipTraversal: true,
         child: widget.child,
@@ -346,19 +340,15 @@ class _AutoScrollOnFocusState extends State<_AutoScrollOnFocus> {
   void _scrollToVisible() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-
       final renderObject = context.findRenderObject();
       if (renderObject == null) return;
-
       final viewport = RenderAbstractViewport.of(renderObject);
       final scrollPosition = widget.scrollController.position;
-
       final revealOffset = viewport.getOffsetToReveal(renderObject, 0.0);
       final targetOffset = revealOffset.offset.clamp(
         scrollPosition.minScrollExtent,
         scrollPosition.maxScrollExtent,
       );
-
       if ((scrollPosition.pixels - targetOffset).abs() > 10) {
         widget.scrollController.animateTo(
           targetOffset,
