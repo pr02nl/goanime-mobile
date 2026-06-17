@@ -215,8 +215,7 @@ class DownloadService extends ChangeNotifier {
     _downloads.clear();
 
     for (final row in rows) {
-      final download =
-          DownloadItem.fromMap(Map<String, dynamic>.from(row));
+      final download = DownloadItem.fromMap(Map<String, dynamic>.from(row));
       _downloads[download.id] = download;
 
       // Reset downloading status to queued on app restart
@@ -412,18 +411,18 @@ class DownloadService extends ChangeNotifier {
         );
       }
 
-        // Step 2: Get the actual video URL
-        final videoResult = await AnimeService.extractActualVideoURL(videoSrc);
-        actualVideoUrl = videoResult.url;
-        debugPrint('[Download] Resolved video URL: $actualVideoUrl');
+      // Step 2: Get the actual video URL
+      final videoResult = await AnimeService.extractActualVideoURL(videoSrc);
+      actualVideoUrl = videoResult.url;
+      debugPrint('[Download] Resolved video URL: $actualVideoUrl');
 
-        // Final check for HLS
-        if (actualVideoUrl.contains('.m3u8') ||
-            actualVideoUrl.contains('master.m3u8')) {
-          throw Exception(
-            'This source uses HLS streaming which cannot be downloaded. Try a different source.',
-          );
-        }
+      // Final check for HLS
+      if (actualVideoUrl.contains('.m3u8') ||
+          actualVideoUrl.contains('master.m3u8')) {
+        throw Exception(
+          'This source uses HLS streaming which cannot be downloaded. Try a different source.',
+        );
+      }
     } catch (e) {
       debugPrint('[Download] Failed to resolve video URL: $e');
       if (e.toString().contains('HLS') || e.toString().contains('streaming')) {
@@ -434,6 +433,9 @@ class DownloadService extends ChangeNotifier {
 
     // Create download directory
     final downloadDir = await _getDownloadDirectory();
+    if (downloadDir == null) {
+      throw Exception('Download directory not available. Check storage permissions.');
+    }
     final safeAnimeName = _sanitizeFileName(download.animeName);
     final animeDir = Directory(path.join(downloadDir.path, safeAnimeName));
     await animeDir.create(recursive: true);
@@ -701,14 +703,44 @@ class DownloadService extends ChangeNotifier {
     );
   }
 
-  /// Get download directory
-  Future<Directory> _getDownloadDirectory() async {
-    if (Platform.isAndroid) {
-      final directory = await getExternalStorageDirectory();
-      return Directory(path.join(directory!.path, 'GoAnime', 'Downloads'));
-    } else {
-      final directory = await getApplicationDocumentsDirectory();
-      return Directory(path.join(directory.path, 'Downloads'));
+  /// Get download directory with Android TV compatibility
+  Future<Directory?> _getDownloadDirectory() async {
+    try {
+      if (Platform.isAndroid) {
+        // Try external storage first (legacy behavior)
+        Directory? directory;
+        try {
+          directory = await getExternalStorageDirectory();
+        } catch (e) {
+          debugPrint('[DownloadService] External storage not available: $e');
+        }
+
+        // Fallback to app documents for Android TV compatibility
+        if (directory == null) {
+          directory = await getApplicationDocumentsDirectory();
+          debugPrint(
+            '[DownloadService] Using app documents directory (Android TV mode)',
+          );
+        }
+
+        final downloadDir = Directory(
+          path.join(directory.path, 'GoAnime', 'Downloads'),
+        );
+        if (!await downloadDir.exists()) {
+          await downloadDir.create(recursive: true);
+        }
+        return downloadDir;
+      } else {
+        final directory = await getApplicationDocumentsDirectory();
+        final downloadDir = Directory(path.join(directory.path, 'Downloads'));
+        if (!await downloadDir.exists()) {
+          await downloadDir.create(recursive: true);
+        }
+        return downloadDir;
+      }
+    } catch (e) {
+      debugPrint('[DownloadService] Failed to get download directory: $e');
+      return null;
     }
   }
 
