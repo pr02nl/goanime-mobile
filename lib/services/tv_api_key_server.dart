@@ -40,6 +40,25 @@ class TvApiKeyServer {
   Future<String> start() async {
     if (_server != null) return serverUrl;
 
+    // Verifica se há conectividade de rede
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLinkLocal: false,
+      );
+      if (interfaces.isEmpty) {
+        throw Exception(
+          'No network interfaces found. Check if WiFi or Ethernet is connected.',
+        );
+      }
+      debugPrint(
+        '[TvApiKeyServer] Found ${interfaces.length} network interfaces',
+      );
+    } catch (e) {
+      debugPrint('[TvApiKeyServer] Error listing network interfaces: $e');
+      // Continua mesmo com erro - pode ser permissão ou API não suportada
+    }
+
     // Obtém todos os IPs disponíveis
     final ips = await _getLocalIps();
     if (ips.isEmpty) {
