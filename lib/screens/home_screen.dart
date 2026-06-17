@@ -30,9 +30,6 @@ class _HomeScreenState extends State<HomeScreen>
   final JikanService _jikanService = JikanService();
   final ScrollController _scrollController = ScrollController();
 
-  late AnimationController _fabAnimationController;
-
-  bool _showFab = false;
   double _headerOpacity = 1.0;
   bool _dataLoaded = false;
   bool _isLoading = true;
@@ -54,10 +51,6 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
-    _fabAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
     _scrollController.addListener(_onScroll);
     _detectTVMode();
     if (!_dataLoaded) {
@@ -70,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
-    _fabAnimationController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -81,21 +73,11 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _onScroll() {
+    // Mantemos _headerOpacity para eventual uso futuro; FAB foi removido.
     final offset = _scrollController.offset;
-
-    if (offset > 300 && !_showFab) {
-      setState(() => _showFab = true);
-      _fabAnimationController.forward();
-    } else if (offset <= 300 && _showFab) {
-      setState(() => _showFab = false);
-      _fabAnimationController.reverse();
-    }
-
     final newOpacity = offset > 0 ? 1.0 : 0.0;
     if ((newOpacity - _headerOpacity).abs() > 0.01) {
-      setState(() {
-        _headerOpacity = newOpacity;
-      });
+      setState(() => _headerOpacity = newOpacity);
     }
   }
 
@@ -177,7 +159,6 @@ class _HomeScreenState extends State<HomeScreen>
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.background,
-      extendBodyBehindAppBar: true,
       body: RefreshIndicator(
         onRefresh: () => _loadAllData(forceRefresh: true),
         color: AppColors.primary,
@@ -195,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen>
                   title: _seasonAnimes.first.title,
                   description: _seasonAnimes.first.synopsis,
                   onPlay: () => _onAnimeTap(_seasonAnimes.first),
-                  height: Responsive.getBannerHeight(context) * 1.2,
+                  height: Responsive.getBannerHeight(context),
                   isTV: _isTV,
                 ),
               ),
@@ -301,22 +282,7 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
       ),
-      floatingActionButton: _showFab
-          ? ScaleTransition(
-              scale: _fabAnimationController,
-              child: FloatingActionButton(
-                onPressed: () {
-                  _scrollController.animateTo(
-                    0,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeInOut,
-                  );
-                },
-                backgroundColor: AppColors.primary,
-                child: const Icon(Icons.arrow_upward, color: Colors.white),
-              ),
-            )
-          : null,
+      // Netflix não usa FAB — a AppBar transparente serve de âncora visual.
     );
   }
 

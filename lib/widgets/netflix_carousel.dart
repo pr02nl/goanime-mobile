@@ -57,21 +57,7 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
     });
   }
 
-  void _scrollLeft() {
-    _scrollController.animateTo(
-      _scrollController.offset - MediaQuery.of(context).size.width * 0.7,
-      duration: NetflixTheme.mediumDuration,
-      curve: NetflixTheme.defaultCurve,
-    );
-  }
-
-  void _scrollRight() {
-    _scrollController.animateTo(
-      _scrollController.offset + MediaQuery.of(context).size.width * 0.7,
-      duration: NetflixTheme.mediumDuration,
-      curve: NetflixTheme.defaultCurve,
-    );
-  }
+  // _scrollLeft/_scrollRight removidos: Netflix nao usa botoes de navegacao.
 
   @override
   Widget build(BuildContext context) {
@@ -180,52 +166,8 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                       ),
                     ),
                   ),
-                // Navigation buttons (desktop only)
-                if (!widget.isTV &&
-                    MediaQuery.of(context).size.width > 600) ...[
-                  if (_showLeftGradient)
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: NetflixTheme.background.withValues(
-                              alpha: 0.8,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.chevron_left),
-                            color: NetflixTheme.textPrimary,
-                            onPressed: _scrollLeft,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (_showRightGradient)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: NetflixTheme.background.withValues(
-                              alpha: 0.8,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.chevron_right),
-                            color: NetflixTheme.textPrimary,
-                            onPressed: _scrollRight,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+                // Netflix não usa botões de navegação explícitos no carousel —
+                // o fade lateral comunica que há mais conteúdo para rolar.
               ],
             ),
           ),

@@ -42,9 +42,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Key _rootKey = UniqueKey();
 
   /// Substitui a tela raiz do Navigator pela Home/Movies conforme [type].
-  /// Usado em dois lugares:
-  /// - Toggle Animes/Filmes (pushReplacement)
-  /// - back físico que precisa voltar para Animes (pushReplacement)
   void _setRootContent(ContentType type) {
     if (_contentType == type) return;
     setState(() {
@@ -62,21 +59,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 
-  /// Roteia para a tela de busca adequada conforme o [_contentType] ativo:
-  /// - Animes → [SearchScreen] (busca via Jikan, com histórico/sugestões)
-  /// - Filmes  → [PauloFlixMoviesSearchScreen] (snapshot local do
-  ///   PauloFlixMoviesProvider, filtros por título/gênero)
-  ///
-  /// Antes, o ícone de busca abria SEMPRE a [SearchScreen] de animes,
-  /// deixando o campo de busca de filmes "preso" dentro da home de filmes.
+  /// Roteia para a tela de busca adequada conforme o [_contentType] ativo.
   void _openSearch() {
     final Widget target = _contentType == ContentType.movie
         ? const PauloFlixMoviesSearchScreen()
         : const SearchScreen();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => target),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (context) => target));
   }
 
   void _openWatchlist() {
@@ -95,22 +83,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // canPop só liberado quando estamos nos Animes na raiz: isso garante
-    // que o back físico sempre volte para Animes primeiro (se estiver em
-    // Filmes) ou então saia do app (se já estiver em Animes).
     final canExitApp = _contentType == ContentType.anime;
 
     return PopScope(
       canPop: canExitApp,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        // Primeira prioridade: voltar para Animes
         if (_contentType == ContentType.movie) {
           _setRootContent(ContentType.anime);
         }
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
+        // extendBodyBehindAppBar removido: o HomeScreen já tem seu próprio
+        // Scaffold com extendBodyBehindAppBar:true para o hero funcionar.
+        // Colocar aqui causava o AppBar transparente flutuar sobre todas
+        // as telas, incluindo filmes e busca que não têm hero.
         appBar: _buildAppBar(),
         body: _buildRootScreen(),
       ),
@@ -119,14 +107,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: AppColors.background.withValues(alpha: 0.95),
+      // AppBar sólida mas discreta — fundo quase preto com leve elevação
+      // visual. O HomeScreen usa extendBodyBehindAppBar próprio + hero
+      // que começa diretamente abaixo da AppBar.
+      backgroundColor: AppColors.background.withValues(alpha: 0.97),
       elevation: 0,
+      scrolledUnderElevation: 0,
       toolbarHeight: 64,
-      // FocusableWidget: logo do AppBar volta para a root-home via d-pad
-      // em TV (Enter/Select). Em mobile/tablet cai no fallback GestureDetector
-      // puro (lib/widgets/focusable_widget.dart:115), preservando o tap.
-      // focusScale: 1.0 evita que a box-shadow do logo seja cortada pelo
-      // Transform.scale do widget (a sombra ultrapassa o container).
       title: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
