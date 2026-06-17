@@ -96,7 +96,11 @@ class _TvQrSetupDialogState extends State<TvQrSetupDialog> {
             ),
           ],
         ),
-        child: _error ? _buildError() : _keyReceived ? _buildSuccess() : _buildQrCode(),
+        child: _error
+            ? _buildError()
+            : _keyReceived
+            ? _buildSuccess()
+            : _buildQrCode(),
       ),
     );
   }
@@ -208,6 +212,57 @@ class _TvQrSetupDialogState extends State<TvQrSetupDialog> {
               ),
             ),
           ),
+        const SizedBox(height: 12),
+
+        // Debug info - Alternative IPs (TV debugging)
+        if (_server.allIps.length > 1)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.network_check,
+                      size: 14,
+                      color: Colors.amber.withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Redes detectadas:',
+                      style: TextStyle(
+                        color: Colors.amber.withValues(alpha: 0.9),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ..._server.allIps
+                    .skip(1)
+                    .map(
+                      (ip) => Padding(
+                        padding: const EdgeInsets.only(left: 20, top: 2),
+                        child: Text(
+                          '• http://$ip:${_server.localIp == ip ? 8080 : "[porta]"}',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ),
+              ],
+            ),
+          ),
         const SizedBox(height: 20),
 
         // Waiting indicator
@@ -248,11 +303,7 @@ class _TvQrSetupDialogState extends State<TvQrSetupDialog> {
             color: Color(0xFF22C55E),
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.check,
-            color: Colors.white,
-            size: 48,
-          ),
+          child: const Icon(Icons.check, color: Colors.white, size: 48),
         ),
         const SizedBox(height: 20),
         const Text(
@@ -288,11 +339,7 @@ class _TvQrSetupDialogState extends State<TvQrSetupDialog> {
             color: Colors.red.withValues(alpha: 0.2),
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.error_outline,
-            color: Colors.red,
-            size: 48,
-          ),
+          child: const Icon(Icons.error_outline, color: Colors.red, size: 48),
         ),
         const SizedBox(height: 20),
         const Text(
@@ -305,10 +352,10 @@ class _TvQrSetupDialogState extends State<TvQrSetupDialog> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Verifique se a TV está conectada à rede Wi-Fi.',
+          'Verifique:\n• TV conectada ao Wi-Fi/Ethernet\n• Celular na mesma rede\n• Firewall não bloqueia portas 8080-9000',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.6),
-            fontSize: 14,
+            fontSize: 13,
           ),
           textAlign: TextAlign.center,
         ),

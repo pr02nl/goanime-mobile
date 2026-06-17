@@ -15,7 +15,7 @@ import 'api_key_settings_service.dart';
 /// 4. Servidor recebe via POST, salva em SharedPreferences
 /// 5. TV atualiza o estado e para o servidor
 class TvApiKeyServer {
-  static const int _port = 8080;
+  int _port = 8080;
   HttpServer? _server;
   final ApiKeySettingsService _settings = ApiKeySettingsService();
 
@@ -28,19 +28,61 @@ class TvApiKeyServer {
   /// IP local da rede (para exibir no QR code).
   String? _localIp;
   String? get localIp => _localIp;
+
+  /// Lista de todos os IPs disponíveis (para debug e fallback).
+  List<String> _allIps = [];
+  List<String> get allIps => List.unmodifiable(_allIps);
+
   String get serverUrl => 'http://${_localIp ?? "localhost"}:$_port';
 
   /// Inicia o servidor e retorna a URL para o QR code.
+  /// Tenta múltiplas portas se a 8080 estiver ocupada.
   Future<String> start() async {
     if (_server != null) return serverUrl;
 
-    _localIp = await _getLocalIp();
-    _server = await HttpServer.bind(InternetAddress.anyIPv4, _port);
-    debugPrint(
-      '[TvApiKeyServer] Server started on ${_server!.address.host}:$_port',
+    // Obtém todos os IPs disponíveis
+    final ips = await _getLocalIps();
+    if (ips.isEmpty) {
+      throw Exception(
+        'No network interface found. Check WiFi/Ethernet connection.',
+      );
+    }
+    _allIps = ips;
+    _localIp = ips.first;
+    debugPrint('[TvApiKeyServer] Primary IP: $_localIp');
+    if (ips.length > 1) {
+      debugPrint('[TvApiKeyServer] Alternative IPs: ${ips.sublist(1)}');
+    }
+
+    // Tenta portas alternativas se a 8080 estiver ocupada
+    final portsToTry = [8080, 8081, 8082, 9000, 8765];
+    int? boundPort;
+
+    for (final port in portsToTry) {
+      try {
+        _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
+        boundPort = port;
+        debugPrint('[TvApiKeyServer] Server started on port $port');
+        break;
+      } on SocketException catch (e) {
+        debugPrint('[TvApiKeyServer] Port $port unavailable: ${e.message}');
+        continue;
+      }
+    }
+
+    if (_server == null || boundPort == null) {
+      throw Exception('Could not bind to any port. Firewall or port conflict?');
+    }
+
+    // Atualiza a URL com a porta correta
+    _port = boundPort;
+
+    _server!.listen(
+      _handleRequest,
+      onError: (e) => debugPrint('[TvApiKeyServer] Request error: $e'),
     );
 
-    _server!.listen(_handleRequest);
+    debugPrint('[TvApiKeyServer] Server ready at: $serverUrl');
     return serverUrl;
   }
 
@@ -354,33 +396,85 @@ class TvApiKeyServer {
     await request.response.close();
   }
 
-  /// Detecta o IP local da rede Wi-Fi.
-  Future<String?> _getLocalIp() async {
+  /// Detecta o IP local da rede - suporta todas as classes de rede privada.
+  /// Prioridade: WiFi/Ethernet com IP privado (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+  Future<List<String>> _getLocalIps() async {
+    final ips = <String>[];
     try {
       final interfaces = await NetworkInterface.list(
         type: InternetAddressType.IPv4,
         includeLinkLocal: false,
       );
+
+      debugPrint(
+        '[TvApiKeyServer] Found ${interfaces.length} network interfaces:',
+      );
+      for (final iface in interfaces) {
+        debugPrint(
+          '  - ${iface.name}: ${iface.addresses.map((a) => a.address).join(', ')}',
+        );
+      }
+
+      // Prioridade 1: IPs privados comuns (192.168.x.x)
       for (final iface in interfaces) {
         for (final addr in iface.addresses) {
           if (!addr.isLoopback && addr.address.startsWith('192.168.')) {
-            return addr.address;
+            if (!ips.contains(addr.address)) {
+              ips.add(addr.address);
+            }
           }
         }
       }
-      // Fallback: qualquer IP não-loopback
+
+      // Prioridade 2: Classe A privada (10.x.x.x)
+      for (final iface in interfaces) {
+        for (final addr in iface.addresses) {
+          if (!addr.isLoopback && addr.address.startsWith('10.')) {
+            if (!ips.contains(addr.address)) {
+              ips.add(addr.address);
+            }
+          }
+        }
+      }
+
+      // Prioridade 3: Classe B privada (172.16.x.x - 172.31.x.x)
       for (final iface in interfaces) {
         for (final addr in iface.addresses) {
           if (!addr.isLoopback) {
-            return addr.address;
+            final parts = addr.address.split('.');
+            if (parts.length == 4 && parts[0] == '172') {
+              final second = int.tryParse(parts[1]) ?? 0;
+              if (second >= 16 && second <= 31) {
+                if (!ips.contains(addr.address)) {
+                  ips.add(addr.address);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Fallback: qualquer IP não-loopback
+      for (final iface in interfaces) {
+        for (final addr in iface.addresses) {
+          if (!addr.isLoopback && !ips.contains(addr.address)) {
+            ips.add(addr.address);
           }
         }
       }
     } catch (e) {
       debugPrint('[TvApiKeyServer] Error detecting local IP: $e');
     }
-    return null;
+
+    debugPrint('[TvApiKeyServer] Available IPs: $ips');
+    return ips;
   }
+
+  /// Retorna o primeiro IP disponível (compatibilidade).
+  // Future<String?> _getLocalIp() async {
+  //   final ips = await _getLocalIps();
+  //   return ips.isNotEmpty ? ips.first : null;
+  // }
 
   void dispose() {
     stop();
