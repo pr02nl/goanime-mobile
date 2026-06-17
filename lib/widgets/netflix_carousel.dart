@@ -77,43 +77,51 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
   Widget build(BuildContext context) {
     final defaultHeight = widget.height ?? (widget.isTV ? 360.0 : 280.0);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Title row
-        if (widget.showTitle)
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: NetflixTheme.horizontalPadding(context),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: const TextStyle(
-                      color: NetflixTheme.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+    // Um único FocusTraversalGroup com OrderedTraversalPolicy abrange toda a
+    // seção (trailing + cards), garantindo que Tab/D-pad possa alcançar o
+    // botão "Ver Todos" (ordem 0) antes de entrar nos cards (ordens 1…N).
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Title row
+          if (widget.showTitle)
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: NetflixTheme.horizontalPadding(context),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: const TextStyle(
+                        color: NetflixTheme.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                if (widget.trailing != null) widget.trailing!,
-              ],
+                  // trailing recebe ordem 0: é o primeiro elemento no traversal
+                  // da seção, acessível com Tab antes dos cards.
+                  if (widget.trailing != null)
+                    FocusTraversalOrder(
+                      order: const NumericFocusOrder(0),
+                      child: widget.trailing!,
+                    ),
+                ],
+              ),
             ),
-          ),
-        SizedBox(height: widget.showTitle ? NetflixTheme.sm : 0),
-        // Carousel
-        SizedBox(
-          height: defaultHeight,
-          child: Stack(
-            children: [
-              // Scrollable content wrapped in a FocusTraversalGroup so
-              // d-pad left/right stays within this carousel row.
-              FocusTraversalGroup(
-                policy: OrderedTraversalPolicy(),
-                child: ListView.builder(
+          SizedBox(height: widget.showTitle ? NetflixTheme.sm : 0),
+          // Carousel
+          SizedBox(
+            height: defaultHeight,
+            child: Stack(
+              children: [
+                // Cards recebem ordens 1…N via FocusTraversalOrder interno.
+                ListView.builder(
                   controller: _scrollController,
                   scrollDirection: Axis.horizontal,
                   padding: EdgeInsets.symmetric(
@@ -126,7 +134,8 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                         right: NetflixTheme.cardSpacing(context),
                       ),
                       child: FocusTraversalOrder(
-                        order: NumericFocusOrder(index.toDouble()),
+                        // +1 para nunca colidir com o trailing (ordem 0).
+                        order: NumericFocusOrder((index + 1).toDouble()),
                         child: _AutoScrollOnFocus(
                           scrollController: _scrollController,
                           child: widget.items[index],
@@ -135,97 +144,102 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                     );
                   },
                 ),
-              ),
-              // Edge gradient fades (painted above content)
-              if (_showLeftGradient)
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: 60,
-                  child: IgnorePointer(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            NetflixTheme.background,
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              if (_showRightGradient)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: 60,
-                  child: IgnorePointer(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            Colors.transparent,
-                            NetflixTheme.background,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              // Navigation buttons (desktop/TV only)
-              if (!widget.isTV && MediaQuery.of(context).size.width > 600) ...[
-                // Left button
+                // Edge gradient fades (painted above content)
                 if (_showLeftGradient)
                   Positioned(
                     left: 0,
                     top: 0,
                     bottom: 0,
-                    child: Center(
+                    width: 60,
+                    child: IgnorePointer(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: NetflixTheme.background.withValues(alpha: 0.8),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.chevron_left),
-                          color: NetflixTheme.textPrimary,
-                          onPressed: _scrollLeft,
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              NetflixTheme.background,
+                              Colors.transparent,
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                // Right button
                 if (_showRightGradient)
                   Positioned(
                     right: 0,
                     top: 0,
                     bottom: 0,
-                    child: Center(
+                    width: 60,
+                    child: IgnorePointer(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: NetflixTheme.background.withValues(alpha: 0.8),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.chevron_right),
-                          color: NetflixTheme.textPrimary,
-                          onPressed: _scrollRight,
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Colors.transparent,
+                              NetflixTheme.background,
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
+                // Navigation buttons (desktop/TV only)
+                if (!widget.isTV &&
+                    MediaQuery.of(context).size.width > 600) ...[
+                  // Left button
+                  if (_showLeftGradient)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: NetflixTheme.background.withValues(
+                              alpha: 0.8,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.chevron_left),
+                            color: NetflixTheme.textPrimary,
+                            onPressed: _scrollLeft,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Right button
+                  if (_showRightGradient)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: NetflixTheme.background.withValues(
+                              alpha: 0.8,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.chevron_right),
+                            color: NetflixTheme.textPrimary,
+                            onPressed: _scrollRight,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -254,36 +268,40 @@ class NetflixCarouselShimmer extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Title shimmer
         if (showTitle)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: NetflixTheme.md),
+            padding: EdgeInsets.symmetric(
+              horizontal: NetflixTheme.horizontalPadding(context),
+            ),
             child: Container(
               width: 150,
               height: 20,
               decoration: BoxDecoration(
                 color: NetflixTheme.surfaceLight,
-                borderRadius: BorderRadius.circular(NetflixTheme.radiusSm),
+                borderRadius: BorderRadius.circular(4),
               ),
             ),
           ),
         SizedBox(height: showTitle ? NetflixTheme.sm : 0),
-        // Cards shimmer
         SizedBox(
           height: defaultHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: NetflixTheme.md),
+            padding: EdgeInsets.symmetric(
+              horizontal: NetflixTheme.horizontalPadding(context),
+            ),
             itemCount: itemCount,
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.only(right: NetflixTheme.sm),
+                padding: EdgeInsets.only(
+                  right: NetflixTheme.cardSpacing(context),
+                ),
                 child: Container(
                   width: cardWidth,
-                  height: defaultHeight - NetflixTheme.sm,
+                  height: defaultHeight,
                   decoration: BoxDecoration(
                     color: NetflixTheme.surfaceLight,
-                    borderRadius: BorderRadius.circular(NetflixTheme.radiusMd),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               );
@@ -295,48 +313,59 @@ class NetflixCarouselShimmer extends StatelessWidget {
   }
 }
 
-/// Wraps a child so that, when it (or any descendant) gains focus, the
-/// surrounding [ScrollController] auto-scrolls to keep it visible.
-/// This makes d-pad navigation in horizontal carousels work seamlessly.
-class _AutoScrollOnFocus extends StatelessWidget {
-  final ScrollController scrollController;
+/// Helper widget that scrolls the carousel when a child receives focus
+class _AutoScrollOnFocus extends StatefulWidget {
   final Widget child;
+  final ScrollController scrollController;
 
   const _AutoScrollOnFocus({
-    required this.scrollController,
     required this.child,
+    required this.scrollController,
   });
 
-  void _ensureVisible(BuildContext context) {
-    final renderObject = context.findRenderObject();
-    if (renderObject == null) return;
-    if (!scrollController.hasClients) return;
+  @override
+  State<_AutoScrollOnFocus> createState() => _AutoScrollOnFocusState();
+}
 
-    final viewport = RenderAbstractViewport.of(renderObject);
-    final offset = viewport.getOffsetToReveal(renderObject, 0.0).offset;
-    final currentOffset = scrollController.offset;
-    final maxExtent = scrollController.position.maxScrollExtent;
-
-    // Add a small leading margin so the card isn't flush with the edge.
-    final target = (offset - 16.0).clamp(0.0, maxExtent);
-
-    if ((target - currentOffset).abs() > 1.0) {
-      scrollController.animateTo(
-        target,
-        duration: NetflixTheme.mediumDuration,
-        curve: NetflixTheme.defaultCurve,
-      );
-    }
-  }
-
+class _AutoScrollOnFocusState extends State<_AutoScrollOnFocus> {
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      canRequestFocus: false,
-      onFocusChange: (hasFocus) {
-        if (hasFocus) _ensureVisible(context);
-      },
-      child: child,
+    return NotificationListener<ScrollNotification>(
+      child: Focus(
+        onFocusChange: (hasFocus) {
+          if (hasFocus) {
+            _scrollToVisible();
+          }
+        },
+        skipTraversal: true,
+        child: widget.child,
+      ),
     );
+  }
+
+  void _scrollToVisible() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final renderObject = context.findRenderObject();
+      if (renderObject == null) return;
+
+      final viewport = RenderAbstractViewport.of(renderObject);
+      final scrollPosition = widget.scrollController.position;
+
+      final revealOffset = viewport.getOffsetToReveal(renderObject, 0.0);
+      final targetOffset = revealOffset.offset.clamp(
+        scrollPosition.minScrollExtent,
+        scrollPosition.maxScrollExtent,
+      );
+
+      if ((scrollPosition.pixels - targetOffset).abs() > 10) {
+        widget.scrollController.animateTo(
+          targetOffset,
+          duration: NetflixTheme.mediumDuration,
+          curve: NetflixTheme.defaultCurve,
+        );
+      }
+    });
   }
 }

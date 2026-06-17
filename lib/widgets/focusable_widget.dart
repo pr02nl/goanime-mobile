@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../utils/tv_detector.dart';
-
-/// Widget que adiciona suporte a foco para navegação com controle remoto (TV)
+/// Widget que adiciona suporte a foco para navegação com teclado (Windows/desktop)
+/// e controle remoto D-pad (Android TV).
+///
+/// Arquitetura: o [FocusNode] é passado diretamente ao [InkWell], que no Flutter
+/// hospeda seu próprio nó de foco interno. Um [Focus] separado envolvendo o
+/// [InkWell] cria um nó concorrente e impede o traversal de alcançar o widget.
+/// A solução correta (documentada no PR flutter#41220) é usar [InkWell.focusNode]
+/// e registrar um [Shortcuts]/[Actions] para Enter/Space/Select acima dele.
 class FocusableWidget extends StatefulWidget {
   final Widget child;
   final VoidCallback? onSelect;
@@ -42,7 +47,6 @@ class _FocusableWidgetState extends State<FocusableWidget>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   bool _isFocused = false;
-  bool _isTV = false;
 
   @override
   void initState() {
@@ -55,28 +59,13 @@ class _FocusableWidgetState extends State<FocusableWidget>
     _scaleAnimation = Tween<double>(begin: 1.0, end: widget.focusScale).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-
     _focusNode.addListener(_handleFocusChange);
-
-    // Detecta se é TV de forma assíncrona
-    _detectTVMode();
-  }
-
-  Future<void> _detectTVMode() async {
-    final isTV = await TVDetector.isTV;
-    if (mounted) {
-      setState(() {
-        _isTV = isTV;
-      });
-    }
   }
 
   void _handleFocusChange() {
     final hasFocus = _focusNode.hasFocus;
-    setState(() {
-      _isFocused = hasFocus;
-    });
-
+    if (!mounted) return;
+    setState(() => _isFocused = hasFocus);
     if (hasFocus) {
       _animationController.forward();
       widget.onFocus?.call();
@@ -89,60 +78,40 @@ class _FocusableWidgetState extends State<FocusableWidget>
   @override
   void dispose() {
     _focusNode.removeListener(_handleFocusChange);
-    if (widget.focusNode == null) {
-      _focusNode.dispose();
-    }
+    if (widget.focusNode == null) _focusNode.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
-  KeyEventResult _handleKeyEvent(KeyEvent event) {
-    if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.select ||
-          event.logicalKey == LogicalKeyboardKey.enter ||
-          event.logicalKey == LogicalKeyboardKey.space) {
-        widget.onSelect?.call();
-        return KeyEventResult.handled;
-      }
-    }
-    return KeyEventResult.ignored;
-  }
+  void _activate() => widget.onSelect?.call();
 
   @override
   Widget build(BuildContext context) {
-    final splash = (widget.focusColor ?? Theme.of(context).colorScheme.primary)
-        .withValues(alpha: 0.18);
-    final highlight = (widget.focusColor ?? Theme.of(context).colorScheme.primary)
-        .withValues(alpha: 0.08);
+    final effectiveColor =
+        widget.focusColor ?? Theme.of(context).colorScheme.primary;
+    final splash = effectiveColor.withValues(alpha: 0.18);
+    final highlight = effectiveColor.withValues(alpha: 0.08);
 
-    // Ramo mobile/tablet: Material + InkWell garante splash nativo sem perder
-    // o callback de tap (o FocusableWidget já deriva em TV pela detecção interna).
-    Widget tapWrapper(Widget child) {
-      return Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(widget.borderRadius),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: widget.onSelect,
-          borderRadius: BorderRadius.circular(widget.borderRadius),
-          splashColor: splash,
-          highlightColor: highlight,
-          child: child,
-        ),
-      );
-    }
-
-    // Se não for TV e não tiver navegação D-pad habilitada, retorna widget normal
-    if (!_isTV && !widget.enableDpadNavigation) {
-      return tapWrapper(widget.child);
-    }
-
-    return tapWrapper(
-      Focus(
-        focusNode: _focusNode,
-        autofocus: widget.autoFocus,
-        onKeyEvent: (node, event) {
-          return _handleKeyEvent(event);
+    // Shortcuts mapeia Enter/Space/Select → ActivateIntent.
+    // Actions associa ActivateIntent → _activate(), o que aciona onSelect
+    // tanto no teclado (Windows/desktop) quanto no D-pad (TV).
+    // O focusNode é passado diretamente ao InkWell para que haja um único
+    // nó de foco — o Flutter PR#41220 estabelece essa como a forma correta.
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
+      },
+      child: Actions(
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              _activate();
+              return null;
+            },
+          ),
         },
         child: AnimatedBuilder(
           animation: _animationController,
@@ -155,27 +124,33 @@ class _FocusableWidgetState extends State<FocusableWidget>
                   boxShadow: _isFocused
                       ? [
                           BoxShadow(
-                            color:
-                                (widget.focusColor ??
-                                        Theme.of(context).colorScheme.primary)
-                                    .withValues(alpha: 0.6),
+                            color: effectiveColor.withValues(alpha: 0.6),
                             blurRadius: 12,
                             spreadRadius: 2,
                           ),
                         ]
                       : null,
                   border: _isFocused
-                      ? Border.all(
-                          color:
-                              widget.focusColor ??
-                              Theme.of(context).colorScheme.primary,
-                          width: 3,
-                        )
+                      ? Border.all(color: effectiveColor, width: 3)
                       : null,
                 ),
-                child: Padding(
-                  padding: widget.focusPadding,
-                  child: widget.child,
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(widget.borderRadius),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    focusNode: _focusNode,
+                    autofocus: widget.autoFocus,
+                    canRequestFocus: true,
+                    onTap: widget.onSelect,
+                    borderRadius: BorderRadius.circular(widget.borderRadius),
+                    splashColor: splash,
+                    highlightColor: highlight,
+                    child: Padding(
+                      padding: widget.focusPadding,
+                      child: widget.child,
+                    ),
+                  ),
                 ),
               ),
             );
@@ -293,57 +268,55 @@ class TVNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 80,
-      color: backgroundColor ?? Theme.of(context).colorScheme.surface,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(
-          items.length,
-          (index) => FocusableWidget(
-            onSelect: () => onTap(index),
-            autoFocus: index == currentIndex,
-            child: SizedBox(
-              width: 100,
-              height: 60,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconTheme(
-                    data: IconThemeData(
-                      color: index == currentIndex
-                          ? (selectedItemColor ??
-                                Theme.of(context).colorScheme.primary)
-                          : (unselectedItemColor ??
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.6)),
-                      size: 28,
-                    ),
-                    child: items[index].icon,
-                  ),
-                  if (items[index].label != null)
-                    Text(
-                      items[index].label!,
-                      style: TextStyle(
-                        color: index == currentIndex
-                            ? (selectedItemColor ??
-                                  Theme.of(context).colorScheme.primary)
-                            : (unselectedItemColor ??
-                                  Theme.of(context).colorScheme.onSurface
-                                      .withValues(alpha: 0.6)),
-                        fontSize: 12,
-                        fontWeight: index == currentIndex
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
+    return BottomNavigationBar(
+      currentIndex: currentIndex,
+      onTap: onTap,
+      items: items,
+      backgroundColor: backgroundColor ?? Colors.black,
+      selectedItemColor: selectedItemColor ?? Colors.white,
+      unselectedItemColor:
+          unselectedItemColor ?? Colors.white.withValues(alpha: 0.5),
+      type: BottomNavigationBarType.fixed,
+    );
+  }
+}
+
+/// Indicador de foco para TV — anel colorido ao redor do widget focado
+class TVFocusIndicator extends StatelessWidget {
+  final Widget child;
+  final bool isFocused;
+  final Color? focusColor;
+  final double borderRadius;
+  final double borderWidth;
+
+  const TVFocusIndicator({
+    super.key,
+    required this.child,
+    required this.isFocused,
+    this.focusColor,
+    this.borderRadius = 12.0,
+    this.borderWidth = 3.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = focusColor ?? Theme.of(context).colorScheme.primary;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: isFocused ? Border.all(color: color, width: borderWidth) : null,
+        boxShadow: isFocused
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.5),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
       ),
+      child: child,
     );
   }
 }

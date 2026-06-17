@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/pauloflix_movie.dart';
 import '../utils/responsive.dart';
+import 'focusable_widget.dart';
 import 'netflix_card.dart';
 import 'netflix_carousel.dart';
 import 'pauloflix_movies_badge.dart';
@@ -34,11 +36,15 @@ class PauloFlixMoviesSection extends StatelessWidget {
       height: cardHeight + 60,
       isTV: isTV,
       trailing: onSeeAll != null
-          ? TextButton(
-              onPressed: onSeeAll,
-              child: const Text(
-                'Ver Todos',
-                style: TextStyle(
+          ? FocusableWidget(
+              focusColor: const Color(0xFFDC2626),
+              onSelect: onSeeAll,
+              borderRadius: 12,
+              focusPadding: EdgeInsets.zero,
+              focusScale: 1.05,
+              child: Text(
+                AppLocalizations.of(context).seeAll,
+                style: const TextStyle(
                   color: Color(0xFFDC2626),
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
