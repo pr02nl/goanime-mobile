@@ -10,7 +10,6 @@ import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
-import '../widgets/focusable_widget.dart';
 import '../widgets/netflix_card.dart';
 import '../widgets/netflix_carousel.dart';
 import '../widgets/pauloflix_section.dart';
@@ -367,40 +366,23 @@ class _HomeScreenState extends State<HomeScreen>
       );
     }
 
-    return NetflixCarousel(
-      title: title,
-      height: sectionHeight,
-      isTV: _isTV,
-      trailing: genreId != null
-          ? FocusableWidget(
-              onSelect: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GenreAnimesScreen(
-                      title: title,
-                      icon: Icons.movie,
-                      gradient: AppColors.getPrimaryGradient(),
-                      genreId: genreId,
-                    ),
-                  ),
-                );
-              },
-              borderRadius: 12,
-              focusPadding: EdgeInsets.zero,
-              focusScale: 1.05,
-              child: Text(
-                l10n.seeAll,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          : null,
-      items: animes.map((anime) {
-        return NetflixCard(
+    void onSeeAll() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GenreAnimesScreen(
+            title: title,
+            icon: Icons.movie,
+            gradient: AppColors.getPrimaryGradient(),
+            genreId: genreId!,
+          ),
+        ),
+      );
+    }
+
+    final items = [
+      ...animes.map(
+        (anime) => NetflixCard(
           imageUrl: anime.imageUrl,
           title: anime.title,
           rating: anime.score,
@@ -408,8 +390,32 @@ class _HomeScreenState extends State<HomeScreen>
           height: cardHeight,
           isTV: _isTV,
           onTap: () => _onAnimeTap(anime),
-        );
-      }).toList(),
+        ),
+      ),
+      if (genreId != null)
+        SeeAllCard(
+          label: l10n.seeAll,
+          onTap: onSeeAll,
+          width: cardWidth,
+          height: cardHeight,
+          accentColor: AppColors.primary,
+          isTV: _isTV,
+        ),
+    ];
+
+    return NetflixCarousel(
+      title: title,
+      height: sectionHeight,
+      isTV: _isTV,
+      trailing: genreId != null
+          ? SeeAllButton(
+              label: l10n.seeAll,
+              onTap: onSeeAll,
+              accentColor: AppColors.primary,
+              isTV: _isTV,
+            )
+          : null,
+      items: items,
     );
   }
 }
