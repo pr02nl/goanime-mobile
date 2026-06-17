@@ -12,6 +12,9 @@
     <!-- Permissions for HTTP server (QR code setup on TV) -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
+    <!-- Permissions for video proxy server (local loopback) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
     <!-- TV specific features -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
