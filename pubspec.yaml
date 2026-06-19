@@ -40,10 +40,15 @@ dependencies:
   media_kit_libs_video: ^1.0.7
   # HTTP requests
   http: ^1.6.0
+  # HTTP client com interceptors (rate limiting, retry, logging)
+  dio: ^5.7.0
   # HTML parsing
   html: ^0.15.6
   # Database (sqlite3 via FFI)
   sqlite3: ^3.3.3
+  sqlite3_flutter_libs: ^0.5.30
+  # Type-safe database with migrations (substitui sqlite3 direto)
+  drift: ^2.22.1
   # Path provider
   path: ^1.9.1
   path_provider: ^2.1.5
@@ -74,12 +79,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+  # Code generation
+  build_runner: ^2.4.14
+  drift_dev: ^2.22.1
+
+  # Testing
+  mocktail: ^1.0.4
 
 # Force update of transitive dependencies to latest versions
 dependency_overrides:
