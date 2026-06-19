@@ -6,8 +6,8 @@ import 'core/database/database_helper.dart';
 import 'data/services/tmdb_service.dart';
 import 'services/download_service.dart';
 import 'services/locale_service.dart';
+import 'ui/core/utils/performance_config.dart';
 import 'ui/settings/view_models/theme_viewmodel.dart';
-import 'utils/performance_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
