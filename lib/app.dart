@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'data/repositories/home_repository_impl.dart';
 import 'domain/repositories/home_repository.dart';
 import 'l10n/app_localizations.dart';
-import 'providers/theme_provider.dart';
 import 'routing/app_router.dart';
 import 'services/download_service.dart';
 import 'services/locale_service.dart';
@@ -13,17 +12,18 @@ import 'ui/core/themes/app_theme.dart';
 import 'ui/home/view_models/home_viewmodel.dart';
 import 'ui/pauloflix/view_models/pauloflix_provider.dart';
 import 'ui/pauloflix_movies/view_models/pauloflix_movies_provider.dart';
+import 'ui/settings/view_models/theme_viewmodel.dart';
 import 'ui/watchlist/view_models/watchlist_viewmodel.dart';
 
 class PauloFlixApp extends StatelessWidget {
-  final ThemeProvider themeProvider;
+  final ThemeViewModel themeViewModel;
   final LocaleService localeService;
   final DownloadService downloadService;
   final String? startupError;
 
   const PauloFlixApp({
     super.key,
-    required this.themeProvider,
+    required this.themeViewModel,
     required this.localeService,
     required this.downloadService,
     this.startupError,
@@ -35,7 +35,7 @@ class PauloFlixApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: themeViewModel),
         ChangeNotifierProvider.value(value: localeService),
         ChangeNotifierProvider.value(value: downloadService),
         ChangeNotifierProvider(create: (_) => PauloFlixProvider()),
@@ -51,7 +51,7 @@ class PauloFlixApp extends StatelessWidget {
         ),
       ],
       child: ListenableBuilder(
-        listenable: themeProvider,
+        listenable: themeViewModel,
         builder: (context, _) {
           return MaterialApp.router(
             title: 'PauloFlix',
@@ -67,7 +67,7 @@ class PauloFlixApp extends StatelessWidget {
             supportedLocales: AppLocalizations.supportedLocales,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
-            themeMode: themeProvider.isDarkMode
+            themeMode: themeViewModel.isDarkMode
                 ? ThemeMode.dark
                 : ThemeMode.light,
           );

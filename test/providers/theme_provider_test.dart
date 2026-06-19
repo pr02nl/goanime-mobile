@@ -1,40 +1,40 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/providers/theme_provider.dart';
+import 'package:goanime/ui/settings/view_models/theme_viewmodel.dart';
 
 void main() {
-  group('ThemeProvider', () {
+  group('ThemeViewModel', () {
     test('deve iniciar com tema escuro por padrão', () {
-      final themeProvider = ThemeProvider();
-      expect(themeProvider.isDarkMode, true);
+      final themeViewModel = ThemeViewModel();
+      expect(themeViewModel.isDarkMode, true);
     });
 
     test('deve alternar tema corretamente', () {
-      final themeProvider = ThemeProvider();
-      
+      final themeViewModel = ThemeViewModel();
+
       // Inicialmente escuro
-      expect(themeProvider.isDarkMode, true);
-      
+      expect(themeViewModel.isDarkMode, true);
+
       // Alterna para claro
-      themeProvider.toggleTheme();
-      expect(themeProvider.isDarkMode, false);
-      
+      themeViewModel.toggleTheme();
+      expect(themeViewModel.isDarkMode, false);
+
       // Alterna para escuro novamente
-      themeProvider.toggleTheme();
-      expect(themeProvider.isDarkMode, true);
+      themeViewModel.toggleTheme();
+      expect(themeViewModel.isDarkMode, true);
     });
 
     test('deve notificar listeners ao alternar tema', () {
-      final themeProvider = ThemeProvider();
+      final themeViewModel = ThemeViewModel();
       int notifyCount = 0;
-      
-      themeProvider.addListener(() {
+
+      themeViewModel.addListener(() {
         notifyCount++;
       });
-      
-      themeProvider.toggleTheme();
+
+      themeViewModel.toggleTheme();
       expect(notifyCount, 1);
-      
-      themeProvider.toggleTheme();
+
+      themeViewModel.toggleTheme();
       expect(notifyCount, 2);
     });
   });

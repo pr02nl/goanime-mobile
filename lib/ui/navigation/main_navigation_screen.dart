@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/widgets/content_type_selector.dart';
+import '../core/themes/app_colors.dart';
+import '../core/widgets/content_type_selector.dart';
 
 class MainNavigationScreen extends StatelessWidget {
   final Widget child;

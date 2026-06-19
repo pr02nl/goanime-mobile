@@ -5,12 +5,11 @@ import 'package:provider/provider.dart';
 import '../domain/models/anime.dart';
 import '../domain/models/pauloflix_content.dart';
 import '../domain/models/pauloflix_movie.dart';
-import '../providers/theme_provider.dart';
-import '../screens/main_navigation_screen.dart';
 import '../ui/downloads/widgets/downloads_screen.dart';
 import '../ui/home/widgets/anime_detail_screen.dart';
 import '../ui/home/widgets/genre_animes_screen.dart';
 import '../ui/home/widgets/home_screen.dart';
+import '../ui/navigation/main_navigation_screen.dart';
 import '../ui/pauloflix/widgets/pauloflix_episode_list_screen.dart';
 import '../ui/pauloflix/widgets/pauloflix_see_all_screen.dart';
 import '../ui/pauloflix_movies/widgets/pauloflix_movie_detail_screen.dart';
@@ -23,6 +22,7 @@ import '../ui/player/widgets/video_player_screen.dart';
 import '../ui/search/widgets/anime_search_screen.dart';
 import '../ui/search/widgets/search_screen.dart';
 import '../ui/search/widgets/source_selection_screen.dart';
+import '../ui/settings/view_models/theme_viewmodel.dart';
 import '../ui/settings/widgets/settings_screen.dart';
 import '../ui/watchlist/widgets/watchlist_screen.dart';
 import 'route_data.dart';
@@ -121,8 +121,8 @@ GoRouter createAppRouter({String? initialError}) {
         path: '/anime-search',
         name: 'anime-search',
         builder: (context, state) {
-          final themeProvider = context.read<ThemeProvider>();
-          return AnimeSearchScreen(themeProvider: themeProvider);
+          final themeViewModel = context.read<ThemeViewModel>();
+          return AnimeSearchScreen(themeViewModel: themeViewModel);
         },
       ),
       GoRoute(

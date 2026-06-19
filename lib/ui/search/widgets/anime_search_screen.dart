@@ -7,17 +7,17 @@ import '../../../core/database/database_helper.dart';
 import '../../../data/services/anime_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../providers/theme_provider.dart';
 import '../../core/widgets/anime_result_card.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
 import '../../home/widgets/anime_detail_screen.dart';
 import '../../player/widgets/episode_list_screen.dart';
+import '../../settings/view_models/theme_viewmodel.dart';
 
 // Search Screen
 class AnimeSearchScreen extends StatefulWidget {
-  final ThemeProvider themeProvider;
+  final ThemeViewModel themeViewModel;
 
-  const AnimeSearchScreen({super.key, required this.themeProvider});
+  const AnimeSearchScreen({super.key, required this.themeViewModel});
 
   @override
   State<AnimeSearchScreen> createState() => _AnimeSearchScreenState();
@@ -339,15 +339,15 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
               actions: [
                 IconButton(
                   icon: Icon(
-                    widget.themeProvider.isDarkMode
+                    widget.themeViewModel.isDarkMode
                         ? Icons.light_mode
                         : Icons.dark_mode,
                   ),
                   onPressed: () {
-                    widget.themeProvider.toggleTheme();
+                    widget.themeViewModel.toggleTheme();
                     HapticFeedback.lightImpact();
                   },
-                  tooltip: widget.themeProvider.isDarkMode
+                  tooltip: widget.themeViewModel.isDarkMode
                       ? AppLocalizations.of(context).lightMode
                       : AppLocalizations.of(context).darkMode,
                 ),
