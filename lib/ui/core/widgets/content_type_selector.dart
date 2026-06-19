@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../ui/core/themes/app_colors.dart';
+import '../themes/app_colors.dart';
 import 'focusable_widget.dart';
 
 /// Toggle de segmentação entre Animes e Filmes para o AppBar.

@@ -2,10 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import '../data/models/jikan_models.dart';
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/themes/netflix_theme.dart';
-import '../utils/responsive.dart';
+import '../../../data/models/jikan_models.dart';
+import '../../../utils/responsive.dart';
+import '../themes/app_colors.dart';
+import '../themes/netflix_theme.dart';
 import 'focusable_widget.dart';
 
 /// Card de anime otimizado com animações leves e responsivo

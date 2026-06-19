@@ -9,8 +9,8 @@ import '../domain/models/anime.dart';
 import '../domain/models/episode.dart';
 import '../l10n/app_localizations.dart';
 import '../screens/video_player_screen.dart';
-import '../widgets/focusable_widget.dart';
-import '../widgets/logo_widget.dart';
+import '../ui/core/widgets/focusable_widget.dart';
+import '../ui/core/widgets/logo_widget.dart';
 
 class EpisodeListScreen extends StatefulWidget {
   final Anime anime;

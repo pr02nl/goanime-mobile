@@ -7,9 +7,9 @@ import '../screens/tv_qr_setup_dialog.dart';
 import '../services/api_key_settings_service.dart';
 import '../services/locale_service.dart';
 import '../ui/core/themes/app_colors.dart';
+import '../ui/core/widgets/focusable_widget.dart';
+import '../ui/core/widgets/tv_safe_text_field.dart';
 import '../utils/tv_detector.dart';
-import '../widgets/focusable_widget.dart';
-import '../widgets/tv_safe_text_field.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback? onBackPressed;

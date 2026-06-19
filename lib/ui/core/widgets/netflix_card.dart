@@ -2,8 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/themes/netflix_theme.dart';
+import '../themes/app_colors.dart';
+import '../themes/netflix_theme.dart';
 
 /// Netflix-inspired card with hover effects and smooth animations
 /// Supports responsive sizing and TV navigation

@@ -5,8 +5,8 @@ import '../data/services/jikan_service.dart';
 import '../l10n/app_localizations.dart';
 import '../ui/core/themes/app_colors.dart';
 import '../ui/core/themes/netflix_theme.dart';
+import '../ui/core/widgets/netflix_card.dart';
 import '../utils/responsive.dart';
-import '../widgets/netflix_card.dart';
 import 'source_selection_screen.dart';
 
 class GenreAnimesScreen extends StatefulWidget {

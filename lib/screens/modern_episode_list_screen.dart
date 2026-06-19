@@ -7,9 +7,9 @@ import '../domain/models/anime.dart';
 import '../domain/models/episode.dart';
 import '../services/download_service.dart';
 import '../ui/core/themes/app_colors.dart';
+import '../ui/core/widgets/download_button.dart';
+import '../ui/core/widgets/focusable_widget.dart';
 import '../utils/text_utils.dart';
-import '../widgets/download_button.dart';
-import '../widgets/focusable_widget.dart';
 import 'video_player_screen.dart';
 
 // Function to extract only the episode number

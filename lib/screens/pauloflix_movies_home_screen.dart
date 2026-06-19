@@ -5,10 +5,10 @@ import '../domain/models/pauloflix_movie.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/pauloflix_movies_provider.dart';
 import '../ui/core/themes/app_colors.dart';
+import '../ui/core/widgets/netflix_card.dart';
+import '../ui/core/widgets/pauloflix_movies_badge.dart';
 import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
-import '../widgets/netflix_card.dart';
-import '../widgets/pauloflix_movies_badge.dart';
 import 'pauloflix_movie_detail_screen.dart';
 
 class PauloFlixMoviesHomeScreen extends StatefulWidget {

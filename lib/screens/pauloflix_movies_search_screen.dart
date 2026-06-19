@@ -7,10 +7,10 @@ import 'package:provider/provider.dart';
 import '../domain/models/pauloflix_movie.dart';
 import '../providers/pauloflix_movies_provider.dart';
 import '../ui/core/themes/app_colors.dart';
+import '../ui/core/widgets/netflix_card.dart';
+import '../ui/core/widgets/tv_safe_text_field.dart';
 import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
-import '../widgets/netflix_card.dart';
-import '../widgets/tv_safe_text_field.dart';
 import 'pauloflix_movie_detail_screen.dart';
 
 /// Tela de busca de filmes PauloFlix.

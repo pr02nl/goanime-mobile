@@ -13,10 +13,10 @@ import '../google_video_proxy.dart';
 import '../l10n/app_localizations.dart';
 import '../mixins/video_player_aniskip_mixin.dart';
 import '../ui/core/themes/app_colors.dart';
+import '../ui/core/widgets/focusable_widget.dart';
+import '../ui/core/widgets/skip_button.dart';
 import '../utils/episode_utils.dart';
 import '../utils/tv_detector.dart';
-import '../widgets/focusable_widget.dart';
-import '../widgets/skip_button.dart';
 import 'blogger_webview_screen.dart';
 
 class ModernVideoPlayerScreen extends StatefulWidget {

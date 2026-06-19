@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../ui/core/themes/app_colors.dart';
+import '../themes/app_colors.dart';
 
 /// Widget de loading com efeito shimmer
 /// Substitui CircularProgressIndicator por uma animação mais elegante

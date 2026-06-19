@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../ui/core/themes/app_colors.dart';
+import '../themes/app_colors.dart';
 import 'focusable_widget.dart';
 
 class SkipButton extends StatefulWidget {

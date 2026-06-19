@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../utils/tv_detector.dart';
+import '../../../utils/tv_detector.dart';
 
 /// GridView otimizado para navegação com controle remoto de TV
 class TVGridView extends StatefulWidget {
