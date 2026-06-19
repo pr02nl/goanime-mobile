@@ -1061,6 +1061,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
               Positioned(
                 top: isTV ? 16 : 8,
                 left: isTV ? 16 : 8,
+                right: isTV ? 80 : 60,
                 child: AnimatedOpacity(
                   opacity: _showOverlayControls ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 200),

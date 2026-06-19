@@ -199,9 +199,9 @@ class _TVSafeTextFieldState extends State<TVSafeTextField> {
       focusNode: _focusNode,
       autofocus: widget.autofocus,
       onKeyEvent: _handleKeyEvent,
+      includeSemantics: false,
       child: TextField(
         controller: _controller,
-        focusNode: _focusNode,
         style: widget.style,
         obscureText: widget.obscureText,
         decoration: widget.decoration ??
