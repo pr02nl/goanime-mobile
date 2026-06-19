@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/services/anime_service.dart';
+import '../../../data/services/download_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
-import '../../../services/download_service.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/text_utils.dart';
 import '../../core/widgets/focusable_widget.dart';

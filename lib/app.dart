@@ -3,11 +3,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'data/repositories/home_repository_impl.dart';
+import 'data/services/download_service.dart';
+import 'data/services/locale_service.dart';
 import 'domain/repositories/home_repository.dart';
 import 'l10n/app_localizations.dart';
 import 'routing/app_router.dart';
-import 'services/download_service.dart';
-import 'services/locale_service.dart';
 import 'ui/core/themes/app_theme.dart';
 import 'ui/home/view_models/home_viewmodel.dart';
 import 'ui/pauloflix/view_models/pauloflix_provider.dart';

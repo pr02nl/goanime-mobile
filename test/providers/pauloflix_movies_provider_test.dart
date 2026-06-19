@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/data/services/api_key_settings_service.dart';
+import 'package:goanime/data/services/pauloflix_movies_database_service.dart';
 import 'package:goanime/domain/models/pauloflix_movie.dart';
-import 'package:goanime/services/api_key_settings_service.dart';
-import 'package:goanime/services/pauloflix_movies_database_service.dart';
 import 'package:goanime/ui/pauloflix_movies/view_models/pauloflix_movies_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

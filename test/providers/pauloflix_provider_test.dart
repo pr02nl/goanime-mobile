@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/data/services/pauloflix_database_service.dart';
 import 'package:goanime/domain/models/pauloflix_content.dart';
-import 'package:goanime/services/pauloflix_database_service.dart';
 import 'package:goanime/ui/pauloflix/view_models/pauloflix_provider.dart';
 
 /// Banco fake que retorna dados em memória, sem precisar de SQLite real.

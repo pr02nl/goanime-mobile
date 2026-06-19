@@ -5,13 +5,14 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import '../domain/models/pauloflix_content.dart';
+import '../../domain/models/pauloflix_movie.dart';
 
-class PauloFlixDatabaseService {
+/// Persistência SQLite para conteúdo PauloFlix Movies (independente do banco de animes).
+class PauloFlixMoviesDatabaseService {
   static Database? _database;
   static Completer<Database>? _initCompleter;
-  static const String _dbFileName = 'pauloflix.db';
-  static const String _tableName = 'pauloflix_content';
+  static const String _dbFileName = 'pauloflix_movies.db';
+  static const String _tableName = 'pauloflix_movies';
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -38,8 +39,8 @@ class PauloFlixDatabaseService {
       if (File(legacyPath).existsSync()) {
         return legacyPath;
       }
-      if (!legacyDir.existsSync()) {
-        legacyDir.createSync(recursive: true);
+      if (!Directory(legacyPath).existsSync()) {
+        Directory(legacyPath).createSync(recursive: true);
       }
       return legacyPath;
     }
@@ -66,25 +67,31 @@ class PauloFlixDatabaseService {
         description TEXT,
         score REAL,
         genres TEXT,
-        status TEXT,
-        episodeCount INTEGER,
-        malId INTEGER,
-        anilistId INTEGER,
+        releaseDate TEXT,
+        runtime INTEGER,
+        year INTEGER,
+        tmdbId INTEGER,
+        isCollection INTEGER NOT NULL DEFAULT 0,
+        availableMovieCount INTEGER NOT NULL DEFAULT 0,
         lastSynced TEXT NOT NULL,
         isAvailable INTEGER NOT NULL DEFAULT 1
       )
     ''');
 
     db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_folderName ON $_tableName(folderName)
+      CREATE INDEX IF NOT EXISTS idx_movies_folderName ON $_tableName(folderName)
     ''');
 
     db.execute('''
-      CREATE INDEX IF NOT EXISTS idx_isAvailable ON $_tableName(isAvailable)
+      CREATE INDEX IF NOT EXISTS idx_movies_isAvailable ON $_tableName(isAvailable)
+    ''');
+
+    db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_movies_tmdbId ON $_tableName(tmdbId)
     ''');
   }
 
-  Future<void> saveContent(PauloFlixContent content) async {
+  Future<void> saveContent(PauloFlixMovie content) async {
     final db = await database;
     final map = content.toMap();
 
@@ -92,8 +99,9 @@ class PauloFlixDatabaseService {
       '''
       INSERT OR REPLACE INTO $_tableName
       (folderName, displayName, serverUrl, imageUrl, bannerUrl, description,
-       score, genres, status, episodeCount, malId, anilistId, lastSynced, isAvailable)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       score, genres, releaseDate, runtime, year, tmdbId, isCollection,
+       availableMovieCount, lastSynced, isAvailable)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''',
       [
         map['folderName'],
@@ -104,46 +112,24 @@ class PauloFlixDatabaseService {
         map['description'],
         map['score'],
         map['genres'],
-        map['status'],
-        map['episodeCount'],
-        map['malId'],
-        map['anilistId'],
+        map['releaseDate'],
+        map['runtime'],
+        map['year'],
+        map['tmdbId'],
+        map['isCollection'],
+        map['availableMovieCount'],
         map['lastSynced'],
         map['isAvailable'],
       ],
     );
   }
 
-  Future<void> saveBatch(List<PauloFlixContent> contents) async {
+  Future<void> saveBatch(List<PauloFlixMovie> contents) async {
     final db = await database;
     db.execute('BEGIN TRANSACTION');
     try {
       for (final content in contents) {
-        final map = content.toMap();
-        db.execute(
-          '''
-          INSERT OR REPLACE INTO $_tableName
-          (folderName, displayName, serverUrl, imageUrl, bannerUrl, description,
-           score, genres, status, episodeCount, malId, anilistId, lastSynced, isAvailable)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''',
-          [
-            map['folderName'],
-            map['displayName'],
-            map['serverUrl'],
-            map['imageUrl'],
-            map['bannerUrl'],
-            map['description'],
-            map['score'],
-            map['genres'],
-            map['status'],
-            map['episodeCount'],
-            map['malId'],
-            map['anilistId'],
-            map['lastSynced'],
-            map['isAvailable'],
-          ],
-        );
+        await saveContent(content);
       }
       db.execute('COMMIT');
     } catch (e) {
@@ -152,39 +138,39 @@ class PauloFlixDatabaseService {
     }
   }
 
-  Future<List<PauloFlixContent>> getAllContent() async {
+  Future<List<PauloFlixMovie>> getAllContent() async {
     final db = await database;
     final result = db.select(
       'SELECT * FROM $_tableName WHERE isAvailable = 1 ORDER BY displayName',
     );
-    return result.map((row) => PauloFlixContent.fromMap(row)).toList();
+    return result.map((row) => PauloFlixMovie.fromMap(row)).toList();
   }
 
-  Future<List<PauloFlixContent>> searchByName(String query) async {
+  Future<List<PauloFlixMovie>> searchByName(String query) async {
     final db = await database;
     final result = db.select(
       'SELECT * FROM $_tableName WHERE displayName LIKE ? AND isAvailable = 1 ORDER BY displayName',
       ['%$query%'],
     );
-    return result.map((row) => PauloFlixContent.fromMap(row)).toList();
+    return result.map((row) => PauloFlixMovie.fromMap(row)).toList();
   }
 
-  Future<PauloFlixContent?> getByFolderName(String folderName) async {
+  Future<PauloFlixMovie?> getByFolderName(String folderName) async {
     final db = await database;
     final result = db.select('SELECT * FROM $_tableName WHERE folderName = ?', [
       folderName,
     ]);
     if (result.isEmpty) return null;
-    return PauloFlixContent.fromMap(result.first);
+    return PauloFlixMovie.fromMap(result.first);
   }
 
-  Future<PauloFlixContent?> getByMalId(int malId) async {
+  Future<PauloFlixMovie?> getByTmdbId(int tmdbId) async {
     final db = await database;
-    final result = db.select('SELECT * FROM $_tableName WHERE malId = ?', [
-      malId,
+    final result = db.select('SELECT * FROM $_tableName WHERE tmdbId = ?', [
+      tmdbId,
     ]);
     if (result.isEmpty) return null;
-    return PauloFlixContent.fromMap(result.first);
+    return PauloFlixMovie.fromMap(result.first);
   }
 
   Future<void> markAsUnavailable(String folderName) async {
@@ -220,7 +206,14 @@ class PauloFlixDatabaseService {
     final withMetadata =
         db
                 .select(
-                  'SELECT COUNT(*) as count FROM $_tableName WHERE imageUrl IS NOT NULL AND isAvailable = 1',
+                  'SELECT COUNT(*) as count FROM $_tableName WHERE imageUrl IS NOT NULL AND imageUrl != "" AND isAvailable = 1',
+                )
+                .first['count']
+            as int;
+    final collections =
+        db
+                .select(
+                  'SELECT COUNT(*) as count FROM $_tableName WHERE isCollection = 1 AND isAvailable = 1',
                 )
                 .first['count']
             as int;
@@ -229,6 +222,7 @@ class PauloFlixDatabaseService {
       'total': total,
       'available': available,
       'withMetadata': withMetadata,
+      'collections': collections,
     };
   }
 }

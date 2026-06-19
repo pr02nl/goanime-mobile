@@ -4,8 +4,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
+import '../../../data/services/download_service.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../services/download_service.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
 

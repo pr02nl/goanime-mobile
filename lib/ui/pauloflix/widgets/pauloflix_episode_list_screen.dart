@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/services/pauloflix_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/models/pauloflix_models.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../services/pauloflix_service.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/pauloflix_badge.dart';
 import '../../player/widgets/video_player_screen.dart';

@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../data/services/api_key_settings_service.dart';
+import '../../../data/services/pauloflix_movies_database_service.dart';
+import '../../../data/services/pauloflix_movies_service.dart';
 import '../../../data/services/tmdb_service.dart';
 import '../../../domain/models/pauloflix_movie.dart';
-import '../../../services/api_key_settings_service.dart';
-import '../../../services/pauloflix_movies_database_service.dart';
-import '../../../services/pauloflix_movies_service.dart';
 
 enum PauloFlixMoviesStatus { initial, loading, loaded, error }
 

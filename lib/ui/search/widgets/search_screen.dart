@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../data/models/jikan_models.dart';
 import '../../../data/services/jikan_service.dart';
+import '../../../data/services/search_history_service.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../services/search_history_service.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/themes/netflix_theme.dart';
 import '../../core/utils/responsive.dart';

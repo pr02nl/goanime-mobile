@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../data/services/watchlist_notifier.dart';
+import '../../../data/services/watchlist_service.dart';
 import '../../../domain/models/watchlist_anime.dart';
-import '../../../services/watchlist_notifier.dart';
-import '../../../services/watchlist_service.dart';
 
 class WatchlistViewModel extends ChangeNotifier {
   final WatchlistService _service = WatchlistService();

@@ -2,10 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
-import '../data/services/tmdb_service.dart';
-import '../domain/models/pauloflix_movie.dart';
-import '../domain/models/pauloflix_movie_item.dart';
+import '../../domain/models/pauloflix_movie.dart';
+import '../../domain/models/pauloflix_movie_item.dart';
 import 'pauloflix_movies_database_service.dart';
+import 'tmdb_service.dart';
 
 /// Lê diretórios HTML do PauloFlix Movies e enriquece com metadados do TMDB.
 ///
