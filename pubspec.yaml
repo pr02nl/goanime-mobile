@@ -43,12 +43,12 @@ dependencies:
   # HTTP client com interceptors (rate limiting, retry, logging)
   dio: ^5.7.0
   # Navegacao type-safe com deep linking
-  go_router: ^14.8.1
+  go_router: ^17.3.0
   # HTML parsing
   html: ^0.15.6
   # Database (sqlite3 via FFI)
   sqlite3: ^3.3.3
-  sqlite3_flutter_libs: ^0.5.30
+  sqlite3_flutter_libs: ^0.6.0+eol
   # Type-safe database with migrations (substitui sqlite3 direto)
   drift: ^2.22.1
   # Path provider
