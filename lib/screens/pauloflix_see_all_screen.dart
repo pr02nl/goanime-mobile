@@ -9,6 +9,7 @@ import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/netflix_card.dart';
 import '../widgets/pauloflix_badge.dart';
+import '../widgets/tv_safe_text_field.dart';
 import 'pauloflix_episode_list_screen.dart';
 
 class PauloFlixSeeAllScreen extends StatefulWidget {
@@ -172,7 +173,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: TextField(
+              child: TVSafeTextField(
                 controller: _searchController,
                 onChanged: _onSearchChanged,
                 style: const TextStyle(color: Colors.white),

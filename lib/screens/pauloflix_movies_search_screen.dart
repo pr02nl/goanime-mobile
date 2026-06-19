@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/netflix_card.dart';
+import '../widgets/tv_safe_text_field.dart';
 import 'pauloflix_movie_detail_screen.dart';
 
 /// Tela de busca de filmes PauloFlix.
@@ -208,17 +209,16 @@ class _PauloFlixMoviesSearchScreenState
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.pop(context),
             ),
-            title: TextField(
+            title: TVSafeTextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
               autofocus: true,
-              onChanged: _onSearchChanged,
+              downFocusNode: _firstCardFocusNode,
               onSubmitted: (_) {
-                // Em mobile, Enter fecha o teclado. Em desktop, mantém foco.
                 _searchFocusNode.unfocus();
-                _searchFocusNode.requestFocus();
+                _firstCardFocusNode.requestFocus();
               },
-              textInputAction: TextInputAction.search,
+              onChanged: _onSearchChanged,
               style: const TextStyle(color: Colors.white, fontSize: 16),
               decoration: InputDecoration(
                 hintText: 'Buscar filme...',

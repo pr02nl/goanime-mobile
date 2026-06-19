@@ -11,6 +11,7 @@ import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/netflix_card.dart';
+import '../widgets/tv_safe_text_field.dart';
 import 'source_selection_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -365,11 +366,13 @@ class _SearchScreenState extends State<SearchScreen>
                       width: 1,
                     ),
                   ),
-                  child: TextField(
+                  child: TVSafeTextField(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
                     autofocus: !_isTV,
                     style: const TextStyle(color: Colors.white, fontSize: 16),
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _performSearch(_searchController.text),
                     decoration: InputDecoration(
                       hintText: l10n.searchAnime,
                       hintStyle: TextStyle(

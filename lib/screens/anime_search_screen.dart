@@ -9,6 +9,7 @@ import '../models/anime.dart';
 import '../providers/theme_provider.dart';
 import '../services/anime_service.dart';
 import '../widgets/anime_result_card.dart';
+import '../widgets/tv_safe_text_field.dart';
 import 'anime_detail_screen.dart';
 import 'episode_list_screen.dart';
 
@@ -72,7 +73,7 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
             ),
             color: colorScheme.surface.withValues(alpha: 0.7),
           ),
-          child: TextField(
+          child: TVSafeTextField(
             controller: _searchController,
             decoration: InputDecoration(
               hintText: AppLocalizations.of(context).searchHint,
@@ -101,7 +102,6 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
               ),
             ),
             onSubmitted: (_) => _searchAnime(),
-            textInputAction: TextInputAction.search,
           ),
         ),
       ),

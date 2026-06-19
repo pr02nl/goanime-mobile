@@ -9,6 +9,7 @@ import '../screens/tv_qr_setup_dialog.dart';
 import '../theme/app_colors.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/focusable_widget.dart';
+import '../widgets/tv_safe_text_field.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback? onBackPressed;
@@ -455,7 +456,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
             if (_showTmdbField) ...[
-              TextField(
+              TVSafeTextField(
                 controller: _tmdbKeyController,
                 obscureText: false,
                 style: const TextStyle(color: Colors.white),

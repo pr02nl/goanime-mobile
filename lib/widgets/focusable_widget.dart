@@ -103,12 +103,30 @@ class _FocusableWidgetState extends State<FocusableWidget>
         SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
         SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
         SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
+        // Navegação direcional D-pad — move o foco na direção da seta
+        SingleActivator(LogicalKeyboardKey.arrowUp):
+            DirectionalFocusIntent(TraversalDirection.up),
+        SingleActivator(LogicalKeyboardKey.arrowDown):
+            DirectionalFocusIntent(TraversalDirection.down),
+        SingleActivator(LogicalKeyboardKey.arrowLeft):
+            DirectionalFocusIntent(TraversalDirection.left),
+        SingleActivator(LogicalKeyboardKey.arrowRight):
+            DirectionalFocusIntent(TraversalDirection.right),
+        // ESC/Back — desfoca este widget (volta para o pai)
+        SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
+        SingleActivator(LogicalKeyboardKey.goBack): DismissIntent(),
       },
       child: Actions(
         actions: {
           ActivateIntent: CallbackAction<ActivateIntent>(
             onInvoke: (_) {
               _activate();
+              return null;
+            },
+          ),
+          DismissIntent: CallbackAction<DismissIntent>(
+            onInvoke: (_) {
+              _focusNode.unfocus();
               return null;
             },
           ),
