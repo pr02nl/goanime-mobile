@@ -8,7 +8,7 @@ import '../domain/models/pauloflix_movie_item.dart';
 import '../services/pauloflix_movies_service.dart';
 import '../ui/core/themes/app_colors.dart';
 import '../ui/core/widgets/pauloflix_movies_badge.dart';
-import 'video_player_screen.dart';
+import '../ui/player/widgets/video_player_screen.dart';
 
 class PauloFlixMovieDetailScreen extends StatefulWidget {
   final PauloFlixMovie content;

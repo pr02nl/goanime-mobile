@@ -4,9 +4,9 @@ import 'package:flutter/services.dart';
 
 import '../../../domain/models/anime.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../screens/episode_list_screen.dart';
 import '../../../utils/text_utils.dart';
 import '../../core/widgets/focusable_widget.dart';
+import '../../player/widgets/episode_list_screen.dart';
 
 class AnimeDetailScreen extends StatelessWidget {
   final Anime anime;

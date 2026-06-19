@@ -8,10 +8,10 @@ import '../../../domain/models/anime.dart';
 import '../../../helpers/database_helper.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../providers/theme_provider.dart';
-import '../../../screens/episode_list_screen.dart';
 import '../../core/widgets/anime_result_card.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
 import '../../home/widgets/anime_detail_screen.dart';
+import '../../player/widgets/episode_list_screen.dart';
 
 // Search Screen
 class AnimeSearchScreen extends StatefulWidget {

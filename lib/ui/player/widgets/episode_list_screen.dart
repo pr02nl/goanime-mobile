@@ -4,13 +4,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../data/services/anime_service.dart';
-import '../domain/models/anime.dart';
-import '../domain/models/episode.dart';
-import '../l10n/app_localizations.dart';
-import '../screens/video_player_screen.dart';
-import '../ui/core/widgets/focusable_widget.dart';
-import '../ui/core/widgets/logo_widget.dart';
+import '../../../data/services/anime_service.dart';
+import '../../../domain/models/anime.dart';
+import '../../../domain/models/episode.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../core/widgets/focusable_widget.dart';
+import '../../core/widgets/logo_widget.dart';
+import 'video_player_screen.dart';
 
 class EpisodeListScreen extends StatefulWidget {
   final Anime anime;

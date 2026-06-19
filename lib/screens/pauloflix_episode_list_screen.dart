@@ -8,7 +8,7 @@ import '../models/pauloflix_models.dart';
 import '../services/pauloflix_service.dart';
 import '../ui/core/themes/app_colors.dart';
 import '../ui/core/widgets/pauloflix_badge.dart';
-import 'video_player_screen.dart';
+import '../ui/player/widgets/video_player_screen.dart';
 
 class PauloFlixEpisodeListScreen extends StatefulWidget {
   final PauloFlixContent content;

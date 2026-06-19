@@ -2,14 +2,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/services/anime_service.dart';
-import '../domain/models/anime.dart';
-import '../domain/models/episode.dart';
-import '../services/download_service.dart';
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/widgets/download_button.dart';
-import '../ui/core/widgets/focusable_widget.dart';
-import '../utils/text_utils.dart';
+import '../../../data/services/anime_service.dart';
+import '../../../domain/models/anime.dart';
+import '../../../domain/models/episode.dart';
+import '../../../services/download_service.dart';
+import '../../../utils/text_utils.dart';
+import '../../core/themes/app_colors.dart';
+import '../../core/widgets/download_button.dart';
+import '../../core/widgets/focusable_widget.dart';
 import 'video_player_screen.dart';
 
 // Function to extract only the episode number
