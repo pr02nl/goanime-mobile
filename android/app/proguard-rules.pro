@@ -40,7 +40,7 @@
 -keep class android.content.** { *; }
 
 # Keep all model classes used for JSON serialization
--keep class com.example.goanime_mobile.** { *; }
+-keep class com.pr02nl.pauloflix.** { *; }
 
 # Keep generic signatures and annotations
 -keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod

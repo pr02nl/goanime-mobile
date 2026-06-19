@@ -1,4 +1,4 @@
-package com.example.goanime_mobile
+package com.pr02nl.pauloflix
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
