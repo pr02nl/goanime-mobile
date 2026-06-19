@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../data/models/aniskip_models.dart';
 import '../l10n/app_localizations.dart';
-import '../models/aniskip_models.dart';
 import '../services/aniskip_service.dart';
 import '../utils/episode_utils.dart';
 
@@ -80,7 +80,9 @@ mixin VideoPlayerAniSkipMixin<T extends StatefulWidget> on State<T> {
     }
 
     skipTimesRetryCount = 0;
-    debugPrint('[AniSkip] Fetching skip times for Episode: $episodeNumberParsed');
+    debugPrint(
+      '[AniSkip] Fetching skip times for Episode: $episodeNumberParsed',
+    );
 
     try {
       final skipTimesResult = await AniSkipService.getSkipTimesMultiStrategy(
@@ -139,7 +141,8 @@ mixin VideoPlayerAniSkipMixin<T extends StatefulWidget> on State<T> {
 
   void checkSkipButtonVisibility() {
     final currentPlayer = player;
-    if (currentPlayer == null || currentPlayer.state.duration == Duration.zero) {
+    if (currentPlayer == null ||
+        currentPlayer.state.duration == Duration.zero) {
       return;
     }
 
@@ -159,9 +162,11 @@ mixin VideoPlayerAniSkipMixin<T extends StatefulWidget> on State<T> {
     String? activeSegment;
     String label = '';
 
-    final inOpWindow = skipTimes?.op != null &&
+    final inOpWindow =
+        skipTimes?.op != null &&
         isWithinSkipWindow(skipTimes?.op, currentSeconds);
-    final inEdWindow = skipTimes?.ed != null &&
+    final inEdWindow =
+        skipTimes?.ed != null &&
         isWithinSkipWindow(skipTimes?.ed, currentSeconds);
 
     if (inOpWindow) {
@@ -273,7 +278,10 @@ mixin VideoPlayerAniSkipMixin<T extends StatefulWidget> on State<T> {
 
   bool isWithinSkipWindow(Skip? skip, double currentSeconds) {
     if (skip == null) return false;
-    final startBoundary = (skip.start - skipLeadSeconds).clamp(0, double.infinity);
+    final startBoundary = (skip.start - skipLeadSeconds).clamp(
+      0,
+      double.infinity,
+    );
     final endBoundary = skip.end + skipHoldSeconds;
     return currentSeconds >= startBoundary && currentSeconds <= endBoundary;
   }

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../data/models/jikan_models.dart';
 import '../l10n/app_localizations.dart';
-import '../models/jikan_models.dart';
 import '../providers/pauloflix_provider.dart';
 import '../routing/route_data.dart';
 import '../services/jikan_service.dart';
@@ -23,7 +23,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -67,7 +68,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             if (viewModel.seasonAnimes.isNotEmpty)
               SliverToBoxAdapter(
                 child: NetflixHeroCard(
-                  imageUrl: viewModel.seasonAnimes.first.largImageUrl ??
+                  imageUrl:
+                      viewModel.seasonAnimes.first.largImageUrl ??
                       viewModel.seasonAnimes.first.imageUrl,
                   title: viewModel.seasonAnimes.first.title,
                   description: viewModel.seasonAnimes.first.synopsis,
@@ -81,41 +83,59 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
             SliverToBoxAdapter(
               child: _buildSection(
-                context, l10n.seasonHighlights, viewModel.seasonAnimes,
-                isLoading: viewModel.isLoading, viewModel: viewModel,
+                context,
+                l10n.seasonHighlights,
+                viewModel.seasonAnimes,
+                isLoading: viewModel.isLoading,
+                viewModel: viewModel,
               ),
             ),
             SliverToBoxAdapter(
               child: _buildSection(
-                context, l10n.topAnime, viewModel.topAnimes,
-                isLoading: viewModel.isLoading, viewModel: viewModel,
+                context,
+                l10n.topAnime,
+                viewModel.topAnimes,
+                isLoading: viewModel.isLoading,
+                viewModel: viewModel,
               ),
             ),
             SliverToBoxAdapter(
               child: _buildSection(
-                context, l10n.action, viewModel.actionAnimes,
-                isLoading: viewModel.isLoading, viewModel: viewModel,
+                context,
+                l10n.action,
+                viewModel.actionAnimes,
+                isLoading: viewModel.isLoading,
+                viewModel: viewModel,
                 genreId: JikanGenreIds.action,
               ),
             ),
             SliverToBoxAdapter(
               child: _buildSection(
-                context, l10n.romance, viewModel.romanceAnimes,
-                isLoading: viewModel.isLoading, viewModel: viewModel,
+                context,
+                l10n.romance,
+                viewModel.romanceAnimes,
+                isLoading: viewModel.isLoading,
+                viewModel: viewModel,
                 genreId: JikanGenreIds.romance,
               ),
             ),
             SliverToBoxAdapter(
               child: _buildSection(
-                context, l10n.comedy, viewModel.comedyAnimes,
-                isLoading: viewModel.isLoading, viewModel: viewModel,
+                context,
+                l10n.comedy,
+                viewModel.comedyAnimes,
+                isLoading: viewModel.isLoading,
+                viewModel: viewModel,
                 genreId: JikanGenreIds.comedy,
               ),
             ),
             SliverToBoxAdapter(
               child: _buildSection(
-                context, l10n.fantasy, viewModel.fantasyAnimes,
-                isLoading: viewModel.isLoading, viewModel: viewModel,
+                context,
+                l10n.fantasy,
+                viewModel.fantasyAnimes,
+                isLoading: viewModel.isLoading,
+                viewModel: viewModel,
                 genreId: JikanGenreIds.fantasy,
               ),
             ),
@@ -131,10 +151,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     contents: pauloflix.contents.take(15).toList(),
                     isTV: viewModel.isTV,
                     onSeeAll: () => context.push('/pauloflix-see-all'),
-                    onItemTap: (content) => context.push(
-                      '/pauloflix-episodes',
-                      extra: content,
-                    ),
+                    onItemTap: (content) =>
+                        context.push('/pauloflix-episodes', extra: content),
                   ),
                 );
               },
@@ -216,7 +234,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           child: Text(
             title,
             style: const TextStyle(
-              color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/data/models/jikan_models.dart';
 import 'package:goanime/domain/repositories/home_repository.dart';
-import 'package:goanime/models/jikan_models.dart';
 import 'package:goanime/services/jikan_service.dart';
 import 'package:goanime/ui/home/view_models/home_viewmodel.dart';
 import 'package:mocktail/mocktail.dart';
@@ -44,8 +44,11 @@ void main() {
     });
 
     test('loadHomeData loads data on success', () async {
-      when(() => mockRepository.loadHomeData(forceRefresh: any(named: 'forceRefresh')))
-          .thenAnswer((_) async => testHomeData);
+      when(
+        () => mockRepository.loadHomeData(
+          forceRefresh: any(named: 'forceRefresh'),
+        ),
+      ).thenAnswer((_) async => testHomeData);
 
       await viewModel.loadHomeData();
 
@@ -56,8 +59,11 @@ void main() {
     });
 
     test('loadHomeData handles error gracefully', () async {
-      when(() => mockRepository.loadHomeData(forceRefresh: any(named: 'forceRefresh')))
-          .thenThrow(Exception('API error'));
+      when(
+        () => mockRepository.loadHomeData(
+          forceRefresh: any(named: 'forceRefresh'),
+        ),
+      ).thenThrow(Exception('API error'));
 
       await viewModel.loadHomeData();
 
@@ -66,23 +72,37 @@ void main() {
     });
 
     test('loadHomeData does not reload if data already loaded', () async {
-      when(() => mockRepository.loadHomeData(forceRefresh: any(named: 'forceRefresh')))
-          .thenAnswer((_) async => testHomeData);
+      when(
+        () => mockRepository.loadHomeData(
+          forceRefresh: any(named: 'forceRefresh'),
+        ),
+      ).thenAnswer((_) async => testHomeData);
 
       await viewModel.loadHomeData();
       await viewModel.loadHomeData();
 
-      verify(() => mockRepository.loadHomeData(forceRefresh: any(named: 'forceRefresh'))).called(1);
+      verify(
+        () => mockRepository.loadHomeData(
+          forceRefresh: any(named: 'forceRefresh'),
+        ),
+      ).called(1);
     });
 
     test('loadHomeData forceRefresh reloads even with existing data', () async {
-      when(() => mockRepository.loadHomeData(forceRefresh: any(named: 'forceRefresh')))
-          .thenAnswer((_) async => testHomeData);
+      when(
+        () => mockRepository.loadHomeData(
+          forceRefresh: any(named: 'forceRefresh'),
+        ),
+      ).thenAnswer((_) async => testHomeData);
 
       await viewModel.loadHomeData();
       await viewModel.loadHomeData(forceRefresh: true);
 
-      verify(() => mockRepository.loadHomeData(forceRefresh: any(named: 'forceRefresh'))).called(2);
+      verify(
+        () => mockRepository.loadHomeData(
+          forceRefresh: any(named: 'forceRefresh'),
+        ),
+      ).called(2);
     });
 
     test('setTVMode updates isTV and notifies', () {

@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/models/jikan_models.dart';
 import '../l10n/app_localizations.dart';
-import '../models/jikan_models.dart';
 import '../services/jikan_service.dart';
 import '../services/search_history_service.dart';
 import '../theme/app_colors.dart';

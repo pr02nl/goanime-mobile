@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/data/models/anilist_models.dart';
+import 'package:goanime/data/models/jikan_models.dart';
 import 'package:goanime/domain/models/anime.dart';
-import 'package:goanime/models/anilist_models.dart';
-import 'package:goanime/models/jikan_models.dart';
 
 void main() {
   group('Anime Model', () {

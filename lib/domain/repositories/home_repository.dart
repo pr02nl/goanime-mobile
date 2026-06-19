@@ -1,5 +1,5 @@
-import '../../../models/jikan_models.dart';
 import '../../../services/jikan_service.dart';
+import '../../data/models/jikan_models.dart';
 
 abstract class HomeRepository {
   Future<HomeData> loadHomeData({bool forceRefresh = false});

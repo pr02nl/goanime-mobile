@@ -1,4 +1,4 @@
-import '../../models/tmdb_models.dart';
+import '../../data/models/tmdb_models.dart';
 
 /// Conteúdo mapeado do PauloFlix Movies com metadados do TMDB.
 ///

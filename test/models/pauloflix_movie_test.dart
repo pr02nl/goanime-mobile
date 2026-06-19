@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/data/models/tmdb_models.dart';
 import 'package:goanime/domain/models/pauloflix_movie.dart';
-import 'package:goanime/models/tmdb_models.dart';
 
 void main() {
   group('PauloFlixMovie', () {

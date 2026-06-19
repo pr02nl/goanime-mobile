@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../models/jikan_models.dart';
+import '../data/models/jikan_models.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import 'focusable_widget.dart';
@@ -139,8 +139,9 @@ class _AnimeCardState extends State<AnimeCard>
                             color: Colors.black.withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: NetflixTheme.textSecondary
-                                  .withValues(alpha: 0.3),
+                              color: NetflixTheme.textSecondary.withValues(
+                                alpha: 0.3,
+                              ),
                               width: 1,
                             ),
                           ),

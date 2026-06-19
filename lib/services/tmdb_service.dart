@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../models/tmdb_models.dart';
+import '../data/models/tmdb_models.dart';
 import 'api_key_settings_service.dart';
 
 /// Cache entry com TTL.
@@ -12,8 +12,7 @@ class _CacheEntry<T> {
   final T data;
   final DateTime timestamp;
   _CacheEntry(this.data) : timestamp = DateTime.now();
-  bool get isExpired =>
-      DateTime.now().difference(timestamp).inMinutes > 30;
+  bool get isExpired => DateTime.now().difference(timestamp).inMinutes > 30;
 }
 
 /// Cliente para The Movie Database API v3.
@@ -135,9 +134,9 @@ class TmdbService {
 
     await _waitForRateLimit();
 
-    final uri = Uri.parse('$baseUrl$path').replace(
-      queryParameters: queryParameters,
-    );
+    final uri = Uri.parse(
+      '$baseUrl$path',
+    ).replace(queryParameters: queryParameters);
     debugPrint('[Tmdb] GET $uri');
 
     final http.Response response;
@@ -264,9 +263,7 @@ class TmdbService {
       return cached.data;
     }
 
-    final params = <String, String>{
-      'language': 'pt-BR',
-    };
+    final params = <String, String>{'language': 'pt-BR'};
     if (appendToResponse.isNotEmpty) {
       // Doc oficial: comma separated list, 20 items max.
       params['append_to_response'] = appendToResponse.take(20).join(',');

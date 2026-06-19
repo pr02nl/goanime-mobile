@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import '../models/jikan_models.dart';
+import '../data/models/jikan_models.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../utils/responsive.dart';

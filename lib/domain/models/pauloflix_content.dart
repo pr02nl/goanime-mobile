@@ -1,4 +1,4 @@
-import '../../models/jikan_models.dart';
+import '../../data/models/jikan_models.dart';
 
 /// Conteúdo mapeado do PauloFlix com metadados do Jikan
 class PauloFlixContent {

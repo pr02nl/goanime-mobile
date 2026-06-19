@@ -1,12 +1,12 @@
-import '../../../models/jikan_models.dart';
 import '../../../services/jikan_service.dart';
 import '../../domain/repositories/home_repository.dart';
+import '../models/jikan_models.dart';
 
 class HomeRepositoryImpl implements HomeRepository {
   final JikanService _jikanService;
 
   HomeRepositoryImpl({JikanService? jikanService})
-      : _jikanService = jikanService ?? JikanService();
+    : _jikanService = jikanService ?? JikanService();
 
   @override
   Future<HomeData> loadHomeData({bool forceRefresh = false}) async {
