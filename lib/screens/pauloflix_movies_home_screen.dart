@@ -7,8 +7,8 @@ import '../providers/pauloflix_movies_provider.dart';
 import '../ui/core/themes/app_colors.dart';
 import '../ui/core/widgets/netflix_card.dart';
 import '../ui/core/widgets/pauloflix_movies_badge.dart';
-import '../utils/responsive.dart';
-import '../utils/tv_detector.dart';
+import '../ui/utils/responsive.dart';
+import '../ui/utils/tv_detector.dart';
 import 'pauloflix_movie_detail_screen.dart';
 
 class PauloFlixMoviesHomeScreen extends StatefulWidget {

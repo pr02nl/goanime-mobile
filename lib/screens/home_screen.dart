@@ -13,8 +13,8 @@ import '../ui/core/widgets/netflix_card.dart';
 import '../ui/core/widgets/netflix_carousel.dart';
 import '../ui/core/widgets/pauloflix_section.dart';
 import '../ui/home/view_models/home_viewmodel.dart';
-import '../utils/responsive.dart';
-import '../utils/tv_detector.dart';
+import '../ui/utils/responsive.dart';
+import '../ui/utils/tv_detector.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

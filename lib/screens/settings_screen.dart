@@ -9,7 +9,7 @@ import '../services/locale_service.dart';
 import '../ui/core/themes/app_colors.dart';
 import '../ui/core/widgets/focusable_widget.dart';
 import '../ui/core/widgets/tv_safe_text_field.dart';
-import '../utils/tv_detector.dart';
+import '../ui/utils/tv_detector.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback? onBackPressed;
