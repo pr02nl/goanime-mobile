@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../domain/models/anime.dart';
-import '../domain/models/episode.dart';
-import '../domain/models/pauloflix_content.dart';
-import '../l10n/app_localizations.dart';
-import '../models/pauloflix_models.dart';
-import '../services/pauloflix_service.dart';
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/widgets/pauloflix_badge.dart';
-import '../ui/player/widgets/video_player_screen.dart';
+import '../../../domain/models/anime.dart';
+import '../../../domain/models/episode.dart';
+import '../../../domain/models/pauloflix_content.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../models/pauloflix_models.dart';
+import '../../../services/pauloflix_service.dart';
+import '../../core/themes/app_colors.dart';
+import '../../core/widgets/pauloflix_badge.dart';
+import '../../player/widgets/video_player_screen.dart';
 
 class PauloFlixEpisodeListScreen extends StatefulWidget {
   final PauloFlixContent content;
