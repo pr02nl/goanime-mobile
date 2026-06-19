@@ -11,12 +11,12 @@ import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../google_video_proxy.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../mixins/video_player_aniskip_mixin.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/skip_button.dart';
+import '../video_player_aniskip_mixin.dart';
 import 'blogger_webview_screen.dart';
 
 class ModernVideoPlayerScreen extends StatefulWidget {
