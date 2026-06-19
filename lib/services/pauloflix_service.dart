@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import '../data/models/jikan_models.dart';
 import '../data/services/jikan_service.dart';
 import '../domain/models/pauloflix_content.dart';
-import '../models/pauloflix_models.dart';
+import '../domain/models/pauloflix_models.dart';
 import 'pauloflix_database_service.dart';
 
 class PauloFlixService {

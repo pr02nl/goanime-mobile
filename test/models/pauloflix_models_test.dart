@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/models/pauloflix_models.dart';
+import 'package:goanime/domain/models/pauloflix_models.dart';
 
 void main() {
   group('PauloFlixShow', () {
