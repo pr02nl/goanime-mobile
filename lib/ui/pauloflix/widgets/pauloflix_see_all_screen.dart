@@ -3,13 +3,13 @@ import 'package:provider/provider.dart';
 
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../providers/pauloflix_provider.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/pauloflix_badge.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
+import '../view_models/pauloflix_provider.dart';
 import 'pauloflix_episode_list_screen.dart';
 
 class PauloFlixSeeAllScreen extends StatefulWidget {

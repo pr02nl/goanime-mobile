@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../../data/models/jikan_models.dart';
 import '../../../data/services/jikan_service.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../providers/pauloflix_provider.dart';
 import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/themes/netflix_theme.dart';
@@ -14,6 +13,7 @@ import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/pauloflix_section.dart';
+import '../../pauloflix/view_models/pauloflix_provider.dart';
 import '../view_models/home_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {

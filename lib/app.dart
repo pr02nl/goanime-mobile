@@ -5,13 +5,13 @@ import 'package:provider/provider.dart';
 import 'data/repositories/home_repository_impl.dart';
 import 'domain/repositories/home_repository.dart';
 import 'l10n/app_localizations.dart';
-import 'providers/pauloflix_provider.dart';
 import 'providers/theme_provider.dart';
 import 'routing/app_router.dart';
 import 'services/download_service.dart';
 import 'services/locale_service.dart';
 import 'ui/core/themes/app_theme.dart';
 import 'ui/home/view_models/home_viewmodel.dart';
+import 'ui/pauloflix/view_models/pauloflix_provider.dart';
 import 'ui/pauloflix_movies/view_models/pauloflix_movies_provider.dart';
 import 'ui/watchlist/view_models/watchlist_viewmodel.dart';
 

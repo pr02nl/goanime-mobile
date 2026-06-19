@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../domain/models/pauloflix_content.dart';
-import '../services/pauloflix_database_service.dart';
-import '../services/pauloflix_service.dart';
+import '../../../domain/models/pauloflix_content.dart';
+import '../../../services/pauloflix_database_service.dart';
+import '../../../services/pauloflix_service.dart';
 
 enum PauloFlixStatus { initial, loading, loaded, error }
 
