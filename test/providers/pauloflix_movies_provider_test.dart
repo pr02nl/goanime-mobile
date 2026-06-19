@@ -1,14 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:goanime/models/pauloflix_movie.dart';
+import 'package:goanime/domain/models/pauloflix_movie.dart';
 import 'package:goanime/providers/pauloflix_movies_provider.dart';
 import 'package:goanime/services/api_key_settings_service.dart';
 import 'package:goanime/services/pauloflix_movies_database_service.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Banco fake para filmes.
-class FakePauloFlixMoviesDatabaseService extends PauloFlixMoviesDatabaseService {
+class FakePauloFlixMoviesDatabaseService
+    extends PauloFlixMoviesDatabaseService {
   final List<PauloFlixMovie> fakeData;
   final bool shouldThrow;
 
@@ -25,7 +24,8 @@ class FakePauloFlixMoviesDatabaseService extends PauloFlixMoviesDatabaseService 
 class FakeApiKeySettingsService extends ApiKeySettingsService {
   final bool _configured;
 
-  FakeApiKeySettingsService({bool configured = false}) : _configured = configured;
+  FakeApiKeySettingsService({bool configured = false})
+    : _configured = configured;
 
   @override
   Future<bool> isTmdbConfigured() async => _configured;
@@ -127,19 +127,22 @@ void main() {
       expect(provider.contents.length, 2);
     });
 
-    test('syncContent deve retornar false quando TMDB nao configurado', () async {
-      SharedPreferences.setMockInitialValues({'tmdb_api_key': ''});
+    test(
+      'syncContent deve retornar false quando TMDB nao configurado',
+      () async {
+        SharedPreferences.setMockInitialValues({'tmdb_api_key': ''});
 
-      final provider = PauloFlixMoviesProvider(
-        databaseService: FakePauloFlixMoviesDatabaseService([]),
-        settingsService: FakeApiKeySettingsService(configured: false),
-      );
+        final provider = PauloFlixMoviesProvider(
+          databaseService: FakePauloFlixMoviesDatabaseService([]),
+          settingsService: FakeApiKeySettingsService(configured: false),
+        );
 
-      final result = await provider.syncContent();
+        final result = await provider.syncContent();
 
-      expect(result, isFalse);
-      expect(provider.status, PauloFlixMoviesStatus.error);
-      expect(provider.errorMessage, contains('não configurado'));
-    });
+        expect(result, isFalse);
+        expect(provider.status, PauloFlixMoviesStatus.error);
+        expect(provider.errorMessage, contains('não configurado'));
+      },
+    );
   });
 }

@@ -6,11 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import '../domain/models/anime.dart';
+import '../domain/models/episode.dart';
 import '../google_video_proxy.dart';
 import '../l10n/app_localizations.dart';
 import '../mixins/video_player_aniskip_mixin.dart';
-import '../models/anime.dart';
-import '../models/episode.dart';
 import '../services/anime_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/episode_utils.dart';
@@ -86,12 +86,16 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   late Episode _currentEpisode;
 
   bool get _hasNextEpisode {
-    if (widget.episodeList == null || _currentEpisodeIndex == null) return false;
+    if (widget.episodeList == null || _currentEpisodeIndex == null) {
+      return false;
+    }
     return _currentEpisodeIndex! < widget.episodeList!.length - 1;
   }
 
   bool get _hasPreviousEpisode {
-    if (widget.episodeList == null || _currentEpisodeIndex == null) return false;
+    if (widget.episodeList == null || _currentEpisodeIndex == null) {
+      return false;
+    }
     return _currentEpisodeIndex! > 0;
   }
 
@@ -409,7 +413,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       } else {
         // AnimeFire: extrair URL do vídeo
         debugPrint('[VideoPlayer] Getting AnimeFire episode URL');
-        final videoSrc = await AnimeService.extractVideoURL(_currentEpisode.url);
+        final videoSrc = await AnimeService.extractVideoURL(
+          _currentEpisode.url,
+        );
 
         if (!isActiveEpisode(episodeKey)) {
           debugPrint(
@@ -570,15 +576,15 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       try {
         final media = Media(resolvedVideoUrl, httpHeaders: mergedHeaders);
         await _player!.open(media, play: false);
-        debugPrint('[VideoPlayer] Media opened (paused, waiting for video ready)');
+        debugPrint(
+          '[VideoPlayer] Media opened (paused, waiting for video ready)',
+        );
       } catch (e) {
         debugPrint('[VideoPlayer] Failed with headers, trying without...');
         // Fallback: try without headers
         final media = Media(resolvedVideoUrl);
         await _player!.open(media, play: false);
-        debugPrint(
-          '[VideoPlayer] Media opened (no headers fallback, paused)',
-        );
+        debugPrint('[VideoPlayer] Media opened (no headers fallback, paused)');
       }
 
       // Espera o media_kit parsear o contêiner e popular as tracks
@@ -1008,11 +1014,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
               _videoController != null
                   ? (isTV
                         ? MaterialDesktopVideoControlsTheme(
-                            normal:
-                                const MaterialDesktopVideoControlsThemeData(
-                                  visibleOnMount: true,
-                                  playAndPauseOnTap: true,
-                                ),
+                            normal: const MaterialDesktopVideoControlsThemeData(
+                              visibleOnMount: true,
+                              playAndPauseOnTap: true,
+                            ),
                             fullscreen:
                                 const MaterialDesktopVideoControlsThemeData(
                                   visibleOnMount: true,
@@ -1021,14 +1026,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                             child: Focus(
                               autofocus: true,
                               onKeyEvent: (node, event) {
-                                if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                                if (event is! KeyDownEvent) {
+                                  return KeyEventResult.ignored;
+                                }
                                 final key = event.logicalKey;
                                 if (key == LogicalKeyboardKey.mediaTrackNext ||
                                     key == LogicalKeyboardKey.keyN) {
                                   _goToNextEpisode();
                                   return KeyEventResult.handled;
                                 }
-                                if (key == LogicalKeyboardKey.mediaTrackPrevious ||
+                                if (key ==
+                                        LogicalKeyboardKey.mediaTrackPrevious ||
                                     key == LogicalKeyboardKey.keyP) {
                                   _goToPreviousEpisode();
                                   return KeyEventResult.handled;
@@ -1253,12 +1261,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       return _buildTVPlayerLayout();
     }
 
-    return Column(
-      children: [
-        _buildVideoPlayerCard(),
-        _buildInfoPanel(),
-      ],
-    );
+    return Column(children: [_buildVideoPlayerCard(), _buildInfoPanel()]);
   }
 
   Widget _buildTVPlayerLayout() {
@@ -1320,10 +1323,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
               child: AspectRatio(
                 aspectRatio: _calculateAspectRatio(),
                 child: _videoController != null
-                    ? Video(
-                        controller: _videoController!,
-                        fit: BoxFit.contain,
-                      )
+                    ? Video(controller: _videoController!, fit: BoxFit.contain)
                     : Container(color: Colors.black),
               ),
             ),
@@ -1438,8 +1438,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
             const Color(0xFF4CAF50),
             Icons.cloud_done_rounded,
           ),
-        if (_hasAnySubtitleTrack())
-          _buildSubtitleSelectorTag(context),
+        if (_hasAnySubtitleTrack()) _buildSubtitleSelectorTag(context),
       ],
     );
   }
@@ -1450,9 +1449,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -1462,11 +1459,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
               gradient: AppColors.getPrimaryGradient(),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
-              Icons.sensors,
-              color: Colors.white,
-              size: 20,
-            ),
+            child: const Icon(Icons.sensors, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1495,10 +1488,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           ),
           IconButton(
             onPressed: _copyStreamLink,
-            icon: const Icon(
-              Icons.copy,
-              color: AppColors.primary,
-            ),
+            icon: const Icon(Icons.copy, color: AppColors.primary),
             tooltip: AppLocalizations.of(context).copyLink,
           ),
         ],
@@ -1550,9 +1540,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       child: ElevatedButton.icon(
         onPressed: _openWebViewFallback,
         icon: const Icon(Icons.open_in_browser),
-        label: Text(
-          AppLocalizations.of(context).alternativePlayer,
-        ),
+        label: Text(AppLocalizations.of(context).alternativePlayer),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.deepPurple,
           foregroundColor: Colors.white,
@@ -1586,8 +1574,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           )
         else
           const SizedBox(),
-        if (_hasPreviousEpisode && _hasNextEpisode)
-          const SizedBox(width: 12),
+        if (_hasPreviousEpisode && _hasNextEpisode) const SizedBox(width: 12),
         if (_hasNextEpisode)
           Expanded(
             child: ElevatedButton.icon(
@@ -1708,7 +1695,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     }
     for (final embed in _embeddedSubtitleTracks) {
       if (current.id == embed.id) {
-        return embed.title ?? embed.language ?? AppLocalizations.of(context).subtitleEmbedded;
+        return embed.title ??
+            embed.language ??
+            AppLocalizations.of(context).subtitleEmbedded;
       }
     }
     return current.title ?? current.language;
@@ -1770,7 +1759,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                   isActive: _isCurrentSubtitleAuto(),
                   onTap: () async {
                     Navigator.pop(sheetContext);
-                    await _selectSubtitle(SubtitleTrack.auto(), label: l10n.auto);
+                    await _selectSubtitle(
+                      SubtitleTrack.auto(),
+                      label: l10n.auto,
+                    );
                   },
                 ),
                 _buildSubtitleSheetOption(

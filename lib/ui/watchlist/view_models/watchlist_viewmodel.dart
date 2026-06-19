@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../models/watchlist_anime.dart';
+import '../../../domain/models/watchlist_anime.dart';
 import '../../../services/watchlist_notifier.dart';
 import '../../../services/watchlist_service.dart';
 

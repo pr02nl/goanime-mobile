@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../models/anime.dart';
-import '../models/pauloflix_content.dart';
-import '../models/pauloflix_movie.dart';
+import '../domain/models/anime.dart';
+import '../domain/models/pauloflix_content.dart';
+import '../domain/models/pauloflix_movie.dart';
 import '../providers/theme_provider.dart';
 import '../screens/anime_detail_screen.dart';
 import '../screens/anime_search_screen.dart';
@@ -67,8 +67,7 @@ GoRouter createAppRouter({String? initialError}) {
           GoRoute(
             path: '/pauloflix-movies/search',
             name: 'pauloflix-movies-search',
-            builder: (context, state) =>
-                const PauloFlixMoviesSearchScreen(),
+            builder: (context, state) => const PauloFlixMoviesSearchScreen(),
           ),
           GoRoute(
             path: '/error',
@@ -176,10 +175,7 @@ GoRouter createAppRouter({String? initialError}) {
         name: 'blogger-webview',
         builder: (context, state) {
           final data = state.extra as WebViewRouteData;
-          return BloggerWebViewScreen(
-            initialUrl: data.url,
-            title: data.title,
-          );
+          return BloggerWebViewScreen(initialUrl: data.url, title: data.title);
         },
       ),
     ],
@@ -219,7 +215,10 @@ Widget _startupErrorScreen(String error) {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE94560),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
               ),
             ),
           ],

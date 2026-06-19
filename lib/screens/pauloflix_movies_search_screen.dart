@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../models/pauloflix_movie.dart';
+import '../domain/models/pauloflix_movie.dart';
 import '../providers/pauloflix_movies_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';

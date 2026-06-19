@@ -1,5 +1,5 @@
-import '../../../models/anime.dart';
 import '../../../services/anime_service.dart';
+import '../../domain/models/anime.dart';
 import '../../domain/repositories/search_repository.dart';
 
 class SearchRepositoryImpl implements SearchRepository {

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../domain/models/anime.dart';
+import '../domain/models/episode.dart';
+import '../domain/models/pauloflix_content.dart';
 import '../l10n/app_localizations.dart';
-import '../models/anime.dart';
-import '../models/episode.dart';
-import '../models/pauloflix_content.dart';
 import '../models/pauloflix_models.dart';
 import '../services/pauloflix_service.dart';
 import '../theme/app_colors.dart';
@@ -13,16 +13,15 @@ import 'video_player_screen.dart';
 class PauloFlixEpisodeListScreen extends StatefulWidget {
   final PauloFlixContent content;
 
-  const PauloFlixEpisodeListScreen({
-    super.key,
-    required this.content,
-  });
+  const PauloFlixEpisodeListScreen({super.key, required this.content});
 
   @override
-  State<PauloFlixEpisodeListScreen> createState() => _PauloFlixEpisodeListScreenState();
+  State<PauloFlixEpisodeListScreen> createState() =>
+      _PauloFlixEpisodeListScreenState();
 }
 
-class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen> {
+class _PauloFlixEpisodeListScreenState
+    extends State<PauloFlixEpisodeListScreen> {
   List<PauloFlixSeason> _seasons = [];
   bool _isLoading = true;
   String? _error;
@@ -35,7 +34,9 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
 
   Future<void> _loadSeasons() async {
     try {
-      final seasons = await PauloFlixService.fetchShowSeasons(widget.content.serverUrl);
+      final seasons = await PauloFlixService.fetchShowSeasons(
+        widget.content.serverUrl,
+      );
       setState(() {
         _seasons = seasons;
         _isLoading = false;
@@ -62,9 +63,7 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 widget.content.displayName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               background: Stack(
                 fit: StackFit.expand,
@@ -88,10 +87,7 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            AppColors.background,
-                          ],
+                          colors: [Colors.transparent, AppColors.background],
                         ),
                       ),
                     ),
@@ -113,7 +109,10 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                       if (widget.content.score != null) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.amber.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
@@ -121,7 +120,11 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.star, color: Colors.amber, size: 14),
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 14,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 widget.content.score!.toStringAsFixed(1),
@@ -155,25 +158,32 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: widget.content.genres.map((genre) =>
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.3),
+                      children: widget.content.genres
+                          .map(
+                            (genre) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                genre,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            genre,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ).toList(),
+                          )
+                          .toList(),
                     ),
                 ],
               ),
@@ -190,7 +200,11 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 48,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       _error!,
@@ -200,7 +214,7 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadSeasons,
-                        child: Text(l10n.retry),
+                      child: Text(l10n.retry),
                     ),
                   ],
                 ),
@@ -208,13 +222,10 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
             )
           else
             SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final season = _seasons[index];
-                  return _buildSeasonCard(season);
-                },
-                childCount: _seasons.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final season = _seasons[index];
+                return _buildSeasonCard(season);
+              }, childCount: _seasons.length),
             ),
         ],
       ),
@@ -254,11 +265,15 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
             }
 
             final episodes = snapshot.data ?? [];
-            final episodeList = episodes.map((e) => Episode(
-              number: e.number.toString(),
-              url: e.url,
-              title: e.title,
-            )).toList();
+            final episodeList = episodes
+                .map(
+                  (e) => Episode(
+                    number: e.number.toString(),
+                    url: e.url,
+                    title: e.title,
+                  ),
+                )
+                .toList();
             return Column(
               children: episodes.asMap().entries.map((entry) {
                 final index = entry.key;

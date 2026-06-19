@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../domain/models/pauloflix_movie.dart';
 import '../l10n/app_localizations.dart';
-import '../models/pauloflix_movie.dart';
 import '../providers/pauloflix_movies_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
@@ -19,8 +19,7 @@ class PauloFlixMoviesHomeScreen extends StatefulWidget {
       _PauloFlixMoviesHomeScreenState();
 }
 
-class _PauloFlixMoviesHomeScreenState
-    extends State<PauloFlixMoviesHomeScreen> {
+class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
   bool _checkedInitialSync = false;
   bool _isTV = false;
 
@@ -47,12 +46,24 @@ class _PauloFlixMoviesHomeScreenState
         }
       }
       final screenWidth =
-          WidgetsBinding.instance.platformDispatcher.views.first.physicalSize.width /
-              WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
+          WidgetsBinding
+              .instance
+              .platformDispatcher
+              .views
+              .first
+              .physicalSize
+              .width /
+          WidgetsBinding
+              .instance
+              .platformDispatcher
+              .views
+              .first
+              .devicePixelRatio;
       final isTvBuild = await TVDetector.isTV;
       if (mounted) {
-        setState(() =>
-            _isTV = isTvBuild || screenWidth >= Responsive.tabletMaxWidth);
+        setState(
+          () => _isTV = isTvBuild || screenWidth >= Responsive.tabletMaxWidth,
+        );
       }
     });
   }
@@ -72,10 +83,7 @@ class _PauloFlixMoviesHomeScreenState
             onPressed: () {
               ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
             },
-            child: const Text(
-              'OK',
-              style: TextStyle(color: Color(0xFFDC2626)),
-            ),
+            child: const Text('OK', style: TextStyle(color: Color(0xFFDC2626))),
           ),
         ],
       ),
@@ -130,11 +138,17 @@ class _PauloFlixMoviesHomeScreenState
                 ),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 14),
+              titlePadding: const EdgeInsetsDirectional.only(
+                start: 16,
+                bottom: 14,
+              ),
               title: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const PauloFlixMoviesBadge(fontSize: 13, padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
+                  const PauloFlixMoviesBadge(
+                    fontSize: 13,
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     l10n.movies,
@@ -257,22 +271,19 @@ class _PauloFlixMoviesHomeScreenState
             )
           else
             SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                childAspectRatio: 0.65,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  childAspectRatio: 0.65,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
                   final content = contents[index];
                   return _buildCard(context, content);
-                },
-                childCount: contents.length,
+                }, childCount: contents.length),
               ),
-            ),
             ),
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -295,8 +306,7 @@ class _PauloFlixMoviesHomeScreenState
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                PauloFlixMovieDetailScreen(content: content),
+            builder: (context) => PauloFlixMovieDetailScreen(content: content),
           ),
         );
       },

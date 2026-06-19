@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/anime.dart';
-import '../models/episode.dart';
+import '../domain/models/anime.dart';
+import '../domain/models/episode.dart';
 
 class PlayerRouteData {
   final Episode episode;
@@ -51,8 +51,5 @@ class WebViewRouteData {
   final String url;
   final String title;
 
-  const WebViewRouteData({
-    required this.url,
-    required this.title,
-  });
+  const WebViewRouteData({required this.url, required this.title});
 }

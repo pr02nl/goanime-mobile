@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/models/pauloflix_content.dart';
+import 'package:goanime/domain/models/pauloflix_content.dart';
 import 'package:goanime/providers/pauloflix_provider.dart';
 import 'package:goanime/services/pauloflix_database_service.dart';
 
@@ -57,9 +57,10 @@ void main() {
 
     test('loadContents deve carregar dados do banco', () async {
       final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService(
-          [testAnimes[0], testAnimes[1]],
-        ),
+        databaseService: FakePauloFlixDatabaseService([
+          testAnimes[0],
+          testAnimes[1],
+        ]),
       );
 
       await provider.loadContents();
@@ -72,10 +73,7 @@ void main() {
 
     test('loadContents deve lidar com erro do banco', () async {
       final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService(
-          [],
-          shouldThrow: true,
-        ),
+        databaseService: FakePauloFlixDatabaseService([], shouldThrow: true),
       );
 
       await provider.loadContents();

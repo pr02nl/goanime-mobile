@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import '../models/pauloflix_content.dart';
+import '../domain/models/pauloflix_content.dart';
 
 class PauloFlixDatabaseService {
   static Database? _database;

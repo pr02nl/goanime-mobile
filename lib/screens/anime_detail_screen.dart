@@ -2,8 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../domain/models/anime.dart';
 import '../l10n/app_localizations.dart';
-import '../models/anime.dart';
 import '../utils/text_utils.dart';
 import '../widgets/focusable_widget.dart';
 import 'episode_list_screen.dart';
@@ -399,10 +399,10 @@ class AnimeDetailScreen extends StatelessWidget {
                             children: [
                               if (anime.aniListData!.season != null &&
                                   anime.aniListData!.seasonYear != null)
-                                  _buildInfoTile(
-                                    context,
-                                    l10n.seasonLabel,
-                                    '${_translateSeason(anime.aniListData!.season!, l10n)} ${anime.aniListData!.seasonYear}',
+                                _buildInfoTile(
+                                  context,
+                                  l10n.seasonLabel,
+                                  '${_translateSeason(anime.aniListData!.season!, l10n)} ${anime.aniListData!.seasonYear}',
                                 ),
                               if (anime.anilistId != null)
                                 _buildInfoTile(

@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../domain/models/anime.dart';
 import '../helpers/database_helper.dart';
 import '../l10n/app_localizations.dart';
-import '../models/anime.dart';
 import '../providers/theme_provider.dart';
 import '../services/anime_service.dart';
 import '../widgets/anime_result_card.dart';
@@ -240,7 +240,9 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
 
   Widget _buildResultsList() {
     final theme = Theme.of(context);
-    final label = AppLocalizations.of(context).resultsFound(_searchResults.length);
+    final label = AppLocalizations.of(
+      context,
+    ).resultsFound(_searchResults.length);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

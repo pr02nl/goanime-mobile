@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/watchlist_anime.dart';
-import '../services/watchlist_service.dart';
-import '../services/watchlist_notifier.dart';
-import '../theme/app_colors.dart';
+
+import '../domain/models/watchlist_anime.dart';
 import '../l10n/app_localizations.dart';
+import '../services/watchlist_notifier.dart';
+import '../services/watchlist_service.dart';
+import '../theme/app_colors.dart';
 import 'focusable_widget.dart';
 
 class WatchlistButton extends StatefulWidget {

@@ -1,4 +1,4 @@
-import 'anilist_models.dart';
+import '../../models/anilist_models.dart';
 
 enum AnimeSource { animeFire, pauloFlix }
 

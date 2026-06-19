@@ -2,8 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/anime.dart';
-import '../models/episode.dart';
+import '../domain/models/anime.dart';
+import '../domain/models/episode.dart';
 import '../services/anime_service.dart';
 import '../services/download_service.dart';
 import '../theme/app_colors.dart';
@@ -686,10 +686,7 @@ class _EpisodeListCard extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xCC1A1A2E),
-                Color(0x9916213E),
-              ],
+              colors: [Color(0xCC1A1A2E), Color(0x9916213E)],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0x0DFFFFFF)),
@@ -706,7 +703,11 @@ class _EpisodeListCard extends StatelessWidget {
     );
   }
 
-  Widget _buildThumbnail(BuildContext context, String? thumbnailUrl, bool hasImage) {
+  Widget _buildThumbnail(
+    BuildContext context,
+    String? thumbnailUrl,
+    bool hasImage,
+  ) {
     return Container(
       width: 120,
       height: 80,
@@ -765,11 +766,7 @@ class _EpisodeListCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Center(
-                      child: Icon(
-                        Icons.movie,
-                        color: Colors.white54,
-                        size: 32,
-                      ),
+                      child: Icon(Icons.movie, color: Colors.white54, size: 32),
                     ),
                   ),
           ),
@@ -780,10 +777,7 @@ class _EpisodeListCard extends StatelessWidget {
                 gradient: const LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Color(0x99000000),
-                  ],
+                  colors: [Colors.transparent, Color(0x99000000)],
                 ),
               ),
             ),
@@ -792,17 +786,11 @@ class _EpisodeListCard extends StatelessWidget {
             top: 6,
             left: 6,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xCC000000),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: const Color(0x8064FFDA),
-                  width: 1,
-                ),
+                border: Border.all(color: const Color(0x8064FFDA), width: 1),
               ),
               child: Text(
                 _getEpisodeNumber(episode.number, index),
@@ -831,10 +819,7 @@ class _EpisodeListCard extends StatelessWidget {
   Widget _buildEpisodeInfo(BuildContext context) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: 12,
-          horizontal: 4,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -865,23 +850,16 @@ class _EpisodeListCard extends StatelessWidget {
             else
               Text(
                 animeTitle,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-            if (episode.description != null &&
-                episode.description!.isNotEmpty)
+            if (episode.description != null && episode.description!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   episode.description!,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

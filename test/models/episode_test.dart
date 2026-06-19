@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/models/episode.dart';
+import 'package:goanime/domain/models/episode.dart';
 
 void main() {
   group('Episode', () {
@@ -72,7 +72,10 @@ void main() {
         language: 'en',
         displayName: 'English',
       );
-      expect(track.toString(), 'EpisodeSubtitleTrack(en, http://server/sub.srt)');
+      expect(
+        track.toString(),
+        'EpisodeSubtitleTrack(en, http://server/sub.srt)',
+      );
     });
   });
 

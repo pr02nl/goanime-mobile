@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../models/anime.dart';
-import '../models/episode.dart';
-import '../models/pauloflix_movie.dart';
-import '../models/pauloflix_movie_item.dart';
+import '../domain/models/anime.dart';
+import '../domain/models/episode.dart';
+import '../domain/models/pauloflix_movie.dart';
+import '../domain/models/pauloflix_movie_item.dart';
 import '../services/pauloflix_movies_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/pauloflix_movies_badge.dart';
 import 'video_player_screen.dart';
+
 class PauloFlixMovieDetailScreen extends StatefulWidget {
   final PauloFlixMovie content;
 
@@ -78,10 +79,12 @@ class _PauloFlixMovieDetailScreenState
       final links = _parseLinks(response.body);
       final subfolders = links
           .where((l) => l.href.endsWith('/'))
-          .map((l) => PauloFlixMovieSubfolder(
-                name: l.name,
-                url: '${widget.content.serverUrl}${l.href}',
-              ))
+          .map(
+            (l) => PauloFlixMovieSubfolder(
+              name: l.name,
+              url: '${widget.content.serverUrl}${l.href}',
+            ),
+          )
           .toList();
 
       if (!mounted) return;
@@ -173,9 +176,9 @@ class _PauloFlixMovieDetailScreenState
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 
@@ -221,13 +224,10 @@ class _PauloFlixMovieDetailScreenState
           )
         else
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, i) {
-                final sub = _collectionSubfolders[i];
-                return _buildSubfolderTile(sub);
-              },
-              childCount: _collectionSubfolders.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, i) {
+              final sub = _collectionSubfolders[i];
+              return _buildSubfolderTile(sub);
+            }, childCount: _collectionSubfolders.length),
           ),
         const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
@@ -274,10 +274,7 @@ class _PauloFlixMovieDetailScreenState
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
           widget.content.displayName,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -288,8 +285,7 @@ class _PauloFlixMovieDetailScreenState
               Image.network(
                 widget.content.bannerUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, e, s) =>
-                    Container(color: AppColors.surface),
+                errorBuilder: (_, e, s) => Container(color: AppColors.surface),
               )
             else
               Container(color: AppColors.surface),
@@ -350,25 +346,28 @@ class _PauloFlixMovieDetailScreenState
               spacing: 8,
               runSpacing: 8,
               children: c.genres
-                  .map((g) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDC2626).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: const Color(0xFFDC2626)
-                                .withValues(alpha: 0.3),
-                          ),
+                  .map(
+                    (g) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFDC2626).withValues(alpha: 0.3),
                         ),
-                        child: Text(
-                          g,
-                          style: const TextStyle(
-                            color: Color(0xFFEF4444),
-                            fontSize: 12,
-                          ),
+                      ),
+                      child: Text(
+                        g,
+                        style: const TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontSize: 12,
                         ),
-                      ))
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
           ],
@@ -403,10 +402,7 @@ class _PauloFlixMovieDetailScreenState
               : const Icon(Icons.play_arrow_rounded, size: 28),
           label: Text(
             _isResolvingSingle ? 'Localizando vídeo...' : 'Assistir',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFDC2626),

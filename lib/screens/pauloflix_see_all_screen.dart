@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../domain/models/pauloflix_content.dart';
 import '../l10n/app_localizations.dart';
-import '../models/pauloflix_content.dart';
 import '../providers/pauloflix_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
@@ -70,10 +70,18 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
 
     final filteredContents = _searchQuery.isEmpty
         ? contents
-        : contents.where((c) =>
-            c.displayName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            c.genres.any((g) => g.toLowerCase().contains(_searchQuery.toLowerCase()))
-          ).toList();
+        : contents
+              .where(
+                (c) =>
+                    c.displayName.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    ) ||
+                    c.genres.any(
+                      (g) =>
+                          g.toLowerCase().contains(_searchQuery.toLowerCase()),
+                    ),
+              )
+              .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -115,18 +123,12 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
                       ),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(
-                      Icons.dns,
-                      color: Colors.white,
-                      size: 14,
-                    ),
+                    child: const Icon(Icons.dns, color: Colors.white, size: 14),
                   ),
                   const SizedBox(width: 6),
                   const Text(
                     'PauloFlix',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -179,7 +181,9 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Buscar anime...',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                  hintStyle: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
                   prefixIcon: Icon(
                     Icons.search,
                     color: Colors.white.withValues(alpha: 0.5),
@@ -256,7 +260,10 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF6366F1),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -274,13 +281,10 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final content = filteredContents[index];
-                    return _buildContentCard(content);
-                  },
-                  childCount: filteredContents.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final content = filteredContents[index];
+                  return _buildContentCard(content);
+                }, childCount: filteredContents.length),
               ),
             ),
 

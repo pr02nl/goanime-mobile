@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
-import '../models/pauloflix_movie.dart';
-import '../models/pauloflix_movie_item.dart';
+import '../domain/models/pauloflix_movie.dart';
+import '../domain/models/pauloflix_movie_item.dart';
 import 'pauloflix_movies_database_service.dart';
 import 'tmdb_service.dart';
 
@@ -34,7 +34,14 @@ class PauloFlixMoviesService {
 
   /// Extensões de vídeo reconhecidas.
   static const Set<String> videoExtensions = {
-    '.mkv', '.mp4', '.avi', '.webm', '.mov', '.flv', '.wmv', '.m4v',
+    '.mkv',
+    '.mp4',
+    '.avi',
+    '.webm',
+    '.mov',
+    '.flv',
+    '.wmv',
+    '.m4v',
   };
 
   // ---------------- Parsing de listings HTML ----------------
@@ -82,8 +89,9 @@ class PauloFlixMoviesService {
         if (href.isEmpty || href == '../' || text.isEmpty || text == '../') {
           continue;
         }
-        final rawName =
-            href.endsWith('/') ? href.substring(0, href.length - 1) : href;
+        final rawName = href.endsWith('/')
+            ? href.substring(0, href.length - 1)
+            : href;
         links.add(_LinkEntry(href: href, name: safeDecodeComponent(rawName)));
       }
       return links;
@@ -128,7 +136,8 @@ class PauloFlixMoviesService {
       // Arquivos de legenda (.srt) —lista completa, ranking aplicado depois.
       final subtitleFiles = links
           .where(
-            (l) => l.href.toLowerCase().endsWith('.srt') ||
+            (l) =>
+                l.href.toLowerCase().endsWith('.srt') ||
                 l.name.toLowerCase().endsWith('.srt'),
           )
           .toList();
@@ -176,7 +185,10 @@ class PauloFlixMoviesService {
       final subFolders = links
           .where((l) => l.href.endsWith('/'))
           .map(
-            (l) => PauloFlixMovieSubfolder(name: l.name, url: '$folderUrl${l.href}'),
+            (l) => PauloFlixMovieSubfolder(
+              name: l.name,
+              url: '$folderUrl${l.href}',
+            ),
           )
           .toList();
 
@@ -294,8 +306,10 @@ class PauloFlixMoviesService {
   /// Detecta se o arquivo `.srt` é uma legenda "forced" — versão de
   /// trechos traduzidos que ficam visíveis mesmo sem selecionar faixa
   /// (e.g. signos em língua estrangeira no filme).
-  static final RegExp _forcedSrtPattern =
-      RegExp(r'\.forced\.srt$', caseSensitive: false);
+  static final RegExp _forcedSrtPattern = RegExp(
+    r'\.forced\.srt$',
+    caseSensitive: false,
+  );
 
   /// Rótulos amigáveis para o selector no player. Mantém ordem
   /// canônica para conseguir match determinístico.
@@ -447,8 +461,9 @@ class PauloFlixMoviesService {
         onError?.call('Nenhuma pasta encontrada em /movies/');
         return false;
       }
-      onProgress
-          ?.call('Encontradas ${folders.length} pastas. Inspecionando...');
+      onProgress?.call(
+        'Encontradas ${folders.length} pastas. Inspecionando...',
+      );
 
       final db = PauloFlixMoviesDatabaseService();
       final existing = await db.getAllContent();
@@ -495,8 +510,7 @@ class PauloFlixMoviesService {
         return true;
       }
 
-      onProgress
-          ?.call('Processando ${toProcess.length} pastas no TMDB...');
+      onProgress?.call('Processando ${toProcess.length} pastas no TMDB...');
 
       final List<PauloFlixMovie> contents = [];
       int processed = 0;
@@ -517,7 +531,10 @@ class PauloFlixMoviesService {
                 year: video.year,
                 limit: 3,
               );
-              final match = tmdb.matchInResults(searchResults, video.cleanedName);
+              final match = tmdb.matchInResults(
+                searchResults,
+                video.cleanedName,
+              );
               if (match != null) {
                 contents.add(
                   PauloFlixMovie.fromTmdb(

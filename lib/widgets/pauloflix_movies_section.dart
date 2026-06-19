@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../domain/models/pauloflix_movie.dart';
 import '../l10n/app_localizations.dart';
-import '../models/pauloflix_movie.dart';
 import '../utils/responsive.dart';
 import 'netflix_card.dart';
 import 'netflix_carousel.dart';

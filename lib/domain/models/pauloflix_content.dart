@@ -1,4 +1,4 @@
-import '../models/jikan_models.dart';
+import '../../models/jikan_models.dart';
 
 /// Conteúdo mapeado do PauloFlix com metadados do Jikan
 class PauloFlixContent {
@@ -85,7 +85,12 @@ class PauloFlixContent {
       bannerUrl: map['bannerUrl'] as String?,
       description: map['description'] as String?,
       score: map['score'] as double?,
-      genres: (map['genres'] as String?)?.split(',').where((g) => g.isNotEmpty).toList() ?? [],
+      genres:
+          (map['genres'] as String?)
+              ?.split(',')
+              .where((g) => g.isNotEmpty)
+              .toList() ??
+          [],
       status: map['status'] as String?,
       episodeCount: map['episodeCount'] as int?,
       malId: map['malId'] as int?,

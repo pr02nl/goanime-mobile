@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../domain/models/watchlist_anime.dart';
 import '../l10n/app_localizations.dart';
-import '../models/watchlist_anime.dart';
 import '../services/watchlist_notifier.dart';
 import '../services/watchlist_service.dart';
 import '../theme/app_colors.dart';
@@ -120,13 +120,10 @@ class _WatchlistScreenState extends State<WatchlistScreen>
                   Responsive.getHorizontalPadding(context),
                 ),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount:
-                      Responsive.getGridColumnCount(context),
+                  crossAxisCount: Responsive.getGridColumnCount(context),
                   childAspectRatio: 0.7,
-                  crossAxisSpacing:
-                      Responsive.getCardSpacing(context),
-                  mainAxisSpacing:
-                      Responsive.getCardSpacing(context),
+                  crossAxisSpacing: Responsive.getCardSpacing(context),
+                  mainAxisSpacing: Responsive.getCardSpacing(context),
                 ),
                 itemCount: _watchlist.length,
                 itemBuilder: (context, index) {
@@ -268,7 +265,10 @@ class _WatchlistScreenState extends State<WatchlistScreen>
                 );
               }
             },
-            child: Text(l10n.clear, style: const TextStyle(color: AppColors.error)),
+            child: Text(
+              l10n.clear,
+              style: const TextStyle(color: AppColors.error),
+            ),
           ),
         ],
       ),

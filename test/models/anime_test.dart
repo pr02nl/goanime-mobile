@@ -1,15 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/models/anime.dart';
-import 'package:goanime/models/jikan_models.dart';
+import 'package:goanime/domain/models/anime.dart';
 import 'package:goanime/models/anilist_models.dart';
+import 'package:goanime/models/jikan_models.dart';
 
 void main() {
   group('Anime Model', () {
     test('deve criar anime com dados obrigatorios', () {
-      final anime = Anime(
-        name: 'Test Anime',
-        url: 'https://example.com/anime',
-      );
+      final anime = Anime(name: 'Test Anime', url: 'https://example.com/anime');
 
       expect(anime.name, 'Test Anime');
       expect(anime.url, 'https://example.com/anime');
@@ -33,10 +30,7 @@ void main() {
       final mediaDetails = MediaDetails(
         id: 1,
         idMal: 12345,
-        title: MediaTitle(
-          romaji: 'Test Anime',
-          english: 'Test Anime English',
-        ),
+        title: MediaTitle(romaji: 'Test Anime', english: 'Test Anime English'),
         coverImage: CoverImage(
           extraLarge: 'https://example.com/cover_extra.jpg',
           large: 'https://example.com/cover_large.jpg',
@@ -82,10 +76,7 @@ void main() {
     });
 
     test('toString deve retornar o nome do anime', () {
-      final anime = Anime(
-        name: 'Meu Anime',
-        url: 'https://example.com',
-      );
+      final anime = Anime(name: 'Meu Anime', url: 'https://example.com');
 
       expect(anime.toString(), 'Meu Anime');
     });

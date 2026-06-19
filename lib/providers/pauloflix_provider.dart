@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../models/pauloflix_content.dart';
+import '../domain/models/pauloflix_content.dart';
 import '../services/pauloflix_database_service.dart';
 import '../services/pauloflix_service.dart';
 
@@ -12,7 +12,7 @@ class PauloFlixProvider extends ChangeNotifier {
   final PauloFlixDatabaseService _dbService;
 
   PauloFlixProvider({PauloFlixDatabaseService? databaseService})
-      : _dbService = databaseService ?? PauloFlixDatabaseService();
+    : _dbService = databaseService ?? PauloFlixDatabaseService();
 
   PauloFlixStatus _status = PauloFlixStatus.initial;
   List<PauloFlixContent> _contents = [];
@@ -80,10 +80,13 @@ class PauloFlixProvider extends ChangeNotifier {
       if (searchQuery.isEmpty) {
         _filteredContents = _contents;
       } else {
-        _filteredContents = _contents.where((c) =>
-          c.displayName.toLowerCase().contains(searchQuery) ||
-          c.genres.any((g) => g.toLowerCase().contains(searchQuery))
-        ).toList();
+        _filteredContents = _contents
+            .where(
+              (c) =>
+                  c.displayName.toLowerCase().contains(searchQuery) ||
+                  c.genres.any((g) => g.toLowerCase().contains(searchQuery)),
+            )
+            .toList();
       }
       notifyListeners();
     });
@@ -110,9 +113,10 @@ class PauloFlixProvider extends ChangeNotifier {
   }
 
   bool isAvailableOnPauloFlix(String animeName) {
-    return _contents.any((c) =>
-      c.displayName.toLowerCase() == animeName.toLowerCase() ||
-      c.folderName.toLowerCase() == animeName.toLowerCase()
+    return _contents.any(
+      (c) =>
+          c.displayName.toLowerCase() == animeName.toLowerCase() ||
+          c.folderName.toLowerCase() == animeName.toLowerCase(),
     );
   }
 }

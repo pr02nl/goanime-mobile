@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/domain/models/pauloflix_content.dart';
 import 'package:goanime/models/jikan_models.dart';
-import 'package:goanime/models/pauloflix_content.dart';
 
 void main() {
   group('PauloFlixContent', () {
@@ -134,8 +134,14 @@ void main() {
         serverUrl: 'http://server/',
       );
       final after = DateTime.now();
-      expect(content.lastSynced.isAfter(before) || content.lastSynced == before, isTrue);
-      expect(content.lastSynced.isBefore(after) || content.lastSynced == after, isTrue);
+      expect(
+        content.lastSynced.isAfter(before) || content.lastSynced == before,
+        isTrue,
+      );
+      expect(
+        content.lastSynced.isBefore(after) || content.lastSynced == after,
+        isTrue,
+      );
     });
   });
 }

@@ -1,4 +1,4 @@
-import 'tmdb_models.dart';
+import '../../models/tmdb_models.dart';
 
 /// Conteúdo mapeado do PauloFlix Movies com metadados do TMDB.
 ///
@@ -98,7 +98,8 @@ class PauloFlixMovie {
       bannerUrl: map['bannerUrl'] as String?,
       description: map['description'] as String?,
       score: (map['score'] as num?)?.toDouble(),
-      genres: (map['genres'] as String?)
+      genres:
+          (map['genres'] as String?)
               ?.split(',')
               .where((g) => g.isNotEmpty)
               .toList() ??

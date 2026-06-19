@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../models/pauloflix_movie.dart';
+import '../domain/models/pauloflix_movie.dart';
 import '../services/api_key_settings_service.dart';
 import '../services/pauloflix_movies_database_service.dart';
 import '../services/pauloflix_movies_service.dart';
@@ -20,9 +20,9 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     PauloFlixMoviesDatabaseService? databaseService,
     TmdbService? tmdbService,
     ApiKeySettingsService? settingsService,
-  })  : _dbService = databaseService ?? PauloFlixMoviesDatabaseService(),
-        _tmdb = tmdbService ?? TmdbService(),
-        _settings = settingsService ?? ApiKeySettingsService();
+  }) : _dbService = databaseService ?? PauloFlixMoviesDatabaseService(),
+       _tmdb = tmdbService ?? TmdbService(),
+       _settings = settingsService ?? ApiKeySettingsService();
 
   PauloFlixMoviesStatus _status = PauloFlixMoviesStatus.initial;
   List<PauloFlixMovie> _contents = [];
@@ -60,8 +60,7 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   /// Sincroniza filmes do PauloFlix + enriquece com TMDB.
   Future<bool> syncContent() async {
     if (!_tmdb.isConfigured) {
-      _errorMessage =
-          'TMDB não configurado. Vá em Configurações → API Keys.';
+      _errorMessage = 'TMDB não configurado. Vá em Configurações → API Keys.';
       _status = PauloFlixMoviesStatus.error;
       notifyListeners();
       return false;

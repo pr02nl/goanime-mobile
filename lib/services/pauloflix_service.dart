@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
+import '../domain/models/pauloflix_content.dart';
 import '../models/jikan_models.dart';
-import '../models/pauloflix_content.dart';
 import '../models/pauloflix_models.dart';
 import 'jikan_service.dart';
 import 'pauloflix_database_service.dart';
@@ -91,7 +91,14 @@ class PauloFlixService {
 
   /// Supported video extensions
   static const Set<String> videoExtensions = {
-    '.mkv', '.mp4', '.avi', '.webm', '.mov', '.flv', '.wmv', '.m4v',
+    '.mkv',
+    '.mp4',
+    '.avi',
+    '.webm',
+    '.mov',
+    '.flv',
+    '.wmv',
+    '.m4v',
   };
 
   static Future<List<PauloFlixEpisode>> fetchSeasonEpisodes(
@@ -118,7 +125,9 @@ class PauloFlixService {
           continue;
         }
         final lowerHref = href.toLowerCase();
-        final hasVideoExtension = videoExtensions.any((ext) => lowerHref.endsWith(ext));
+        final hasVideoExtension = videoExtensions.any(
+          (ext) => lowerHref.endsWith(ext),
+        );
         if (!hasVideoExtension) continue;
         final decodedName = Uri.decodeComponent(href);
         final episodeInfo = _extractEpisodeInfo(decodedName);
@@ -167,10 +176,7 @@ class PauloFlixService {
         for (final ext in videoExtensions) {
           title = title.replaceAll(ext, '');
         }
-        return _EpisodeInfo(
-          number: number,
-          title: title,
-        );
+        return _EpisodeInfo(number: number, title: title);
       }
     }
     return null;
@@ -207,7 +213,8 @@ class PauloFlixService {
       }
 
       final contents = await _enrichShowsWithJikan(
-        result.showsToProcess, onProgress,
+        result.showsToProcess,
+        onProgress,
       );
 
       onProgress?.call(
@@ -217,7 +224,8 @@ class PauloFlixService {
 
       await _finishSync(dbService, result.removedFolderNames);
 
-      final totalAvailable = existingContent.length -
+      final totalAvailable =
+          existingContent.length -
           result.removedFolderNames.length +
           result.showsToProcess.length;
       onProgress?.call('Sincronizacao completa: $totalAvailable shows');

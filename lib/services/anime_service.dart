@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
-import '../models/anime.dart';
-import '../models/episode.dart';
-import '../models/video.dart';
+import '../domain/models/anime.dart';
+import '../domain/models/episode.dart';
+import '../domain/models/video.dart';
 import '../services/anilist_service.dart';
 import '../services/episode_thumbnail_service.dart';
 
@@ -23,14 +23,10 @@ class AnimeService {
       // Search in AnimeFire only
       final results = await _searchAnimeFire(animeName);
 
-      debugPrint(
-        '[AnimeService] Total results: ${results.length}',
-      );
+      debugPrint('[AnimeService] Total results: ${results.length}');
 
       // Enriquecer com dados do AniList em paralelo
-      await Future.wait(
-        results.map((anime) => enrichAnimeWithAniList(anime)),
-      );
+      await Future.wait(results.map((anime) => enrichAnimeWithAniList(anime)));
 
       return results;
     } catch (e) {
@@ -486,14 +482,15 @@ class AnimeService {
         final batchRequest = await batchClient.postUrl(batchUrl);
         batchRequest.headers
           ..set(HttpHeaders.userAgentHeader, _googleVideoUserAgent)
-          ..set(HttpHeaders.contentTypeHeader,
-              'application/x-www-form-urlencoded;charset=UTF-8')
+          ..set(
+            HttpHeaders.contentTypeHeader,
+            'application/x-www-form-urlencoded;charset=UTF-8',
+          )
           ..set(HttpHeaders.refererHeader, 'https://www.blogger.com/')
           ..set('origin', 'https://www.blogger.com')
           ..set(HttpHeaders.acceptHeader, '*/*')
           ..set(HttpHeaders.acceptLanguageHeader, 'pt-BR,pt;q=0.9,en-US;q=0.8')
-          ..set('sec-ch-ua',
-              '"Google Chrome";v="149", "Chromium";v="149"')
+          ..set('sec-ch-ua', '"Google Chrome";v="149", "Chromium";v="149"')
           ..set('sec-ch-ua-mobile', '?0')
           ..set('sec-ch-ua-platform', '"Windows"')
           ..set('sec-fetch-dest', 'empty')
@@ -507,11 +504,11 @@ class AnimeService {
         final batchContent = await _collectResponse(batchResponse);
 
         debugPrint(
-            'Batchexecute response (${batchResponse.statusCode}): ${batchContent.length} bytes');
+          'Batchexecute response (${batchResponse.statusCode}): ${batchContent.length} bytes',
+        );
 
         if (batchResponse.statusCode == 200) {
-          final result =
-              _parseBatchexecuteResponse(batchContent, bloggerUrl);
+          final result = _parseBatchexecuteResponse(batchContent, bloggerUrl);
           if (result != null) {
             batchClient.close(force: true);
             return result;
@@ -566,7 +563,9 @@ class AnimeService {
       if (innerArray.length < 3) return null;
 
       final innerJsonString = innerArray[2] as String;
-      debugPrint('Inner JSON string (first 500 chars): ${innerJsonString.substring(0, innerJsonString.length > 500 ? 500 : innerJsonString.length)}');
+      debugPrint(
+        'Inner JSON string (first 500 chars): ${innerJsonString.substring(0, innerJsonString.length > 500 ? 500 : innerJsonString.length)}',
+      );
 
       final innerData = jsonDecode(innerJsonString) as List;
 
@@ -590,7 +589,9 @@ class AnimeService {
                 .replaceAll(r'\u003e', '>')
                 .replaceAll(r'\/', '/');
 
-            debugPrint('Found stream: itag=$itag, url=${url.substring(0, url.length > 100 ? 100 : url.length)}...');
+            debugPrint(
+              'Found stream: itag=$itag, url=${url.substring(0, url.length > 100 ? 100 : url.length)}...',
+            );
 
             if (itag > bestItag && url.contains('googlevideo.com')) {
               bestItag = itag;
@@ -614,7 +615,8 @@ class AnimeService {
     );
     final urlMatch = urlPattern.firstMatch(content);
     if (urlMatch != null) {
-      final videoUrl = urlMatch.group(0)!
+      final videoUrl = urlMatch
+          .group(0)!
           .replaceAll(r'\u003d', '=')
           .replaceAll(r'\u0026', '&')
           .replaceAll(r'\/', '/');
@@ -786,9 +788,7 @@ class AnimeService {
         final playUrlMatch = playUrlPattern.firstMatch(configJson);
         if (playUrlMatch != null) {
           final videoUrl = playUrlMatch.group(1)!;
-          debugPrint(
-            'Extracted play_url directly from JSON string: $videoUrl',
-          );
+          debugPrint('Extracted play_url directly from JSON string: $videoUrl');
           return videoUrl.contains('googlevideo')
               ? _googleVideoResult(videoUrl)
               : VideoStreamResult(url: videoUrl);
@@ -826,10 +826,7 @@ class AnimeService {
 
     // Try regex patterns for video URLs
     final patterns = [
-      RegExp(
-        r'https://[^"\s<>]+videoplayback[^"\s<>]*',
-        caseSensitive: false,
-      ),
+      RegExp(r'https://[^"\s<>]+videoplayback[^"\s<>]*', caseSensitive: false),
       RegExp(
         r'https://[^"\s<>]+\.googlevideo\.com[^"\s<>]*',
         caseSensitive: false,
@@ -870,9 +867,7 @@ class AnimeService {
       final jsPatterns = [
         RegExp(r'https://[^"]+videoplayback[^"]*'),
         RegExp(r'https://[^"]+\.googlevideo\.com[^"]*'),
-        RegExp(
-          r'https://[^"]+\.googleusercontent\.com[^"]*videoplayback[^"]*',
-        ),
+        RegExp(r'https://[^"]+\.googleusercontent\.com[^"]*videoplayback[^"]*'),
       ];
 
       for (final jsPattern in jsPatterns) {
@@ -894,7 +889,8 @@ class AnimeService {
     );
     final escapedMatch = escapedUrlPattern.firstMatch(content);
     if (escapedMatch != null) {
-      final videoUrl = escapedMatch.group(0)!
+      final videoUrl = escapedMatch
+          .group(0)!
           .replaceAll(r'\u003d', '=')
           .replaceAll(r'\u0026', '&')
           .replaceAll(r'\/', '/')
