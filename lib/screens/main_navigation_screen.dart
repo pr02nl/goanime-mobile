@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../theme/app_colors.dart';
+import '../ui/core/themes/app_colors.dart';
 import '../widgets/content_type_selector.dart';
 
 class MainNavigationScreen extends StatelessWidget {
@@ -59,7 +59,9 @@ class MainNavigationScreen extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.search, color: Colors.white, size: 24),
           tooltip: 'Search',
-          onPressed: () => context.push(isAnimeSection ? '/search' : '/pauloflix-movies/search'),
+          onPressed: () => context.push(
+            isAnimeSection ? '/search' : '/pauloflix-movies/search',
+          ),
         ),
         IconButton(
           icon: const Icon(Icons.bookmark, color: Colors.white, size: 24),
@@ -67,7 +69,11 @@ class MainNavigationScreen extends StatelessWidget {
           onPressed: () => context.push('/watchlist'),
         ),
         IconButton(
-          icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 24),
+          icon: const Icon(
+            Icons.settings_outlined,
+            color: Colors.white,
+            size: 24,
+          ),
           tooltip: 'Settings',
           onPressed: () => context.push('/settings'),
         ),

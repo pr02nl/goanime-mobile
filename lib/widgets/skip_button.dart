@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../ui/core/themes/app_colors.dart';
 import 'focusable_widget.dart';
 
 class SkipButton extends StatefulWidget {
@@ -82,76 +82,76 @@ class _SkipButtonState extends State<SkipButton>
       focusPadding: EdgeInsets.zero,
       focusScale: 1.05,
       child: FadeTransition(
-      opacity: _fadeAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: Semantics(
-          button: true,
-          label: widget.label,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      constraints: const BoxConstraints(
-                        minHeight: 44,
-                        minWidth: 44,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            blurRadius: 12,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.65),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            widget.label,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.92),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
-                      ),
+        opacity: _fadeAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Semantics(
+            button: true,
+            label: widget.label,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  constraints: const BoxConstraints(
+                    minHeight: 44,
+                    minWidth: 44,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      width: 1,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        widget.label,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
+        ),
+      ),
     );
   }
 }

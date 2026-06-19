@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
-import '../theme/netflix_theme.dart';
+import '../ui/core/themes/netflix_theme.dart';
 import '../utils/responsive.dart';
 
 /// Netflix-inspired horizontal carousel with smooth scrolling

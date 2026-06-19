@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../domain/models/anime.dart';
-import '../theme/app_colors.dart';
+import '../ui/core/themes/app_colors.dart';
 import 'focusable_widget.dart';
 
 class AnimeResultCard extends StatelessWidget {

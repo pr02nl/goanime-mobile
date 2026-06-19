@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
+
+import '../ui/core/themes/app_colors.dart';
 
 /// Widget de loading com efeito shimmer
 /// Substitui CircularProgressIndicator por uma animação mais elegante
@@ -31,7 +32,7 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat();
-    
+
     _animation = Tween<double>(begin: -2, end: 2).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
     );
@@ -75,11 +76,7 @@ class ShimmerAnimeCard extends StatelessWidget {
   final double width;
   final double height;
 
-  const ShimmerAnimeCard({
-    super.key,
-    this.width = 140,
-    this.height = 200,
-  });
+  const ShimmerAnimeCard({super.key, this.width = 140, this.height = 200});
 
   @override
   Widget build(BuildContext context) {
@@ -136,10 +133,7 @@ class ShimmerAnimeList extends StatelessWidget {
         itemBuilder: (context, index) {
           return Padding(
             padding: EdgeInsets.only(right: spacing),
-            child: ShimmerAnimeCard(
-              width: itemWidth,
-              height: itemHeight,
-            ),
+            child: ShimmerAnimeCard(width: itemWidth, height: itemHeight),
           );
         },
       ),

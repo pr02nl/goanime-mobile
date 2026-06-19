@@ -6,7 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../screens/tv_qr_setup_dialog.dart';
 import '../services/api_key_settings_service.dart';
 import '../services/locale_service.dart';
-import '../theme/app_colors.dart';
+import '../ui/core/themes/app_colors.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/focusable_widget.dart';
 import '../widgets/tv_safe_text_field.dart';

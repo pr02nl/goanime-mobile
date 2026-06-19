@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../domain/models/pauloflix_movie.dart';
 import '../providers/pauloflix_movies_provider.dart';
-import '../theme/app_colors.dart';
+import '../ui/core/themes/app_colors.dart';
 import '../utils/responsive.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/netflix_card.dart';
@@ -37,10 +37,12 @@ class PauloFlixMoviesSearchScreen extends StatefulWidget {
 class _PauloFlixMoviesSearchScreenState
     extends State<PauloFlixMoviesSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode =
-      FocusNode(debugLabel: 'pauloflix-movie-search');
-  final FocusNode _firstCardFocusNode =
-      FocusNode(debugLabel: 'pauloflix-movie-search.first-card');
+  final FocusNode _searchFocusNode = FocusNode(
+    debugLabel: 'pauloflix-movie-search',
+  );
+  final FocusNode _firstCardFocusNode = FocusNode(
+    debugLabel: 'pauloflix-movie-search.first-card',
+  );
 
   // Snapshot LOCAL dos filmes PauloFlix no momento da entrada da tela.
   // Filtro é feito sobre essa lista, não sobre o Provider.
@@ -77,9 +79,19 @@ class _PauloFlixMoviesSearchScreenState
       final contents = provider.contents;
 
       // Detecta TV via PlatformDispatcher + TVDetector.
-      final screenWidth = WidgetsBinding.instance.platformDispatcher.views
-              .first.physicalSize.width /
-          WidgetsBinding.instance.platformDispatcher.views.first
+      final screenWidth =
+          WidgetsBinding
+              .instance
+              .platformDispatcher
+              .views
+              .first
+              .physicalSize
+              .width /
+          WidgetsBinding
+              .instance
+              .platformDispatcher
+              .views
+              .first
               .devicePixelRatio;
       final isTvBuild = await TVDetector.isTV;
 
@@ -185,7 +197,9 @@ class _PauloFlixMoviesSearchScreenState
   }
 
   bool _isEmptyState() {
-    return _snapshotLoaded && _searchQuery.isNotEmpty && _filteredContents.isEmpty;
+    return _snapshotLoaded &&
+        _searchQuery.isNotEmpty &&
+        _filteredContents.isEmpty;
   }
 
   int _getCrossAxisCount(BuildContext context) {
@@ -296,9 +310,7 @@ class _PauloFlixMoviesSearchScreenState
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      _isEmptyState()
-                          ? Icons.search_off
-                          : Icons.movie_outlined,
+                      _isEmptyState() ? Icons.search_off : Icons.movie_outlined,
                       color: Colors.white.withValues(alpha: 0.3),
                       size: 64,
                     ),
@@ -327,19 +339,16 @@ class _PauloFlixMoviesSearchScreenState
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final content = _filteredContents[index];
-                    // Primeiro card recebe focusNode explícito para que o
-                    // seta-para-baixo no campo de busca possa entregá-lo
-                    // ao primeiro card por d-pad no futuro (já preparado).
-                    final card = _buildCard(context, content);
-                    return index == 0
-                        ? Focus(focusNode: _firstCardFocusNode, child: card)
-                        : card;
-                  },
-                  childCount: _filteredContents.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final content = _filteredContents[index];
+                  // Primeiro card recebe focusNode explícito para que o
+                  // seta-para-baixo no campo de busca possa entregá-lo
+                  // ao primeiro card por d-pad no futuro (já preparado).
+                  final card = _buildCard(context, content);
+                  return index == 0
+                      ? Focus(focusNode: _firstCardFocusNode, child: card)
+                      : card;
+                }, childCount: _filteredContents.length),
               ),
             ),
 
@@ -349,10 +358,10 @@ class _PauloFlixMoviesSearchScreenState
     );
   }
 
-// Nota: a busca de filmes intencionalmente NÃO mostra badge
-// (PauloFlixMoviesBadge / CollectionBadge) — o badge da home sinaliza
-// origem do conteúdo e natureza (filme vs coleção); em tela de busca
-// usamos só o card limpo para reduzir ruído visual.
+  // Nota: a busca de filmes intencionalmente NÃO mostra badge
+  // (PauloFlixMoviesBadge / CollectionBadge) — o badge da home sinaliza
+  // origem do conteúdo e natureza (filme vs coleção); em tela de busca
+  // usamos só o card limpo para reduzir ruído visual.
   Widget _buildCard(BuildContext context, PauloFlixMovie content) {
     return NetflixCard(
       imageUrl: content.imageUrl ?? '',

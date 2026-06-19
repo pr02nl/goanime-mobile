@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../data/models/jikan_models.dart';
-import '../theme/app_colors.dart';
-import '../theme/netflix_theme.dart';
+import '../ui/core/themes/app_colors.dart';
+import '../ui/core/themes/netflix_theme.dart';
 import '../utils/responsive.dart';
 import 'focusable_widget.dart';
 

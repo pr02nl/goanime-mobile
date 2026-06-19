@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'data/repositories/home_repository_impl.dart';
+import 'domain/repositories/home_repository.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/pauloflix_movies_provider.dart';
 import 'providers/pauloflix_provider.dart';
 import 'providers/theme_provider.dart';
-import 'data/repositories/home_repository_impl.dart';
-import 'domain/repositories/home_repository.dart';
 import 'routing/app_router.dart';
 import 'services/download_service.dart';
 import 'services/locale_service.dart';
-import 'theme/app_theme.dart';
+import 'ui/core/themes/app_theme.dart';
 import 'ui/home/view_models/home_viewmodel.dart';
 import 'ui/watchlist/view_models/watchlist_viewmodel.dart';
 
@@ -41,10 +41,14 @@ class PauloFlixApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PauloFlixProvider()),
         ChangeNotifierProvider(create: (_) => PauloFlixMoviesProvider()),
         Provider<HomeRepository>(create: (_) => HomeRepositoryImpl()),
-        ChangeNotifierProvider(create: (ctx) => HomeViewModel(
-          repository: ctx.read<HomeRepository>(),
-        )..loadHomeData()),
-        ChangeNotifierProvider(create: (_) => WatchlistViewModel()..loadWatchlist()),
+        ChangeNotifierProvider(
+          create: (ctx) =>
+              HomeViewModel(repository: ctx.read<HomeRepository>())
+                ..loadHomeData(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => WatchlistViewModel()..loadWatchlist(),
+        ),
       ],
       child: ListenableBuilder(
         listenable: themeProvider,

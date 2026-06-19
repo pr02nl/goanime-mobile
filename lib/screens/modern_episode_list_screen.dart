@@ -6,7 +6,7 @@ import '../data/services/anime_service.dart';
 import '../domain/models/anime.dart';
 import '../domain/models/episode.dart';
 import '../services/download_service.dart';
-import '../theme/app_colors.dart';
+import '../ui/core/themes/app_colors.dart';
 import '../utils/text_utils.dart';
 import '../widgets/download_button.dart';
 import '../widgets/focusable_widget.dart';

@@ -12,7 +12,7 @@ import '../domain/models/episode.dart';
 import '../google_video_proxy.dart';
 import '../l10n/app_localizations.dart';
 import '../mixins/video_player_aniskip_mixin.dart';
-import '../theme/app_colors.dart';
+import '../ui/core/themes/app_colors.dart';
 import '../utils/episode_utils.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/focusable_widget.dart';

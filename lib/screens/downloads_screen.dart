@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/download_service.dart';
-import '../theme/app_colors.dart';
+import '../ui/core/themes/app_colors.dart';
 import '../widgets/focusable_widget.dart';
 
 /// Downloads screen - Netflix-style UI for managing downloads
@@ -286,7 +286,9 @@ class _DownloadCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    AppLocalizations.of(context).episode(download.episodeNumber),
+                    AppLocalizations.of(
+                      context,
+                    ).episode(download.episodeNumber),
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 14,
@@ -503,7 +505,9 @@ class _AnimeDownloadGroupState extends State<_AnimeDownloadGroup> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          AppLocalizations.of(context).episodesCount(widget.episodes.length),
+                          AppLocalizations.of(
+                            context,
+                          ).episodesCount(widget.episodes.length),
                           style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
@@ -620,10 +624,12 @@ class _EpisodeListItem extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (context) => _LocalVideoPlayerScreen(
-            filePath: episode.filePath!,
-            episodeTitle: AppLocalizations.of(context).episode(episode.episodeNumber),
-          ),
+        builder: (context) => _LocalVideoPlayerScreen(
+          filePath: episode.filePath!,
+          episodeTitle: AppLocalizations.of(
+            context,
+          ).episode(episode.episodeNumber),
+        ),
       ),
     );
   }

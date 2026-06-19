@@ -2,8 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../theme/app_colors.dart';
-import '../theme/netflix_theme.dart';
+import '../ui/core/themes/app_colors.dart';
+import '../ui/core/themes/netflix_theme.dart';
 
 /// Netflix-inspired card with hover effects and smooth animations
 /// Supports responsive sizing and TV navigation
@@ -318,126 +318,128 @@ class NetflixHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return FocusTraversalGroup(
       child: Container(
-      height: height,
-      decoration: const BoxDecoration(color: NetflixTheme.background),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background image
-          CachedNetworkImage(
-            imageUrl: imageUrl,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: height,
-            filterQuality: FilterQuality.high,
-            placeholder: (context, url) => Container(
-              color: NetflixTheme.surface,
-              child: const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+        height: height,
+        decoration: const BoxDecoration(color: NetflixTheme.background),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background image
+            CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: height,
+              filterQuality: FilterQuality.high,
+              placeholder: (context, url) => Container(
+                color: NetflixTheme.surface,
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+              errorWidget: (context, url, error) => Container(
+                color: NetflixTheme.surface,
+                child: const Icon(
+                  Icons.error_outline,
+                  color: NetflixTheme.textTertiary,
                 ),
               ),
             ),
-            errorWidget: (context, url, error) => Container(
-              color: NetflixTheme.surface,
-              child: const Icon(
-                Icons.error_outline,
-                color: NetflixTheme.textTertiary,
-              ),
-            ),
-          ),
-          // Gradient overlay
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  NetflixTheme.background.withValues(alpha: 0.3),
-                  NetflixTheme.background.withValues(alpha: 0.6),
-                  NetflixTheme.background,
-                ],
-                stops: const [0.0, 0.6, 1.0],
-              ),
-            ),
-          ),
-          // Content
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: NetflixTheme.horizontalPadding(context),
-                vertical: NetflixTheme.lg,
-              ),
-              decoration: const BoxDecoration(
+            // Gradient overlay
+            Container(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, NetflixTheme.background],
+                  colors: [
+                    NetflixTheme.background.withValues(alpha: 0.3),
+                    NetflixTheme.background.withValues(alpha: 0.6),
+                    NetflixTheme.background,
+                  ],
+                  stops: const [0.0, 0.6, 1.0],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: NetflixTheme.textPrimary,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black,
-                          offset: Offset(0, 2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
+            ),
+            // Content
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: NetflixTheme.horizontalPadding(context),
+                  vertical: NetflixTheme.lg,
+                ),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, NetflixTheme.background],
                   ),
-                  if (description != null) ...[
-                    const SizedBox(height: NetflixTheme.md),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      description!,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                      title,
                       style: const TextStyle(
-                        color: NetflixTheme.textSecondary,
-                        fontSize: 14,
+                        color: NetflixTheme.textPrimary,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black,
+                            offset: Offset(0, 2),
+                            blurRadius: 4,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                  const SizedBox(height: NetflixTheme.lg),
-                  Row(
-                    children: [
-                      if (onPlay != null)
-                        _HeroActionButton(
-                          onPressed: onPlay!,
-                          icon: Icons.play_arrow,
-                          label: 'Play',
-                          filled: true,
-                          autofocus: isTV,
+                    if (description != null) ...[
+                      const SizedBox(height: NetflixTheme.md),
+                      Text(
+                        description!,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: NetflixTheme.textSecondary,
+                          fontSize: 14,
                         ),
-                      if (onMyList != null) ...[
-                        const SizedBox(width: NetflixTheme.md),
-                        _HeroActionButton(
-                          onPressed: onMyList!,
-                          icon: Icons.add,
-                          label: 'My List',
-                          filled: false,
-                        ),
-                      ],
+                      ),
                     ],
-                  ),
-                ],
+                    const SizedBox(height: NetflixTheme.lg),
+                    Row(
+                      children: [
+                        if (onPlay != null)
+                          _HeroActionButton(
+                            onPressed: onPlay!,
+                            icon: Icons.play_arrow,
+                            label: 'Play',
+                            filled: true,
+                            autofocus: isTV,
+                          ),
+                        if (onMyList != null) ...[
+                          const SizedBox(width: NetflixTheme.md),
+                          _HeroActionButton(
+                            onPressed: onMyList!,
+                            icon: Icons.add,
+                            label: 'My List',
+                            filled: false,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 }
@@ -488,9 +490,7 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
             label: Text(widget.label),
             style: OutlinedButton.styleFrom(
               foregroundColor: NetflixTheme.textPrimary,
-              side: const BorderSide(
-                color: NetflixTheme.textSecondary,
-              ),
+              side: const BorderSide(color: NetflixTheme.textSecondary),
               padding: const EdgeInsets.symmetric(
                 horizontal: NetflixTheme.lg,
                 vertical: NetflixTheme.md,

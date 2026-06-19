@@ -6,7 +6,7 @@ import '../domain/models/episode.dart';
 import '../domain/models/pauloflix_movie.dart';
 import '../domain/models/pauloflix_movie_item.dart';
 import '../services/pauloflix_movies_service.dart';
-import '../theme/app_colors.dart';
+import '../ui/core/themes/app_colors.dart';
 import '../widgets/pauloflix_movies_badge.dart';
 import 'video_player_screen.dart';
 
