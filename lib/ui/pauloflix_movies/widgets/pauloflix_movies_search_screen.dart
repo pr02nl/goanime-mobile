@@ -5,12 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
-import '../../../providers/pauloflix_movies_provider.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
+import '../view_models/pauloflix_movies_provider.dart';
 import 'pauloflix_movie_detail_screen.dart';
 
 /// Tela de busca de filmes PauloFlix.

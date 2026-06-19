@@ -3,12 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../providers/pauloflix_movies_provider.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
+import '../view_models/pauloflix_movies_provider.dart';
 import 'pauloflix_movie_detail_screen.dart';
 
 class PauloFlixMoviesHomeScreen extends StatefulWidget {
