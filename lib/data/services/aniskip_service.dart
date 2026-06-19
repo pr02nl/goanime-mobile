@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../data/models/aniskip_models.dart';
+import '../models/aniskip_models.dart';
 
 class AniSkipService {
   static const String baseUrl = 'https://api.aniskip.com/v2';

@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
 import '../data/models/aniskip_models.dart';
+import '../data/services/aniskip_service.dart';
 import '../l10n/app_localizations.dart';
-import '../services/aniskip_service.dart';
 import '../utils/episode_utils.dart';
 
 /// Mixin que encapsula a logica de AniSkip (pular intro/outro)

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/services/tmdb_service.dart';
 import '../l10n/app_localizations.dart';
+import '../screens/tv_qr_setup_dialog.dart';
 import '../services/api_key_settings_service.dart';
 import '../services/locale_service.dart';
-import '../services/tmdb_service.dart';
-import '../screens/tv_qr_setup_dialog.dart';
 import '../theme/app_colors.dart';
 import '../utils/tv_detector.dart';
 import '../widgets/focusable_widget.dart';
@@ -60,9 +60,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final raw = _tmdbKeyController.text.trim();
     if (raw.isEmpty) {
       final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.validKeyRequired)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.validKeyRequired)));
       return;
     }
     await _apiKeys.setTmdbApiKey(raw);
@@ -73,10 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _showTmdbField = false);
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.tmdbKeySaved),
-        backgroundColor: Colors.green,
-      ),
+      SnackBar(content: Text(l10n.tmdbKeySaved), backgroundColor: Colors.green),
     );
   }
 
@@ -87,9 +84,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _loadTmdbStatus();
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.tmdbKeyRemoved)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.tmdbKeyRemoved)));
   }
 
   /// Abre o dialog QR code para configurar a API key via celular (TV only)
@@ -426,7 +423,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _isTmdbConfigured
                         ? Colors.green.withValues(alpha: 0.2)

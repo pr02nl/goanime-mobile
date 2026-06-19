@@ -1,6 +1,6 @@
-import '../../../services/jikan_service.dart';
 import '../../domain/repositories/home_repository.dart';
 import '../models/jikan_models.dart';
+import '../services/jikan_service.dart';
 
 class HomeRepositoryImpl implements HomeRepository {
   final JikanService _jikanService;

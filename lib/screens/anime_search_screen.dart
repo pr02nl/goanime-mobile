@@ -3,11 +3,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/services/anime_service.dart';
 import '../domain/models/anime.dart';
 import '../helpers/database_helper.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/theme_provider.dart';
-import '../services/anime_service.dart';
 import '../widgets/anime_result_card.dart';
 import '../widgets/tv_safe_text_field.dart';
 import 'anime_detail_screen.dart';

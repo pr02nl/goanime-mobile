@@ -4,8 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../data/models/tmdb_models.dart';
-import 'api_key_settings_service.dart';
+import '../../services/api_key_settings_service.dart';
+import '../models/tmdb_models.dart';
 
 /// Cache entry com TTL.
 class _CacheEntry<T> {

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../data/models/anilist_models.dart';
+import '../models/anilist_models.dart';
 
 class AniListService {
   static const String _apiUrl = 'https://graphql.anilist.co';

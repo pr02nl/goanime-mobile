@@ -2,11 +2,11 @@
 import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
+import 'data/services/tmdb_service.dart';
 import 'helpers/database_helper.dart';
 import 'providers/theme_provider.dart';
 import 'services/download_service.dart';
 import 'services/locale_service.dart';
-import 'services/tmdb_service.dart';
 import 'utils/performance_config.dart';
 
 void main() async {

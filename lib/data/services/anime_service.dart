@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
-import '../domain/models/anime.dart';
-import '../domain/models/episode.dart';
-import '../domain/models/video.dart';
-import '../services/anilist_service.dart';
-import '../services/episode_thumbnail_service.dart';
+import '../../domain/models/anime.dart';
+import '../../domain/models/episode.dart';
+import '../../domain/models/video.dart';
+import '../../services/episode_thumbnail_service.dart';
+import 'anilist_service.dart';
 
 class AnimeService {
   static const String baseSiteUrl = 'https://animefire.plus';

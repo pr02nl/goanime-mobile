@@ -7,7 +7,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
-import 'anime_service.dart';
+import '../data/services/anime_service.dart';
 
 /// Download status enum
 enum DownloadStatus {

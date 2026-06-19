@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:goanime/data/models/jikan_models.dart';
+import 'package:goanime/data/services/jikan_service.dart';
 import 'package:goanime/domain/repositories/home_repository.dart';
-import 'package:goanime/services/jikan_service.dart';
 import 'package:goanime/ui/home/view_models/home_viewmodel.dart';
 import 'package:mocktail/mocktail.dart';
 

@@ -3,10 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../data/models/jikan_models.dart';
+import '../data/services/jikan_service.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/pauloflix_provider.dart';
 import '../routing/route_data.dart';
-import '../services/jikan_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../ui/home/view_models/home_viewmodel.dart';

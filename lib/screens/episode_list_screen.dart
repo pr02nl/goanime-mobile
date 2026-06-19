@@ -4,11 +4,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/services/anime_service.dart';
 import '../domain/models/anime.dart';
 import '../domain/models/episode.dart';
 import '../l10n/app_localizations.dart';
 import '../screens/video_player_screen.dart';
-import '../services/anime_service.dart';
 import '../widgets/focusable_widget.dart';
 import '../widgets/logo_widget.dart';
 

@@ -1,9 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../data/services/anime_service.dart';
 import '../domain/models/anime.dart';
 import '../l10n/app_localizations.dart';
-import '../services/anime_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/netflix_theme.dart';
 import '../widgets/focusable_widget.dart';

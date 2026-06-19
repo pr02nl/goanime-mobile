@@ -2,9 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/services/anime_service.dart';
 import '../domain/models/anime.dart';
 import '../domain/models/episode.dart';
-import '../services/anime_service.dart';
 import '../services/download_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/text_utils.dart';
