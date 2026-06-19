@@ -263,6 +263,26 @@ class _NetflixCardState extends State<NetflixCard>
                             bottom: widget.showTitle ? 36 : NetflixTheme.sm,
                             child: widget.overlayWidget!,
                           ),
+                        // Hover / Focus glow — glow colorido ao redor do card
+                        if (_isHovered || _isFocused)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                  NetflixTheme.radiusMd,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _isFocused
+                                        ? AppColors.primary.withValues(alpha: 0.6)
+                                        : AppColors.primary.withValues(alpha: 0.35),
+                                    blurRadius: _isFocused ? 20 : 14,
+                                    spreadRadius: _isFocused ? 2 : 0,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         // Focus border for TV
                         if (widget.isTV && _isFocused)
                           Positioned.fill(
@@ -275,6 +295,18 @@ class _NetflixCardState extends State<NetflixCard>
                                 borderRadius: BorderRadius.circular(
                                   NetflixTheme.radiusMd,
                                 ),
+                              ),
+                            ),
+                          ),
+                        // Hover overlay — leve escurecimento para destacar
+                        if (_isHovered && !_isFocused)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                  NetflixTheme.radiusMd,
+                                ),
+                                color: Colors.white.withValues(alpha: 0.08),
                               ),
                             ),
                           ),
