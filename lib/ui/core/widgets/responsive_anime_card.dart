@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../../../data/models/jikan_models.dart';
-import '../../utils/responsive.dart';
 import '../themes/app_colors.dart';
 import '../themes/netflix_theme.dart';
+import '../utils/responsive.dart';
 import 'focusable_widget.dart';
 
 /// Card de anime otimizado com animações leves e responsivo

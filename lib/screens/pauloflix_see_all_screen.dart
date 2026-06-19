@@ -5,11 +5,11 @@ import '../domain/models/pauloflix_content.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/pauloflix_provider.dart';
 import '../ui/core/themes/app_colors.dart';
+import '../ui/core/utils/responsive.dart';
+import '../ui/core/utils/tv_detector.dart';
 import '../ui/core/widgets/netflix_card.dart';
 import '../ui/core/widgets/pauloflix_badge.dart';
 import '../ui/core/widgets/tv_safe_text_field.dart';
-import '../ui/utils/responsive.dart';
-import '../ui/utils/tv_detector.dart';
 import 'pauloflix_episode_list_screen.dart';
 
 class PauloFlixSeeAllScreen extends StatefulWidget {

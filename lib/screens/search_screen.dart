@@ -8,10 +8,10 @@ import '../l10n/app_localizations.dart';
 import '../services/search_history_service.dart';
 import '../ui/core/themes/app_colors.dart';
 import '../ui/core/themes/netflix_theme.dart';
+import '../ui/core/utils/responsive.dart';
+import '../ui/core/utils/tv_detector.dart';
 import '../ui/core/widgets/netflix_card.dart';
 import '../ui/core/widgets/tv_safe_text_field.dart';
-import '../ui/utils/responsive.dart';
-import '../ui/utils/tv_detector.dart';
 import 'source_selection_screen.dart';
 
 class SearchScreen extends StatefulWidget {

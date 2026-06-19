@@ -6,7 +6,7 @@ import 'package:media_kit/media_kit.dart';
 import '../data/models/aniskip_models.dart';
 import '../data/services/aniskip_service.dart';
 import '../l10n/app_localizations.dart';
-import '../ui/utils/episode_utils.dart';
+import '../ui/core/utils/episode_utils.dart';
 
 /// Mixin que encapsula a logica de AniSkip (pular intro/outro)
 mixin VideoPlayerAniSkipMixin<T extends StatefulWidget> on State<T> {

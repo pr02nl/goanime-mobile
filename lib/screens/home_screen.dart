@@ -9,12 +9,12 @@ import '../providers/pauloflix_provider.dart';
 import '../routing/route_data.dart';
 import '../ui/core/themes/app_colors.dart';
 import '../ui/core/themes/netflix_theme.dart';
+import '../ui/core/utils/responsive.dart';
+import '../ui/core/utils/tv_detector.dart';
 import '../ui/core/widgets/netflix_card.dart';
 import '../ui/core/widgets/netflix_carousel.dart';
 import '../ui/core/widgets/pauloflix_section.dart';
 import '../ui/home/view_models/home_viewmodel.dart';
-import '../ui/utils/responsive.dart';
-import '../ui/utils/tv_detector.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
