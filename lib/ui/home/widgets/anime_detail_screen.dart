@@ -2,11 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../domain/models/anime.dart';
-import '../l10n/app_localizations.dart';
-import '../ui/core/widgets/focusable_widget.dart';
-import '../utils/text_utils.dart';
-import 'episode_list_screen.dart';
+import '../../../domain/models/anime.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../screens/episode_list_screen.dart';
+import '../../../utils/text_utils.dart';
+import '../../core/widgets/focusable_widget.dart';
 
 class AnimeDetailScreen extends StatelessWidget {
   final Anime anime;

@@ -10,7 +10,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/theme_provider.dart';
 import '../ui/core/widgets/anime_result_card.dart';
 import '../ui/core/widgets/tv_safe_text_field.dart';
-import 'anime_detail_screen.dart';
+import '../ui/home/widgets/anime_detail_screen.dart';
 import 'episode_list_screen.dart';
 
 // Search Screen

@@ -6,13 +6,10 @@ import '../domain/models/anime.dart';
 import '../domain/models/pauloflix_content.dart';
 import '../domain/models/pauloflix_movie.dart';
 import '../providers/theme_provider.dart';
-import '../screens/anime_detail_screen.dart';
 import '../screens/anime_search_screen.dart';
 import '../screens/blogger_webview_screen.dart';
 import '../screens/downloads_screen.dart';
 import '../screens/episode_list_screen.dart';
-import '../screens/genre_animes_screen.dart';
-import '../screens/home_screen.dart';
 import '../screens/main_navigation_screen.dart';
 import '../screens/modern_episode_list_screen.dart';
 import '../screens/pauloflix_episode_list_screen.dart';
@@ -25,6 +22,9 @@ import '../screens/settings_screen.dart';
 import '../screens/source_selection_screen.dart';
 import '../screens/video_player_screen.dart';
 import '../screens/watchlist_screen.dart';
+import '../ui/home/widgets/anime_detail_screen.dart';
+import '../ui/home/widgets/genre_animes_screen.dart';
+import '../ui/home/widgets/home_screen.dart';
 import 'route_data.dart';
 
 GoRouter createAppRouter({String? initialError}) {
