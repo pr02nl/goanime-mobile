@@ -170,7 +170,7 @@ class AnimeResultCard extends StatelessWidget {
                       if (anime.averageScore != null) ...[
                         Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.star_rounded,
                               size: 16,
                               color: AppColors.warning,

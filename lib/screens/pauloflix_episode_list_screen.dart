@@ -84,7 +84,7 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                     right: 0,
                     child: Container(
                       height: 100,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
@@ -167,7 +167,7 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                           ),
                           child: Text(
                             genre,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: AppColors.primary,
                               fontSize: 12,
                             ),
@@ -287,7 +287,7 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                   ),
                   subtitle: Text(
                     episode.fileSize?.toString() ?? '',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                   trailing: const Icon(
                     Icons.play_circle_outline,

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -226,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           child: Center(
             child: Text(
               AppLocalizations.of(context).noAnimeFound,
-              style: TextStyle(color: NetflixTheme.textTertiary),
+              style: const TextStyle(color: NetflixTheme.textTertiary),
             ),
           ),
         ),

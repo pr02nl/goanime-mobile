@@ -371,7 +371,7 @@ class NetflixHeroCard extends StatelessWidget {
                 horizontal: NetflixTheme.horizontalPadding(context),
                 vertical: NetflixTheme.lg,
               ),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,

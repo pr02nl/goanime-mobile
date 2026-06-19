@@ -99,7 +99,7 @@ class _AnimeCardState extends State<AnimeCard>
                         width: widget.width,
                         height: widget.height,
                         color: NetflixTheme.surfaceLight,
-                        child: Center(
+                        child: const Center(
                           child: CircularProgressIndicator(
                             valueColor: AlwaysStoppedAnimation<Color>(
                               AppColors.primary,

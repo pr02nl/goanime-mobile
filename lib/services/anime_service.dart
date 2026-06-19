@@ -56,8 +56,8 @@ class AnimeService {
       final document = html_parser.parse(response.body);
       final animeElements = document.querySelectorAll('.row.ml-1.mr-1 a');
 
-      List<Anime> animes = [];
-      for (var element in animeElements) {
+      final List<Anime> animes = [];
+      for (final element in animeElements) {
         final name = element.text.trim();
         final url = element.attributes['href'] ?? '';
 
@@ -158,10 +158,10 @@ class AnimeService {
       );
 
       // Extract episode numbers
-      List<int> episodeNumbers = [];
-      List<Episode> tempEpisodes = [];
+      final List<int> episodeNumbers = [];
+      final List<Episode> tempEpisodes = [];
 
-      for (var element in episodeElements) {
+      for (final element in episodeElements) {
         final number = element.text.trim();
         final url = element.attributes['href'] ?? '';
         if (number.isNotEmpty && url.isNotEmpty) {
@@ -191,7 +191,7 @@ class AnimeService {
         );
       }
 
-      List<Episode> episodes = [];
+      final List<Episode> episodes = [];
       for (int i = 0; i < tempEpisodes.length; i++) {
         final tempEp = tempEpisodes[i];
         final epNum = episodeNumbers[i];
@@ -252,7 +252,7 @@ class AnimeService {
         'iframe[src*="player"]',
       ];
 
-      for (String selector in selectors) {
+      for (final String selector in selectors) {
         final elements = document.querySelectorAll(selector);
         if (elements.isNotEmpty) {
           debugPrint('Found elements with selector: $selector');
@@ -266,8 +266,8 @@ class AnimeService {
             'src',
           ];
 
-          for (var element in elements) {
-            for (String attr in attributes) {
+          for (final element in elements) {
+            for (final String attr in attributes) {
               final videoSrc = element.attributes[attr];
               if (videoSrc != null && videoSrc.isNotEmpty) {
                 debugPrint('Found video URL in attribute $attr: $videoSrc');
@@ -614,7 +614,7 @@ class AnimeService {
     );
     final urlMatch = urlPattern.firstMatch(content);
     if (urlMatch != null) {
-      var videoUrl = urlMatch.group(0)!
+      final videoUrl = urlMatch.group(0)!
           .replaceAll(r'\u003d', '=')
           .replaceAll(r'\u0026', '&')
           .replaceAll(r'\/', '/');
@@ -894,7 +894,7 @@ class AnimeService {
     );
     final escapedMatch = escapedUrlPattern.firstMatch(content);
     if (escapedMatch != null) {
-      var videoUrl = escapedMatch.group(0)!
+      final videoUrl = escapedMatch.group(0)!
           .replaceAll(r'\u003d', '=')
           .replaceAll(r'\u0026', '&')
           .replaceAll(r'\/', '/')

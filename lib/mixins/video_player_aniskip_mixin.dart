@@ -121,7 +121,7 @@ mixin VideoPlayerAniSkipMixin<T extends StatefulWidget> on State<T> {
     positionTimer?.cancel();
     final timerKey = activeEpisodeKey;
 
-    positionTimerTick(String? timerKey) {
+    Null Function(Timer timer) positionTimerTick(String? timerKey) {
       return (Timer timer) {
         if (!isActiveEpisode(timerKey)) {
           timer.cancel();

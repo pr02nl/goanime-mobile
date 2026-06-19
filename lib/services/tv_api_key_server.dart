@@ -137,7 +137,7 @@ class TvApiKeyServer {
 
   /// Serve a página HTML com o formulário de输入 da API key.
   Future<void> _serveFormPage(HttpRequest request) async {
-    final html = '''
+    const html = '''
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -347,7 +347,7 @@ class TvApiKeyServer {
 
   /// Página de sucesso após salvar a key.
   Future<void> _serveSuccessPage(HttpRequest request) async {
-    final html = '''
+    const html = '''
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>

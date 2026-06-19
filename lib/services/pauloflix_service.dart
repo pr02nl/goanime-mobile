@@ -24,8 +24,8 @@ class PauloFlixService {
       }
       final document = html_parser.parse(response.body);
       final linkElements = document.querySelectorAll('a[href]');
-      List<PauloFlixShow> shows = [];
-      for (var element in linkElements) {
+      final List<PauloFlixShow> shows = [];
+      for (final element in linkElements) {
         final href = element.attributes['href'] ?? '';
         final text = element.text.trim();
         if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {
@@ -59,8 +59,8 @@ class PauloFlixService {
       }
       final document = html_parser.parse(response.body);
       final linkElements = document.querySelectorAll('a[href]');
-      List<PauloFlixSeason> seasons = [];
-      for (var element in linkElements) {
+      final List<PauloFlixSeason> seasons = [];
+      for (final element in linkElements) {
         final href = element.attributes['href'] ?? '';
         final text = element.text.trim();
         if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {
@@ -110,8 +110,8 @@ class PauloFlixService {
       }
       final document = html_parser.parse(response.body);
       final linkElements = document.querySelectorAll('a[href]');
-      List<PauloFlixEpisode> episodes = [];
-      for (var element in linkElements) {
+      final List<PauloFlixEpisode> episodes = [];
+      for (final element in linkElements) {
         final href = element.attributes['href'] ?? '';
         final text = element.text.trim();
         if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {

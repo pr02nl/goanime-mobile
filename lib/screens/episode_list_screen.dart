@@ -289,7 +289,7 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
                                           shape: BoxShape.circle,
                                         ),
                                       ),
-                                    Icon(
+                                    const Icon(
                                       Icons.movie_filter_rounded,
                                       size: 14,
                                       color: Colors.white70,
@@ -360,9 +360,9 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
         color: colorScheme.surface.withValues(alpha: 0.8),
         border: Border.all(color: colorScheme.primary.withValues(alpha: 0.12)),
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
+        children: [
           SizedBox(
             width: 20,
             height: 20,

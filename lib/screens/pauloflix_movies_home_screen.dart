@@ -138,7 +138,7 @@ class _PauloFlixMoviesHomeScreenState
                   const SizedBox(width: 8),
                   Text(
                     l10n.movies,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,

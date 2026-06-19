@@ -16,8 +16,8 @@ class VideoResponse {
   VideoResponse({required this.data, required this.resposta});
 
   factory VideoResponse.fromJson(Map<String, dynamic> json) {
-    var dataList = json['data'] as List? ?? [];
-    List<VideoData> videoDataList = dataList
+    final dataList = json['data'] as List? ?? [];
+    final List<VideoData> videoDataList = dataList
         .map((item) => VideoData.fromJson(item))
         .toList();
 

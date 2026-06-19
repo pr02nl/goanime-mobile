@@ -84,7 +84,7 @@ class _WatchlistScreenState extends State<WatchlistScreen>
         elevation: 0,
         title: Row(
           children: [
-            Icon(Icons.bookmark, color: AppColors.primary, size: 28),
+            const Icon(Icons.bookmark, color: AppColors.primary, size: 28),
             const SizedBox(width: 12),
             Text(
               l10n.watchlist,
@@ -268,7 +268,7 @@ class _WatchlistScreenState extends State<WatchlistScreen>
                 );
               }
             },
-            child: Text(l10n.clear, style: TextStyle(color: AppColors.error)),
+            child: Text(l10n.clear, style: const TextStyle(color: AppColors.error)),
           ),
         ],
       ),

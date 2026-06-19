@@ -385,7 +385,7 @@ class EpisodeThumbnailService {
       if (media == null) return thumbnails;
 
       // Collect all available images
-      List<String> images = [];
+      final List<String> images = [];
 
       // Add banner if available
       final banner = media['bannerImage'] as String?;

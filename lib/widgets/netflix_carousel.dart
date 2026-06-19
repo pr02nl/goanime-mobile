@@ -132,7 +132,7 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                     width: 60,
                     child: IgnorePointer(
                       child: Container(
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
@@ -153,7 +153,7 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
                     width: 60,
                     child: IgnorePointer(
                       child: Container(
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,

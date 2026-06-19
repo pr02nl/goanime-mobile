@@ -299,7 +299,7 @@ class _PauloFlixMovieDetailScreenState
               right: 0,
               child: Container(
                 height: 120,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,

@@ -479,9 +479,9 @@ class JikanService {
 
         // Extrai animes das recomendações
         final List<JikanAnime> animes = [];
-        for (var item in data.take(20)) {
+        for (final item in data.take(20)) {
           if (item['entry'] != null && item['entry'].isNotEmpty) {
-            for (var entry in item['entry']) {
+            for (final entry in item['entry']) {
               try {
                 animes.add(JikanAnime.fromJson(entry));
               } catch (e) {
@@ -493,7 +493,7 @@ class JikanService {
 
         // Remove duplicatas
         final uniqueAnimes = <int, JikanAnime>{};
-        for (var anime in animes) {
+        for (final anime in animes) {
           uniqueAnimes[anime.malId] = anime;
         }
 

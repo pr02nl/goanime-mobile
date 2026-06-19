@@ -285,7 +285,7 @@ class DownloadService extends ChangeNotifier {
   }) async {
     final List<String> downloadIds = [];
 
-    for (var episode in episodes) {
+    for (final episode in episodes) {
       try {
         final id = await addDownload(
           animeId: animeId,
@@ -317,7 +317,7 @@ class DownloadService extends ChangeNotifier {
             .toList()
           ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    for (var download in queuedDownloads) {
+    for (final download in queuedDownloads) {
       if (_activeDownloadCount >= _maxConcurrentDownloads) break;
       _startDownload(download.id);
     }
@@ -481,7 +481,7 @@ class DownloadService extends ChangeNotifier {
       const notificationInterval = 256 * 1024; // 256KB
       const saveInterval = 1024 * 1024; // 1MB
 
-      await for (var chunk in response.stream) {
+      await for (final chunk in response.stream) {
         // Check if download was cancelled
         if (!_downloads.containsKey(id) ||
             _downloads[id]!.status == DownloadStatus.cancelled) {
@@ -644,7 +644,7 @@ class DownloadService extends ChangeNotifier {
         .where((d) => d.status == DownloadStatus.completed)
         .toList();
 
-    for (var download in completed) {
+    for (final download in completed) {
       await deleteDownload(download.id);
     }
   }
@@ -659,7 +659,7 @@ class DownloadService extends ChangeNotifier {
         )
         .toList();
 
-    for (var download in failed) {
+    for (final download in failed) {
       await deleteDownload(download.id);
     }
   }
@@ -766,7 +766,7 @@ class DownloadService extends ChangeNotifier {
   /// Dispose resources
   @override
   void dispose() {
-    for (var client in _downloadClients.values) {
+    for (final client in _downloadClients.values) {
       client.close();
     }
     _downloadClients.clear();

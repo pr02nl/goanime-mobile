@@ -42,7 +42,7 @@ void main() {
 
   group('EpisodeSubtitleTrack', () {
     test('deve criar track de legenda', () {
-      final track = EpisodeSubtitleTrack(
+      const track = EpisodeSubtitleTrack(
         url: 'http://server/sub.pt.srt',
         language: 'pt-BR',
         displayName: 'Português',
@@ -56,7 +56,7 @@ void main() {
     });
 
     test('deve criar track forced', () {
-      final track = EpisodeSubtitleTrack(
+      const track = EpisodeSubtitleTrack(
         language: 'en',
         displayName: 'English',
         forced: true,
@@ -67,7 +67,7 @@ void main() {
     });
 
     test('toString deve incluir language e forced', () {
-      final track = EpisodeSubtitleTrack(
+      const track = EpisodeSubtitleTrack(
         url: 'http://server/sub.srt',
         language: 'en',
         displayName: 'English',

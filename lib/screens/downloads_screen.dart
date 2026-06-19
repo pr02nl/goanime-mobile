@@ -205,7 +205,7 @@ class _CompletedDownloadsTab extends StatelessWidget {
 
         // Group by anime
         final Map<String, List<DownloadItem>> groupedDownloads = {};
-        for (var download in completedDownloads) {
+        for (final download in completedDownloads) {
           groupedDownloads
               .putIfAbsent(download.animeId, () => [])
               .add(download);

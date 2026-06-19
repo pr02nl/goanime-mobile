@@ -258,7 +258,7 @@ class TVTheme {
 
   static InputDecorationTheme _buildInputDecorationTheme(bool isDark) {
     final borderColor = isDark ? AppColors.textTertiary : Colors.black38;
-    final focusedBorderColor = AppColors.primary;
+    const focusedBorderColor = AppColors.primary;
 
     return InputDecorationTheme(
       filled: true,
@@ -277,7 +277,7 @@ class TVTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(cardBorderRadius),
-        borderSide: BorderSide(color: focusedBorderColor, width: 3),
+        borderSide: const BorderSide(color: focusedBorderColor, width: 3),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(cardBorderRadius),

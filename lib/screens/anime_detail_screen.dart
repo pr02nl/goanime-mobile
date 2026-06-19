@@ -266,7 +266,7 @@ class AnimeDetailScreen extends StatelessWidget {
                         icon: const Icon(Icons.play_arrow_rounded, size: 20),
                         label: Text(
                           l10n.watchEpisodes,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
                           ),

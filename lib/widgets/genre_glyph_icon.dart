@@ -502,7 +502,7 @@ class _GenreGlyphPainter extends CustomPainter {
   void _paintMystery(Canvas canvas, Size size, Paint fill, Paint stroke) {
     final spiral = Path();
     final center = Offset(size.width / 2, size.height / 2);
-    final turns = 2.5;
+    const turns = 2.5;
     final maxRadius = size.width * 0.4;
     const steps = 80;
     for (int i = 0; i <= steps; i++) {

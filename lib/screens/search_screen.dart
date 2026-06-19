@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
@@ -331,7 +331,7 @@ class _SearchScreenState extends State<SearchScreen>
     final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -543,7 +543,7 @@ class _SearchScreenState extends State<SearchScreen>
                 onPressed: _clearHistory,
                 child: Text(
                   l10n.clear,
-                  style: TextStyle(color: AppColors.primary),
+                  style: const TextStyle(color: AppColors.primary),
                 ),
               ),
             ],
@@ -657,7 +657,7 @@ class _SearchScreenState extends State<SearchScreen>
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               colors: [AppColors.primary, AppColors.primaryDark],
             ),
             borderRadius: BorderRadius.circular(8),
