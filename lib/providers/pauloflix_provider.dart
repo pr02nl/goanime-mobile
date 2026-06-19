@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/pauloflix_content.dart';
@@ -17,6 +19,7 @@ class PauloFlixProvider extends ChangeNotifier {
   List<PauloFlixContent> _filteredContents = [];
   String? _errorMessage;
   String _syncProgress = '';
+  Timer? _searchDebounce;
 
   PauloFlixStatus get status => _status;
   List<PauloFlixContent> get contents => _filteredContents;
@@ -71,16 +74,25 @@ class PauloFlixProvider extends ChangeNotifier {
   }
 
   void search(String query) {
-    final searchQuery = query.toLowerCase();
-    if (searchQuery.isEmpty) {
-      _filteredContents = _contents;
-    } else {
-      _filteredContents = _contents.where((c) =>
-        c.displayName.toLowerCase().contains(searchQuery) ||
-        c.genres.any((g) => g.toLowerCase().contains(searchQuery))
-      ).toList();
-    }
-    notifyListeners();
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      final searchQuery = query.toLowerCase();
+      if (searchQuery.isEmpty) {
+        _filteredContents = _contents;
+      } else {
+        _filteredContents = _contents.where((c) =>
+          c.displayName.toLowerCase().contains(searchQuery) ||
+          c.genres.any((g) => g.toLowerCase().contains(searchQuery))
+        ).toList();
+      }
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   void clearSearch() {

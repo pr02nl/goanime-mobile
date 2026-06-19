@@ -92,10 +92,12 @@ void main() {
       await provider.loadContents();
 
       provider.search('inception');
+      await Future.delayed(const Duration(milliseconds: 400));
       expect(provider.contents.length, 1);
       expect(provider.contents[0].folderName, 'Inception');
 
       provider.search('interstellar');
+      await Future.delayed(const Duration(milliseconds: 400));
       expect(provider.contents.length, 1);
       expect(provider.contents[0].folderName, 'Interstellar');
     });
@@ -107,6 +109,7 @@ void main() {
       await provider.loadContents();
 
       provider.search('');
+      await Future.delayed(const Duration(milliseconds: 400));
       expect(provider.contents.length, 2);
     });
 
@@ -117,6 +120,7 @@ void main() {
       await provider.loadContents();
 
       provider.search('inception');
+      await Future.delayed(const Duration(milliseconds: 400));
       expect(provider.contents.length, 1);
 
       provider.clearSearch();

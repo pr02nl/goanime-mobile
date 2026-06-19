@@ -280,57 +280,61 @@ class PauloFlixService {
     final total = shows.length;
     final jikanService = JikanService();
     final List<PauloFlixContent> contents = [];
-    int processed = 0;
+    const batchSize = 5;
 
-    for (final show in shows) {
-      processed++;
+    for (int i = 0; i < shows.length; i += batchSize) {
+      final batch = shows.skip(i).take(batchSize).toList();
+      final processed = i + batch.length;
+
       onProgress?.call(
-        'Processando ${show.name} ($processed/$total)',
+        'Processando $processed/$total (batch de ${batch.length})',
       );
-      try {
-        final searchResults = await jikanService.searchAnimes(
-          show.name,
-          limit: 5,
-        );
-        JikanAnime? matchedAnime;
-        if (searchResults.isNotEmpty) {
-          matchedAnime = searchResults
-              .where((a) => a.title.toLowerCase() == show.name.toLowerCase())
-              .firstOrNull;
-          matchedAnime ??= searchResults.first;
-        }
-        if (matchedAnime != null) {
-          contents.add(
-            PauloFlixContent.fromJikan(
-              folderName: show.name,
-              serverUrl: show.url,
-              jikanAnime: matchedAnime,
-            ),
-          );
-        } else {
-          contents.add(
-            PauloFlixContent(
-              folderName: show.name,
-              serverUrl: show.url,
-              displayName: show.name,
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint('[PauloFlix] Error processing ${show.name}: $e');
-        contents.add(
-          PauloFlixContent(
-            folderName: show.name,
-            serverUrl: show.url,
-            displayName: show.name,
-          ),
-        );
-      }
-      if (processed % 3 == 0) {
+
+      final batchResults = await Future.wait(
+        batch.map((show) => _enrichSingleShow(show, jikanService)),
+      );
+
+      contents.addAll(batchResults);
+
+      if (processed < total) {
         await Future.delayed(const Duration(seconds: 1));
       }
     }
+
     return contents;
+  }
+
+  static Future<PauloFlixContent> _enrichSingleShow(
+    PauloFlixShow show,
+    JikanService jikanService,
+  ) async {
+    try {
+      final searchResults = await jikanService.searchAnimes(
+        show.name,
+        limit: 5,
+      );
+      JikanAnime? matchedAnime;
+      if (searchResults.isNotEmpty) {
+        matchedAnime = searchResults
+            .where((a) => a.title.toLowerCase() == show.name.toLowerCase())
+            .firstOrNull;
+        matchedAnime ??= searchResults.first;
+      }
+      if (matchedAnime != null) {
+        return PauloFlixContent.fromJikan(
+          folderName: show.name,
+          serverUrl: show.url,
+          jikanAnime: matchedAnime,
+        );
+      }
+    } catch (e) {
+      debugPrint('[PauloFlix] Error processing ${show.name}: $e');
+    }
+    return PauloFlixContent(
+      folderName: show.name,
+      serverUrl: show.url,
+      displayName: show.name,
+    );
   }
 
   static Future<void> _finishSync(

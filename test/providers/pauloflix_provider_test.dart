@@ -91,6 +91,7 @@ void main() {
       await provider.loadContents();
 
       provider.search('naruto');
+      await Future.delayed(const Duration(milliseconds: 400));
 
       expect(provider.contents.length, 1);
       expect(provider.contents[0].folderName, 'Naruto');
@@ -103,6 +104,7 @@ void main() {
       await provider.loadContents();
 
       provider.search('comedy');
+      await Future.delayed(const Duration(milliseconds: 400));
 
       expect(provider.contents.length, 1);
       expect(provider.contents[0].folderName, 'One Piece');
@@ -115,6 +117,7 @@ void main() {
       await provider.loadContents();
 
       provider.search('');
+      await Future.delayed(const Duration(milliseconds: 400));
 
       expect(provider.contents.length, 3);
     });
@@ -126,6 +129,7 @@ void main() {
       await provider.loadContents();
 
       provider.search('naruto');
+      await Future.delayed(const Duration(milliseconds: 400));
       expect(provider.contents.length, 1);
 
       provider.clearSearch();
