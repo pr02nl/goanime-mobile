@@ -10,6 +10,8 @@ import 'routing/app_router.dart';
 import 'services/download_service.dart';
 import 'services/locale_service.dart';
 import 'theme/app_theme.dart';
+import 'ui/home/view_models/home_viewmodel.dart';
+import 'ui/watchlist/view_models/watchlist_viewmodel.dart';
 
 class PauloFlixApp extends StatelessWidget {
   final ThemeProvider themeProvider;
@@ -36,6 +38,8 @@ class PauloFlixApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: downloadService),
         ChangeNotifierProvider(create: (_) => PauloFlixProvider()),
         ChangeNotifierProvider(create: (_) => PauloFlixMoviesProvider()),
+        ChangeNotifierProvider(create: (_) => HomeViewModel()..loadHomeData()),
+        ChangeNotifierProvider(create: (_) => WatchlistViewModel()..loadWatchlist()),
       ],
       child: ListenableBuilder(
         listenable: themeProvider,

@@ -1,4 +1,7 @@
-part of 'app_router.dart';
+import 'package:flutter/material.dart';
+
+import '../models/anime.dart';
+import '../models/episode.dart';
 
 class PlayerRouteData {
   final Episode episode;

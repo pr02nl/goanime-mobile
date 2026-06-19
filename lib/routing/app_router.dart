@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../models/anime.dart';
-import '../models/episode.dart';
 import '../models/pauloflix_content.dart';
 import '../models/pauloflix_movie.dart';
 import '../providers/theme_provider.dart';
@@ -26,8 +25,7 @@ import '../screens/settings_screen.dart';
 import '../screens/source_selection_screen.dart';
 import '../screens/video_player_screen.dart';
 import '../screens/watchlist_screen.dart';
-
-part 'route_data.dart';
+import 'route_data.dart';
 
 GoRouter createAppRouter({String? initialError}) {
   return GoRouter(
