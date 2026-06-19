@@ -65,14 +65,14 @@ lib/
 
 Baseada em fundo preto puro (#000000) com acentos vibrantes:
 
-| Cor | Hex | Uso |
-|-----|-----|-----|
-| Primary (Cyan) | `#00BCD4` | Botões, destaques, interação |
-| Secondary (Purple) | `#7C4DFF` | Premium, conteúdo especial |
-| Accent (Pink) | `#FF4081` | CTAs, ações importantes |
-| Surface | `#141414` | Cards (estilo Netflix) |
-| Text Primary | `#FFFFFF` | Texto principal |
-| Text Secondary | `#B3B3B3` | Texto secundário |
+| Cor                | Hex       | Uso                          |
+| ------------------ | --------- | ---------------------------- |
+| Primary (Cyan)     | `#00BCD4` | Botões, destaques, interação |
+| Secondary (Purple) | `#7C4DFF` | Premium, conteúdo especial   |
+| Accent (Pink)      | `#FF4081` | CTAs, ações importantes      |
+| Surface            | `#141414` | Cards (estilo Netflix)       |
+| Text Primary       | `#FFFFFF` | Texto principal              |
+| Text Secondary     | `#B3B3B3` | Texto secundário             |
 
 ### Tipografia e Layout
 
@@ -86,12 +86,14 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 ## 🌐 APIs Integradas
 
 ### 1. **Jikan API** (MyAnimeList)
+
 - **Base URL**: `https://api.jikan.moe/v4`
 - **Uso**: Dados de animes, top rankings, temporadas, gêneros
 - **Cache**: 30 minutos em memória + persistente (SharedPreferences)
 - **Otimização**: Carregamento paralelo em batches (rate limiting)
 
 ### 2. **AniList API** (GraphQL)
+
 - **Base URL**: `https://graphql.anilist.co`
 - **Uso**: Metadados enriquecidos, imagens de capa, banners, scores
 - **Funcionalidades**:
@@ -100,6 +102,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
   - Busca por AniList ID
 
 ### 3. **AniSkip API**
+
 - **Base URL**: `https://api.aniskip.com/v2`
 - **Uso**: Timestamps para pular intro e outro automaticamente
 - **Estratégia**: Tenta MAL ID primeiro, depois AniList ID
@@ -110,13 +113,14 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 
 ### SQLite (sqlite3)
 
-| Tabela | Propósito |
-|--------|-----------|
-| `anime` | Cache de nomes de anime |
-| `watchlist` | Animes salvos para assistir depois |
+| Tabela      | Propósito                           |
+| ----------- | ----------------------------------- |
+| `anime`     | Cache de nomes de anime             |
+| `watchlist` | Animes salvos para assistir depois  |
 | `downloads` | Metadados de downloads de episódios |
 
 ### SharedPreferences
+
 - Cache de dados da Home (30 minutos)
 - Histórico de busca
 - Preferências de idioma
@@ -126,6 +130,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 ## 🎬 Funcionalidades do Player de Vídeo
 
 ### Tecnologias
+
 - **media_kit**: Player nativo Flutter de alta performance (substitui video_player + chewie)
 - **Google Video Proxy**: Para contornar restrições de referrer
 
@@ -147,6 +152,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 ## ⚡ Otimizações de Performance
 
 ### Cache de Imagens
+
 ```dart
 // Cache aumentado para 200MB
 PaintingBinding.instance.imageCache.maximumSize = 500;
@@ -154,12 +160,14 @@ PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20;
 ```
 
 ### Carregamento da Home
+
 - **Paralelização**: 6 requisições em 2 batches (rate limit Jikan)
 - **Cache em memória**: Dados persistem durante a sessão
 - **Cache persistente**: SharedPreferences para inicialização rápida
 - **Pre-cache de imagens**: Thumbnails do banner carregadas antecipadamente
 
 ### Listas Otimizadas
+
 - `AutomaticKeepAliveClientMixin` para manter estado das abas
 - `IndexedStack` na navegação principal para preservar estado
 - Shimmer loading em vez de spinners tradicionais
@@ -169,6 +177,7 @@ PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20;
 ## 🌍 Internacionalização
 
 Suporte a dois idiomas:
+
 - **Português (PT-BR)** - Idioma padrão
 - **Inglês (EN-US)**
 
@@ -178,21 +187,21 @@ Implementação customizada via `AppLocalizations` com traduções inline.
 
 ## 📦 Dependências Principais
 
-| Pacote | Versão | Propósito |
-|--------|--------|-----------|
-| media_kit | ^1.2.6 | Player de vídeo/audio nativo de alta performance |
-| media_kit_video | ^2.0.1 | Widget de vídeo para media_kit |
-| media_kit_libs_video | ^1.0.7 | Bibliotecas nativas de vídeo |
-| http | ^1.1.0 | Requisições HTTP |
-| html | ^0.15.4 | Parsing de HTML |
-| sqlite3 | ^3.3.3 | Banco de dados local (FFI) |
-| cached_network_image | ^3.3.1 | Cache de imagens |
-| shared_preferences | ^2.2.2 | Preferências locais |
-| provider | ^6.1.1 | State management |
-| webview_flutter | ^4.5.0 | Fallback de vídeo |
-| ionicons | ^0.2.2 | Ícones Ionic |
-| lucide_icons | ^0.257.0 | Ícones Lucide |
-| bottom_navy_bar | ^6.0.0 | Nav bar customizada |
+| Pacote               | Versão   | Propósito                                        |
+| -------------------- | -------- | ------------------------------------------------ |
+| media_kit            | ^1.2.6   | Player de vídeo/audio nativo de alta performance |
+| media_kit_video      | ^2.0.1   | Widget de vídeo para media_kit                   |
+| media_kit_libs_video | ^1.0.7   | Bibliotecas nativas de vídeo                     |
+| http                 | ^1.1.0   | Requisições HTTP                                 |
+| html                 | ^0.15.4  | Parsing de HTML                                  |
+| sqlite3              | ^3.3.3   | Banco de dados local (FFI)                       |
+| cached_network_image | ^3.3.1   | Cache de imagens                                 |
+| shared_preferences   | ^2.2.2   | Preferências locais                              |
+| provider             | ^6.1.1   | State management                                 |
+| webview_flutter      | ^4.5.0   | Fallback de vídeo                                |
+| ionicons             | ^0.2.2   | Ícones Ionic                                     |
+| lucide_icons         | ^0.257.0 | Ícones Lucide                                    |
+| bottom_navy_bar      | ^6.0.0   | Nav bar customizada                              |
 
 ---
 
@@ -248,3 +257,4 @@ VideoPlayerScreen → AniSkipService (skip times) + Streaming
 - [Services.md](./Services.md) - Detalhes dos serviços
 - [Models.md](./Models.md) - Estrutura de dados
 - [UI.md](./UI.md) - Componentes de interface
+- [IMPROVEMENT_PLAN.md](./IMPROVEMENT_PLAN.md) - Plano completo de melhorias técnicas (MVVM, Provider, go_router, drift, freezed, Repository Pattern) - **Alinhado com [recomendações oficiais do Flutter](https://docs.flutter.dev/app-architecture/guide)**
