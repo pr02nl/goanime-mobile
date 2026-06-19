@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/database/database_helper.dart';
 import '../../../data/services/anime_service.dart';
 import '../../../domain/models/anime.dart';
-import '../../../helpers/database_helper.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../providers/theme_provider.dart';
 import '../../core/widgets/anime_result_card.dart';

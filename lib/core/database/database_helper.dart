@@ -4,7 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
-import '../services/pauloflix_database_service.dart';
+
+import '../../services/pauloflix_database_service.dart';
 
 class DatabaseHelper {
   static Database? _database;
@@ -38,9 +39,7 @@ class DatabaseHelper {
     final docsDir = await getApplicationDocumentsDirectory();
 
     if (Platform.isAndroid) {
-      final legacyDir = Directory(
-        p.join(docsDir.parent.path, 'databases'),
-      );
+      final legacyDir = Directory(p.join(docsDir.parent.path, 'databases'));
       final legacyPath = p.join(legacyDir.path, dbName);
       if (File(legacyPath).existsSync()) {
         return legacyPath;
