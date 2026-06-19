@@ -42,6 +42,8 @@ dependencies:
   http: ^1.6.0
   # HTTP client com interceptors (rate limiting, retry, logging)
   dio: ^5.7.0
+  # Navegacao type-safe com deep linking
+  go_router: ^14.8.1
   # HTML parsing
   html: ^0.15.6
   # Database (sqlite3 via FFI)

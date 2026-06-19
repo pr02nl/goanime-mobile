@@ -1,115 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/content_type_selector.dart';
-import 'home_screen.dart';
-import 'pauloflix_movies_home_screen.dart';
-import 'pauloflix_movies_search_screen.dart';
-import 'search_screen.dart';
-import 'settings_screen.dart';
-import 'watchlist_screen.dart';
 
-/// Tela raiz do app após o splash.
-///
-/// Após a modernização para incluir PauloFlix Movies, esta tela abandonou o
-/// padrão antigo de [IndexedStack] + `_currentIndex` que misturava dois sistemas
-/// de navegação conflitantes com o [Navigator.push] usado pelo resto do AppBar.
-///
-/// Agora a única fonte de verdade é o [Navigator]:
-/// - O body mostra a tela raiz conforme o [_contentType] ativo
-/// - Sempre que o usuário alterna Animes/Filmes, substituímos a tela raiz
-///   substituindo o widget raiz do Navigator via [Navigator.pushReplacement]
-/// - Botões do AppBar continuam usando [Navigator.push] como sempre fizeram
-///
-/// Benefícios:
-/// - Memória: só 1 tela pesada montada por vez (em vez de 5 no IndexedStack)
-/// - Back button previsível: volta para a tela raiz não-Filmes quando aplicável
-/// - Sem estado morto (`_currentIndex` removido)
-class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+class MainNavigationScreen extends StatelessWidget {
+  final Widget child;
 
-  @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
-}
-
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  /// Tipo de conteúdo ativo: animes ou filmes.
-  ContentType _contentType = ContentType.anime;
-
-  // Gera uma Key por conteúdo para forçar remontagem quando o usuário
-  // alterna entre Animes e Filmes (necessário porque uma vez que a tela
-  // raiz foi empurrada via push* ela permanece).
-  Key _rootKey = UniqueKey();
-
-  /// Substitui a tela raiz do Navigator pela Home/Movies conforme [type].
-  void _setRootContent(ContentType type) {
-    if (_contentType == type) return;
-    setState(() {
-      _contentType = type;
-      _rootKey = UniqueKey();
-    });
-  }
-
-  Widget _buildRootScreen() {
-    return KeyedSubtree(
-      key: _rootKey,
-      child: _contentType == ContentType.anime
-          ? const HomeScreen()
-          : const PauloFlixMoviesHomeScreen(),
-    );
-  }
-
-  /// Roteia para a tela de busca adequada conforme o [_contentType] ativo.
-  void _openSearch() {
-    final Widget target = _contentType == ContentType.movie
-        ? const PauloFlixMoviesSearchScreen()
-        : const SearchScreen();
-    Navigator.push(context, MaterialPageRoute(builder: (context) => target));
-  }
-
-  void _openWatchlist() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const WatchlistScreen()),
-    );
-  }
-
-  void _openSettings() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const SettingsScreen()),
-    );
-  }
+  const MainNavigationScreen({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final canExitApp = _contentType == ContentType.anime;
+    final location = GoRouterState.of(context).uri.toString();
 
     return PopScope(
-      canPop: canExitApp,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (_contentType == ContentType.movie) {
-          _setRootContent(ContentType.anime);
-        }
-      },
+      canPop: location == '/',
       child: Scaffold(
         backgroundColor: AppColors.background,
-        // extendBodyBehindAppBar removido: o HomeScreen já tem seu próprio
-        // Scaffold com extendBodyBehindAppBar:true para o hero funcionar.
-        // Colocar aqui causava o AppBar transparente flutuar sobre todas
-        // as telas, incluindo filmes e busca que não têm hero.
-        appBar: _buildAppBar(),
-        body: _buildRootScreen(),
+        appBar: _buildAppBar(context, location),
+        body: child,
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(BuildContext context, String location) {
+    final isAnimeSection = !location.contains('pauloflix-movies');
+
     return AppBar(
-      // AppBar sólida mas discreta — fundo quase preto com leve elevação
-      // visual. O HomeScreen usa extendBodyBehindAppBar próprio + hero
-      // que começa diretamente abaixo da AppBar.
       backgroundColor: AppColors.background.withValues(alpha: 0.97),
       elevation: 0,
       scrolledUnderElevation: 0,
@@ -133,25 +50,26 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       centerTitle: false,
       actions: [
-        ContentTypeSelector(selected: _contentType, onChanged: _setRootContent),
+        ContentTypeSelector(
+          selected: isAnimeSection ? ContentType.anime : ContentType.movie,
+          onChanged: (type) {
+            context.go(type == ContentType.movie ? '/pauloflix-movies' : '/');
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.search, color: Colors.white, size: 24),
           tooltip: 'Search',
-          onPressed: _openSearch,
+          onPressed: () => context.push(isAnimeSection ? '/search' : '/pauloflix-movies/search'),
         ),
         IconButton(
           icon: const Icon(Icons.bookmark, color: Colors.white, size: 24),
           tooltip: 'Bookmarks',
-          onPressed: _openWatchlist,
+          onPressed: () => context.push('/watchlist'),
         ),
         IconButton(
-          icon: const Icon(
-            Icons.settings_outlined,
-            color: Colors.white,
-            size: 24,
-          ),
+          icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 24),
           tooltip: 'Settings',
-          onPressed: _openSettings,
+          onPressed: () => context.push('/settings'),
         ),
         const SizedBox(width: 8),
       ],
