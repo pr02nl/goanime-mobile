@@ -25,15 +25,13 @@ class WatchlistService {
     final docsDir = await getApplicationDocumentsDirectory();
 
     if (Platform.isAndroid) {
-      final legacyDir = Directory(
-        join(docsDir.parent.path, 'databases'),
-      );
+      final legacyDir = Directory(join(docsDir.parent.path, 'databases'));
       final legacyPath = join(legacyDir.path, _dbFileName);
-      if (await File(legacyPath).exists()) {
+      if (File(legacyPath).existsSync()) {
         return legacyPath;
       }
-      if (!await legacyDir.exists()) {
-        await legacyDir.create(recursive: true);
+      if (!Directory(legacyPath).existsSync()) {
+        Directory(legacyPath).createSync(recursive: true);
       }
       return legacyPath;
     }
@@ -86,10 +84,7 @@ class WatchlistService {
   Future<bool> removeFromWatchlist(String animeId) async {
     try {
       final db = await database;
-      db.execute(
-        'DELETE FROM $tableName WHERE animeId = ?',
-        [animeId],
-      );
+      db.execute('DELETE FROM $tableName WHERE animeId = ?', [animeId]);
       return true;
     } catch (e) {
       debugPrint('Error removing from watchlist: $e');

@@ -42,12 +42,12 @@ class DatabaseHelper {
         p.join(docsDir.parent.path, 'databases'),
       );
       final legacyPath = p.join(legacyDir.path, dbName);
-      if (await File(legacyPath).exists()) {
+      if (File(legacyPath).existsSync()) {
         return legacyPath;
       }
       // No legacy DB — use the new location
-      if (!await legacyDir.exists()) {
-        await legacyDir.create(recursive: true);
+      if (!legacyDir.existsSync()) {
+        legacyDir.createSync(recursive: true);
       }
       return legacyPath;
     }

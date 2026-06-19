@@ -435,7 +435,9 @@ class DownloadService extends ChangeNotifier {
     // Create download directory
     final downloadDir = await _getDownloadDirectory();
     if (downloadDir == null) {
-      throw Exception('Download directory not available. Check storage permissions.');
+      throw Exception(
+        'Download directory not available. Check storage permissions.',
+      );
     }
     final safeAnimeName = _sanitizeFileName(download.animeName);
     final animeDir = Directory(path.join(downloadDir.path, safeAnimeName));
@@ -586,7 +588,7 @@ class DownloadService extends ChangeNotifier {
     // Delete partial file
     if (download.filePath != null) {
       final file = File(download.filePath!);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         await file.delete();
       }
     }
@@ -627,8 +629,8 @@ class DownloadService extends ChangeNotifier {
     // Delete file
     if (download.filePath != null) {
       final file = File(download.filePath!);
-      if (await file.exists()) {
-        await file.delete();
+      if (file.existsSync()) {
+        file.deleteSync();
       }
     }
 
@@ -727,15 +729,15 @@ class DownloadService extends ChangeNotifier {
         final downloadDir = Directory(
           path.join(directory.path, 'PauloFlix', 'Downloads'),
         );
-        if (!await downloadDir.exists()) {
-          await downloadDir.create(recursive: true);
+        if (!downloadDir.existsSync()) {
+          downloadDir.createSync(recursive: true);
         }
         return downloadDir;
       } else {
         final directory = await getApplicationDocumentsDirectory();
         final downloadDir = Directory(path.join(directory.path, 'Downloads'));
-        if (!await downloadDir.exists()) {
-          await downloadDir.create(recursive: true);
+        if (!downloadDir.existsSync()) {
+          downloadDir.createSync(recursive: true);
         }
         return downloadDir;
       }

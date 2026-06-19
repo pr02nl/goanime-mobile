@@ -34,15 +34,13 @@ class PauloFlixMoviesDatabaseService {
     final docsDir = await getApplicationDocumentsDirectory();
 
     if (Platform.isAndroid) {
-      final legacyDir = Directory(
-        p.join(docsDir.parent.path, 'databases'),
-      );
+      final legacyDir = Directory(p.join(docsDir.parent.path, 'databases'));
       final legacyPath = p.join(legacyDir.path, _dbFileName);
-      if (await File(legacyPath).exists()) {
+      if (File(legacyPath).existsSync()) {
         return legacyPath;
       }
-      if (!await legacyDir.exists()) {
-        await legacyDir.create(recursive: true);
+      if (!Directory(legacyPath).existsSync()) {
+        Directory(legacyPath).createSync(recursive: true);
       }
       return legacyPath;
     }
@@ -97,30 +95,33 @@ class PauloFlixMoviesDatabaseService {
     final db = await database;
     final map = content.toMap();
 
-    db.execute('''
+    db.execute(
+      '''
       INSERT OR REPLACE INTO $_tableName
       (folderName, displayName, serverUrl, imageUrl, bannerUrl, description,
        score, genres, releaseDate, runtime, year, tmdbId, isCollection,
        availableMovieCount, lastSynced, isAvailable)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', [
-      map['folderName'],
-      map['displayName'],
-      map['serverUrl'],
-      map['imageUrl'],
-      map['bannerUrl'],
-      map['description'],
-      map['score'],
-      map['genres'],
-      map['releaseDate'],
-      map['runtime'],
-      map['year'],
-      map['tmdbId'],
-      map['isCollection'],
-      map['availableMovieCount'],
-      map['lastSynced'],
-      map['isAvailable'],
-    ]);
+    ''',
+      [
+        map['folderName'],
+        map['displayName'],
+        map['serverUrl'],
+        map['imageUrl'],
+        map['bannerUrl'],
+        map['description'],
+        map['score'],
+        map['genres'],
+        map['releaseDate'],
+        map['runtime'],
+        map['year'],
+        map['tmdbId'],
+        map['isCollection'],
+        map['availableMovieCount'],
+        map['lastSynced'],
+        map['isAvailable'],
+      ],
+    );
   }
 
   Future<void> saveBatch(List<PauloFlixMovie> contents) async {
@@ -156,30 +157,27 @@ class PauloFlixMoviesDatabaseService {
 
   Future<PauloFlixMovie?> getByFolderName(String folderName) async {
     final db = await database;
-    final result = db.select(
-      'SELECT * FROM $_tableName WHERE folderName = ?',
-      [folderName],
-    );
+    final result = db.select('SELECT * FROM $_tableName WHERE folderName = ?', [
+      folderName,
+    ]);
     if (result.isEmpty) return null;
     return PauloFlixMovie.fromMap(result.first);
   }
 
   Future<PauloFlixMovie?> getByTmdbId(int tmdbId) async {
     final db = await database;
-    final result = db.select(
-      'SELECT * FROM $_tableName WHERE tmdbId = ?',
-      [tmdbId],
-    );
+    final result = db.select('SELECT * FROM $_tableName WHERE tmdbId = ?', [
+      tmdbId,
+    ]);
     if (result.isEmpty) return null;
     return PauloFlixMovie.fromMap(result.first);
   }
 
   Future<void> markAsUnavailable(String folderName) async {
     final db = await database;
-    db.execute(
-      'UPDATE $_tableName SET isAvailable = 0 WHERE folderName = ?',
-      [folderName],
-    );
+    db.execute('UPDATE $_tableName SET isAvailable = 0 WHERE folderName = ?', [
+      folderName,
+    ]);
   }
 
   Future<void> removeStaleContent({int maxDays = 30}) async {
@@ -195,24 +193,30 @@ class PauloFlixMoviesDatabaseService {
 
   Future<Map<String, int>> getStats() async {
     final db = await database;
-    final total = db
-        .select('SELECT COUNT(*) as count FROM $_tableName')
-        .first['count'] as int;
-    final available = db
-        .select(
-          'SELECT COUNT(*) as count FROM $_tableName WHERE isAvailable = 1',
-        )
-        .first['count'] as int;
-    final withMetadata = db
-        .select(
-          'SELECT COUNT(*) as count FROM $_tableName WHERE imageUrl IS NOT NULL AND imageUrl != "" AND isAvailable = 1',
-        )
-        .first['count'] as int;
-    final collections = db
-        .select(
-          'SELECT COUNT(*) as count FROM $_tableName WHERE isCollection = 1 AND isAvailable = 1',
-        )
-        .first['count'] as int;
+    final total =
+        db.select('SELECT COUNT(*) as count FROM $_tableName').first['count']
+            as int;
+    final available =
+        db
+                .select(
+                  'SELECT COUNT(*) as count FROM $_tableName WHERE isAvailable = 1',
+                )
+                .first['count']
+            as int;
+    final withMetadata =
+        db
+                .select(
+                  'SELECT COUNT(*) as count FROM $_tableName WHERE imageUrl IS NOT NULL AND imageUrl != "" AND isAvailable = 1',
+                )
+                .first['count']
+            as int;
+    final collections =
+        db
+                .select(
+                  'SELECT COUNT(*) as count FROM $_tableName WHERE isCollection = 1 AND isAvailable = 1',
+                )
+                .first['count']
+            as int;
 
     return {
       'total': total,
