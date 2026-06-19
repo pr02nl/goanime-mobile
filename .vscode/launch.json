@@ -6,18 +6,18 @@
     "configurations": [
         
         {
-            "name": "goanime-mobile",
+            "name": "pauloflix",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "goanime-mobile (profile mode)",
+            "name": "pauloflix (profile mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "goanime-mobile (release mode)",
+            "name": "pauloflix (release mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"

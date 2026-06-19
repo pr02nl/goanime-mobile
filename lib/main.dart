@@ -86,7 +86,7 @@ class _MyAppState extends State<MyApp> {
       listenable: themeProvider,
       builder: (context, _) {
         return MaterialApp(
-          title: 'GoAnime',
+          title: 'PauloFlix',
           debugShowCheckedModeBanner: false,
           locale: localeService.locale,
           localizationsDelegates: const [

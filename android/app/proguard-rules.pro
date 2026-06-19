@@ -1,4 +1,4 @@
-# ProGuard rules for GoAnime Mobile
+# ProGuard rules for PauloFlix
 
 # Flutter general keep rules
 -keep class io.flutter.** { *; }

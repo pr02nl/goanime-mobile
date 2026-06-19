@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-/// Innovative glyph tokens designed specially for GoAnime.
+/// Innovative glyph tokens designed specially for PauloFlix.
 /// Each glyph is rendered procedurally through vector math so they feel
 /// custom-made and brand-specific instead of relying on stock icon fonts.
 enum GenreGlyph {

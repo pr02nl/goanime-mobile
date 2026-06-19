@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Netflix-inspired theme for GoAnime app
+/// Netflix-inspired theme for PauloFlix app
 /// Based on Netflix's dark theme with red accents and premium feel
-/// Integrated with existing GoAnime color system
+/// Integrated with existing PauloFlix color system
 class NetflixTheme {
   NetflixTheme._();
 
@@ -51,7 +51,7 @@ class NetflixTheme {
   static const double radiusLg = 12.0;
   static const double radiusXl = 16.0;
 
-  /// Light theme data (integrated with GoAnime colors)
+  /// Light theme data (integrated with PauloFlix colors)
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -93,7 +93,7 @@ class NetflixTheme {
     );
   }
 
-  /// Dark theme data (Netflix-style integrated with GoAnime)
+  /// Dark theme data (Netflix-style integrated with PauloFlix)
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,

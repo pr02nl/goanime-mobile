@@ -724,7 +724,7 @@ class DownloadService extends ChangeNotifier {
         }
 
         final downloadDir = Directory(
-          path.join(directory.path, 'GoAnime', 'Downloads'),
+          path.join(directory.path, 'PauloFlix', 'Downloads'),
         );
         if (!await downloadDir.exists()) {
           await downloadDir.create(recursive: true);

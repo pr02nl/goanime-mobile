@@ -1,8 +1,8 @@
-# Refatoração Netflix UI/UX - GoAnime Mobile
+# Refatoração Netflix UI/UX - PauloFlix
 
 ## 📋 Resumo das Mudanças
 
-Este documento descreve as mudanças implementadas no projeto GoAnime Mobile para adicionar suporte a UI/UX inspirada no Netflix, seguindo a skill `netflix_ui_ux`.
+Este documento descreve as mudanças implementadas no projeto PauloFlix para adicionar suporte a UI/UX inspirada no Netflix, seguindo a skill `netflix_ui_ux`.
 
 ## 🎨 Componentes Adicionados
 
@@ -18,14 +18,14 @@ Este documento descreve as mudanças implementadas no projeto GoAnime Mobile par
 
 #### `lib/theme/app_theme.dart`
 - Tema unificado que combina NetflixTheme com TVTheme existente
-- Mantém cores da marca GoAnime (ciano, roxo, rosa)
+- Mantém cores da marca PauloFlix (ciano, roxo, rosa)
 - Preserva customizações específicas para TV
 - Integração suave com o sistema existente
 
 #### `lib/theme/app_colors.dart`
 - Adicionadas referências ao NetflixTheme
 - Gradiente overlay estilo Netflix adicionado
-- Mantém paleta de cores existente do GoAnime
+- Mantém paleta de cores existente do PauloFlix
 
 ### 2. Componentes de UI
 
@@ -187,9 +187,9 @@ NetflixTheme.gradientOverlay     // Gradiente para imagens
 NetflixTheme.horizontalFadeGradient // Gradiente horizontal
 ```
 
-### Cores GoAnime Mantidas
+### Cores PauloFlix Mantidas
 ```dart
-// Cores da marca GoAnime preservadas
+// Cores da marca PauloFlix preservadas
 AppColors.primary    // Ciano #00BCD4
 AppColors.secondary  // Roxo #7C4DFF
 AppColors.accent     // Rosa #FF4081
@@ -334,7 +334,7 @@ flutter analyze    # ✅ Sem erros
 
 - Todos os componentes mantêm compatibilidade com código existente
 - A migração pode ser feita gradualmente sem riscos
-- O sistema de tema unificado preserva a identidade visual do GoAnime
+- O sistema de tema unificado preserva a identidade visual do PauloFlix
 - Componentes Netflix são totalmente opcionais
 
 ---

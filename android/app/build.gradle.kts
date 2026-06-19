@@ -56,7 +56,7 @@ android {
     applicationVariants.all {
         outputs.all {
             val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            outputImpl.outputFileName = "goanime.apk"
+            outputImpl.outputFileName = "pauloflix.apk"
         }
     }
 }

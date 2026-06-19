@@ -1,8 +1,8 @@
-# 📱 GoAnime Mobile - Documentação Técnica
+# 📱 PauloFlix - Documentação Técnica
 
 ## Visão Geral
 
-**GoAnime Mobile** é um aplicativo Flutter de streaming de anime que oferece uma experiência premium inspirada em plataformas como Netflix, Disney+ e HBO Max. O app consome múltiplas fontes de dados para fornecer informações ricas sobre animes e permite assistir a episódios de diversas fontes.
+**PauloFlix** é um aplicativo Flutter de streaming de anime que oferece uma experiência premium inspirada em plataformas como Netflix, Disney+ e HBO Max. O app consome múltiplas fontes de dados para fornecer informações ricas sobre animes e permite assistir a episódios de diversas fontes.
 
 ---
 

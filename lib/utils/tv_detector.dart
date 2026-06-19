@@ -26,7 +26,7 @@ class TVDetector {
   static Future<bool> _detectTVMode() async {
     try {
       // Verifica se o UI_MODE é TV (UI_MODE_TYPE_TELEVISION = 0x04)
-      const platform = MethodChannel('com.goanime.tv_detector');
+      const platform = MethodChannel('com.pauloflix.tv_detector');
       final bool? isTV = await platform.invokeMethod('isTV');
       return isTV ?? _detectTVFallback();
     } catch (e) {

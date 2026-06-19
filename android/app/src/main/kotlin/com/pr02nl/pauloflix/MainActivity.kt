@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.res.Configuration
 
 class MainActivity : FlutterActivity() {
-    private val TV_DETECTOR_CHANNEL = "com.goanime.tv_detector"
+    private val TV_DETECTOR_CHANNEL = "com.pauloflix.tv_detector"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

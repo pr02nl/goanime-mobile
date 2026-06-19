@@ -1,4 +1,4 @@
-# Netflix UI/UX Skill para GoAnime
+# Netflix UI/UX Skill para PauloFlix
 
 Skill especializada em criar interfaces Flutter responsivas inspiradas no Netflix, focada em design premium, animações suaves e experiência de usuário imersiva.
 
@@ -173,10 +173,10 @@ defaultCurve: easeInOutCubic
 
 ### Cores Personalizadas
 
-Edite `netflix_theme.dart` para usar cores do GoAnime:
+Edite `netflix_theme.dart` para usar cores do PauloFlix:
 
 ```dart
-class GoAnimeTheme extends NetflixTheme {
+class PauloFlixTheme extends NetflixTheme {
   static const Color goAnimeCyan = Color(0xFF00BCD4);
   static const Color goAnimePurple = Color(0xFF7C4DFF);
   
@@ -197,10 +197,10 @@ class GoAnimeTheme extends NetflixTheme {
 Estenda os componentes existentes:
 
 ```dart
-class GoAnimeCard extends NetflixCard {
+class PauloFlixCard extends NetflixCard {
   final String quality; // HD, 4K, etc.
   
-  const GoAnimeCard({
+  const PauloFlixCard({
     required super.imageUrl,
     required this.quality,
     super.title,
@@ -319,4 +319,4 @@ Para adicionar novos componentes ou melhorias:
 
 ## 📄 Licença
 
-Esta skill é parte do projeto GoAnime e segue a mesma licença.
+Esta skill é parte do projeto PauloFlix e segue a mesma licença.

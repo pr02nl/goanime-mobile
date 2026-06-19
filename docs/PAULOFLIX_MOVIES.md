@@ -2,7 +2,7 @@
 
 ## Visão Geral
 
-Área dedicada a filmes no GoAnime Mobile, espelhando o PauloFlix de animes, mas com:
+Área dedicada a filmes no PauloFlix, espelhando o PauloFlix de animes, mas com:
 
 - **Servidor de arquivos**: `http://100.95.105.113:8300/movies/` (PauloFlix — file server com HTML listings)
 - **Provedor de metadados**: The Movie Database (TMDB) API v3 — https://www.themoviedb.org/?language=pt-BR

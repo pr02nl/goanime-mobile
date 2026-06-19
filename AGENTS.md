@@ -1,7 +1,7 @@
-# GoAnime Mobile - Agent Context
+# PauloFlix - Agent Context
 
 ## Project Overview
-Flutter-based mobile implementation of GoAnime TUI for anime streaming on iOS and Android devices with Android TV support.
+Flutter-based mobile anime streaming app for iOS and Android devices with Android TV support.
 
 ## Tech Stack
 - **Framework**: Flutter 3.9.2+

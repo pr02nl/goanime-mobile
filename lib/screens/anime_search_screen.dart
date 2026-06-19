@@ -311,7 +311,7 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
                 centerTitle: true,
                 titlePadding: const EdgeInsets.only(bottom: 60),
                 title: const Text(
-                  'GoAnime',
+                  'PauloFlix',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,

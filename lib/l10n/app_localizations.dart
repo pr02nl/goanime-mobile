@@ -18,7 +18,7 @@ class AppLocalizations {
   ];
 
   // Common
-  String get appName => locale.languageCode == 'pt' ? 'GoAnime' : 'GoAnime';
+  String get appName => locale.languageCode == 'pt' ? 'PauloFlix' : 'PauloFlix';
   String get search => locale.languageCode == 'pt' ? 'Buscar' : 'Search';
   String get settings =>
       locale.languageCode == 'pt' ? 'Configurações' : 'Settings';

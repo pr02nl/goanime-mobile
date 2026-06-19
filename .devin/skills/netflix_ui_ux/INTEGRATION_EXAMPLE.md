@@ -1,6 +1,6 @@
 # Netflix UI/UX Integration Example
 
-## Como usar esta skill no projeto GoAnime
+## Como usar esta skill no projeto PauloFlix
 
 ### 1. Copiar arquivos para o projeto
 
@@ -22,16 +22,16 @@ import 'package:flutter/material.dart';
 import 'theme/netflix_theme.dart';
 
 void main() {
-  runApp(const GoAnimeApp());
+  runApp(const PauloFlixApp());
 }
 
-class GoAnimeApp extends StatelessWidget {
-  const GoAnimeApp({super.key});
+class PauloFlixApp extends StatelessWidget {
+  const PauloFlixApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'GoAnime',
+      title: 'PauloFlix',
       debugShowCheckedModeBanner: false,
       theme: NetflixTheme.lightTheme,
       darkTheme: NetflixTheme.darkTheme,
@@ -363,16 +363,16 @@ return NetflixCarousel(
 
 ### 6. Customização do tema
 
-Você pode customizar as cores do tema Netflix para combinar com a identidade visual do GoAnime:
+Você pode customizar as cores do tema Netflix para combinar com a identidade visual do PauloFlix:
 
 ```dart
 // Em netflix_theme.dart
-class GoAnimeTheme extends NetflixTheme {
+class PauloFlixTheme extends NetflixTheme {
   // Override cores principais
-  static const Color goAnimePrimary = Color(0xFF00BCD4); // Cyan
-  static const Color goAnimeSecondary = Color(0xFF7C4DFF); // Purple
+  static const Color pauloFlixPrimary = Color(0xFF00BCD4); // Cyan
+  static const Color pauloFlixSecondary = Color(0xFF7C4DFF); // Purple
   
-  static ThemeData get goAnimeDarkTheme {
+  static ThemeData get pauloFlixDarkTheme {
     return ThemeData(
       // ... outras configurações
       primaryColor: goAnimePrimary,

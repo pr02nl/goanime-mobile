@@ -143,7 +143,7 @@ class TvApiKeyServer {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GoAnime - Configurar API Key</title>
+  <title>PauloFlix - Configurar API Key</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -275,7 +275,7 @@ class TvApiKeyServer {
   <div class="card">
     <div class="logo">
       <div class="logo-icon">▶</div>
-      <h1>GoAnime</h1>
+      <h1>PauloFlix</h1>
       <p class="subtitle">Configure a API key do TMDB na sua TV</p>
     </div>
 
@@ -353,7 +353,7 @@ class TvApiKeyServer {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GoAnime - Configurado!</title>
+  <title>PauloFlix - Configurado!</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {

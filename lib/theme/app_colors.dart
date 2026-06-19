@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'netflix_theme.dart';
 
-/// GoAnime Color Palette - Streaming Platform Design
+/// PauloFlix Color Palette - Streaming Platform Design
 ///
 /// Design Philosophy (Inspired by Netflix, Disney+, HBO Max):
 /// - Base: Pure Black - Premium streaming platform aesthetic

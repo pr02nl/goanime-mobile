@@ -5,9 +5,9 @@
 
 
 
-# GoAnime Mobile
+# PauloFlix
 
-A Flutter-based mobile implementation of the popular [GoAnime TUI](https://github.com/alvarorichard/GoAnime) application. This mobile app brings the anime streaming experience to your iOS and Android devices with a beautiful, intuitive interface.
+A Flutter-based mobile app for anime streaming. This mobile app brings the anime streaming experience to your iOS and Android devices with a beautiful, intuitive interface.
 
 
 
@@ -132,7 +132,7 @@ flutter doctor
 
 ## Android TV Support
 
-GoAnime now supports Android TV with optimized UI for large screens and remote control navigation:
+PauloFlix now supports Android TV with optimized UI for large screens and remote control navigation:
 
 - **D-Pad Navigation**: Navigate through anime lists with your TV remote
 - **Visual Focus Indicators**: Clear visual feedback for selected items

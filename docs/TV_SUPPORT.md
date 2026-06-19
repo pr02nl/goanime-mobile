@@ -1,6 +1,6 @@
 # Suporte a Android TV
 
-O GoAnime agora possui suporte completo para Android TV (Leanback), permitindo que você assista seus animes favoritos na tela grande da sua televisão.
+O PauloFlix agora possui suporte completo para Android TV (Leanback), permitindo que você assista seus animes favoritos na tela grande da sua televisão.
 
 ## Funcionalidades da TV
 

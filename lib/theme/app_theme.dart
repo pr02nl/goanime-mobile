@@ -4,12 +4,12 @@ import 'app_colors.dart';
 import 'netflix_theme.dart';
 import 'tv_theme.dart';
 
-/// Unified App Theme for GoAnime
-/// Combines Netflix-inspired design with existing TV theme and GoAnime colors
+/// Unified App Theme for PauloFlix
+/// Combines Netflix-inspired design with existing TV theme and PauloFlix colors
 class AppTheme {
   AppTheme._();
 
-  /// Unified dark theme - Netflix style with GoAnime colors
+  /// Unified dark theme - Netflix style with PauloFlix colors
   static final ThemeData darkTheme = _buildDarkTheme();
 
   static ThemeData _buildDarkTheme() {
@@ -17,7 +17,7 @@ class AppTheme {
     final tvBase = TVTheme.darkTheme;
 
     return netflixBase.copyWith(
-      // Use GoAnime brand colors instead of Netflix red
+      // Use PauloFlix brand colors instead of Netflix red
       primaryColor: AppColors.primary,
       colorScheme: netflixBase.colorScheme.copyWith(
         primary: AppColors.primary,
@@ -80,7 +80,7 @@ class AppTheme {
     );
   }
 
-  /// Unified light theme - Netflix style with GoAnime colors
+  /// Unified light theme - Netflix style with PauloFlix colors
   static final ThemeData lightTheme = _buildLightTheme();
 
   static ThemeData _buildLightTheme() {
@@ -88,7 +88,7 @@ class AppTheme {
     final tvBase = TVTheme.lightTheme;
 
     return netflixBase.copyWith(
-      // Use GoAnime brand colors
+      // Use PauloFlix brand colors
       primaryColor: AppColors.primary,
       colorScheme: netflixBase.colorScheme.copyWith(
         primary: AppColors.primary,

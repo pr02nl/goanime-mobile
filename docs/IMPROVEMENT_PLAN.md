@@ -1,8 +1,8 @@
-# Plano de Melhorias Tecnicas - GoAnime Mobile
+# Plano de Melhorias Tecnicas - PauloFlix
 
 ## Sumario Executivo
 
-Este documento detalha o plano de refatoracao completa do GoAnime Mobile, abordando problemas de arquitetura, gerenciamento de estado, vazamentos de memoria, seguranca, performance e testabilidade identificados na analise tecnica.
+Este documento detalha o plano de refatoracao completa do PauloFlix, abordando problemas de arquitetura, gerenciamento de estado, vazamentos de memoria, seguranca, performance e testabilidade identificados na analise tecnica.
 
 **Alinhado com as [recomendacoes oficiais do Flutter](https://docs.flutter.dev/app-architecture/guide) (2025).**
 
@@ -497,7 +497,7 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'goanime.db'));
+    final file = File(p.join(dbFolder.path, 'pauloflix.db'));
     return NativeDatabase.createInBackground(file);
   });
 }
@@ -903,7 +903,7 @@ class MyApp extends ConsumerWidget {
     final locale = ref.watch(localeServiceProvider);
 
     return MaterialApp.router(
-      title: 'GoAnime',
+      title: 'PauloFlix',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       locale: locale,

@@ -248,7 +248,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   SizedBox(height: isTV ? 20 : 16),
                   Text(
-                    'GoAnime',
+                    'PauloFlix',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: isTV ? 32 : 24,

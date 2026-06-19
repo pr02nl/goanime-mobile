@@ -7,7 +7,7 @@ import 'package:goanime/services/locale_service.dart';
 import 'package:provider/provider.dart';
 
 void main() {
-  testWidgets('renders GoAnime app without errors', (tester) async {
+  testWidgets('renders PauloFlix app without errors', (tester) async {
     // Cria instâncias dos serviços para o teste
     final themeProvider = ThemeProvider();
     final localeService = LocaleService();

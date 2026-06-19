@@ -1,8 +1,8 @@
-# Integração com Componentes Existentes do GoAnime
+# Integração com Componentes Existentes do PauloFlix
 
 ## Visão Geral
 
-Este documento mostra como integrar a skill Netflix UI/UX com os componentes já existentes do projeto GoAnime, mantendo compatibilidade e melhorando a UI/UX progressivamente.
+Este documento mostra como integrar a skill Netflix UI/UX com os componentes já existentes do projeto PauloFlix, mantendo compatibilidade e melhorando a UI/UX progressivamente.
 
 ## Análise dos Componentes Existentes
 
@@ -64,7 +64,7 @@ Substituir todos os componentes de uma vez:
 // lib/theme/app_colors.dart
 import 'package:flutter/material.dart';
 
-/// GoAnime Color Palette - Streaming Platform Design
+/// PauloFlix Color Palette - Streaming Platform Design
 ///
 /// Agora integrado com NetflixTheme para consistência
 class AppColors {
@@ -112,7 +112,7 @@ class AppTheme {
 
   static ThemeData get darkTheme {
     return NetflixTheme.darkTheme.copyWith(
-      // Override com cores do GoAnime
+      // Override com cores do PauloFlix
       primaryColor: AppColors.primary,
       colorScheme: NetflixTheme.darkTheme.colorScheme.copyWith(
         primary: AppColors.primary,
