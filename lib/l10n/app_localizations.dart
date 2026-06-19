@@ -298,6 +298,10 @@ class AppLocalizations {
       locale.languageCode == 'pt' ? 'Pular Intro' : 'Skip Intro';
   String get skipOutro =>
       locale.languageCode == 'pt' ? 'Pular Encerramento' : 'Skip Outro';
+  String get nextEpisode =>
+      locale.languageCode == 'pt' ? 'Próximo Ep.' : 'Next Ep.';
+  String get previousEpisode =>
+      locale.languageCode == 'pt' ? 'Ep. Anterior' : 'Previous Ep.';
   String get subtitles =>
       locale.languageCode == 'pt' ? 'Legendas' : 'Subtitles';
   String get subtitleSelector =>

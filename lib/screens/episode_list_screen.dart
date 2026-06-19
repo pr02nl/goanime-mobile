@@ -511,6 +511,7 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
 
   void _openEpisode(Episode episode) {
     HapticFeedback.lightImpact();
+    final index = _episodes.indexOf(episode);
     debugPrint(
       '[EpisodeListScreen] Opening video - Anime: ${widget.anime.name}, '
       'Has aniListData: ${widget.anime.aniListData != null}, '
@@ -524,7 +525,9 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
             ModernVideoPlayerScreen(
               episode: episode,
               animeTitle: widget.anime.name,
-              anime: widget.anime, // Passar anime completo
+              anime: widget.anime,
+              episodeList: _episodes,
+              episodeIndex: index >= 0 ? index : null,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(

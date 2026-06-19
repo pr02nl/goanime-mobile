@@ -254,9 +254,16 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
             }
 
             final episodes = snapshot.data ?? [];
+            final episodeList = episodes.map((e) => Episode(
+              number: e.number.toString(),
+              url: e.url,
+              title: e.title,
+            )).toList();
             return Column(
-              children: episodes.map((episode) =>
-                ListTile(
+              children: episodes.asMap().entries.map((entry) {
+                final index = entry.key;
+                final episode = entry.value;
+                return ListTile(
                   leading: Container(
                     width: 40,
                     height: 40,
@@ -291,10 +298,9 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                       context,
                       MaterialPageRoute(
                         builder: (context) => ModernVideoPlayerScreen(
-                          episode: Episode(
-                            number: episode.number.toString(),
-                            url: episode.url,
-                          ),
+                          episode: episodeList[index],
+                          episodeList: episodeList,
+                          episodeIndex: index,
                           animeTitle: widget.content.displayName,
                           anime: Anime(
                             name: widget.content.displayName,
@@ -306,8 +312,8 @@ class _PauloFlixEpisodeListScreenState extends State<PauloFlixEpisodeListScreen>
                       ),
                     );
                   },
-                ),
-              ).toList(),
+                );
+              }).toList(),
             );
           },
         ),

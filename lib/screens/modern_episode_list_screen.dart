@@ -110,6 +110,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
   }
 
   void _openEpisode(Episode episode) {
+    final index = _episodes.indexOf(episode);
     debugPrint(
       '[ModernEpisodeListScreen] Opening video - Anime: ${widget.anime.name}, '
       'Has aniListData: ${widget.anime.aniListData != null}, '
@@ -123,6 +124,8 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
           anime: widget.anime,
           episode: episode,
           animeTitle: widget.anime.name,
+          episodeList: _episodes,
+          episodeIndex: index >= 0 ? index : null,
         ),
       ),
     );

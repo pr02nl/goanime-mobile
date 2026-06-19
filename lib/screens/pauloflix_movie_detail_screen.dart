@@ -144,6 +144,7 @@ class _PauloFlixMovieDetailScreenState
             subtitleTracks: episodeTracks,
           ),
           animeTitle: title,
+          isMovie: true,
           anime: Anime(
             name: title,
             url: widget.content.serverUrl,

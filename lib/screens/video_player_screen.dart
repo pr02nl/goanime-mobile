@@ -23,12 +23,18 @@ class ModernVideoPlayerScreen extends StatefulWidget {
   final Episode episode;
   final String animeTitle;
   final Anime? anime;
+  final bool isMovie;
+  final List<Episode>? episodeList;
+  final int? episodeIndex;
 
   const ModernVideoPlayerScreen({
     super.key,
     required this.episode,
     required this.animeTitle,
     this.anime,
+    this.isMovie = false,
+    this.episodeList,
+    this.episodeIndex,
   });
 
   @override
@@ -76,6 +82,32 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// assim que o `Media.open` finaliza).
   List<SubtitleTrack> _embeddedSubtitleTracks = const [];
 
+  int? _currentEpisodeIndex;
+  late Episode _currentEpisode;
+
+  bool get _hasNextEpisode {
+    if (widget.episodeList == null || _currentEpisodeIndex == null) return false;
+    return _currentEpisodeIndex! < widget.episodeList!.length - 1;
+  }
+
+  bool get _hasPreviousEpisode {
+    if (widget.episodeList == null || _currentEpisodeIndex == null) return false;
+    return _currentEpisodeIndex! > 0;
+  }
+
+  /// Label de exibição do conteúdo atual.
+  /// Para filmes: retorna o título do filme.
+  /// Para animes com episode.title: retorna o título do episódio.
+  /// Caso contrário: retorna "Episode N".
+  String get _displayLabel {
+    if (widget.isMovie) return widget.animeTitle;
+    final epNum = extractEpisodeNumber(_currentEpisode.number);
+    if (_currentEpisode.title != null && _currentEpisode.title!.isNotEmpty) {
+      return '${AppLocalizations.of(context).episode(epNum)} - ${_currentEpisode.title}';
+    }
+    return AppLocalizations.of(context).episode(epNum);
+  }
+
   // --- VideoPlayerAniSkipMixin abstract member implementations ---
 
   @override
@@ -96,8 +128,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     final anime = target.anime;
     return buildEpisodeKey(
       animeTitle: target.animeTitle,
-      episodeNumber: target.episode.number.toString(),
-      episodeUrl: target.episode.url,
+      episodeNumber: _currentEpisode.number.toString(),
+      episodeUrl: _currentEpisode.url,
       animeAnilistId: anime?.anilistId?.toString(),
       animeMalId: anime?.malId?.toString(),
       animeUrl: anime?.url,
@@ -107,6 +139,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   @override
   void initState() {
     super.initState();
+    _currentEpisodeIndex = widget.episodeIndex;
+    _currentEpisode = widget.episode;
     // Entra em fullscreen imediatamente (síncrono) antes de qualquer await
     _enterFullscreen();
     _initializeVideoPlayer();
@@ -245,6 +279,42 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     }
   }
 
+  void _goToNextEpisode() {
+    if (!_hasNextEpisode) return;
+    final nextIndex = _currentEpisodeIndex! + 1;
+    final nextEpisode = widget.episodeList![nextIndex];
+    debugPrint('[VideoPlayer] ⏭ Next episode: index $nextIndex');
+    _currentEpisodeIndex = nextIndex;
+    _replaceEpisode(nextEpisode);
+  }
+
+  void _goToPreviousEpisode() {
+    if (!_hasPreviousEpisode) return;
+    final prevIndex = _currentEpisodeIndex! - 1;
+    final prevEpisode = widget.episodeList![prevIndex];
+    debugPrint('[VideoPlayer] ⏮ Previous episode: index $prevIndex');
+    _currentEpisodeIndex = prevIndex;
+    _replaceEpisode(prevEpisode);
+  }
+
+  /// Troca o episódio atual no widget e dispara reinitialização.
+  void _replaceEpisode(Episode newEpisode) {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _currentEpisode = newEpisode;
+    });
+    cleanupAniSkip();
+    skipButtonActiveSegment = null;
+    skipButtonDismissed = false;
+    lastAutoHideTime = null;
+    skipTimes = null;
+    showSkipButton = false;
+    skipButtonLabel = '';
+    _initializeVideoPlayer();
+  }
+
   /// Espera o `Player.stream.tracks` emitir um snapshot com pelo menos
   /// uma faixa de legenda (embutida) ou atingir o timeout. Substitui o
   /// `Future.delayed(500ms)` mágico, que falhava em streams lentos.
@@ -335,11 +405,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // Verificar se é PauloFlix (URL direta do arquivo MKV)
       if (widget.anime?.source == AnimeSource.pauloFlix) {
         debugPrint('[VideoPlayer] PauloFlix: Using direct URL');
-        resolvedVideoUrl = widget.episode.url;
+        resolvedVideoUrl = _currentEpisode.url;
       } else {
         // AnimeFire: extrair URL do vídeo
         debugPrint('[VideoPlayer] Getting AnimeFire episode URL');
-        final videoSrc = await AnimeService.extractVideoURL(widget.episode.url);
+        final videoSrc = await AnimeService.extractVideoURL(_currentEpisode.url);
 
         if (!isActiveEpisode(episodeKey)) {
           debugPrint(
@@ -499,15 +569,15 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       try {
         final media = Media(resolvedVideoUrl, httpHeaders: mergedHeaders);
-        await _player!.open(media, play: true);
-        debugPrint('[VideoPlayer] Media opened successfully');
+        await _player!.open(media, play: false);
+        debugPrint('[VideoPlayer] Media opened (paused, waiting for video ready)');
       } catch (e) {
         debugPrint('[VideoPlayer] Failed with headers, trying without...');
         // Fallback: try without headers
         final media = Media(resolvedVideoUrl);
-        await _player!.open(media, play: true);
+        await _player!.open(media, play: false);
         debugPrint(
-          '[VideoPlayer] Media opened successfully (no headers fallback)',
+          '[VideoPlayer] Media opened (no headers fallback, paused)',
         );
       }
 
@@ -524,7 +594,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // Carrega legenda (.srt) externa, se fornecida via Episode.subtitleUrl.
       // Equivale a `ffmpeg -i video.mp4 -i legend.srt -c copy out.mkv`, mas
       // sem precisar re-encodar: o media_kit expõe a legenda como track.
-      final externalSubtitles = widget.episode.subtitleTracks
+      final externalSubtitles = _currentEpisode.subtitleTracks
           .where((s) => s.url != null)
           .toList();
       if (externalSubtitles.isNotEmpty) {
@@ -553,14 +623,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         }
       }
 
-      // Wait for player to be ready
-      await _player?.stream.playing
-          .firstWhere((playing) => playing == true)
+      // Wait for video dimensions to be available before starting playback.
+      // This prevents audio playing before the video surface is ready.
+      // We listen to the tracks stream which fires when the video track
+      // is parsed (contains video dimensions).
+      await _player?.stream.tracks
+          .firstWhere((tracks) => tracks.video.isNotEmpty)
           .timeout(
-            const Duration(seconds: 10),
+            const Duration(seconds: 15),
             onTimeout: () {
-              debugPrint('[VideoPlayer] Timeout waiting for playback to start');
-              return false;
+              debugPrint('[VideoPlayer] Timeout waiting for video tracks');
+              return const Tracks();
             },
           );
 
@@ -568,6 +641,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         debugPrint('[VideoPlayer] Controller init ignored (episode changed).');
         return;
       }
+
+      // Video is ready — start playback now
+      await _player?.play();
+      debugPrint('[VideoPlayer] Playback started');
 
       if (!mounted) return;
 
@@ -589,7 +666,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         episodeLengthSeconds: videoDurationSeconds,
         malId: widget.anime?.malId,
         anilistId: widget.anime?.anilistId,
-        episodeNumber: widget.episode.number.toString(),
+        episodeNumber: _currentEpisode.number.toString(),
       );
     } catch (e) {
       debugPrint('Error initializing video: $e');
@@ -615,7 +692,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       MaterialPageRoute(
         builder: (_) => BloggerWebViewScreen(
           initialUrl: fallbackUrl,
-          title: '${widget.animeTitle} - Ep ${widget.episode.number}',
+          title: '${widget.animeTitle} - ${_currentEpisode.number}',
         ),
       ),
     );
@@ -873,7 +950,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Episode ${extractEpisodeNumber(widget.episode.number)}',
+                  _displayLabel,
                   style: TextStyle(
                     color: AppColors.primary.withValues(alpha: 0.9),
                     fontSize: 13,
@@ -899,12 +976,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   Widget _buildFullscreenContent() {
     final isTV = _isTVDevice == true;
-    // IMPORTANTE: NÃO envolver o player em Focus/CallbackShortcuts nesta
-    // camada. O MaterialDesktopVideoControls traz internamente um Focus com
-    // seu próprio focusNode e atalhos via CallbackShortcuts (space, setas,
-    // J/K/L, F). Um Focus externo roubaria o foco e silenciaria TODOS os
-    // atalhos do player. Capturas globais de teclado (Esc) ficam em
-    // HardwareKeyboard handler instalado no initState.
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _showOverlayControlsAndResetTimer,
@@ -914,7 +985,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Video ocupa toda a tela
               _videoController != null
                   ? (isTV
                         ? MaterialDesktopVideoControlsTheme(
@@ -928,20 +998,38 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                                   visibleOnMount: true,
                                   playAndPauseOnTap: true,
                                 ),
-                            child: Video(
-                              controller: _videoController!,
-                              fit: BoxFit.contain,
-                              controls: MaterialDesktopVideoControls,
+                            child: Focus(
+                              autofocus: true,
+                              onKeyEvent: (node, event) {
+                                if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                                final key = event.logicalKey;
+                                if (key == LogicalKeyboardKey.mediaTrackNext ||
+                                    key == LogicalKeyboardKey.keyN) {
+                                  _goToNextEpisode();
+                                  return KeyEventResult.handled;
+                                }
+                                if (key == LogicalKeyboardKey.mediaTrackPrevious ||
+                                    key == LogicalKeyboardKey.keyP) {
+                                  _goToPreviousEpisode();
+                                  return KeyEventResult.handled;
+                                }
+                                _showOverlayControlsAndResetTimer();
+                                return KeyEventResult.ignored;
+                              },
+                              child: Video(
+                                controller: _videoController!,
+                                fit: BoxFit.contain,
+                                controls: MaterialDesktopVideoControls,
+                              ),
                             ),
                           )
                         : Video(
                             controller: _videoController!,
                             fit: BoxFit.contain,
-                            // Phone: AdaptiveVideoControls = touch controls padrao
                             controls: AdaptiveVideoControls,
                           ))
                   : Container(color: Colors.black),
-              // Botão flutuante voltar
+              // Botão flutuante voltar + título
               Positioned(
                 top: isTV ? 16 : 8,
                 left: isTV ? 16 : 8,
@@ -953,9 +1041,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                       color: Colors.transparent,
                       child: Row(
                         children: [
-                          // FocusableWidget: botão "voltar" do overlay
-                          // acessível via d-pad em TV. Em mobile/tablet cai
-                          // no fallback GestureDetector puro.
                           FocusableWidget(
                             onSelect: _exitFullscreen,
                             borderRadius: 24,
@@ -974,15 +1059,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                               ),
                             ),
                           ),
-                          Text(
-                            '  ${widget.animeTitle} - Ep ${extractEpisodeNumber(widget.episode.number)}',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Text(
+                              '  $_displayLabel',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -990,6 +1077,61 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                   ),
                 ),
               ),
+              // Botões próximo/anterior episódio (canto inferior direito)
+              if (!widget.isMovie && widget.episodeList != null)
+                Positioned(
+                  bottom: isTV ? 40 : 80,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: AnimatedOpacity(
+                      opacity: _showOverlayControls ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_hasPreviousEpisode)
+                            FocusableWidget(
+                              onSelect: _goToPreviousEpisode,
+                              borderRadius: 24,
+                              focusPadding: EdgeInsets.zero,
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.skip_previous_rounded,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                            ),
+                          if (_hasNextEpisode)
+                            FocusableWidget(
+                              onSelect: _goToNextEpisode,
+                              borderRadius: 24,
+                              focusPadding: EdgeInsets.zero,
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.skip_next_rounded,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               // Skip Button Overlay
               Positioned(
                 bottom: isTV ? 40 : 80,
@@ -1217,6 +1359,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           ],
           const SizedBox(height: 20),
           _buildActionButtons(),
+          if (!widget.isMovie && widget.episodeList != null) ...[
+            const SizedBox(height: 12),
+            _buildEpisodeNavigationButtons(),
+          ],
           if (_showWebViewOption && _bloggerVideoUrl != null) ...[
             const SizedBox(height: 12),
             _buildAlternativePlayerButton(),
@@ -1240,7 +1386,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          AppLocalizations.of(context).episode(extractEpisodeNumber(widget.episode.number)),
+          _displayLabel,
           style: const TextStyle(
             color: AppColors.primary,
             fontSize: 16,
@@ -1399,6 +1545,51 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     );
   }
 
+  Widget _buildEpisodeNavigationButtons() {
+    return Row(
+      children: [
+        if (_hasPreviousEpisode)
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _goToPreviousEpisode,
+              icon: const Icon(Icons.skip_previous_rounded),
+              label: Text(AppLocalizations.of(context).previousEpisode),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.surfaceLight,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          )
+        else
+          const SizedBox(),
+        if (_hasPreviousEpisode && _hasNextEpisode)
+          const SizedBox(width: 12),
+        if (_hasNextEpisode)
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _goToNextEpisode,
+              icon: const Icon(Icons.skip_next_rounded),
+              label: Text(AppLocalizations.of(context).nextEpisode),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          )
+        else
+          const SizedBox(),
+      ],
+    );
+  }
+
   Widget _buildTag(String label, Color color, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1432,7 +1623,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// seja embutida no MKV ou externa (.srt) do PauloFlix.
   bool _hasAnySubtitleTrack() {
     return _embeddedSubtitleTracks.isNotEmpty ||
-        widget.episode.subtitleTracks.any((s) => s.url != null);
+        _currentEpisode.subtitleTracks.any((s) => s.url != null);
   }
 
   /// Tag clicável que abre o [_showSubtitleSheet].
@@ -1492,7 +1683,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     if (current == null) return null;
     if (current.id == 'no') return AppLocalizations.of(context).noSubtitle;
     if (current.id == 'auto') return AppLocalizations.of(context).auto;
-    for (final ext in widget.episode.subtitleTracks) {
+    for (final ext in _currentEpisode.subtitleTracks) {
       if (ext.url != null && current.id == ext.url) return ext.displayName;
     }
     for (final embed in _embeddedSubtitleTracks) {
@@ -1504,7 +1695,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   }
 
   Future<void> _showSubtitleSheet(BuildContext context) async {
-    final external = widget.episode.subtitleTracks
+    final external = _currentEpisode.subtitleTracks
         .where((s) => s.url != null)
         .toList();
     final embedded = _embeddedSubtitleTracks;
