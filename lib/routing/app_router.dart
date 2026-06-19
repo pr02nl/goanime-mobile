@@ -7,7 +7,6 @@ import '../domain/models/pauloflix_content.dart';
 import '../domain/models/pauloflix_movie.dart';
 import '../providers/theme_provider.dart';
 import '../screens/main_navigation_screen.dart';
-import '../screens/settings_screen.dart';
 import '../ui/home/widgets/anime_detail_screen.dart';
 import '../ui/home/widgets/genre_animes_screen.dart';
 import '../ui/home/widgets/home_screen.dart';
@@ -24,6 +23,7 @@ import '../ui/player/widgets/video_player_screen.dart';
 import '../ui/search/widgets/anime_search_screen.dart';
 import '../ui/search/widgets/search_screen.dart';
 import '../ui/search/widgets/source_selection_screen.dart';
+import '../ui/settings/widgets/settings_screen.dart';
 import '../ui/watchlist/widgets/watchlist_screen.dart';
 import 'route_data.dart';
 

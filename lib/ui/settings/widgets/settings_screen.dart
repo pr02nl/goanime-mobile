@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/services/tmdb_service.dart';
-import '../l10n/app_localizations.dart';
-import '../screens/tv_qr_setup_dialog.dart';
-import '../services/api_key_settings_service.dart';
-import '../services/locale_service.dart';
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/utils/tv_detector.dart';
-import '../ui/core/widgets/focusable_widget.dart';
-import '../ui/core/widgets/tv_safe_text_field.dart';
+import '../../../data/services/tmdb_service.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../services/api_key_settings_service.dart';
+import '../../../services/locale_service.dart';
+import '../../core/themes/app_colors.dart';
+import '../../core/utils/tv_detector.dart';
+import '../../core/widgets/focusable_widget.dart';
+import '../../core/widgets/tv_safe_text_field.dart';
+import 'tv_qr_setup_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback? onBackPressed;

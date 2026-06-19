@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../data/services/tmdb_service.dart';
-import '../services/tv_api_key_server.dart';
-import '../ui/core/widgets/focusable_widget.dart';
+import '../../../data/services/tmdb_service.dart';
+import '../../../services/tv_api_key_server.dart';
+import '../../core/widgets/focusable_widget.dart';
 
 /// Dialog modal que mostra QR code para configurar a API key do TMDB na TV.
 ///
