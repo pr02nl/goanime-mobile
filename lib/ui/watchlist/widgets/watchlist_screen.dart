@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../domain/models/watchlist_anime.dart';
-import '../l10n/app_localizations.dart';
-import '../services/watchlist_notifier.dart';
-import '../services/watchlist_service.dart';
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/themes/netflix_theme.dart';
-import '../ui/core/utils/responsive.dart';
-import '../ui/core/widgets/focusable_widget.dart';
-import '../ui/core/widgets/netflix_card.dart';
-import '../ui/search/widgets/source_selection_screen.dart';
+import '../../../domain/models/watchlist_anime.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../services/watchlist_notifier.dart';
+import '../../../services/watchlist_service.dart';
+import '../../core/themes/app_colors.dart';
+import '../../core/themes/netflix_theme.dart';
+import '../../core/utils/responsive.dart';
+import '../../core/widgets/focusable_widget.dart';
+import '../../core/widgets/netflix_card.dart';
+import '../../search/widgets/source_selection_screen.dart';
 
 class WatchlistScreen extends StatefulWidget {
   const WatchlistScreen({super.key});
