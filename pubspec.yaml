@@ -76,7 +76,6 @@ dependencies:
   animated_item: ^0.0.2
   # QR Code generation for TV API key setup
   qr_flutter: ^4.1.0
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -84,13 +83,11 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   # Code generation
-  build_runner: ^2.4.14
+  build_runner: ^2.15.0
   drift_dev: ^2.22.1
 
   # Testing
   mocktail: ^1.0.4
-
-# Force update of transitive dependencies to latest versions
 dependency_overrides:
   characters: ^1.4.1
   material_color_utilities: ^0.13.0
