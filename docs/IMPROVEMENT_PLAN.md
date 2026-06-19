@@ -11,15 +11,15 @@ Este documento detalha o plano de refatoracao completa do PauloFlix, abordando p
 | Categoria | Tecnologia atual | Tecnologia alvo | Justificativa |
 |---|---|---|---|
 | Arquitetura | Mistura de camadas | **MVVM** (oficial Flutter) | Recomendado oficialmente, separacao clara de responsabilidades |
-| State Management | Provider (ChangeNotifier) | **Riverpod 2.x** | Evolucao do Provider, mencionado como valido na docs oficial. Compile-safe, testavel |
+| State Management | Provider (ChangeNotifier) | **Provider + ChangeNotifier** | Segue case study oficial (Compass app). Uma unica biblioteca para state E DI |
 | Dependency Injection | Manual (construtores) | **Provider** (oficial) | Segue case study oficial (Compass app). Uma unica biblioteca para tudo |
 | Navigation | Navigator 1.0 (push/pop) | **go_router** | Recomendado oficialmente pelo time Flutter. Deep linking, type-safe |
 | Data Models | Classes mutaveis | **freezed** + **json_serializable** | Imutabilidade, copyWith, equals, serialization automatica |
 | Database | 4x SQLite separados (sqlite3) | **drift** (fork do sqflite com codegen) | Type-safe queries, migrations versionadas, single source of truth |
 | HTTP | http package direto | **dio** + interceptors | Interceptors para logging, retry, rate limiting, error handling centralizado |
-| Testing | Zero testes | **mocktail** + **flutter_test** | Mock sem codegen, compativel com Riverpod |
+| Testing | Zero testes | **mocktail** + **flutter_test** | Mock sem codegen, compativel com Provider |
 
-**Nota:** A documentacao oficial do Flutter usa ChangeNotifier + Provider no case study, mas menciona explicitamente que Riverpod, Bloc e Signals sao alternativas validas. Escolhemos Riverpod por ser a evolucao natural do Provider (mesmo autor) e oferecer melhor testabilidade.
+**Nota:** A documentacao oficial do Flutter usa **ChangeNotifier + Provider** no case study Compass. Esta stack usa Provider para tudo (State Management + Dependency Injection), seguindo exatamente as recomendacoes oficiais. Uma unica biblioteca para tudo, mais simples e testavel.
 
 ---
 
@@ -786,20 +786,19 @@ class Anime with _$Anime {
 
 ```dart
 import 'package:go_router/go_router.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../features/home/presentation/home_screen.dart';
-import '../features/search/presentation/search_screen.dart';
-import '../features/player/presentation/video_player_screen.dart';
-import '../features/pauloflix/presentation/pauloflix_episode_list_screen.dart';
-import '../features/watchlist/presentation/watchlist_screen.dart';
-import '../features/downloads/presentation/downloads_screen.dart';
-import '../features/settings/presentation/settings_screen.dart';
-import '../features/navigation/main_navigation_screen.dart';
-import '../models/episode.dart';
-import '../models/anime.dart';
+import '../ui/home/widgets/home_screen.dart';
+import '../ui/search/widgets/search_screen.dart';
+import '../ui/player/widgets/video_player_screen.dart';
+import '../ui/pauloflix/widgets/pauloflix_episode_list_screen.dart';
+import '../ui/watchlist/widgets/watchlist_screen.dart';
+import '../ui/downloads/widgets/downloads_screen.dart';
+import '../ui/settings/widgets/settings_screen.dart';
+import '../ui/navigation/main_navigation_screen.dart';
+import '../domain/models/episode.dart';
+import '../domain/models/anime.dart';
 
-final appRouterProvider = Provider<GoRouter>((ref) {
+GoRouter createAppRouter() {
   return GoRouter(
     initialLocation: '/',
     routes: [
@@ -858,7 +857,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
-});
+}
 
 class PlayerRouteExtra {
   final Episode episode;
@@ -885,7 +884,6 @@ class PlayerRouteExtra {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await initServiceLocator();
   await MediaKit.ensureInitialized();
   await PerformanceConfig.init();
   await DatabaseHelper.initializeAll();
@@ -893,26 +891,51 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(appRouterProvider);
-    final themeMode = ref.watch(themeProvider);
-    final locale = ref.watch(localeServiceProvider);
+  Widget build(BuildContext context) {
+    final router = createAppRouter();
 
-    return MaterialApp.router(
-      title: 'PauloFlix',
-      debugShowCheckedModeBanner: false,
-      routerConfig: router,
-      locale: locale,
-      themeMode: themeMode,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
+    return MultiProvider(
+      providers: [
+        // Services
+        Provider<JikanService>(create: (_) => JikanService()),
+        Provider<AppDatabase>(create: (_) => AppDatabase()),
+        // ... demais services
+        
+        // Repositories
+        Provider<HomeRepository>(create: (ctx) => HomeRepositoryImpl(
+          jikanService: ctx.read<JikanService>(),
+          database: ctx.read<AppDatabase>(),
+        )),
+        // ... demais repositories
+        
+        // ViewModels
+        ChangeNotifierProvider(create: (ctx) => ThemeViewModel()..load()),
+        ChangeNotifierProvider(create: (ctx) => LocaleViewModel()..load()),
+        ChangeNotifierProvider(create: (ctx) => HomeViewModel(
+          repository: ctx.read<HomeRepository>(),
+        )),
+        // ... demais ViewModels
+      ],
+      child: MaterialApp.router(
+        title: 'PauloFlix',
+        debugShowCheckedModeBanner: false,
+        routerConfig: router,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: context.watch<ThemeViewModel>().isDarkMode
+            ? ThemeMode.dark
+            : ThemeMode.light,
+        locale: context.watch<LocaleViewModel>().locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      ),
     );
+  }
+}
   }
 }
 ```
@@ -1289,7 +1312,7 @@ class HomeRepositoryImpl implements HomeRepository {
 
 **Problema:** `main.dart:61` cria `LocaleService` via `ChangeNotifierProvider(create:)` mas `init()` nunca e chamado. O app sempre inicia em `en-US`.
 
-**Solucao:** Com Riverpod, o `build()` do provider ja carrega o valor correto do SharedPreferences. Ver Fase 4.1.
+**Solucao:** Com Provider, o ViewModel chama `load()` no construtor ou no `initState` da View. Ver Fase 4.1 - `LocaleViewModel` ja carrega o valor correto do SharedPreferences no `load()`.
 
 **Checklist:**
 - [ ] Verificar se locale e carregado corretamente
@@ -1322,11 +1345,11 @@ if (_isLoadingHome) {
 }
 ```
 
-**Completamente resolvido com Riverpod:** o proprio Riverpod gerencia loading state e evita duplicacao.
+**Resolvido com ViewModels:** o ViewModel gerencia o loading state via `ChangeNotifier` e evita duplicacao - se `_isLoading` ja for true, nao chama `notifyListeners()` novamente.
 
 **Checklist:**
 - [ ] Adicionar timeout no while
-- [ ] Ou migrar para Riverpod (resolucao completa)
+- [ ] Ou migrar para ViewModel com ChangeNotifier (resolucao completa)
 
 ---
 
@@ -1406,22 +1429,24 @@ static Future<Database> get database async {
 
 **Problema:** `download_service.dart` e singleton com `ChangeNotifier`. Os `http.Client` em `_downloadClients` podem vazar.
 
-**Solucao com Riverpod:**
+**Solucao com ChangeNotifier + Provider:**
 ```dart
-@riverpod
-class DownloadManager extends _$DownloadManager {
-  @override
-  List<DownloadItem> build() {
-    // Riverpod gerencia lifecycle automaticamente
-    ref.onDispose(() {
-      _cancelAll();
-      _closeDatabase();
-    });
-    _loadDownloads();
-    return [];
+class DownloadsViewModel extends ChangeNotifier {
+  final DownloadsRepository _repository;
+  
+  DownloadsViewModel(this._repository);
+
+  List<DownloadItem> _downloads = [];
+  List<DownloadItem> get downloads => _downloads;
+
+  // Provider gerencia lifecycle - chamado quando o provider e disposed
+  void dispose() {
+    _cancelAllClients();
+    _closeDatabase();
+    super.dispose();
   }
 
-  void _cancelAll() {
+  void _cancelAllClients() {
     for (final client in _clients.values) {
       client.close();
     }
@@ -1430,8 +1455,16 @@ class DownloadManager extends _$DownloadManager {
 }
 ```
 
+Registrar com Provider:
+```dart
+ChangeNotifierProvider(
+  create: (ctx) => DownloadsViewModel(ctx.read<DownloadsRepository>()),
+)
+```
+
 **Checklist:**
-- [ ] Migrar para Riverpod com `ref.onDispose()`
+- [ ] Migrar para `DownloadsViewModel` com `ChangeNotifier`
+- [ ] Implementar `dispose()` para fechar clients e database
 - [ ] Garantir que todos os `http.Client` sao fechados
 - [ ] Fechar database no dispose
 
@@ -1443,39 +1476,37 @@ class DownloadManager extends _$DownloadManager {
 
 **Problema:** `PauloFlixProvider.search()` faz filter O(n) em memoria a cada tecla.
 
-**Solucao:**
+**Solucao:** Usar `Timer` para debounce no ViewModel com ChangeNotifier:
 ```dart
-@riverpod
-class PauloFlixSearch extends _$PauloFlixSearch {
-  @override
-  List<PauloFlixContent> build(String query) {
-    if (query.isEmpty) return ref.watch(pauloflixNotifierProvider).contents;
+class PauloFlixViewModel extends ChangeNotifier {
+  Timer? _searchDebounce;
 
-    // Debounce automatico com Riverpod
-    return ref
-        .watch(pauloflixNotifierProvider)
-        .contents
-        .where((c) =>
-          c.displayName.toLowerCase().contains(query.toLowerCase()) ||
-          c.genres.any((g) => g.toLowerCase().contains(query.toLowerCase()))
-        )
-        .toList();
+  void search(String query) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      _filteredContents = query.isEmpty
+          ? _contents
+          : _contents.where((c) =>
+              c.displayName.toLowerCase().contains(query.toLowerCase()) ||
+              c.genres.any((g) => g.toLowerCase().contains(query.toLowerCase()))
+            ).toList();
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 }
-
-// Na screen:
-final query = useState('');
-// ...
-TextField(
-  onChanged: (v) => query.value = v,
-)
-// Riverpod faz debounce automaticamente com .debounce()
 ```
 
 **Checklist:**
-- [ ] Adicionar debounce na busca PauloFlix
+- [ ] Adicionar debounce (Timer 300ms) na busca PauloFlix
 - [ ] Adicionar debounce na busca de animes
 - [ ] Adicionar debounce na busca de filmes
+- [ ] Cancelar Timer no `dispose()`
 
 ---
 
@@ -1902,7 +1933,7 @@ Riverpod seria uma escolha valida tambem, mas Provider e mais alinhado com as re
 
 | Risco | Probabilidade | Impacto | Mitigacao |
 |---|---|---|---|
-| Breaking changes na migracao Provider -> Riverpod | Alta | Alto | Migrar feature por feature, manter Provider como fallback |
+| Breaking changes ao refatorar ViewModels | Media | Medio | Migrar feature por feature, manter compatibilidade |
 | drift migration perde dados existentes | Media | Alto | Testar migration em staging, backup automatico |
 | go_router muda comportamento de back stack | Media | Medio | Testar todos os fluxos de navegacao |
 | Code generation lento em CI | Media | Baixo | Cache de build, otimizar build.yaml |
@@ -1933,5 +1964,5 @@ genhtml coverage/lcov.info -o coverage/html
 - Cada fase deve ser um **PR separado** para facilitar review
 - **Nao quebrar funcionalidade existente** - cada fase deve manter o app funcional
 - **Testes devem ser escritos ANTES da refatoracao** quando possivel (TDD)
-- Usar **feature flags** para migrar gradualmente (ex: `useRiverpod: true/false`)
+- Migrar **feature por feature** para evitar breaking changes grandes
 - Documentar decisoes de arquitetura em ADRs (Architecture Decision Records)
