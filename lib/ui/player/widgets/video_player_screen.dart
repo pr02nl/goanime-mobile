@@ -7,9 +7,9 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../data/services/anime_service.dart';
+import '../../../data/services/google_video_proxy.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
-import '../../../google_video_proxy.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/episode_utils.dart';
