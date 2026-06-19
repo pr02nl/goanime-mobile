@@ -4,9 +4,9 @@ import 'package:media_kit/media_kit.dart';
 import 'app.dart';
 import 'core/database/database_helper.dart';
 import 'data/services/download_service.dart';
-import 'data/services/locale_service.dart';
 import 'data/services/tmdb_service.dart';
 import 'ui/core/utils/performance_config.dart';
+import 'ui/core/view_models/locale_viewmodel.dart';
 import 'ui/settings/view_models/theme_viewmodel.dart';
 
 void main() async {
@@ -36,7 +36,7 @@ void main() async {
   }
 
   final themeViewModel = ThemeViewModel();
-  final localeService = LocaleService();
+  final localeViewModel = LocaleViewModel();
 
   try {
     await themeViewModel.load();
@@ -45,9 +45,9 @@ void main() async {
   }
 
   try {
-    await localeService.init();
+    await localeViewModel.load();
   } catch (e) {
-    startupError ??= 'LocaleService: $e';
+    startupError ??= 'LocaleViewModel: $e';
   }
 
   try {
@@ -65,7 +65,7 @@ void main() async {
   runApp(
     PauloFlixApp(
       themeViewModel: themeViewModel,
-      localeService: localeService,
+      localeViewModel: localeViewModel,
       downloadService: downloadService,
       startupError: startupError,
     ),

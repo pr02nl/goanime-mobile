@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/services/api_key_settings_service.dart';
-import '../../../data/services/locale_service.dart';
 import '../../../data/services/tmdb_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/tv_detector.dart';
+import '../../core/view_models/locale_viewmodel.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
 import 'tv_qr_setup_dialog.dart';
@@ -117,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final localeService = Provider.of<LocaleService>(context);
+    final localeViewModel = Provider.of<LocaleViewModel>(context);
     final canPop = Navigator.canPop(context);
     final isTV = _isTV;
 
@@ -164,10 +164,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: l10n.english,
                   subtitle: 'English (US)',
                   flag: '🇺🇸',
-                  isSelected: localeService.isEnglish,
+                  isSelected: localeViewModel.isEnglish,
                   isTV: isTV,
                   onTap: () async {
-                    await localeService.setEnglish();
+                    await localeViewModel.setEnglish();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -189,10 +189,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: l10n.portuguese,
                   subtitle: 'Português (Brasil)',
                   flag: '🇧🇷',
-                  isSelected: localeService.isPortuguese,
+                  isSelected: localeViewModel.isPortuguese,
                   isTV: isTV,
                   onTap: () async {
-                    await localeService.setPortuguese();
+                    await localeViewModel.setPortuguese();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
