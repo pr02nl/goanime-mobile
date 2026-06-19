@@ -6,6 +6,8 @@ import 'l10n/app_localizations.dart';
 import 'providers/pauloflix_movies_provider.dart';
 import 'providers/pauloflix_provider.dart';
 import 'providers/theme_provider.dart';
+import 'data/repositories/home_repository_impl.dart';
+import 'domain/repositories/home_repository.dart';
 import 'routing/app_router.dart';
 import 'services/download_service.dart';
 import 'services/locale_service.dart';
@@ -38,7 +40,10 @@ class PauloFlixApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: downloadService),
         ChangeNotifierProvider(create: (_) => PauloFlixProvider()),
         ChangeNotifierProvider(create: (_) => PauloFlixMoviesProvider()),
-        ChangeNotifierProvider(create: (_) => HomeViewModel()..loadHomeData()),
+        Provider<HomeRepository>(create: (_) => HomeRepositoryImpl()),
+        ChangeNotifierProvider(create: (ctx) => HomeViewModel(
+          repository: ctx.read<HomeRepository>(),
+        )..loadHomeData()),
         ChangeNotifierProvider(create: (_) => WatchlistViewModel()..loadWatchlist()),
       ],
       child: ListenableBuilder(

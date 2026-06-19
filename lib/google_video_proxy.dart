@@ -90,6 +90,16 @@ class GoogleVideoProxy {
   }
 
   Future<void> _handleRequest(HttpRequest request) async {
+    // Validar que o request vem do proprio dispositivo (loopback)
+    final remoteAddress = request.connectionInfo?.remoteAddress;
+    if (remoteAddress != null &&
+        !remoteAddress.isLoopback &&
+        remoteAddress.address != '127.0.0.1') {
+      request.response.statusCode = HttpStatus.forbidden;
+      await request.response.close();
+      return;
+    }
+
     final client = _client ?? _createHttpClient();
     _client = client;
 

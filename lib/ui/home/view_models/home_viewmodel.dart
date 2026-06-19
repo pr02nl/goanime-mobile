@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../../data/repositories/home_repository_impl.dart';
+import '../../../domain/repositories/home_repository.dart';
 import '../../../models/jikan_models.dart';
-import '../../../services/jikan_service.dart';
 
 class HomeViewModel extends ChangeNotifier {
-  final JikanService _jikanService = JikanService();
+  final HomeRepository _repository;
   final ScrollController scrollController = ScrollController();
+
+  HomeViewModel({HomeRepository? repository})
+      : _repository = repository ?? HomeRepositoryImpl();
 
   double headerOpacity = 1.0;
   bool isLoading = true;
@@ -25,7 +29,7 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final homeData = await _jikanService.loadHomeData(
+      final homeData = await _repository.loadHomeData(
         forceRefresh: forceRefresh,
       );
 
