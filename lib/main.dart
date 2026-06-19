@@ -41,6 +41,19 @@ void main() async {
   }
 
   final themeProvider = ThemeProvider();
+  final localeService = LocaleService();
+
+  try {
+    await themeProvider.load();
+  } catch (e) {
+    startupError ??= 'ThemeProvider: $e';
+  }
+
+  try {
+    await localeService.init();
+  } catch (e) {
+    startupError ??= 'LocaleService: $e';
+  }
 
   try {
     await TmdbService().configureFromSettings();
@@ -58,7 +71,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: themeProvider),
-        ChangeNotifierProvider(create: (_) => LocaleService()),
+        ChangeNotifierProvider.value(value: localeService),
         ChangeNotifierProvider.value(value: downloadService),
         ChangeNotifierProvider(create: (_) => PauloFlixProvider()),
         ChangeNotifierProvider(create: (_) => PauloFlixMoviesProvider()),

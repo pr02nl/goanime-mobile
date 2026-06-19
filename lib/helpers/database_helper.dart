@@ -22,6 +22,8 @@ class DatabaseHelper {
       _initCompleter!.complete(_database!);
     } catch (e) {
       _initCompleter!.completeError(e);
+      _initCompleter = null;
+      _database = null;
       rethrow;
     }
     return _database!;

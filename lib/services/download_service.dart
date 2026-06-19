@@ -373,6 +373,7 @@ class DownloadService extends ChangeNotifier {
     } finally {
       _activeDownloadCount--;
       _activeDownloads.remove(id);
+      _downloadClients[id]?.close();
       _downloadClients.remove(id);
       notifyListeners();
       _processQueue();

@@ -152,9 +152,12 @@ class JikanService {
     // Evita múltiplas requisições simultâneas
     if (_isLoadingHome) {
       debugPrint('[JikanService] Already loading, waiting...');
-      // Espera o carregamento terminar
-      while (_isLoadingHome) {
+      final stopwatch = Stopwatch()..start();
+      while (_isLoadingHome && stopwatch.elapsedMilliseconds < 15000) {
         await Future.delayed(const Duration(milliseconds: 100));
+      }
+      if (_isLoadingHome) {
+        debugPrint('[JikanService] Wait timed out, proceeding with new load');
       }
       if (_homeDataCache != null) return _homeDataCache!;
     }

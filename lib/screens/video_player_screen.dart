@@ -862,11 +862,31 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   void dispose() {
     _overlayControlsTimer?.cancel();
     _uninstallHardwareKeyboardHandler();
-    SystemChrome.setSystemUIChangeCallback(null); // Remove o listener
-    _cleanupControllers();
+    SystemChrome.setSystemUIChangeCallback(null);
+
+    // Cleanup síncrono: para o player antes do State ser desmontado
+    _player?.stop();
+    _errorSub?.cancel();
+    _playingSub?.cancel();
+    _completedSub?.cancel();
+    _tracksSub?.cancel();
+
+    // Cleanup assíncrono em background (não pode await no dispose)
+    _deferredCleanup();
+
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setPreferredOrientations([]); // Reset orientations
-    super.dispose();
+    SystemChrome.setPreferredOrientations([]);
+    super.dispose(); // Mixin cancela positionTimer, skipButtonAutoHideTimer
+  }
+
+  Future<void> _deferredCleanup() async {
+    await _player?.dispose();
+    _player = null;
+    _videoController = null;
+    if (_googleVideoProxy != null) {
+      await _googleVideoProxy!.stop();
+      _googleVideoProxy = null;
+    }
   }
 
   /// Mostra os controles de overlay e reinicia o timer de auto-hide
