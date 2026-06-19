@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../domain/models/anime.dart';
-import '../domain/models/episode.dart';
-import '../domain/models/pauloflix_movie.dart';
-import '../domain/models/pauloflix_movie_item.dart';
-import '../services/pauloflix_movies_service.dart';
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/widgets/pauloflix_movies_badge.dart';
-import '../ui/player/widgets/video_player_screen.dart';
+import '../../../domain/models/anime.dart';
+import '../../../domain/models/episode.dart';
+import '../../../domain/models/pauloflix_movie.dart';
+import '../../../domain/models/pauloflix_movie_item.dart';
+import '../../../services/pauloflix_movies_service.dart';
+import '../../core/themes/app_colors.dart';
+import '../../core/widgets/pauloflix_movies_badge.dart';
+import '../../player/widgets/video_player_screen.dart';
 
 class PauloFlixMovieDetailScreen extends StatefulWidget {
   final PauloFlixMovie content;
