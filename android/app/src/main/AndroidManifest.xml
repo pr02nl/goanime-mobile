@@ -21,7 +21,7 @@
     <uses-feature android:name="android.hardware.faketouch" android:required="false" />
 
     <application
-        android:label="goanime"
+        android:label="PauloFlix"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:banner="@drawable/tv_banner"

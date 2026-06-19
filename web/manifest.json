@@ -1,6 +1,6 @@
 {
-    "name": "goanime_mobile",
-    "short_name": "goanime_mobile",
+    "name": "PauloFlix",
+    "short_name": "PauloFlix",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
