@@ -1,14 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../data/services/anime_service.dart';
-import '../domain/models/anime.dart';
-import '../l10n/app_localizations.dart';
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/themes/netflix_theme.dart';
-import '../ui/core/widgets/focusable_widget.dart';
-import '../ui/core/widgets/watchlist_button.dart';
-import 'modern_episode_list_screen.dart';
+import '../../../data/services/anime_service.dart';
+import '../../../domain/models/anime.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../screens/modern_episode_list_screen.dart';
+import '../../core/themes/app_colors.dart';
+import '../../core/themes/netflix_theme.dart';
+import '../../core/widgets/focusable_widget.dart';
+import '../../core/widgets/watchlist_button.dart';
 
 class SourceSelectionScreen extends StatefulWidget {
   final String animeTitle;

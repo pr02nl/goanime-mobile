@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../data/models/jikan_models.dart';
 import '../../../data/services/jikan_service.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../screens/source_selection_screen.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/themes/netflix_theme.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/netflix_card.dart';
+import '../../search/widgets/source_selection_screen.dart';
 
 class GenreAnimesScreen extends StatefulWidget {
   final String title;

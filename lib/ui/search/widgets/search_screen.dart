@@ -2,16 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../data/models/jikan_models.dart';
-import '../data/services/jikan_service.dart';
-import '../l10n/app_localizations.dart';
-import '../services/search_history_service.dart';
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/themes/netflix_theme.dart';
-import '../ui/core/utils/responsive.dart';
-import '../ui/core/utils/tv_detector.dart';
-import '../ui/core/widgets/netflix_card.dart';
-import '../ui/core/widgets/tv_safe_text_field.dart';
+import '../../../data/models/jikan_models.dart';
+import '../../../data/services/jikan_service.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../services/search_history_service.dart';
+import '../../core/themes/app_colors.dart';
+import '../../core/themes/netflix_theme.dart';
+import '../../core/utils/responsive.dart';
+import '../../core/utils/tv_detector.dart';
+import '../../core/widgets/netflix_card.dart';
+import '../../core/widgets/tv_safe_text_field.dart';
 import 'source_selection_screen.dart';
 
 class SearchScreen extends StatefulWidget {
