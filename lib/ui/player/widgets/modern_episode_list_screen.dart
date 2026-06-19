@@ -8,8 +8,8 @@ import '../../../domain/models/episode.dart';
 import '../../../services/download_service.dart';
 import '../../../utils/text_utils.dart';
 import '../../core/themes/app_colors.dart';
-import '../../core/widgets/download_button.dart';
 import '../../core/widgets/focusable_widget.dart';
+import '../../pauloflix/downloads/widgets/download_button.dart';
 import 'video_player_screen.dart';
 
 // Function to extract only the episode number

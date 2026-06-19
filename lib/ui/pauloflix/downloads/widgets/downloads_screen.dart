@@ -4,10 +4,10 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
-import '../l10n/app_localizations.dart';
-import '../services/download_service.dart';
-import '../ui/core/themes/app_colors.dart';
-import '../ui/core/widgets/focusable_widget.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../services/download_service.dart';
+import '../../../core/themes/app_colors.dart';
+import '../../../core/widgets/focusable_widget.dart';
 
 /// Downloads screen - Netflix-style UI for managing downloads
 class DownloadsScreen extends StatefulWidget {

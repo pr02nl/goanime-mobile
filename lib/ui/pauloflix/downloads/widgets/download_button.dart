@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../services/download_service.dart';
-import '../themes/app_colors.dart';
+import '../../../../services/download_service.dart';
+import '../../../core/themes/app_colors.dart';
 
 /// Download button widget - shows download status and allows interaction
 class DownloadButton extends StatelessWidget {
