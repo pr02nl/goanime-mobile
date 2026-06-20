@@ -11,53 +11,167 @@ Flutter-based mobile anime streaming app for iOS and Android devices with Androi
 - **Navigation**: MaterialApp with Navigator 1.0 (push/pop)
 - **APIs**: Jikan API (MyAnimeList), AniList GraphQL, TMDB v3
 
-## Project Structure
+## Project Structure (Arquitetura em Camadas)
 ```
 lib/
-├── main.dart                 # App entry point
-├── models/                   # Data models
-│   ├── anime.dart            # Main anime model
-│   └── pauloflix_content.dart  # PauloFlix content model
-├── screens/                  # UI screens
-│   ├── home_screen.dart      # Main home screen
-│   ├── video_player_screen.dart  # Modern video player with media_kit
-│   ├── pauloflix_episode_list_screen.dart  # PauloFlix episodes
-│   └── ...
-├── widgets/                  # Reusable widgets
-│   ├── anime_card.dart       # Anime card component
-│   ├── anime_section.dart    # Section with carousel
-│   ├── netflix_card.dart     # Netflix-style card
-│   ├── netflix_carousel.dart # Netflix-style carousel
-│   ├── pauloflix_badge.dart  # PauloFlix badge widget
-│   ├── pauloflix_card.dart   # PauloFlix card widget
-│   ├── pauloflix_section.dart  # PauloFlix section widget
-│   └── ...
-├── services/                 # API services
-│   ├── pauloflix_service.dart  # PauloFlix de animes: scraping HTML do servidor
-│   ├── pauloflix_database_service.dart  # SQLite animes PauloFlix
-│   ├── pauloflix_movies_service.dart  # PauloFlix Movies: scraping + TMDB
-│   ├── pauloflix_movies_database_service.dart  # SQLite filmes PauloFlix
-│   ├── tmdb_service.dart  # Cliente TMDB API v3 com cache
-│   └── api_key_settings_service.dart  # Persiste TMDB API key em SharedPreferences
-├── theme/                    # App theming
-│   ├── app_theme.dart        # Unified theme
-│   ├── netflix_theme.dart    # Netflix-inspired theme
-│   ├── tv_theme.dart         # TV-specific theme
-│   └── app_colors.dart       # Color palette
-├── helpers/                  # Database and utility helpers
-│   └── database_helper.dart  # SQLite database helper
-├── mixins/                   # Reusable mixins
-│   └── video_player_aniskip_mixin.dart  # AniSkip integration mixin
-├── providers/                # State management providers
-│   ├── theme_provider.dart   # Theme state management
-│   ├── pauloflix_provider.dart  # PauloFlix animes content state
-│   └── pauloflix_movies_provider.dart  # PauloFlix filmes content state
-├── l10n/                     # Localization files
-│   └── app_localizations.dart # Internationalization support
-├── google_video_proxy.dart   # Google Video proxy for streams
-└── utils/                    # Utilities
-    ├── responsive.dart       # Responsive helpers
-    └── ...
+├── main.dart                          # Entry point
+├── app.dart                           # MaterialApp setup, providers, theme
+│
+├── core/                              # Infraestrutura compartilhada
+│   ├── constants/
+│   │   ├── api_constants.dart         # Base URLs, endpoints
+│   │   └── app_constants.dart         # Chaves de SharedPreferences, limites
+│   ├── database/
+│   │   ├── app_database.dart          # Drift database definition
+│   │   ├── app_database.g.dart        # Drift codegen (gerado)
+│   │   ├── database_helper.dart       # Helper SQLite legado
+│   │   └── tables/
+│   │       ├── downloads_table.dart   # Schema downloads
+│   │       ├── pauloflix_table.dart   # Schema PauloFlix animes
+│   │       └── watchlist_table.dart   # Schema watchlist
+│   ├── errors/
+│   │   ├── exceptions.dart            # Exceções sealed (TmdbException, etc.)
+│   │   └── failures.dart              # Failures unificados
+│   ├── logger/
+│   │   └── app_logger.dart            # Logger estruturado
+│   └── network/
+│       ├── dio_client.dart            # Dio com interceptors
+│       ├── logging_interceptor.dart    # Logging HTTP
+│       ├── rate_limit_interceptor.dart # Rate limiting
+│       └── retry_interceptor.dart     # Retry com backoff
+│
+├── domain/                            # Regras de negócio (interfaces + modelos internos)
+│   ├── models/
+│   │   ├── anime.dart                 # Anime unificado (Jikan + AniList)
+│   │   ├── episode.dart               # Episódio
+│   │   ├── pauloflix_content.dart     # Conteúdo PauloFlix (animes)
+│   │   ├── pauloflix_models.dart      # Modelos PauloFlix internos
+│   │   ├── pauloflix_movie.dart       # Filme ou coleção
+│   │   ├── pauloflix_movie_item.dart  # Filme individual (dentro de coleção)
+│   │   ├── video.dart                 # Dados de vídeo
+│   │   └── watchlist_anime.dart       # Item da watchlist
+│   └── repositories/
+│       ├── home_repository.dart       # Interface (abstract)
+│       └── search_repository.dart     # Interface (abstract)
+│
+├── data/                              # Implementações de dados
+│   ├── models/                        # Modelos de API externos
+│   │   ├── anilist_models.dart        # MediaDetails, MediaTitle, CoverImage
+│   │   ├── aniskip_models.dart        # SkipTimes, Skip
+│   │   ├── jikan_models.dart          # JikanAnime, JikanGenre, JikanResponse
+│   │   └── tmdb_models.dart           # TmdbMovie, TmdbGenre
+│   ├── repositories/
+│   │   ├── home_repository_impl.dart  # Implementação concreta
+│   │   └── search_repository_impl.dart
+│   └── services/
+│       ├── anime_service.dart         # AnimeFire/scraping + extração de vídeo
+│       ├── anilist_service.dart       # AniList GraphQL
+│       ├── aniskip_service.dart       # AniSkip skip times
+│       ├── api_key_settings_service.dart  # TMDB API key (SharedPreferences)
+│       ├── download_service.dart      # Downloads offline
+│       ├── episode_thumbnail_service.dart # Thumbnails de episódios
+│       ├── google_video_proxy.dart    # Proxy HTTP para Google Video
+│       ├── jikan_service.dart         # Jikan API (cache 30min)
+│       ├── pauloflix_database_service.dart  # SQLite PauloFlix animes
+│       ├── pauloflix_movies_database_service.dart  # SQLite PauloFlix filmes
+│       ├── pauloflix_movies_service.dart   # PauloFlix Movies: scraping + TMDB
+│       ├── pauloflix_service.dart     # PauloFlix animes: scraping HTML
+│       ├── search_history_service.dart # Histórico de busca (SharedPreferences)
+│       ├── tmdb_service.dart          # TMDB API v3 (cache + throttle)
+│       ├── tv_api_key_server.dart     # Servidor HTTP para setup de API key via QR
+│       ├── watchlist_notifier.dart    # ChangeNotifier da watchlist
+│       └── watchlist_service.dart     # Watchlist (SQLite)
+│
+├── routing/                           # Navegação
+│   ├── app_router.dart                # go_router config
+│   └── route_data.dart                # Typed routes
+│
+├── l10n/
+│   └── app_localizations.dart         # PT-BR / EN-US
+│
+└── ui/                                # Interface do usuário
+    ├── core/
+    │   ├── themes/
+    │   │   ├── app_colors.dart        # Paleta de cores
+    │   │   ├── app_theme.dart         # Tema unificado
+    │   │   ├── netflix_theme.dart     # Tema Netflix
+    │   │   └── tv_theme.dart          # Tema TV
+    │   ├── utils/
+    │   │   ├── episode_utils.dart     # Extração de número de episódio
+    │   │   ├── performance_config.dart # Durações de animação
+    │   │   ├── responsive.dart        # Breakpoints Mobile/Tablet/TV
+    │   │   ├── text_utils.dart        # Utilitários de texto
+    │   │   └── tv_detector.dart       # Detecção de Android TV
+    │   ├── view_models/
+    │   │   └── locale_viewmodel.dart  # Estado do idioma
+    │   └── widgets/                   # Widgets reutilizáveis
+    │       ├── anime_card.dart
+    │       ├── anime_result_card.dart
+    │       ├── content_type_selector.dart  # Pill Animes|Filmes
+    │       ├── focusable_widget.dart  # Focus + D-pad
+    │       ├── genre_glyph_icon.dart  # Ícones de gênero
+    │       ├── logo_widget.dart
+    │       ├── netflix_card.dart      # Card estilo Netflix
+    │       ├── netflix_carousel.dart  # Carousel horizontal
+    │       ├── pauloflix_badge.dart   # Badge azul PauloFlix
+    │       ├── pauloflix_movies_badge.dart # Badge vermelho cinema
+    │       ├── pauloflix_movies_section.dart # Seção filmes
+    │       ├── pauloflix_section.dart # Seção animes PauloFlix
+    │       ├── responsive_anime_card.dart
+    │       ├── shimmer_loading.dart   # Skeleton loading
+    │       ├── skip_button.dart       # Botão AniSkip
+    │       ├── tv_grid_view.dart      # Grid otimizado TV
+    │       ├── tv_safe_text_field.dart # TextField seguro para TV
+    │       └── watchlist_button.dart
+    │
+    ├── downloads/widgets/
+    │   ├── download_button.dart
+    │   └── downloads_screen.dart
+    │
+    ├── home/
+    │   ├── view_models/home_viewmodel.dart
+    │   └── widgets/
+    │       ├── anime_detail_screen.dart
+    │       ├── genre_animes_screen.dart
+    │       └── home_screen.dart
+    │
+    ├── navigation/main_navigation_screen.dart  # Shell + toggle Animes|Filmes
+    │
+    ├── pauloflix/
+    │   ├── view_models/pauloflix_provider.dart
+    │   └── widgets/
+    │       ├── pauloflix_episode_list_screen.dart
+    │       └── pauloflix_see_all_screen.dart
+    │
+    ├── pauloflix_movies/
+    │   ├── view_models/pauloflix_movies_provider.dart
+    │   └── widgets/
+    │       ├── pauloflix_movie_detail_screen.dart
+    │       ├── pauloflix_movies_home_screen.dart
+    │       └── pauloflix_movies_search_screen.dart
+    │
+    ├── player/
+    │   ├── video_player_aniskip_mixin.dart  # Mixin AniSkip
+    │   └── widgets/
+    │       ├── blogger_webview_screen.dart
+    │       ├── episode_list_screen.dart
+    │       ├── modern_episode_list_screen.dart
+    │       └── video_player_screen.dart
+    │
+    ├── search/widgets/
+    │   ├── anime_search_screen.dart
+    │   ├── search_screen.dart
+    │   └── source_selection_screen.dart
+    │
+    ├── settings/
+    │   ├── view_models/theme_viewmodel.dart
+    │   └── widgets/
+    │       ├── settings_screen.dart
+    │       └── tv_qr_setup_dialog.dart
+    │
+    └── watchlist/
+        ├── view_models/watchlist_viewmodel.dart
+        └── widgets/watchlist_screen.dart
 ```
 
 ## Build Commands

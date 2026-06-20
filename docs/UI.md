@@ -136,6 +136,47 @@ Gerenciamento de downloads offline.
 
 ---
 
+### PauloFlixMoviesHomeScreen
+Tela principal da área de Filmes do PauloFlix.
+
+**Características:**
+- Grid responsivo de filmes com posters TMDB
+- Busca em tempo real
+- Sync manual via botão refresh
+- Detecção de TMDB não configurado → banner com CTA
+- Coleções com banner custom + sub-filmes clicáveis
+- TV: grid adaptativo (6 colunas), D-pad navigation
+
+**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movies_home_screen.dart`
+
+---
+
+### PauloFlixMovieDetailScreen
+Tela de detalhe de filme ou coleção.
+
+**Características:**
+- Filme individual: backdrop + poster + sinopse TMDB + botão Assistir
+- Coleção: banner + lista de sub-filmes clicáveis
+- Reutiliza `ModernVideoPlayerScreen` para reprodução (sem AniSkip)
+- Suporte a legendas `.srt` (prioridade PT-BR)
+- TV: FocusableWidget nos sub-filmes
+
+**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movie_detail_screen.dart`
+
+---
+
+### PauloFlixMoviesSearchScreen
+Busca de filmes PauloFlix.
+
+**Características:**
+- Busca por título (filtra em tempo real)
+- Grid responsivo com resultados
+- Empty state quando sem resultados
+
+**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movies_search_screen.dart`
+
+---
+
 ### SettingsScreen
 Configurações do aplicativo.
 
@@ -304,6 +345,65 @@ SkipButton({
 - Slice of Life (casa)
 - Sports (bola)
 - Supernatural (estrela)
+
+---
+
+### ContentTypeSelector
+Pill seletor "Animes | Filmes" no AppBar.
+
+**Props:**
+```dart
+ContentTypeSelector({
+  required ContentType currentType,
+  required ValueChanged<ContentType> onTypeChanged,
+})
+```
+
+**Características:**
+- Toggle animado entre Animes e Filmes
+- Visual pill com transição suave
+- Usado em `MainNavigationScreen` para alternar o body principal
+
+**Arquivo:** `lib/ui/core/widgets/content_type_selector.dart`
+
+---
+
+### PauloFlixBadge
+Badge azul para conteúdo PauloFlix (animes).
+
+**Arquivo:** `lib/ui/core/widgets/pauloflix_badge.dart`
+
+---
+
+### PauloFlixMoviesBadge
+Badge vermelho para conteúdo PauloFlix Movies (filmes).
+
+**Props:**
+```dart
+PauloFlixMoviesBadge({
+  bool isCollection = false,
+})
+```
+
+**Características:**
+- Vermelho cinema quando filme individual
+- Indicador de coleção quando `isCollection: true`
+
+**Arquivo:** `lib/ui/core/widgets/pauloflix_movies_badge.dart`
+
+---
+
+### PauloFlixSection
+Seção horizontal de animes PauloFlix no HomeScreen.
+
+**Arquivo:** `lib/ui/core/widgets/pauloflix_section.dart`
+
+---
+
+### PauloFlixMoviesSection
+Seção horizontal de filmes PauloFlix no HomeScreen.
+
+**Arquivo:** `lib/ui/core/widgets/pauloflix_movies_section.dart`
 
 ---
 
