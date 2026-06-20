@@ -64,15 +64,6 @@ class PauloFlixSection extends StatelessWidget {
       title: title,
       height: cardHeight + 60,
       isTV: isTV,
-      // SeeAllButton no header: acessível por Tab / D-pad ↑ antes dos cards
-      trailing: onSeeAll != null
-          ? SeeAllButton(
-              label: l10n.seeAll,
-              onTap: onSeeAll!,
-              accentColor: _kPauloFlixColor,
-              isTV: isTV,
-            )
-          : null,
       items: items,
     );
   }

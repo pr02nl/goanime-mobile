@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 
 import '../themes/netflix_theme.dart';
 import '../utils/responsive.dart';
@@ -99,7 +98,7 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
 
         // ── Carousel de cards ─────────────────────────────────────────────
         FocusTraversalGroup(
-          policy: ReadingOrderTraversalPolicy(),
+          policy: WidgetOrderTraversalPolicy(),
           child: SizedBox(
             height: defaultHeight,
             child: Stack(
@@ -173,179 +172,6 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SeeAllButton — chip estilizado para o header do carousel
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Botão "Ver Todos" para o header do [NetflixCarousel].
-///
-/// Visualmente é um chip com label + ícone de seta. No foco (teclado/D-pad)
-/// exibe um contorno colorido e pequeno scale, facilitando a localização.
-/// Aciona [onTap] com Enter / Space / Select / clique.
-class SeeAllButton extends StatefulWidget {
-  final String label;
-  final VoidCallback onTap;
-  final Color accentColor;
-  final bool isTV;
-
-  const SeeAllButton({
-    super.key,
-    required this.label,
-    required this.onTap,
-    this.accentColor = const Color(0xFF00BCD4),
-    this.isTV = false,
-  });
-
-  @override
-  State<SeeAllButton> createState() => _SeeAllButtonState();
-}
-
-class _SeeAllButtonState extends State<SeeAllButton>
-    with SingleTickerProviderStateMixin {
-  final FocusNode _focusNode = FocusNode();
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
-  bool _isFocused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: NetflixTheme.fastDuration,
-    );
-    _scale = Tween<double>(
-      begin: 1.0,
-      end: 1.06,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: NetflixTheme.fastCurve));
-    _focusNode.addListener(_onFocusChange);
-  }
-
-  void _onFocusChange() {
-    if (!mounted) return;
-    setState(() => _isFocused = _focusNode.hasFocus);
-    _isFocused ? _ctrl.forward() : _ctrl.reverse();
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = widget.accentColor;
-    final tvSize = widget.isTV;
-
-    return Shortcuts(
-      shortcuts: const {
-        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
-      },
-      child: Actions(
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              widget.onTap();
-              return null;
-            },
-          ),
-        },
-        child: AnimatedBuilder(
-          animation: _ctrl,
-          builder: (context, _) {
-            return Transform.scale(
-              scale: _scale.value,
-              child: AnimatedContainer(
-                duration: NetflixTheme.fastDuration,
-                curve: NetflixTheme.fastCurve,
-                decoration: BoxDecoration(
-                  // Fundo sutil: transparente quando não focado,
-                  // levemente preenchido quando focado
-                  color: _isFocused
-                      ? color.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _isFocused ? color : color.withValues(alpha: 0.5),
-                    width: _isFocused ? 2 : 1,
-                  ),
-                  boxShadow: _isFocused
-                      ? [
-                          BoxShadow(
-                            color: color.withValues(alpha: 0.5),
-                            blurRadius: 8,
-                            spreadRadius: 0,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    focusNode: _focusNode,
-                    canRequestFocus: true,
-                    onTap: widget.onTap,
-                    onFocusChange: (hasFocus) {
-                      if (!mounted) return;
-                      setState(() => _isFocused = hasFocus);
-                      hasFocus ? _ctrl.forward() : _ctrl.reverse();
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    splashColor: color.withValues(alpha: 0.25),
-                    highlightColor: color.withValues(alpha: 0.12),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: tvSize ? 16 : 12,
-                        vertical: tvSize ? 8 : 5,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            widget.label,
-                            style: TextStyle(
-                              color: _isFocused
-                                  ? color
-                                  : color.withValues(alpha: 0.85),
-                              fontSize: tvSize ? 16 : 13,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          SizedBox(width: tvSize ? 5 : 3),
-                          AnimatedRotation(
-                            turns: _isFocused ? 0.0 : 0.0,
-                            duration: NetflixTheme.fastDuration,
-                            child: Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: tvSize ? 14 : 11,
-                              color: _isFocused
-                                  ? color
-                                  : color.withValues(alpha: 0.85),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
     );
   }
 }
