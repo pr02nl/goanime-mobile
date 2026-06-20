@@ -41,41 +41,12 @@ class _NetflixCardState extends State<NetflixCard>
     with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   bool _isFocused = false;
-  late AnimationController _animationController;
-  late Animation<double> _scaleAnimation;
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: NetflixTheme.mediumDuration,
-    );
-
-    _scaleAnimation = Tween<double>(begin: 1.0, end: widget.isTV ? 1.08 : 1.05)
-        .animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: NetflixTheme.defaultCurve,
-          ),
-        );
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
 
   void _handleHover(bool isHovered) {
     if (!widget.isTV) {
       setState(() {
         _isHovered = isHovered;
       });
-      if (isHovered) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
     }
   }
 
@@ -83,11 +54,6 @@ class _NetflixCardState extends State<NetflixCard>
     setState(() {
       _isFocused = isFocused;
     });
-    if (isFocused) {
-      _animationController.forward();
-    } else {
-      _animationController.reverse();
-    }
   }
 
   @override
@@ -109,214 +75,197 @@ class _NetflixCardState extends State<NetflixCard>
           }
           return KeyEventResult.ignored;
         },
-        child: AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              child: GestureDetector(
-                onTap: widget.onTap,
-                child: Container(
-                  width: widget.width,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(NetflixTheme.radiusMd),
-                    boxShadow: (_isHovered || _isFocused)
-                        ? NetflixTheme.elevatedCardShadow
-                        : NetflixTheme.cardShadow,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(NetflixTheme.radiusMd),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Image
-                        CachedNetworkImage(
-                          imageUrl: widget.imageUrl,
-                          width: widget.width,
-                          height: widget.height,
-                          fit: BoxFit.cover,
-                          filterQuality: FilterQuality.medium,
-                          memCacheWidth: widget.width.isFinite
-                              ? (widget.width * 2).toInt()
-                              : null,
-                          memCacheHeight: widget.height.isFinite
-                              ? (widget.height * 2).toInt()
-                              : null,
-                          maxWidthDiskCache: widget.width.isFinite
-                              ? (widget.width * 2).toInt()
-                              : null,
-                          maxHeightDiskCache: widget.height.isFinite
-                              ? (widget.height * 2).toInt()
-                              : null,
-                          fadeInDuration: NetflixTheme.mediumDuration,
-                          placeholder: (context, url) => Container(
-                            width: widget.width,
-                            height: widget.height,
-                            color: NetflixTheme.surfaceLight,
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.primary,
-                                ),
-                                strokeWidth: 2,
-                              ),
-                            ),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: widget.width,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(NetflixTheme.radiusMd),
+              boxShadow: (_isHovered || _isFocused)
+                  ? NetflixTheme.elevatedCardShadow
+                  : NetflixTheme.cardShadow,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(NetflixTheme.radiusMd),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Image
+                  CachedNetworkImage(
+                    imageUrl: widget.imageUrl,
+                    width: widget.width,
+                    height: widget.height,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                    memCacheWidth: widget.width.isFinite
+                        ? (widget.width * 2).toInt()
+                        : null,
+                    memCacheHeight: widget.height.isFinite
+                        ? (widget.height * 2).toInt()
+                        : null,
+                    maxWidthDiskCache: widget.width.isFinite
+                        ? (widget.width * 2).toInt()
+                        : null,
+                    maxHeightDiskCache: widget.height.isFinite
+                        ? (widget.height * 2).toInt()
+                        : null,
+                    fadeInDuration: NetflixTheme.mediumDuration,
+                    placeholder: (context, url) => Container(
+                      width: widget.width,
+                      height: widget.height,
+                      color: NetflixTheme.surfaceLight,
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
                           ),
-                          errorWidget: (context, url, error) => Container(
-                            width: widget.width,
-                            height: widget.height,
-                            color: NetflixTheme.surfaceLight,
-                            child: const Icon(
-                              Icons.error_outline,
-                              color: NetflixTheme.textTertiary,
-                            ),
-                          ),
+                          strokeWidth: 2,
                         ),
-                        // Gradient overlay permanente e suave — Netflix usa
-                        // degradê curto só na base para legibilidade do título.
-                        if (widget.showTitle || widget.showRating)
-                          Positioned.fill(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.transparent,
-                                    Colors.black.withValues(alpha: 0.55),
-                                    Colors.black.withValues(alpha: 0.85),
-                                  ],
-                                  stops: const [0.0, 0.6, 0.85, 1.0],
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Rating badge — sem borda, só backdrop escuro
-                        if (widget.showRating && widget.rating != null)
-                          Positioned(
-                            top: NetflixTheme.sm,
-                            right: NetflixTheme.sm,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.65),
-                                borderRadius: BorderRadius.circular(
-                                  NetflixTheme.radiusSm,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.star_rounded,
-                                    color: Colors.amber,
-                                    size: 11,
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    widget.rating!.toStringAsFixed(1),
-                                    style: const TextStyle(
-                                      color: NetflixTheme.textPrimary,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        // Título sempre visível — Netflix não esconde o título
-                        // ao hover. Degradê permanente garante a legibilidade.
-                        if (widget.showTitle && widget.title != null)
-                          Positioned(
-                            left: NetflixTheme.sm,
-                            right: NetflixTheme.sm,
-                            bottom: NetflixTheme.sm,
-                            child: Text(
-                              widget.title!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: NetflixTheme.textPrimary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                height: 1.3,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black,
-                                    offset: Offset(0, 1),
-                                    blurRadius: 3,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        // Custom overlay widget — posicionado no canto
-                        // inferior-esquerdo, acima do título (badge pequeno).
-                        if (widget.overlayWidget != null)
-                          Positioned(
-                            left: NetflixTheme.sm,
-                            bottom: widget.showTitle ? 36 : NetflixTheme.sm,
-                            child: widget.overlayWidget!,
-                          ),
-                        // Hover / Focus glow — glow colorido ao redor do card
-                        if (_isHovered || _isFocused)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  NetflixTheme.radiusMd,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _isFocused
-                                        ? AppColors.primary.withValues(alpha: 0.6)
-                                        : AppColors.primary.withValues(alpha: 0.35),
-                                    blurRadius: _isFocused ? 20 : 14,
-                                    spreadRadius: _isFocused ? 2 : 0,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        // Focus border for TV
-                        if (widget.isTV && _isFocused)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: AppColors.primary,
-                                  width: 3,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  NetflixTheme.radiusMd,
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Hover overlay — leve escurecimento para destacar
-                        if (_isHovered && !_isFocused)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  NetflixTheme.radiusMd,
-                                ),
-                                color: Colors.white.withValues(alpha: 0.08),
-                              ),
-                            ),
-                          ),
-                      ],
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: widget.width,
+                      height: widget.height,
+                      color: NetflixTheme.surfaceLight,
+                      child: const Icon(
+                        Icons.error_outline,
+                        color: NetflixTheme.textTertiary,
+                      ),
                     ),
                   ),
-                ),
+                  // Gradient overlay permanente e suave — Netflix usa
+                  // degradê curto só na base para legibilidade do título.
+                  if (widget.showTitle || widget.showRating)
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.55),
+                              Colors.black.withValues(alpha: 0.85),
+                            ],
+                            stops: const [0.0, 0.6, 0.85, 1.0],
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Rating badge — sem borda, só backdrop escuro
+                  if (widget.showRating && widget.rating != null)
+                    Positioned(
+                      top: NetflixTheme.sm,
+                      right: NetflixTheme.sm,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(
+                            NetflixTheme.radiusSm,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: Colors.amber,
+                              size: 11,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              widget.rating!.toStringAsFixed(1),
+                              style: const TextStyle(
+                                color: NetflixTheme.textPrimary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  // Título sempre visível — Netflix não esconde o título
+                  // ao hover. Degradê permanente garante a legibilidade.
+                  if (widget.showTitle && widget.title != null)
+                    Positioned(
+                      left: NetflixTheme.sm,
+                      right: NetflixTheme.sm,
+                      bottom: NetflixTheme.sm,
+                      child: Text(
+                        widget.title!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: NetflixTheme.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black,
+                              offset: Offset(0, 1),
+                              blurRadius: 3,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  // Custom overlay widget — posicionado no canto
+                  // inferior-esquerdo, acima do título (badge pequeno).
+                  if (widget.overlayWidget != null)
+                    Positioned(
+                      left: NetflixTheme.sm,
+                      bottom: widget.showTitle ? 36 : NetflixTheme.sm,
+                      child: widget.overlayWidget!,
+                    ),
+                  // Hover / Focus glow — glow colorido ao redor do card
+                  if (_isHovered || _isFocused)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            NetflixTheme.radiusMd,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Focus border for TV
+                  if (widget.isTV && _isFocused)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 3,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            NetflixTheme.radiusMd,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Hover overlay — leve escurecimento para destacar
+                  if (_isHovered && !_isFocused)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            NetflixTheme.radiusMd,
+                          ),
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
