@@ -154,9 +154,14 @@ lib/
     │   ├── video_player_aniskip_mixin.dart  # Mixin AniSkip
     │   └── widgets/
     │       ├── blogger_webview_screen.dart
+    │       ├── episode_grid_card.dart      # Card de episódio em modo grid
+    │       ├── episode_list_card.dart      # Card de episódio em modo lista
     │       ├── episode_list_screen.dart
     │       ├── modern_episode_list_screen.dart
-    │       └── video_player_screen.dart
+    │       ├── video_player_info_panel.dart      # Painel de info abaixo do player
+    │       ├── video_player_overlay_controls.dart # Controles de overlay fullscreen
+    │       ├── video_player_screen.dart
+    │       └── video_player_subtitle_sheet.dart   # Seletor de legendas
     │
     ├── search/widgets/
     │   ├── anime_search_screen.dart
