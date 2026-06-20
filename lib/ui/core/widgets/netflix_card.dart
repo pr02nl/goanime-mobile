@@ -18,6 +18,7 @@ class NetflixCard extends StatefulWidget {
   final bool showRating;
   final bool isTV;
   final Widget? overlayWidget;
+  final bool autofocus;
 
   const NetflixCard({
     super.key,
@@ -31,6 +32,7 @@ class NetflixCard extends StatefulWidget {
     this.showRating = true,
     this.isTV = false,
     this.overlayWidget,
+    this.autofocus = false,
   });
 
   @override
@@ -62,6 +64,7 @@ class _NetflixCardState extends State<NetflixCard> {
       onExit: (_) => _handleHover(false),
       cursor: SystemMouseCursors.click,
       child: Focus(
+        autofocus: widget.autofocus,
         onFocusChange: _handleFocus,
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent) {
