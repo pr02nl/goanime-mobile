@@ -64,7 +64,9 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
 
     // Estrutura de foco:
     // • trailing fica num FocusTraversalGroup próprio isolado dos cards.
-    // • cards ficam num FocusTraversalGroup com ReadingOrderTraversalPolicy.
+    // • cards ficam num FocusTraversalGroup com _ClampedTraversalPolicy
+    //   (WidgetOrderTraversalPolicy modificado que prende o foco nos limites
+    //    do carrossel ao navegar horizontalmente).
     // O grupo pai da tela os visita em ordem de widget: trailing → cards.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,7 +100,7 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
 
         // ── Carousel de cards ─────────────────────────────────────────────
         FocusTraversalGroup(
-          policy: WidgetOrderTraversalPolicy(),
+          policy: _ClampedTraversalPolicy(),
           child: SizedBox(
             height: defaultHeight,
             child: Stack(
@@ -245,6 +247,118 @@ class NetflixCarouselShimmer extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _ClampedTraversalPolicy
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Política de travessia que prende (clamp) o foco nos limites do carrossel
+/// ao navegar horizontalmente com setas esquerda/direita, impedindo que
+/// o foco saia do grupo ao chegar no primeiro ou último card.
+///
+/// Navegação vertical (cima/baixo) continua saindo do grupo normalmente
+/// para permitir a transição entre carrosséis.
+///
+/// A implementação isola os nós do mesmo carrossel usando o
+/// [Scrollable] horizontal como chave de agrupamento (cada carrossel
+/// tem seu próprio ListView horizontal), e navega ordenando por posição
+/// horizontal. Nos limites → ou ←, mantém o foco no card atual.
+class _ClampedTraversalPolicy extends WidgetOrderTraversalPolicy {
+  @override
+  bool inDirection(FocusNode currentNode, TraversalDirection direction) {
+    // Deixa navegação vertical (cima/baixo) com o comportamento padrão
+    // — permite sair do grupo para o próximo/ anterior carrossel.
+    if (direction == TraversalDirection.left ||
+        direction == TraversalDirection.right) {
+      return _handleHorizontal(currentNode, direction);
+    }
+    return super.inDirection(currentNode, direction);
+  }
+
+  /// Navegação horizontal: caminha entre os cards do mesmo carrossel
+  /// e prende no primeiro/último quando atinge o limite.
+  bool _handleHorizontal(FocusNode currentNode, TraversalDirection direction) {
+    final scope = currentNode.nearestScope!;
+    final FocusNode? focusedChild = scope.focusedChild;
+    if (focusedChild == null) return false;
+
+    // Descobre a qual carrossel (Scrollable horizontal) o nó atual pertence.
+    final ScrollableState? currentScrollable = Scrollable.maybeOf(
+      focusedChild.context!,
+      axis: Axis.horizontal,
+    );
+
+    // Filtra os descendentes do scope para incluir apenas nós que
+    // compartilham o mesmo Scrollable horizontal (mesmo carrossel).
+    final List<FocusNode> rowNodes = scope.traversalDescendants
+        .where(
+          (FocusNode n) =>
+              n.canRequestFocus &&
+              !n.skipTraversal &&
+              n.context != null &&
+              _sameCarousel(n, currentScrollable, focusedChild),
+        )
+        .toList();
+
+    if (rowNodes.isEmpty) return false;
+
+    // Ordena da esquerda para a direita pela posição horizontal.
+    rowNodes.sort((a, b) => a.rect.center.dx.compareTo(b.rect.center.dx));
+
+    final int idx = rowNodes.indexOf(focusedChild);
+    if (idx < 0) return false;
+
+    if (direction == TraversalDirection.right) {
+      if (idx < rowNodes.length - 1) {
+        _requestFocusInDirection(rowNodes[idx + 1], direction);
+      } else {
+        // Clamp: mantém foco no último card
+        _requestFocusInDirection(focusedChild, direction);
+      }
+    } else {
+      // direction == TraversalDirection.left
+      if (idx > 0) {
+        _requestFocusInDirection(rowNodes[idx - 1], direction);
+      } else {
+        // Clamp: mantém foco no primeiro card
+        _requestFocusInDirection(focusedChild, direction);
+      }
+    }
+    return true;
+  }
+
+  /// Duas formas de determinar se [node] está no mesmo carrossel que o
+  /// nó atualmente focado:
+  ///
+  /// 1. Se ambos compartilham o mesmo [Scrollable] horizontal →
+  ///    estão na mesma [ListView].
+  /// 2. Fallback por sobreposição vertical — mesma faixa de Y.
+  bool _sameCarousel(
+    FocusNode node,
+    ScrollableState? currentScrollable,
+    FocusNode focusedChild,
+  ) {
+    if (currentScrollable != null) {
+      return Scrollable.maybeOf(node.context!, axis: Axis.horizontal) ==
+          currentScrollable;
+    }
+    // Fallback: verifica se os retângulos estão na mesma linha vertical.
+    return (node.rect.top - focusedChild.rect.top).abs() < 1 &&
+        (node.rect.bottom - focusedChild.rect.bottom).abs() < 1;
+  }
+
+  void _requestFocusInDirection(
+    FocusNode target,
+    TraversalDirection direction,
+  ) {
+    requestFocusCallback(
+      target,
+      alignmentPolicy: direction == TraversalDirection.right
+          ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+          : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
     );
   }
 }
