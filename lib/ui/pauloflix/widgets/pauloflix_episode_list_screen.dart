@@ -1,209 +1,120 @@
 /// Tela de lista de episódios do PauloFlix no estilo Netflix.
 ///
 /// Exibe hero banner, seletor de temporadas horizontal e cards de episódio
-/// com thumbnail.
+/// com thumbnail. Usa ViewModel para gerenciamento de estado.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../../data/services/pauloflix_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/pauloflix_content.dart';
-import '../../../domain/models/pauloflix_models.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/pauloflix_badge.dart';
 import '../../player/widgets/video_player_screen.dart';
+import '../view_models/pauloflix_episode_list_viewmodel.dart';
 import 'pauloflix_episode_card.dart';
 import 'pauloflix_season_selector.dart';
 
-class PauloFlixEpisodeListScreen extends StatefulWidget {
+class PauloFlixEpisodeListScreen extends StatelessWidget {
   final PauloFlixContent content;
 
   const PauloFlixEpisodeListScreen({super.key, required this.content});
 
   @override
-  State<PauloFlixEpisodeListScreen> createState() =>
-      _PauloFlixEpisodeListScreenState();
-}
-
-class _PauloFlixEpisodeListScreenState
-    extends State<PauloFlixEpisodeListScreen> {
-  List<PauloFlixSeason> _seasons = [];
-  bool _isLoading = true;
-  String? _error;
-  int _selectedSeasonIndex = 0;
-
-  // Cache de episódios por temporada
-  final Map<int, List<PauloFlixEpisode>> _episodesCache = {};
-  final Map<int, bool> _loadingEpisodes = {};
-  final Map<int, String?> _episodeErrors = {};
-
-  bool get _isTV => MediaQuery.of(context).size.width > 1200;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSeasons();
-  }
-
-  Future<void> _loadSeasons() async {
-    try {
-      final seasons = await PauloFlixService.fetchShowSeasons(
-        widget.content.serverUrl,
-      );
-      setState(() {
-        _seasons = seasons;
-        _isLoading = false;
-      });
-      // Carrega episódios da primeira temporada
-      if (seasons.isNotEmpty) {
-        _loadEpisodes(0);
-      }
-    } catch (e) {
-      setState(() {
-        _error = 'Erro ao carregar temporadas: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadEpisodes(int seasonIndex) async {
-    if (_episodesCache.containsKey(seasonIndex)) return;
-    if (_loadingEpisodes[seasonIndex] == true) return;
-
-    setState(() {
-      _loadingEpisodes[seasonIndex] = true;
-      _episodeErrors[seasonIndex] = null;
-    });
-
-    try {
-      final episodes = await PauloFlixService.fetchSeasonEpisodes(
-        _seasons[seasonIndex].url,
-      );
-      if (mounted) {
-        setState(() {
-          _episodesCache[seasonIndex] = episodes;
-          _loadingEpisodes[seasonIndex] = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _episodeErrors[seasonIndex] = 'Erro ao carregar episódios: $e';
-          _loadingEpisodes[seasonIndex] = false;
-        });
-      }
-    }
-  }
-
-  void _onSeasonSelected(int index) {
-    setState(() => _selectedSeasonIndex = index);
-    _loadEpisodes(index);
-  }
-
-  void _playEpisode(PauloFlixEpisode episode, int index) {
-    final episodes = _episodesCache[_selectedSeasonIndex] ?? [];
-    final episodeList = episodes
-        .map(
-          (e) => Episode(
-            number: e.number.toString(),
-            url: e.url,
-            title: e.title,
-          ),
-        )
-        .toList();
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ModernVideoPlayerScreen(
-          episode: episodeList[index],
-          episodeList: episodeList,
-          episodeIndex: index,
-          animeTitle: widget.content.displayName,
-          anime: Anime(
-            name: widget.content.displayName,
-            url: widget.content.serverUrl,
-            source: AnimeSource.pauloFlix,
-            fallbackImageUrl: widget.content.imageUrl,
-          ),
-        ),
-      ),
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => PauloFlixEpisodeListViewModel(content: content)
+        ..loadSeasons(),
+      child: const _PauloFlixEpisodeListView(),
     );
   }
+}
+
+class _PauloFlixEpisodeListView extends StatelessWidget {
+  const _PauloFlixEpisodeListView();
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<PauloFlixEpisodeListViewModel>();
+    final isTV = MediaQuery.of(context).size.width > 1200;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
           // Hero Banner
-          _buildHeroBanner(),
+          _HeroBanner(content: vm.content),
 
           // Info Panel
-          SliverToBoxAdapter(child: _buildInfoPanel()),
+          SliverToBoxAdapter(child: _InfoPanel(content: vm.content)),
 
           // Season Selector
-          if (!_isLoading && _seasons.isNotEmpty)
+          if (!vm.isLoading && vm.hasSeasons)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: PauloflixSeasonSelector(
-                  seasons: _seasons,
-                  selectedIndex: _selectedSeasonIndex,
-                  onSeasonSelected: _onSeasonSelected,
+                  seasons: vm.seasons,
+                  selectedIndex: vm.selectedSeasonIndex,
+                  onSeasonSelected: (index) => vm.selectSeason(index),
                 ),
               ),
             ),
 
-          // Loading State
-          if (_isLoading)
+          // Content States
+          if (vm.isLoading)
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),
             )
-          // Error State
-          else if (_error != null)
-            SliverFillRemaining(child: _buildErrorState())
-          // Episodes
+          else if (vm.errorMessage != null)
+            SliverFillRemaining(child: _ErrorState(errorMessage: vm.errorMessage!))
           else
-            _buildEpisodesList(),
+            _EpisodesList(isTV: isTV),
         ],
       ),
     );
   }
+}
 
-  Widget _buildHeroBanner() {
+// --- Hero Banner ---
+
+class _HeroBanner extends StatelessWidget {
+  final PauloFlixContent content;
+
+  const _HeroBanner({required this.content});
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<PauloFlixEpisodeListViewModel>();
+    final isTV = MediaQuery.of(context).size.width > 1200;
+
     return SliverAppBar(
-      expandedHeight: _isTV ? 350 : 280,
+      expandedHeight: isTV ? 350 : 280,
       pinned: true,
       backgroundColor: AppColors.background,
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
-          widget.content.displayName,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+          content.displayName,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         background: Stack(
           fit: StackFit.expand,
           children: [
             // Banner Image
-            if (widget.content.bannerUrl != null)
+            if (content.bannerUrl != null)
               Image.network(
-                widget.content.bannerUrl!,
+                content.bannerUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildBannerFallback(),
+                errorBuilder: (context, error, stackTrace) => _buildFallback(),
               )
             else
-              _buildBannerFallback(),
+              _buildFallback(),
 
-            // Gradient Overlay (topo)
+            // Gradient Top
             Positioned(
               top: 0,
               left: 0,
@@ -223,7 +134,7 @@ class _PauloFlixEpisodeListScreenState
               ),
             ),
 
-            // Gradient Overlay (base)
+            // Gradient Bottom
             Positioned(
               bottom: 0,
               left: 0,
@@ -240,8 +151,8 @@ class _PauloFlixEpisodeListScreenState
               ),
             ),
 
-            // Play Button (centro)
-            if (_seasons.isNotEmpty)
+            // Play Button
+            if (vm.hasSeasons)
               Positioned(
                 bottom: 60,
                 left: 0,
@@ -249,10 +160,9 @@ class _PauloFlixEpisodeListScreenState
                 child: Center(
                   child: FocusableWidget(
                     onSelect: () {
-                      final episodes =
-                          _episodesCache[_selectedSeasonIndex] ?? [];
+                      final episodes = vm.episodes;
                       if (episodes.isNotEmpty) {
-                        _playEpisode(episodes.first, 0);
+                        _playEpisode(context, episodes.first, 0);
                       }
                     },
                     borderRadius: 30,
@@ -298,7 +208,7 @@ class _PauloFlixEpisodeListScreenState
     );
   }
 
-  Widget _buildBannerFallback() {
+  Widget _buildFallback() {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -308,26 +218,64 @@ class _PauloFlixEpisodeListScreenState
         ),
       ),
       child: const Center(
-        child: Icon(
-          Icons.movie_outlined,
-          color: Colors.white12,
-          size: 80,
-        ),
+        child: Icon(Icons.movie_outlined, color: Colors.white12, size: 80),
       ),
     );
   }
 
-  Widget _buildInfoPanel() {
+  void _playEpisode(BuildContext context, dynamic episode, int index) {
+    final vm = context.read<PauloFlixEpisodeListViewModel>();
+    final episodes = vm.episodes
+        .map(
+          (e) => Episode(
+            number: e.number.toString(),
+            url: e.url,
+            title: e.title,
+          ),
+        )
+        .toList();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ModernVideoPlayerScreen(
+          episode: episodes[index],
+          episodeList: episodes,
+          episodeIndex: index,
+          animeTitle: vm.content.displayName,
+          anime: Anime(
+            name: vm.content.displayName,
+            url: vm.content.serverUrl,
+            source: AnimeSource.pauloFlix,
+            fallbackImageUrl: vm.content.imageUrl,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Info Panel ---
+
+class _InfoPanel extends StatelessWidget {
+  final PauloFlixContent content;
+
+  const _InfoPanel({required this.content});
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<PauloFlixEpisodeListViewModel>();
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row de badges
+          // Badges Row
           Row(
             children: [
               const PauloFlixBadge(),
-              if (widget.content.score != null) ...[
+              if (content.score != null) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -341,7 +289,7 @@ class _PauloFlixEpisodeListScreenState
                       const Icon(Icons.star, color: Colors.amber, size: 14),
                       const SizedBox(width: 4),
                       Text(
-                        widget.content.score!.toStringAsFixed(1),
+                        content.score!.toStringAsFixed(1),
                         style: const TextStyle(
                           color: Colors.amber,
                           fontWeight: FontWeight.bold,
@@ -352,7 +300,7 @@ class _PauloFlixEpisodeListScreenState
                   ),
                 ),
               ],
-              if (_seasons.isNotEmpty) ...[
+              if (vm.hasSeasons) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -361,11 +309,8 @@ class _PauloFlixEpisodeListScreenState
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '${_seasons.length} ${_seasons.length == 1 ? 'temporada' : 'temporadas'}',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
+                    '${vm.seasons.length} ${vm.seasons.length == 1 ? 'temporada' : 'temporadas'}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ),
               ],
@@ -373,10 +318,10 @@ class _PauloFlixEpisodeListScreenState
           ),
 
           // Descrição
-          if (widget.content.description != null) ...[
+          if (content.description != null) ...[
             const SizedBox(height: 12),
             Text(
-              widget.content.description!,
+              content.description!,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 14,
@@ -388,12 +333,12 @@ class _PauloFlixEpisodeListScreenState
           ],
 
           // Gêneros
-          if (widget.content.genres.isNotEmpty) ...[
+          if (content.genres.isNotEmpty) ...[
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: widget.content.genres
+              children: content.genres
                   .take(5)
                   .map(
                     (genre) => Container(
@@ -407,10 +352,7 @@ class _PauloFlixEpisodeListScreenState
                       ),
                       child: Text(
                         genre,
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 11,
-                        ),
+                        style: const TextStyle(color: AppColors.primary, fontSize: 11),
                       ),
                     ),
                   )
@@ -421,32 +363,39 @@ class _PauloFlixEpisodeListScreenState
       ),
     );
   }
+}
 
-  Widget _buildErrorState() {
+// --- Error State ---
+
+class _ErrorState extends StatelessWidget {
+  final String errorMessage;
+
+  const _ErrorState({required this.errorMessage});
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final vm = context.read<PauloFlixEpisodeListViewModel>();
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 48,
-            ),
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
             const SizedBox(height: 16),
             Text(
-              _error!,
+              errorMessage,
               style: const TextStyle(color: Colors.white70),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             FocusableWidget(
-              onSelect: _loadSeasons,
+              onSelect: vm.refresh,
               borderRadius: 8,
               child: ElevatedButton.icon(
-                onPressed: _loadSeasons,
+                onPressed: vm.refresh,
                 icon: const Icon(Icons.refresh),
                 label: Text(l10n.retry),
                 style: ElevatedButton.styleFrom(
@@ -461,20 +410,28 @@ class _PauloFlixEpisodeListScreenState
       ),
     );
   }
+}
 
-  Widget _buildEpisodesList() {
-    final currentSeason = _seasons[_selectedSeasonIndex];
-    final isLoadingEpisodes = _loadingEpisodes[_selectedSeasonIndex] == true;
-    final episodeError = _episodeErrors[_selectedSeasonIndex];
-    final episodes = _episodesCache[_selectedSeasonIndex];
+// --- Episodes List ---
 
-    if (isLoadingEpisodes) {
+class _EpisodesList extends StatelessWidget {
+  final bool isTV;
+
+  const _EpisodesList({required this.isTV});
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<PauloFlixEpisodeListViewModel>();
+
+    // Loading
+    if (vm.isLoadingEpisodes) {
       return const SliverFillRemaining(
         child: Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (episodeError != null) {
+    // Error
+    if (vm.episodeError != null) {
       return SliverFillRemaining(
         child: Center(
           child: Padding(
@@ -485,16 +442,16 @@ class _PauloFlixEpisodeListScreenState
                 const Icon(Icons.error_outline, color: Colors.red, size: 40),
                 const SizedBox(height: 12),
                 Text(
-                  episodeError,
+                  vm.episodeError!,
                   style: const TextStyle(color: Colors.white70),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 FocusableWidget(
-                  onSelect: () => _loadEpisodes(_selectedSeasonIndex),
+                  onSelect: () => vm.loadEpisodes(vm.selectedSeasonIndex),
                   borderRadius: 8,
                   child: TextButton(
-                    onPressed: () => _loadEpisodes(_selectedSeasonIndex),
+                    onPressed: () => vm.loadEpisodes(vm.selectedSeasonIndex),
                     child: const Text('Tentar novamente'),
                   ),
                 ),
@@ -505,7 +462,8 @@ class _PauloFlixEpisodeListScreenState
       );
     }
 
-    if (episodes == null || episodes.isEmpty) {
+    // Empty
+    if (vm.episodes.isEmpty) {
       return const SliverFillRemaining(
         child: Center(
           child: Column(
@@ -513,33 +471,63 @@ class _PauloFlixEpisodeListScreenState
             children: [
               Icon(Icons.video_library_outlined, size: 48, color: Colors.white24),
               SizedBox(height: 12),
-              Text(
-                'Nenhum episódio encontrado',
-                style: TextStyle(color: Colors.white54),
-              ),
+              Text('Nenhum episódio encontrado', style: TextStyle(color: Colors.white54)),
             ],
           ),
         ),
       );
     }
 
+    // Episodes
+    final season = vm.selectedSeason;
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
-            final episode = episodes[index];
+            final episode = vm.episodes[index];
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: PauloflixEpisodeCard(
                 episode: episode,
-                seasonNumber: currentSeason.number,
-                isTV: _isTV,
-                onTap: () => _playEpisode(episode, index),
+                seasonNumber: season?.number ?? 1,
+                isTV: isTV,
+                onTap: () => _playEpisode(context, episode, index),
               ),
             );
           },
-          childCount: episodes.length,
+          childCount: vm.episodes.length,
+        ),
+      ),
+    );
+  }
+
+  void _playEpisode(BuildContext context, dynamic episode, int index) {
+    final vm = context.read<PauloFlixEpisodeListViewModel>();
+    final episodes = vm.episodes
+        .map(
+          (e) => Episode(
+            number: e.number.toString(),
+            url: e.url,
+            title: e.title,
+          ),
+        )
+        .toList();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ModernVideoPlayerScreen(
+          episode: episodes[index],
+          episodeList: episodes,
+          episodeIndex: index,
+          animeTitle: vm.content.displayName,
+          anime: Anime(
+            name: vm.content.displayName,
+            url: vm.content.serverUrl,
+            source: AnimeSource.pauloFlix,
+            fallbackImageUrl: vm.content.imageUrl,
+          ),
         ),
       ),
     );
