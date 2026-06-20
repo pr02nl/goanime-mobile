@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -1007,6 +1008,52 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     final isTV = _isTVDevice == true;
     final hasEpisodes = !widget.isMovie && widget.episodeList != null;
 
+    log(
+      '[VideoPlayer] Building fullscreen content (isTV: $isTV, hasEpisodes: $hasEpisodes)',
+    );
+
+    // Atalhos de teclado customizados para TV (D-pad)
+    // O MaterialDesktopVideoControls NÃO trata select/enter por padrão.
+    final tvKeyboardShortcuts = <ShortcutActivator, VoidCallback>{
+      // Select/Enter → play/pause (botão do meio do D-pad)
+      const SingleActivator(LogicalKeyboardKey.select): () {
+        _player?.playOrPause();
+        _showOverlayControlsAndResetTimer();
+      },
+      const SingleActivator(LogicalKeyboardKey.enter): () {
+        _player?.playOrPause();
+        _showOverlayControlsAndResetTimer();
+      },
+      // Space → play/pause (já existe no padrão, mas reforçamos)
+      const SingleActivator(LogicalKeyboardKey.space): () {
+        _player?.playOrPause();
+        _showOverlayControlsAndResetTimer();
+      },
+      // Setas → mostrar controles
+      const SingleActivator(LogicalKeyboardKey.arrowLeft): () {
+        _showOverlayControlsAndResetTimer();
+      },
+      const SingleActivator(LogicalKeyboardKey.arrowRight): () {
+        _showOverlayControlsAndResetTimer();
+      },
+      const SingleActivator(LogicalKeyboardKey.arrowUp): () {
+        _showOverlayControlsAndResetTimer();
+      },
+      const SingleActivator(LogicalKeyboardKey.arrowDown): () {
+        _showOverlayControlsAndResetTimer();
+      },
+      // N/P → próximo/anterior episódio
+      if (hasEpisodes && _hasNextEpisode)
+        const SingleActivator(LogicalKeyboardKey.keyN): _goToNextEpisode,
+      if (hasEpisodes && _hasPreviousEpisode)
+        const SingleActivator(LogicalKeyboardKey.keyP): _goToPreviousEpisode,
+      // Media keys
+      const SingleActivator(LogicalKeyboardKey.mediaPlayPause): () {
+        _player?.playOrPause();
+        _showOverlayControlsAndResetTimer();
+      },
+    };
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _showOverlayControlsAndResetTimer,
@@ -1016,16 +1063,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Vídeo SEM Focus wrapper — o MaterialDesktopVideoControls
-              // precisa de autofocus interno para seus CallbackShortcuts funcionarem.
-              // Usamos HardwareKeyboard (já instalado no initState) para interceptar
-              // Esc e outras teclas sem competir pelo foco.
+              // Vídeo com MaterialDesktopVideoControls (TV)
               _videoController != null
                   ? (isTV
                         ? MaterialDesktopVideoControlsTheme(
                             normal: MaterialDesktopVideoControlsThemeData(
                               visibleOnMount: true,
                               playAndPauseOnTap: true,
+                              keyboardShortcuts: tvKeyboardShortcuts,
                               bottomButtonBar: [
                                 if (hasEpisodes && _hasPreviousEpisode)
                                   EpisodeSkipPreviousButton(
@@ -1045,6 +1090,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                             fullscreen: MaterialDesktopVideoControlsThemeData(
                               visibleOnMount: true,
                               playAndPauseOnTap: true,
+                              keyboardShortcuts: tvKeyboardShortcuts,
                               bottomButtonBar: [
                                 if (hasEpisodes && _hasPreviousEpisode)
                                   EpisodeSkipPreviousButton(
@@ -1244,9 +1290,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                         ),
                       const MaterialDesktopPlayOrPauseButton(),
                       if (hasEpisodes && _hasNextEpisode)
-                        EpisodeSkipNextButton(
-                          onPressed: _goToNextEpisode,
-                        ),
+                        EpisodeSkipNextButton(onPressed: _goToNextEpisode),
                       const MaterialDesktopVolumeButton(),
                       const MaterialDesktopPositionIndicator(),
                       const Spacer(),
@@ -1263,9 +1307,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                         ),
                       const MaterialDesktopPlayOrPauseButton(),
                       if (hasEpisodes && _hasNextEpisode)
-                        EpisodeSkipNextButton(
-                          onPressed: _goToNextEpisode,
-                        ),
+                        EpisodeSkipNextButton(onPressed: _goToNextEpisode),
                       const MaterialDesktopVolumeButton(),
                       const MaterialDesktopPositionIndicator(),
                       const Spacer(),
