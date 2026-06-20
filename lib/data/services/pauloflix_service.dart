@@ -152,8 +152,21 @@ class PauloFlixService {
   }
 
   static int? _extractSeasonNumber(String name) {
-    final match = RegExp(r'Season\s+(\d+)').firstMatch(name);
-    if (match != null) return int.tryParse(match.group(1)!);
+    // Padrão 1: "Season 01", "Season 1" (formato completo)
+    final seasonMatch = RegExp(r'Season\s+(\d+)', caseSensitive: false)
+        .firstMatch(name);
+    if (seasonMatch != null) return int.tryParse(seasonMatch.group(1)!);
+
+    // Padrão 2: "S01", "S1" (abreviação comum)
+    // Cuida de "S01 - East Blue", "S01E01", "S01_Arco_X", etc.
+    final sMatch = RegExp(r'\bS(\d+)\b').firstMatch(name);
+    if (sMatch != null) return int.tryParse(sMatch.group(1)!);
+
+    // Padrão 3: "Temporada 01" (português)
+    final ptMatch = RegExp(r'Temporada\s+(\d+)', caseSensitive: false)
+        .firstMatch(name);
+    if (ptMatch != null) return int.tryParse(ptMatch.group(1)!);
+
     return null;
   }
 
