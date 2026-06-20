@@ -37,8 +37,7 @@ class NetflixCard extends StatefulWidget {
   State<NetflixCard> createState() => _NetflixCardState();
 }
 
-class _NetflixCardState extends State<NetflixCard>
-    with SingleTickerProviderStateMixin {
+class _NetflixCardState extends State<NetflixCard> {
   bool _isHovered = false;
   bool _isFocused = false;
 
@@ -126,10 +125,19 @@ class _NetflixCardState extends State<NetflixCard>
                     errorWidget: (context, url, error) => Container(
                       width: widget.width,
                       height: widget.height,
-                      color: NetflixTheme.surfaceLight,
-                      child: const Icon(
-                        Icons.error_outline,
-                        color: NetflixTheme.textTertiary,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+                        ),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.movie_outlined,
+                          color: Colors.white24,
+                          size: 40,
+                        ),
                       ),
                     ),
                   ),
