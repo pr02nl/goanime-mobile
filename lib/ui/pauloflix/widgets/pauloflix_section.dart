@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../l10n/app_localizations.dart';
-import '../utils/responsive.dart';
-import 'netflix_card.dart';
-import 'netflix_carousel.dart';
-import 'pauloflix_badge.dart';
+import '../../core/utils/responsive.dart';
+import '../../core/widgets/netflix_card.dart';
+import '../../core/widgets/netflix_carousel.dart';
+import '../../core/widgets/pauloflix_badge.dart';
+import '../../core/widgets/see_all_card.dart';
 
 // Cor identidade PauloFlix animes (índigo)
 const _kPauloFlixColor = Color(0xFF6366F1);

@@ -12,8 +12,9 @@ import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
-import '../../core/widgets/pauloflix_section.dart';
+import '../../core/widgets/see_all_card.dart';
 import '../../pauloflix/view_models/pauloflix_provider.dart';
+import '../../pauloflix/widgets/pauloflix_section.dart';
 import '../view_models/home_viewmodel.dart';
 
 class HomeScreen extends StatefulWidget {
