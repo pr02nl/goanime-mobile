@@ -18,6 +18,7 @@ import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/skip_button.dart';
 import '../video_player_aniskip_mixin.dart';
 import 'blogger_webview_screen.dart';
+import 'video_player_episode_buttons.dart';
 import 'video_player_info_panel.dart';
 import 'video_player_subtitle_sheet.dart';
 
@@ -1004,6 +1005,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   Widget _buildFullscreenContent() {
     final isTV = _isTVDevice == true;
+    final hasEpisodes = !widget.isMovie && widget.episodeList != null;
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _showOverlayControlsAndResetTimer,
@@ -1013,44 +1016,55 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           child: Stack(
             fit: StackFit.expand,
             children: [
+              // Vídeo SEM Focus wrapper — o MaterialDesktopVideoControls
+              // precisa de autofocus interno para seus CallbackShortcuts funcionarem.
+              // Usamos HardwareKeyboard (já instalado no initState) para interceptar
+              // Esc e outras teclas sem competir pelo foco.
               _videoController != null
                   ? (isTV
                         ? MaterialDesktopVideoControlsTheme(
-                            normal: const MaterialDesktopVideoControlsThemeData(
+                            normal: MaterialDesktopVideoControlsThemeData(
                               visibleOnMount: true,
                               playAndPauseOnTap: true,
+                              bottomButtonBar: [
+                                if (hasEpisodes && _hasPreviousEpisode)
+                                  EpisodeSkipPreviousButton(
+                                    onPressed: _goToPreviousEpisode,
+                                  ),
+                                const MaterialDesktopPlayOrPauseButton(),
+                                if (hasEpisodes && _hasNextEpisode)
+                                  EpisodeSkipNextButton(
+                                    onPressed: _goToNextEpisode,
+                                  ),
+                                const MaterialDesktopVolumeButton(),
+                                const MaterialDesktopPositionIndicator(),
+                                const Spacer(),
+                                const MaterialDesktopFullscreenButton(),
+                              ],
                             ),
-                            fullscreen:
-                                const MaterialDesktopVideoControlsThemeData(
-                                  visibleOnMount: true,
-                                  playAndPauseOnTap: true,
-                                ),
-                            child: Focus(
-                              autofocus: true,
-                              onKeyEvent: (node, event) {
-                                if (event is! KeyDownEvent) {
-                                  return KeyEventResult.ignored;
-                                }
-                                final key = event.logicalKey;
-                                if (key == LogicalKeyboardKey.mediaTrackNext ||
-                                    key == LogicalKeyboardKey.keyN) {
-                                  _goToNextEpisode();
-                                  return KeyEventResult.handled;
-                                }
-                                if (key ==
-                                        LogicalKeyboardKey.mediaTrackPrevious ||
-                                    key == LogicalKeyboardKey.keyP) {
-                                  _goToPreviousEpisode();
-                                  return KeyEventResult.handled;
-                                }
-                                _showOverlayControlsAndResetTimer();
-                                return KeyEventResult.ignored;
-                              },
-                              child: Video(
-                                controller: _videoController!,
-                                fit: BoxFit.contain,
-                                controls: MaterialDesktopVideoControls,
-                              ),
+                            fullscreen: MaterialDesktopVideoControlsThemeData(
+                              visibleOnMount: true,
+                              playAndPauseOnTap: true,
+                              bottomButtonBar: [
+                                if (hasEpisodes && _hasPreviousEpisode)
+                                  EpisodeSkipPreviousButton(
+                                    onPressed: _goToPreviousEpisode,
+                                  ),
+                                const MaterialDesktopPlayOrPauseButton(),
+                                if (hasEpisodes && _hasNextEpisode)
+                                  EpisodeSkipNextButton(
+                                    onPressed: _goToNextEpisode,
+                                  ),
+                                const MaterialDesktopVolumeButton(),
+                                const MaterialDesktopPositionIndicator(),
+                                const Spacer(),
+                                const MaterialDesktopFullscreenButton(),
+                              ],
+                            ),
+                            child: Video(
+                              controller: _videoController!,
+                              fit: BoxFit.contain,
+                              controls: MaterialDesktopVideoControls,
                             ),
                           )
                         : Video(
@@ -1108,62 +1122,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                   ),
                 ),
               ),
-              // Botões próximo/anterior episódio (canto inferior direito)
-              if (!widget.isMovie && widget.episodeList != null)
-                Positioned(
-                  bottom: isTV ? 40 : 80,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: AnimatedOpacity(
-                      opacity: _showOverlayControls ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_hasPreviousEpisode)
-                            FocusableWidget(
-                              onSelect: _goToPreviousEpisode,
-                              borderRadius: 24,
-                              focusPadding: EdgeInsets.zero,
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.skip_previous_rounded,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                            ),
-                          if (_hasNextEpisode)
-                            FocusableWidget(
-                              onSelect: _goToNextEpisode,
-                              borderRadius: 24,
-                              focusPadding: EdgeInsets.zero,
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.skip_next_rounded,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              // Skip Button Overlay
+              // Skip Button Overlay (AniSkip)
               Positioned(
                 bottom: isTV ? 40 : 80,
                 right: isTV ? 40 : 24,
@@ -1268,18 +1227,50 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   }
 
   Widget _buildTVPlayerLayout() {
+    final hasEpisodes = !widget.isMovie && widget.episodeList != null;
+
     return Stack(
       children: [
         SizedBox.expand(
           child: _videoController != null
               ? MaterialDesktopVideoControlsTheme(
-                  normal: const MaterialDesktopVideoControlsThemeData(
+                  normal: MaterialDesktopVideoControlsThemeData(
                     visibleOnMount: true,
                     playAndPauseOnTap: true,
+                    bottomButtonBar: [
+                      if (hasEpisodes && _hasPreviousEpisode)
+                        EpisodeSkipPreviousButton(
+                          onPressed: _goToPreviousEpisode,
+                        ),
+                      const MaterialDesktopPlayOrPauseButton(),
+                      if (hasEpisodes && _hasNextEpisode)
+                        EpisodeSkipNextButton(
+                          onPressed: _goToNextEpisode,
+                        ),
+                      const MaterialDesktopVolumeButton(),
+                      const MaterialDesktopPositionIndicator(),
+                      const Spacer(),
+                      const MaterialDesktopFullscreenButton(),
+                    ],
                   ),
-                  fullscreen: const MaterialDesktopVideoControlsThemeData(
+                  fullscreen: MaterialDesktopVideoControlsThemeData(
                     visibleOnMount: true,
                     playAndPauseOnTap: true,
+                    bottomButtonBar: [
+                      if (hasEpisodes && _hasPreviousEpisode)
+                        EpisodeSkipPreviousButton(
+                          onPressed: _goToPreviousEpisode,
+                        ),
+                      const MaterialDesktopPlayOrPauseButton(),
+                      if (hasEpisodes && _hasNextEpisode)
+                        EpisodeSkipNextButton(
+                          onPressed: _goToNextEpisode,
+                        ),
+                      const MaterialDesktopVolumeButton(),
+                      const MaterialDesktopPositionIndicator(),
+                      const Spacer(),
+                      const MaterialDesktopFullscreenButton(),
+                    ],
                   ),
                   child: Video(
                     controller: _videoController!,
@@ -1326,7 +1317,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
               child: AspectRatio(
                 aspectRatio: _calculateAspectRatio(),
                 child: _videoController != null
-                    ? Video(controller: _videoController!, fit: BoxFit.contain)
+                    ? Video(
+                        controller: _videoController!,
+                        fit: BoxFit.contain,
+                        controls: MaterialVideoControls,
+                      )
                     : Container(color: Colors.black),
               ),
             ),
