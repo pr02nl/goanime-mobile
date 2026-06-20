@@ -41,9 +41,7 @@ class PauloFlixSeeAllScreen extends StatelessWidget {
           const SliverToBoxAdapter(child: _SearchBar()),
 
           // Results Count
-          SliverToBoxAdapter(
-            child: _ResultsCount(count: contents.length),
-          ),
+          SliverToBoxAdapter(child: _ResultsCount(count: contents.length)),
 
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
@@ -149,7 +147,11 @@ class PauloFlixSeeAllScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, AppLocalizations l10n, bool isSyncing) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    AppLocalizations l10n,
+    bool isSyncing,
+  ) {
     return SliverFillRemaining(
       child: Center(
         child: Column(
@@ -171,13 +173,17 @@ class PauloFlixSeeAllScreen extends StatelessWidget {
             if (!isSyncing) ...[
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () => context.read<PauloFlixProvider>().syncContent(),
+                onPressed: () =>
+                    context.read<PauloFlixProvider>().syncContent(),
                 icon: const Icon(Icons.sync),
                 label: Text(l10n.syncContent),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6366F1),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
@@ -207,13 +213,10 @@ class PauloFlixSeeAllScreen extends StatelessWidget {
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final content = contents[index];
-            return _ContentCard(content: content);
-          },
-          childCount: contents.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final content = contents[index];
+          return _ContentCard(content: content);
+        }, childCount: contents.length),
       ),
     );
   }
@@ -259,7 +262,10 @@ class _SearchBarState extends State<_SearchBar> {
         decoration: InputDecoration(
           hintText: 'Buscar anime...',
           hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-          prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.5)),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Colors.white.withValues(alpha: 0.5),
+          ),
           suffixIcon: _query.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear, color: Colors.white54),
@@ -322,7 +328,7 @@ class _ContentCard extends StatelessWidget {
       rating: content.score,
       width: cardWidth,
       height: cardHeight,
-      isTV: false, // TVDetector é estático, pode usar TVDetector.isTV
+      isTV: true, // TVDetector é estático, pode usar TVDetector.isTV
       onTap: () {
         Navigator.push(
           context,

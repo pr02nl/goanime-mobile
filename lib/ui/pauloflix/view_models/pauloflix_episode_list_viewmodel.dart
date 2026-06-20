@@ -40,6 +40,7 @@ class PauloFlixEpisodeListViewModel extends ChangeNotifier {
   List<PauloFlixSeason> _seasons = [];
   int _selectedSeasonIndex = 0;
   String? _errorMessage;
+  bool _disposed = false;
 
   // Cache de episódios por índice de temporada
   final Map<int, List<PauloFlixEpisode>> _episodesCache = {};
@@ -69,30 +70,40 @@ class PauloFlixEpisodeListViewModel extends ChangeNotifier {
   PauloFlixSeason? get selectedSeason =>
       _seasons.isNotEmpty ? _seasons[_selectedSeasonIndex] : null;
 
+  // --- Helpers ---
+
+  /// Notifica listeners apenas se o ViewModel ainda não foi disposed.
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   // --- Ações ---
 
   /// Carrega as temporadas do show.
   Future<void> loadSeasons() async {
     _status = PauloFlixEpisodeStatus.loading;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _seasons = await PauloFlixService.fetchShowSeasons(content.serverUrl);
+      if (_disposed) return;
+
       _status = PauloFlixEpisodeStatus.loaded;
 
       // Carrega episódios da primeira temporada automaticamente
       if (_seasons.isNotEmpty) {
         _selectedSeasonIndex = 0;
-        notifyListeners();
+        _safeNotify();
         await loadEpisodes(0);
       } else {
-        notifyListeners();
+        _safeNotify();
       }
     } catch (e) {
+      if (_disposed) return;
       _errorMessage = 'Erro ao carregar temporadas: $e';
       _status = PauloFlixEpisodeStatus.error;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -102,7 +113,7 @@ class PauloFlixEpisodeListViewModel extends ChangeNotifier {
     if (index < 0 || index >= _seasons.length) return;
 
     _selectedSeasonIndex = index;
-    notifyListeners();
+    _safeNotify();
 
     // Carrega episódios se ainda não tiver em cache
     await loadEpisodes(index);
@@ -118,19 +129,22 @@ class PauloFlixEpisodeListViewModel extends ChangeNotifier {
 
     _loadingEpisodes[seasonIndex] = true;
     _episodeErrors[seasonIndex] = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final episodes = await PauloFlixService.fetchSeasonEpisodes(
         _seasons[seasonIndex].url,
       );
+      if (_disposed) return;
+
       _episodesCache[seasonIndex] = episodes;
       _loadingEpisodes[seasonIndex] = false;
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
+      if (_disposed) return;
       _episodeErrors[seasonIndex] = 'Erro ao carregar episódios: $e';
       _loadingEpisodes[seasonIndex] = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -140,5 +154,11 @@ class PauloFlixEpisodeListViewModel extends ChangeNotifier {
     _loadingEpisodes.clear();
     _episodeErrors.clear();
     await loadSeasons();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }
