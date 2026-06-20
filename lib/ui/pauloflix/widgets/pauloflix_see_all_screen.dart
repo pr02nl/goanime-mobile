@@ -12,6 +12,7 @@ import '../../../domain/models/pauloflix_content.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
+import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/pauloflix_badge.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
@@ -73,10 +74,15 @@ class PauloFlixSeeAllScreen extends StatelessWidget {
             ),
           )
         else
-          IconButton(
-            icon: const Icon(Icons.sync),
-            tooltip: l10n.sync,
-            onPressed: provider.syncContent,
+          FocusableWidget(
+            onSelect: provider.syncContent,
+            borderRadius: 24,
+            focusPadding: EdgeInsets.zero,
+            child: IconButton(
+              icon: const Icon(Icons.sync),
+              tooltip: l10n.sync,
+              onPressed: provider.syncContent,
+            ),
           ),
       ],
       flexibleSpace: FlexibleSpaceBar(
@@ -153,15 +159,11 @@ class _SearchBarWithGrid extends StatefulWidget {
 
 class _SearchBarWithGridState extends State<_SearchBarWithGrid> {
   final TextEditingController _controller = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
-  final FocusNode _gridFocusNode = FocusNode();
   String _query = '';
 
   @override
   void dispose() {
     _controller.dispose();
-    _searchFocusNode.dispose();
-    _gridFocusNode.dispose();
     super.dispose();
   }
 
@@ -210,8 +212,6 @@ class _SearchBarWithGridState extends State<_SearchBarWithGrid> {
             padding: const EdgeInsets.all(16),
             child: TVSafeTextField(
               controller: _controller,
-              focusNode: _searchFocusNode,
-              downFocusNode: _gridFocusNode,
               onChanged: _onChanged,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
