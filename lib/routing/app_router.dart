@@ -70,6 +70,11 @@ GoRouter createAppRouter({String? initialError}) {
             builder: (context, state) => const PauloFlixMoviesSearchScreen(),
           ),
           GoRoute(
+            path: '/pauloflix-see-all',
+            name: 'pauloflix-see-all',
+            builder: (context, state) => const PauloFlixSeeAllScreen(),
+          ),
+          GoRoute(
             path: '/error',
             name: 'error',
             builder: (context, state) =>
@@ -99,11 +104,6 @@ GoRouter createAppRouter({String? initialError}) {
           final content = state.extra as PauloFlixContent;
           return PauloFlixEpisodeListScreen(content: content);
         },
-      ),
-      GoRoute(
-        path: '/pauloflix-see-all',
-        name: 'pauloflix-see-all',
-        builder: (context, state) => const PauloFlixSeeAllScreen(),
       ),
       GoRoute(
         path: '/source-selection',
