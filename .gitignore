@@ -33,6 +33,12 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Drift codegen — gerado por build_runner, ignorado por padrão
+**/*.g.dart
+# Exceção: testes que precisam do codegen versionado
+!test/**/__generated__/
+!test/database/_codegen/**
+
 # Symbolication related
 app.*.symbols
 
