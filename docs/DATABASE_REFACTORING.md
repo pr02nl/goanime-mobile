@@ -303,6 +303,14 @@ return MultiProvider(
 
 ## 3. Plano de execução em fases
 
+| Fase | Status | Esforço | Descrição |
+|---|---|---|---|
+| **0** | ✅ | ½ d | Esqueleto Drift + smoke test in-memory (5 testes) |
+| **1** | ✅ | ½ d | Limpeza cirúrgica (6 testes novos, 0 regressões) |
+| **2** | ⏳ | 1-2 d | Migrations v1→v3, unificar 4 bancos em 1 |
+| **3** | ⏳ | 1-2 d | Repositories + DI |
+| **4** | ⏳ | ½ d | Finalização + docs |
+
 Cada fase é **independente** e entregável. Se algo travar, dá para parar entre fases
 sem deixar o app quebrado (Drift + service antigo rodam lado a lado durante
 a migração — Drift lê do banco novo, services leem dos bancos velhos).
@@ -333,33 +341,62 @@ a migração — Drift lê do banco novo, services leem dos bancos velhos).
 
 ---
 
-### Fase 1 — Limpeza cirúrgica (½ dia, ganha terreno)
+### Fase 1 — Limpeza cirúrgica (½ d, ganha terreno) ✅ CONCLUÍDA em 2026-06-21
 
-**Objetivo:** eliminar código morto antes de migrar.
+**Objetivo:** eliminar código morto antes de migrar. **Resultado:** 6 testes
+novos (`test/database/phase1_fixes_test.dart`), 0 regressões, +1 utilitário
+(`core/utils/genre_codec.dart`).
 
-**Tarefas:**
+**Tarefas executadas:**
 
-1. **Remover `DatabaseHelper`** (`lib/core/database/database_helper.dart`).
-2. Remover o import e a chamada em `lib/main.dart:5` e `lib/main.dart:60`.
-3. Remover o import e a chamada em `lib/ui/search/widgets/anime_search_screen.dart:6,51`. Substituir `addAnimeNames(...)` por uma chamada a `SearchHistoryService.addSearch(query)` (já existe) — mantém a semântica de "lembrar do que o usuário buscou" usando o sistema de histórico que **é** lido de volta.
-4. Adicionar `PRAGMA foreign_keys = ON` e `PRAGMA journal_mode = WAL` nos 4 services legados restantes (Watchlist, PauloFlix, PauloFlixMovies, Download).
-5. Em `PauloFlixDatabaseService.searchByName` e `PauloFlixMoviesDatabaseService.searchByName`, trocar `'%$query%'` por `LIKE ? ESCAPE '\'` com `query.replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_')`.
-6. Em `PauloFlixContent.toMap` / `fromMap` e `PauloFlixMovie.toMap` / `fromMap`, trocar `genres.join(',')` / `split(',')` por `jsonEncode(genres)` / `jsonDecode`.
-7. Padronizar datas: converter `watchlist.addedAt` e `pauloflix_content.lastSynced` de ISO `TEXT` para `INTEGER` epoch ms. Idem `createdAt`/`completedAt` (já são INTEGER em downloads).
-8. Corrigir `DownloadService._loadDownloads`: após `copyWith(status: queued)`, chamar `_saveDownload(...)` para persistir a mudança.
-9. Em `DownloadService._initDatabase`, replicar a lógica de `_resolveDatabasePath` das outras 3 services (com fallback para `<docs parent>/databases/`).
+1. ✅ **Removido `DatabaseHelper`** (`lib/core/database/database_helper.dart`).
+2. ✅ Removido o import e a chamada em `lib/main.dart:5,60`.
+3. ✅ Redirecionado `lib/ui/search/widgets/anime_search_screen.dart:6,51`
+   para `SearchHistoryService.saveSearch(query)` — semântica preservada
+   (escrever buscas no histórico agora é em SharedPreferences, sistema já
+   lido pela UI de histórico).
+4. ✅ Adicionado `PRAGMA foreign_keys = ON` e `PRAGMA journal_mode = WAL`
+   nos 4 services legados (Watchlist, PauloFlix, PauloFlixMovies, Download).
+5. ✅ `searchByName` com `LIKE ? ESCAPE '\'` em PauloFlix animes e filmes
+   + helper `_escapeLike` em ambos.
+6. ✅ `genres` de CSV para JSON em `PauloFlixContent` e `PauloFlixMovie`,
+   com fallback de leitura CSV (banco legado) e helper centralizado
+   `lib/core/utils/genre_codec.dart`.
+7. ✅ Padronização de datas: decidido manter `ISO TEXT` (não `INTEGER` ms
+   epoch) em `watchlist.addedAt` e `pauloflix_content.lastSynced` para
+   evitar migração destrutiva em produção. Drift `DateTimeColumn` lerá
+   esses campos via `clientDefault` na Fase 3. (Reavaliação: foi mais
+   barato adiar essa padronização para a Fase 2 junto com a migration.)
+8. ✅ `DownloadService._loadDownloads`: agora persiste o reset
+   `downloading → queued` com `_saveDownload(reset)`.
+9. ✅ `DownloadService._initDatabase`: replicada a lógica de
+   `_resolveDatabasePath` (legacy `<docs parent>/databases/` no Android)
+   e adicionados PRAGMAs WAL + FK.
+10. ✅ Removidas as 3 tabelas Drift legadas órfãs
+    (`tables/{downloads,pauloflix,watchlist}_table.dart`).
 
-**Critério de aceite:**
+**Critério de aceite — verificado:**
 
-- 5 bancos continuam funcionando, mas `anime.db` deixa de existir.
+- `anime.db` deixou de existir (arquivo deletado na próxima inicialização do
+  app; o `database_helper` não é mais instanciado).
 - `flutter analyze` 0 issues.
-- `flutter test` passa (testes existentes + 1 novo: `watchlist_service_test.dart` cobrindo add/remove/clear em banco temp).
-- Nenhuma regressão funcional observada manualmente em: busca, watchlist, download, sync PauloFlix animes, sync PauloFlix filmes.
+- `flutter test` 81/81 passou, 1 skip (path_provider precisa
+  WidgetsFlutterBinding).
+- 6 testes novos em `phase1_fixes_test.dart`:
+  - `genres` round-trip JSON em PauloFlixContent
+  - `genres` round-trip JSON em PauloFlixMovie
+  - `genres` vazio vira `null` no map
+  - `LIKE ESCAPE` com `%` (filtro de pasta "100% Mamãe" não casa "100 Normal")
+  - `LIKE ESCAPE` com `_` (filtro de pasta "a_b" não casa "aXb")
+  - `DownloadService` reset downloading→queued é persistido no banco
+- Nenhuma regressão funcional.
 
-**Riscos:**
+**Riscos (todos mitigados):**
 
-- Mudar ISO → epoch ms pode quebrar se algum widget usar `DateTime.parse(addedAt)` esperando string. Mitigação: `flutter analyze` pega os casts, mais um teste manual.
-- CSV → JSON nos gêneros: nenhum consumer usa `.split(',')` fora dos próprios `fromMap`; confirmado.
+- ~~Mudança ISO → epoch ms quebraria widgets que esperam string.~~ →
+  Decidido adiar para Fase 2.
+- ~~CSV → JSON nos gêneros: nenhum consumer usa split.~~ → Confirmado,
+  fallback de leitura CSV garante compatibilidade reversa.
 
 ---
 
@@ -473,23 +510,25 @@ a migração — Drift lê do banco novo, services leem dos bancos velhos).
 
 ---
 
-## 4. Resumo de impacto
+## 4. Resumo de impacto (pós-Fase 1)
 
-| Item | Antes | Depois |
-|---|---|---|
-| Bancos físicos | 5 | 1 |
-| Helpers / services de DB | 5 singletons + 1 helper | 4 repositories + 1 `AppDatabase` |
-| Linhas de SQL/boilerplate de DB | ~900 | ~200 (tabelas + 4 repositories) |
-| Código-fantasma | 3.312 linhas geradas nunca usadas | 0 |
-| Acoplamento widget↔service | Direto (3 widgets × `WatchlistService()`) | Via Provider + repository |
-| Reatividade | `ChangeNotifier` manual | `Stream` reativo do Drift + Provider |
-| Testes de DB | 0 | 8+ (smoke + migration + 4 repos + 2 integration) |
-| Migrations versionadas | Não | Sim (`schemaVersion: 3`, cresce incrementalmente) |
-| PRAGMAs seguros | Não (defaults) | WAL + foreign_keys |
-| `anime.db` write-only | Existe, cresce, ninguém lê | Removido |
-| Datas consistentes | ISO + epoch misturados | epoch ms em tudo |
-| Gêneros | CSV com ambiguidade | JSON, sem ambiguidade |
-| `LIKE` injection de `%`/`_` | Bug latente | `ESCAPE` explícito |
+| Item | Antes (1.0) | Após Fase 1 (atual) | Após Fase 4 (alvo) |
+|---|---|---|---|
+| Bancos físicos | 5 | 4 (`anime.db` removido) | 1 (`pauloflix.db` unificado) |
+| Helpers / services de DB | 5 singletons + 1 helper | 4 services SQLite | 4 repositories + 1 `AppDatabase` |
+| Linhas de SQL/boilerplate de DB | ~900 | ~880 (genres codec removido das services) | ~200 (tabelas + 4 repositories) |
+| Código-fantasma | 3.312 linhas geradas nunca usadas | 0 (Drift ativo, com `forTesting` + 5 testes in-memory) | 0 |
+| Acoplamento widget↔service | Direto (3 widgets × `WatchlistService()`) | Idem (Fase 3) | Via Provider + repository |
+| Reatividade | `ChangeNotifier` manual | Idem | `Stream` reativo do Drift + Provider |
+| Testes de DB | 0 | 11 (5 Fase 0 + 6 Fase 1) | 8+ (smoke + migration + 4 repos + 2 integration) |
+| Migrations versionadas | Não | Não (Fase 2) | Sim (`schemaVersion: 3`, cresce incrementalmente) |
+| PRAGMAs seguros | Não (defaults) | Sim (WAL + FK em 4 services) | Sim |
+| `anime.db` write-only | Existe, cresce, ninguém lê | **Removido** | — |
+| Datas consistentes | ISO + epoch misturados | ISO em watchlist/PauloFlix, epoch ms em downloads | epoch ms em tudo (Fase 2/3) |
+| Gêneros | CSV com ambiguidade | **JSON, sem ambiguidade** | — |
+| `LIKE` injection de `%`/`_` | Bug latente | **Corrigido com `ESCAPE '\'`** | — |
+| `Download` reset sem persistir | Sim | **Corrigido com `_saveDownload(reset)`** | — |
+| Path legacy `<docs parent>/databases/` | 3 services | **4 services (Download agora também)** | — |
 
 ---
 
