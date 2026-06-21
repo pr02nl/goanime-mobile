@@ -58,7 +58,13 @@ Custo: ~12 KB de APK + um arquivo `.db` no diretório de documentos + tempo de b
 
 ### 2.1 Princípios
 
-1. **Um único banco físico** (`goanime.db`) com todas as tabelas, gerenciado por Drift.
+1. **Um único banco físico** (`pauloflix.db`) com todas as tabelas, gerenciado por Drift.
+   ⚠️ **Nota sobre nomenclatura:** o nome `pauloflix.db` colide com o banco
+   legado aberto por `PauloFlixDatabaseService` (tabela `pauloflix_content`).
+   A Fase 2 deve renomear o arquivo legado para `pauloflix_content_legacy.db`
+   **antes** de o Drift assumir o `pauloflix.db`, para evitar mistura de
+   schemas. Justificativa: o usuário optou por manter o nome de marca
+   `pauloflix.*` no banco unificado mesmo sabendo do conflito.
 2. **Drift é a fonte de verdade do schema** — `app_database.dart` + codegen produzem tipos type-safe (`WatchlistItem`, `Download`, `PauloFlixContentItem`, etc.).
 3. **Repositories na camada `data/`** (conforme já existe em `home_repository.dart` / `home_repository_impl.dart`).
 4. **Injeção via Provider** já é o padrão da casa — `AppDatabase` e os repositories viram `Provider` no `app.dart`, conforme já documentado em `IMPROVEMENT_PLAN.md:312`.
@@ -309,7 +315,7 @@ a migração — Drift lê do banco novo, services leem dos bancos velhos).
 
 1. Adicionar `app_database.g.dart` ao `.gitignore` (padrão Flutter).
 2. Criar `lib/core/database/connection/connection.dart` com:
-   - `LazyDatabase` apontando para `<docs>/goanime.db` (e fallback legacy `<docs parent>/databases/goanime.db` no Android).
+   - `LazyDatabase` apontando para `<docs>/pauloflix.db` (e fallback legacy `<docs parent>/databases/pauloflix.db` no Android).
    - PRAGMAs WAL + foreign_keys no `beforeOpen`.
 3. Criar `lib/core/database/tables/` com as 4 tabelas novas (schema §2.3).
 4. Criar `lib/core/database/app_database.dart` com `@DriftDatabase` apontando para as 4 tabelas + `schemaVersion: 3` + `forTesting(super.executor)`.
@@ -359,19 +365,25 @@ a migração — Drift lê do banco novo, services leem dos bancos velhos).
 
 ### Fase 2 — Migrations: unificar 4 bancos em 1 (1-2 dias, ponto crítico)
 
-**Objetivo:** consolidar watchlist + downloads + pauloflix_content + pauloflix_movies em um único `goanime.db` gerenciado por Drift, **migrando dados dos bancos legados**.
+**Objetivo:** consolidar watchlist + downloads + pauloflix_content + pauloflix_movies em um único `pauloflix.db` gerenciado por Drift, **migrando dados dos bancos legados**.
 
 **Tarefas:**
 
 1. Criar `lib/core/database/connection/migration_v1_to_v3.dart` com:
-   - Detecção de bancos legados: `watchlist.db`, `downloads.db`, `pauloflix.db`, `pauloflix_movies.db` (no `<docs>` ou no legacy `<docs parent>/databases/`).
+   - **Antes de qualquer coisa:** detectar o banco legado `pauloflix.db` (aberto por `PauloFlixDatabaseService` no `sqlite3` FFI). Renomear para `pauloflix_content_legacy.db` para liberar o path para o Drift. **Não apagar.**
+   - Detecção dos outros bancos legados: `watchlist.db`, `downloads.db`, `pauloflix_movies.db` (no `<docs>` ou no legacy `<docs parent>/databases/`).
    - Para cada banco legado existente:
      - Abrir com `sqlite3.open(path)`.
      - `SELECT *` de cada tabela legada.
-     - Para cada linha, fazer `INSERT OR REPLACE` no novo `goanime.db` via Drift.
+     - Para cada linha, fazer `INSERT OR REPLACE` no novo `pauloflix.db` via Drift.
      - **Cuidado com tipos**: se a fase 1 já padronizou para epoch ms, é direto. Senão, converter ISO → epoch ms aqui.
      - **Cuidado com `genres`**: se a fase 1 já converteu para JSON, é direto. Senão, parsear CSV → JSON aqui.
-     - Marcar o banco legado com uma tabela `_legacy_migrated_v3` para não migrar duas vezes.
+     - Marcar cada banco legado com uma tabela `_legacy_migrated_v3` para não migrar duas vezes.
+   - **Ordem de execução da Fase 2:**
+     1. Drift ainda **não** está em runtime. Os 4 services legados (Watchlist, PauloFlix, PauloFlixMovies, Download) continuam rodando.
+     2. Renomear `pauloflix.db` → `pauloflix_content_legacy.db`. Na próxima abertura, `PauloFlixDatabaseService` vai criar um `pauloflix.db` novo vazio. Isso é **esperado** — vamos usá-lo como flag de "ainda não migrado".
+     3. Implementar a migration como função estática testável em `connection/migration_v1_to_v3.dart` (sem instanciar `AppDatabase` em runtime ainda).
+     4. Rodar testes de migration com bancos sintéticos em `<system temp>`.
    - Após migração bem-sucedida, opcionalmente renomear `<file>.db` para `<file>.db.migrated_v3` (não apagar — segurança).
 2. No `MigrationStrategy.onCreate` de `AppDatabase`, chamar a mesma função de migração (caso o usuário esteja com bancos legados e Drift precise criar a estrutura nova).
 3. Adicionar teste em `test/database/migration_v1_to_v3_test.dart` que:
@@ -383,7 +395,7 @@ a migração — Drift lê do banco novo, services leem dos bancos velhos).
 
 **Critério de aceite:**
 
-- Instalação fresca: app cria `goanime.db` único.
+- Instalação fresca: app cria `pauloflix.db` único.
 - Atualização de 1.x: app migra os 4 bancos legados para o novo, sem perda de dados, sem duplicar.
 - Se migration falhar no meio: banco novo fica intacto, dados legados preservados, usuário pode re-tentar.
 - `flutter analyze` + `flutter test` passam.
@@ -422,7 +434,7 @@ a migração — Drift lê do banco novo, services leem dos bancos velhos).
 - Cada migração: feature manual funciona idêntica; testes do repository passam; testes do widget passam.
 - `flutter analyze` 0 issues.
 - `flutter test` passa.
-- Apenas 1 banco físico (`goanime.db`) é tocado em runtime.
+- Apenas 1 banco físico (`pauloflix.db`) é tocado em runtime.
 - `WatchlistNotifier` subscreve `repository.watch()` ao invés de receber `notifyWatchlistChanged()`.
 
 **Riscos:**
@@ -445,7 +457,7 @@ a migração — Drift lê do banco novo, services leem dos bancos velhos).
 5. Atualizar `AGENTS.md` (linhas 25-32): descrever a nova estrutura `core/database/` com `connection/`, `tables/`, repositories.
 6. Atualizar `docs/Services.md`: reescrever seções `WatchlistService`, `PauloFlixDatabaseService`, `PauloFlixMoviesDatabaseService` como repositories. Atualizar tabela "Resumo de Persistência".
 7. Atualizar `docs/Models.md`: revisar seções `PauloFlixContent`, `WatchlistAnime`, `DownloadItem` para refletir `genresJson` (JSON) e datas em epoch ms.
-8. Atualizar `docs/README.md` (raiz) e `docs/README.md` (docs/): seção "Persistência Local" deve listar **1 banco** (`goanime.db`) com 4 tabelas e Drift.
+8. Atualizar `docs/README.md` (raiz) e `docs/README.md` (docs/): seção "Persistência Local" deve listar **1 banco** (`pauloflix.db`) com 4 tabelas e Drift.
 9. Atualizar `docs/IMPROVEMENT_PLAN.md` §1.2 (Database Unificado com drift) — marcar como **executado** e linkar para este documento.
 10. Adicionar `docs/MIGRATION_NOTES.md` com o changelog: 1.x → 2.0 (unificação 4→1 banco, Drift como fonte, repositories, padronização de tipos).
 11. `flutter analyze` + `flutter test` final.
