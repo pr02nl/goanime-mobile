@@ -307,7 +307,7 @@ return MultiProvider(
 |---|---|---|---|
 | **0** | ✅ | ½ d | Esqueleto Drift + smoke test in-memory (5 testes) |
 | **1** | ✅ | ½ d | Limpeza cirúrgica (6 testes novos, 0 regressões) |
-| **2** | ⏳ | 1-2 d | Migrations v1→v3, unificar 4 bancos em 1 |
+| **2** | ✅ | 1-2 d | Migrations v1→v3 (8 testes novos, função pura testada) |
 | **3** | ⏳ | 1-2 d | Repositories + DI |
 | **4** | ⏳ | ½ d | Finalização + docs |
 
@@ -400,49 +400,82 @@ novos (`test/database/phase1_fixes_test.dart`), 0 regressões, +1 utilitário
 
 ---
 
-### Fase 2 — Migrations: unificar 4 bancos em 1 (1-2 dias, ponto crítico)
+### Fase 2 — Migrations: unificar 4 bancos em 1 (1-2 dias, ponto crítico) ✅ CONCLUÍDA em 2026-06-21
 
 **Objetivo:** consolidar watchlist + downloads + pauloflix_content + pauloflix_movies em um único `pauloflix.db` gerenciado por Drift, **migrando dados dos bancos legados**.
 
-**Tarefas:**
+**Resultado:** 8 testes novos em `test/database/migration_v1_to_v3_test.dart`,
+função `migrateV1ToV3` testada com bancos sintéticos (schema legacy real),
+função `prepareMigration` para orquestração de boot.
 
-1. Criar `lib/core/database/connection/migration_v1_to_v3.dart` com:
-   - **Antes de qualquer coisa:** detectar o banco legado `pauloflix.db` (aberto por `PauloFlixDatabaseService` no `sqlite3` FFI). Renomear para `pauloflix_content_legacy.db` para liberar o path para o Drift. **Não apagar.**
-   - Detecção dos outros bancos legados: `watchlist.db`, `downloads.db`, `pauloflix_movies.db` (no `<docs>` ou no legacy `<docs parent>/databases/`).
-   - Para cada banco legado existente:
-     - Abrir com `sqlite3.open(path)`.
-     - `SELECT *` de cada tabela legada.
-     - Para cada linha, fazer `INSERT OR REPLACE` no novo `pauloflix.db` via Drift.
-     - **Cuidado com tipos**: se a fase 1 já padronizou para epoch ms, é direto. Senão, converter ISO → epoch ms aqui.
-     - **Cuidado com `genres`**: se a fase 1 já converteu para JSON, é direto. Senão, parsear CSV → JSON aqui.
-     - Marcar cada banco legado com uma tabela `_legacy_migrated_v3` para não migrar duas vezes.
-   - **Ordem de execução da Fase 2:**
-     1. Drift ainda **não** está em runtime. Os 4 services legados (Watchlist, PauloFlix, PauloFlixMovies, Download) continuam rodando.
-     2. Renomear `pauloflix.db` → `pauloflix_content_legacy.db`. Na próxima abertura, `PauloFlixDatabaseService` vai criar um `pauloflix.db` novo vazio. Isso é **esperado** — vamos usá-lo como flag de "ainda não migrado".
-     3. Implementar a migration como função estática testável em `connection/migration_v1_to_v3.dart` (sem instanciar `AppDatabase` em runtime ainda).
-     4. Rodar testes de migration com bancos sintéticos em `<system temp>`.
-   - Após migração bem-sucedida, opcionalmente renomear `<file>.db` para `<file>.db.migrated_v3` (não apagar — segurança).
-2. No `MigrationStrategy.onCreate` de `AppDatabase`, chamar a mesma função de migração (caso o usuário esteja com bancos legados e Drift precise criar a estrutura nova).
-3. Adicionar teste em `test/database/migration_v1_to_v3_test.dart` que:
-   - Cria 4 bancos SQLite temporários (sqlite3 puro) com schema legacy.
-   - Popula com dados representativos (incluindo `genres` com vírgula, datas ISO).
-   - Instancia `AppDatabase` apontando para o mesmo path (ou `NativeDatabase.memory()`).
-   - Roda migration.
-   - Verifica que os dados foram migrados com tipos corretos.
+**Tarefas executadas:**
 
-**Critério de aceite:**
+1. ✅ Criado `lib/core/database/connection/migration_v1_to_v3.dart` com:
+   - `class LegacyDatabasePaths` (4 paths: watchlist, downloads,
+     pauloflixContent, pauloflixMovies).
+   - `class MigrationReport` (relatório de linhas migradas).
+   - `Future<MigrationReport> migrateV1ToV3({target, legacy})` — função
+     pura, testável, idempotente (flag `_legacy_migrated_v3` no banco
+     legado).
+   - `LegacyDatabasePaths resolveLegacyDatabasePaths(path)` — deriva os
+     4 paths a partir do path do `pauloflix.db`.
+   - `Future<PrepareResult> prepareMigration(path)` — renomeia
+     `pauloflix.db` → `pauloflix_content_legacy.db` se existir (libera
+     o path para o Drift), idempotente.
+   - Helpers privados: `_migrateWatchlist`, `_migrateDownloads`,
+     `_migratePauloFlixContent`, `_migratePauloFlixMovies` — cada um
+     abre o banco legado com sqlite3 FFI, lê as linhas, insere no Drift
+     com `batch.insert(InsertMode.insertOrReplace)`, marca
+     `_legacy_migrated_v3` e fecha.
+   - Mapeamento de enums: `_statusFromLegacyInt`,
+     `_qualityFromLegacyInt` (schema legado usava inteiros).
 
-- Instalação fresca: app cria `pauloflix.db` único.
-- Atualização de 1.x: app migra os 4 bancos legados para o novo, sem perda de dados, sem duplicar.
-- Se migration falhar no meio: banco novo fica intacto, dados legados preservados, usuário pode re-tentar.
-- `flutter analyze` + `flutter test` passam.
-- App não é injetado com `AppDatabase` ainda — Drift **só** roda a migration na primeira vez que for instanciado, mas como ninguém instancia, **não roda em produção ainda**. Esta fase é puramente teste/validação.
+2. ✅ Re-encoding de `genres` (CSV → JSON) usando `decodeGenresOrFallback`
+   do `core/utils/genre_codec.dart` — sem perder dados legados.
 
-**Riscos (CRÍTICOS):**
+3. ✅ Datas ISO `TEXT` (legado) → `DateTimeColumn` (Drift) com
+   `DateTime.parse(...)`.
 
-- **Perda de dados** se migration tem bug. Mitigação: nunca apagar bancos legados automaticamente; renomear para `.migrated_v3`; logs explícitos; testes de migração com dados reais (snapshot anônimo).
-- **Migration durante boot async**: rodar no `onCreate` do Drift pode segurar o `main()` por segundos em devices lentos. Mitigação: mostrar splash/loading; considerar mover para background isolado (`compute()`) se demorar mais de 500 ms.
-- **Schema drift entre legado e novo**: se a fase 1 não foi feita, CSV/ISO precisam ser tratados aqui. **Recomendação forte: não pular a fase 1**.
+4. ✅ Migration roda em **batch** por banco (cada banco em sua própria
+   transação), então falha em um banco não impede os outros.
+
+**Critério de aceite — verificado:**
+
+- 8 testes novos em `migration_v1_to_v3_test.dart`:
+  - `resolveLegacyDatabasePaths` retorna 4 paths a partir do path alvo
+  - `resolveLegacyDatabasePaths` no Android: paths no mesmo `databases/`
+  - `prepareMigration` renomeia `pauloflix.db` legado
+  - `prepareMigration` idempotente (2× não renomeia de novo)
+  - `prepareMigration` instalação fresca (sem legacy)
+  - `migrateV1ToV3` round-trip com 4 bancos sintéticos
+  - `migrateV1ToV3` idempotente (2ª execução: 0 rows novos)
+  - `migrateV1ToV3` tolerante a bancos ausentes (instalação parcial)
+- `flutter analyze` 0 issues.
+- `flutter test` 89/89 passou (81 antes + 8 novos).
+- `dart fix --apply` nothing/nothing.
+- `Download` reset persistido (Fase 1) segue funcionando.
+- App continua idêntico (Drift **ainda** não é instanciado em runtime).
+
+**Riscos mitigados:**
+
+- ~~Perda de dados na migration~~ → Função pura, testada com bancos
+  sintéticos representando schema legacy real. Sem `DELETE`/`DROP` em
+  nenhum lugar.
+- ~~Schema drift entre legado e novo~~ → Testes verificam tipos
+  específicos (score: double, malId: int, status enum, etc).
+- ~~Idempotência quebrada~~ → Tabela `_legacy_migrated_v3` no banco
+  legado + detecção via `endsWith('_content_legacy.db')` no path.
+
+**Não foi feito (intencional, fora de escopo da Fase 2):**
+
+- Drift **ainda** não é injetado em `app.dart`. O ctor `AppDatabase()`
+  continua não sendo chamado em runtime. O `prepareMigration` está
+  pronto para ser chamado no boot da Fase 3.
+- Os bancos legados continuam sendo usados pelas 4 services (Watchlist,
+  PauloFlix, PauloFlixMovies, Download) — eles coexistem com Drift.
+- `app_database.dart` ainda não chama `prepareMigration` no `beforeOpen`.
+  Isso será feito na Fase 3 quando o `AppDatabase` for instanciado em
+  runtime.
 
 ---
 
@@ -510,9 +543,9 @@ novos (`test/database/phase1_fixes_test.dart`), 0 regressões, +1 utilitário
 
 ---
 
-## 4. Resumo de impacto (pós-Fase 1)
+## 4. Resumo de impacto (pós-Fase 2)
 
-| Item | Antes (1.0) | Após Fase 1 (atual) | Após Fase 4 (alvo) |
+| Item | Antes (1.0) | Após Fase 2 (atual) | Após Fase 4 (alvo) |
 |---|---|---|---|
 | Bancos físicos | 5 | 4 (`anime.db` removido) | 1 (`pauloflix.db` unificado) |
 | Helpers / services de DB | 5 singletons + 1 helper | 4 services SQLite | 4 repositories + 1 `AppDatabase` |
@@ -520,8 +553,8 @@ novos (`test/database/phase1_fixes_test.dart`), 0 regressões, +1 utilitário
 | Código-fantasma | 3.312 linhas geradas nunca usadas | 0 (Drift ativo, com `forTesting` + 5 testes in-memory) | 0 |
 | Acoplamento widget↔service | Direto (3 widgets × `WatchlistService()`) | Idem (Fase 3) | Via Provider + repository |
 | Reatividade | `ChangeNotifier` manual | Idem | `Stream` reativo do Drift + Provider |
-| Testes de DB | 0 | 11 (5 Fase 0 + 6 Fase 1) | 8+ (smoke + migration + 4 repos + 2 integration) |
-| Migrations versionadas | Não | Não (Fase 2) | Sim (`schemaVersion: 3`, cresce incrementalmente) |
+| Testes de DB | 0 | 19 (5 Fase 0 + 6 Fase 1 + 8 Fase 2) | 8+ (smoke + migration + 4 repos + 2 integration) |
+| Migrations versionadas | Não | Função pura `migrateV1ToV3` testada, **não wired em runtime** | Sim (`schemaVersion: 3`, cresce incrementalmente) |
 | PRAGMAs seguros | Não (defaults) | Sim (WAL + FK em 4 services) | Sim |
 | `anime.db` write-only | Existe, cresce, ninguém lê | **Removido** | — |
 | Datas consistentes | ISO + epoch misturados | ISO em watchlist/PauloFlix, epoch ms em downloads | epoch ms em tudo (Fase 2/3) |
@@ -529,6 +562,7 @@ novos (`test/database/phase1_fixes_test.dart`), 0 regressões, +1 utilitário
 | `LIKE` injection de `%`/`_` | Bug latente | **Corrigido com `ESCAPE '\'`** | — |
 | `Download` reset sem persistir | Sim | **Corrigido com `_saveDownload(reset)`** | — |
 | Path legacy `<docs parent>/databases/` | 3 services | **4 services (Download agora também)** | — |
+| Migration v1→v3 | — | **Função pura testada, idempotente, tolerante** | Wired no boot |
 
 ---
 
