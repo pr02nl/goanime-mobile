@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'core/database/app_database.dart';
 import 'data/repositories/home_repository_impl.dart';
+import 'data/repositories/watchlist_repository_impl.dart';
 import 'data/services/download_service.dart';
 import 'domain/repositories/home_repository.dart';
+import 'domain/repositories/watchlist_repository.dart';
 import 'l10n/app_localizations.dart';
 import 'routing/app_router.dart';
 import 'ui/core/themes/app_theme.dart';
@@ -19,6 +22,7 @@ class PauloFlixApp extends StatelessWidget {
   final ThemeViewModel themeViewModel;
   final LocaleViewModel localeViewModel;
   final DownloadService downloadService;
+  final AppDatabase appDatabase;
   final String? startupError;
 
   const PauloFlixApp({
@@ -26,6 +30,7 @@ class PauloFlixApp extends StatelessWidget {
     required this.themeViewModel,
     required this.localeViewModel,
     required this.downloadService,
+    required this.appDatabase,
     this.startupError,
   });
 
@@ -35,6 +40,13 @@ class PauloFlixApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+        // AppDatabase (singleton de processo) — FASE 3.
+        Provider<AppDatabase>.value(value: appDatabase),
+        // Repositories — FASE 3.
+        Provider<WatchlistRepository>(
+          create: (_) => WatchlistRepositoryImpl(appDatabase),
+        ),
+        // Services e viewmodels legados.
         ChangeNotifierProvider.value(value: themeViewModel),
         ChangeNotifierProvider.value(value: localeViewModel),
         ChangeNotifierProvider.value(value: downloadService),
@@ -47,7 +59,9 @@ class PauloFlixApp extends StatelessWidget {
                 ..loadHomeData(),
         ),
         ChangeNotifierProvider(
-          create: (_) => WatchlistViewModel()..loadWatchlist(),
+          create: (ctx) =>
+              WatchlistViewModel(repository: ctx.read<WatchlistRepository>())
+                ..loadWatchlist(),
         ),
       ],
       child: ListenableBuilder(

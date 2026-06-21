@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../data/services/watchlist_notifier.dart';
-import '../../../data/services/watchlist_service.dart';
 import '../../../domain/models/watchlist_anime.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
@@ -10,6 +10,7 @@ import '../../core/utils/responsive.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../search/widgets/source_selection_screen.dart';
+import '../view_models/watchlist_viewmodel.dart';
 
 class WatchlistScreen extends StatefulWidget {
   const WatchlistScreen({super.key});
@@ -20,10 +21,7 @@ class WatchlistScreen extends StatefulWidget {
 
 class _WatchlistScreenState extends State<WatchlistScreen>
     with AutomaticKeepAliveClientMixin {
-  final WatchlistService _watchlistService = WatchlistService();
   final WatchlistNotifier _watchlistNotifier = WatchlistNotifier();
-  List<WatchlistAnime> _watchlist = [];
-  bool _isLoading = true;
 
   @override
   bool get wantKeepAlive => true;
@@ -31,9 +29,8 @@ class _WatchlistScreenState extends State<WatchlistScreen>
   @override
   void initState() {
     super.initState();
-    _loadWatchlist();
-
-    // Escuta mudanças na watchlist
+    // Escuta mudanças globais (outros widgets chamam notifyWatchlistChanged)
+    // para recarregar.
     _watchlistNotifier.addListener(_onWatchlistChanged);
   }
 
@@ -44,32 +41,22 @@ class _WatchlistScreenState extends State<WatchlistScreen>
   }
 
   void _onWatchlistChanged() {
-    _loadWatchlist();
-  }
-
-  Future<void> _loadWatchlist() async {
-    setState(() => _isLoading = true);
-    final watchlist = await _watchlistService.getWatchlist();
-    if (mounted) {
-      setState(() {
-        _watchlist = watchlist;
-        _isLoading = false;
-      });
-    }
+    // Recarrega via ViewModel (Fase 3 — usa Drift repository).
+    context.read<WatchlistViewModel>().loadWatchlist();
   }
 
   Future<void> _removeFromWatchlist(WatchlistAnime anime) async {
-    final success = await _watchlistService.removeFromWatchlist(anime.animeId);
-    if (success && mounted) {
-      final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
+    await context.read<WatchlistViewModel>().removeFromWatchlist(anime.animeId);
+    if (mounted) {
+      messenger.showSnackBar(
         SnackBar(
           content: Text(l10n.removedFromWatchlist(anime.title)),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
-      _loadWatchlist();
     }
   }
 
@@ -77,61 +64,69 @@ class _WatchlistScreenState extends State<WatchlistScreen>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        title: Row(
-          children: [
-            const Icon(Icons.bookmark, color: AppColors.primary, size: 28),
-            const SizedBox(width: 12),
-            Text(
-              l10n.watchlist,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          if (_watchlist.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.delete_sweep, color: Colors.white70),
-              tooltip: l10n.clearWatchlist,
-              onPressed: () => _showClearDialog(),
-            ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : _watchlist.isEmpty
-          ? _buildEmptyState()
-          : RefreshIndicator(
-              onRefresh: _loadWatchlist,
-              color: AppColors.primary,
-              backgroundColor: AppColors.surface,
-              child: GridView.builder(
-                padding: EdgeInsets.all(
-                  Responsive.getHorizontalPadding(context),
+    return Consumer<WatchlistViewModel>(
+      builder: (context, vm, _) {
+        final watchlist = vm.animes;
+        final isLoading = vm.isLoading;
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            backgroundColor: AppColors.surface,
+            elevation: 0,
+            title: Row(
+              children: [
+                const Icon(Icons.bookmark, color: AppColors.primary, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  l10n.watchlist,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: Responsive.getGridColumnCount(context),
-                  childAspectRatio: 0.7,
-                  crossAxisSpacing: Responsive.getCardSpacing(context),
-                  mainAxisSpacing: Responsive.getCardSpacing(context),
-                ),
-                itemCount: _watchlist.length,
-                itemBuilder: (context, index) {
-                  final anime = _watchlist[index];
-                  return _buildAnimeCard(anime);
-                },
-              ),
+              ],
             ),
+            actions: [
+              if (watchlist.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep, color: Colors.white70),
+                  tooltip: l10n.clearWatchlist,
+                  onPressed: () => _showClearDialog(),
+                ),
+            ],
+          ),
+          body: isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : watchlist.isEmpty
+              ? _buildEmptyState()
+              : RefreshIndicator(
+                  onRefresh: () =>
+                      context.read<WatchlistViewModel>().loadWatchlist(),
+                  color: AppColors.primary,
+                  backgroundColor: AppColors.surface,
+                  child: GridView.builder(
+                    padding: EdgeInsets.all(
+                      Responsive.getHorizontalPadding(context),
+                    ),
+                    gridDelegate:
+                        SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: Responsive.getGridColumnCount(context),
+                      childAspectRatio: 0.7,
+                      crossAxisSpacing: Responsive.getCardSpacing(context),
+                      mainAxisSpacing: Responsive.getCardSpacing(context),
+                    ),
+                    itemCount: watchlist.length,
+                    itemBuilder: (context, index) {
+                      final anime = watchlist[index];
+                      return _buildAnimeCard(anime);
+                    },
+                  ),
+                ),
+        );
+      },
     );
   }
 
@@ -230,7 +225,7 @@ class _WatchlistScreenState extends State<WatchlistScreen>
     final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text(
           l10n.clearWatchlistQuestion,
@@ -242,7 +237,7 @@ class _WatchlistScreenState extends State<WatchlistScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: Text(
               l10n.cancel,
               style: const TextStyle(color: Colors.white70),
@@ -250,11 +245,10 @@ class _WatchlistScreenState extends State<WatchlistScreen>
           ),
           TextButton(
             onPressed: () async {
-              final navigator = Navigator.of(context);
+              final navigator = Navigator.of(dialogContext);
               final messenger = ScaffoldMessenger.of(context);
               navigator.pop();
-              await _watchlistService.clearWatchlist();
-              _loadWatchlist();
+              await context.read<WatchlistViewModel>().refresh();
               if (mounted) {
                 messenger.showSnackBar(
                   SnackBar(
