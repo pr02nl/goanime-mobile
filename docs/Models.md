@@ -1,5 +1,10 @@
 # 📦 Modelos de Dados - Documentação
 
+> **⚠️ Nota sobre persistência:** os modelos `PauloFlixContent`, `PauloFlixMovie`,
+> `WatchlistAnime` e `DownloadItem` estão em transição para Drift. Detalhes do
+> schema alvo e inconsistências atuais (CSV vs JSON para `genres`, ISO vs
+> epoch ms para datas) em [`DATABASE_REFACTORING.md`](./DATABASE_REFACTORING.md).
+
 ## Jikan API Models
 
 ### JikanAnime

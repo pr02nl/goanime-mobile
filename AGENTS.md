@@ -21,10 +21,10 @@ lib/
 │   ├── constants/
 │   │   ├── api_constants.dart         # Base URLs, endpoints
 │   │   └── app_constants.dart         # Chaves de SharedPreferences, limites
-│   ├── database/
-│   │   ├── app_database.dart          # Drift database definition
-│   │   ├── app_database.g.dart        # Drift codegen (gerado)
-│   │   ├── database_helper.dart       # Helper SQLite legado
+│   ├── database/                          # ⚠️ Em refatoração — ver docs/DATABASE_REFACTORING.md
+│   │   ├── app_database.dart          # Drift database definition (FANTASMA — ver plano)
+│   │   ├── app_database.g.dart        # Drift codegen (gerado, não exercitado)
+│   │   ├── database_helper.dart       # Helper SQLite legado (zumbi write-only — remover)
 │   │   └── tables/
 │   │       ├── downloads_table.dart   # Schema downloads
 │   │       ├── pauloflix_table.dart   # Schema PauloFlix animes

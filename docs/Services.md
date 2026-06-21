@@ -455,10 +455,19 @@ Persiste chaves de API do usuário em SharedPreferences.
 
 ## Resumo de Persistência
 
-| Serviço | Tecnologia | Chave/Arquivo |
-|---------|------------|---------------|
-| JikanService | Memória + SharedPreferences | `jikan_home_data_cache` |
-| DownloadService | SQLite | `downloads.db` |
-| WatchlistService | SQLite | `watchlist.db` |
-| SearchHistoryService | SharedPreferences | `search_history` |
-| LocaleService | SharedPreferences | `app_locale` |
+> **⚠️ Estado atual:** coexistência de 4 bancos SQLite brutos + 1 banco Drift
+> gerado mas não exercitado + 1 helper zumbi. Ver
+> [`DATABASE_REFACTORING.md`](./DATABASE_REFACTORING.md) para o plano de
+> unificação em **1 banco Drift único** com repositories.
+
+|| Serviço | Tecnologia | Chave/Arquivo |
+||---------|------------|---------------|
+|| JikanService | Memória + SharedPreferences | `jikan_home_data_cache` |
+|| DownloadService | SQLite (sqlite3 FFI) | `downloads.db` |
+|| WatchlistService | SQLite (sqlite3 FFI) | `watchlist.db` |
+|| PauloFlixDatabaseService | SQLite (sqlite3 FFI) | `pauloflix.db` |
+|| PauloFlixMoviesDatabaseService | SQLite (sqlite3 FFI) | `pauloflix_movies.db` |
+|| DatabaseHelper | SQLite (sqlite3 FFI) | `anime.db` (zumbi write-only) |
+|| AppDatabase (Drift) | Drift (gerado) | `pauloflix.db` (não instanciado) |
+|| SearchHistoryService | SharedPreferences | `search_history` |
+|| LocaleService | SharedPreferences | `app_locale` |

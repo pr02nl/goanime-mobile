@@ -453,6 +453,11 @@ class RetryInterceptor extends Interceptor {
 
 ### 1.2 Database Unificado com drift
 
+> **📋 Status:** planejamento detalhado em [`DATABASE_REFACTORING.md`](./DATABASE_REFACTORING.md).
+> Esta seção resume a intenção original; o plano de execução em 5 fases (com critérios
+> de aceite, migração de dados legados e estratégia de coexistência Drift+sqlite3) está
+> no documento referenciado.
+
 **Objetivo:** Substituir 4 bancos SQLite separados por 1 banco drift com migrations versionadas.
 
 **Arquivo:** `lib/core/database/app_database.dart`

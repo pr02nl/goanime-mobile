@@ -111,13 +111,25 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 
 ## 💾 Persistência Local
 
+> **⚠️ Estado atual:** 4 bancos SQLite brutos + 1 Drift não exercitado + 1 helper
+> zumbi. Plano de unificação em [`DATABASE_REFACTORING.md`](./DATABASE_REFACTORING.md)
+> (alvo: 1 banco Drift único com migrations versionadas).
+
 ### SQLite (sqlite3)
 
-| Tabela      | Propósito                           |
-| ----------- | ----------------------------------- |
-| `anime`     | Cache de nomes de anime             |
-| `watchlist` | Animes salvos para assistir depois  |
-| `downloads` | Metadados de downloads de episódios |
+|| Tabela      | Banco                | Propósito                           |
+|| ----------- | -------------------- | ----------------------------------- |
+|| `anime`     | `anime.db`           | Cache de nomes de anime **(zumbi write-only — a remover)** |
+|| `watchlist` | `watchlist.db`       | Animes salvos para assistir depois  |
+|| `downloads` | `downloads.db`       | Metadados de downloads de episódios |
+|| `pauloflix_content` | `pauloflix.db` | Cache de animes PauloFlix           |
+|| `pauloflix_movies` | `pauloflix_movies.db` | Cache de filmes PauloFlix    |
+
+### Drift (gerado, não instanciado)
+
+`AppDatabase` declarado em `lib/core/database/app_database.dart` referencia as
+tabelas `WatchlistItems`, `Downloads`, `PauloFlixContent`. Nenhuma instanciação
+em runtime — ver `DATABASE_REFACTORING.md` para reativação.
 
 ### SharedPreferences
 

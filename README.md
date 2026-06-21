@@ -142,6 +142,11 @@ PauloFlix now supports Android TV with optimized UI for large screens and remote
 
 For detailed TV setup instructions, see [TV Support Guide](docs/TV_SUPPORT.md).
 
+## Documentation
+
+- [Technical docs](docs/README.md) — arquitetura, persistência, APIs
+- [Database refactoring plan](docs/DATABASE_REFACTORING.md) — 🗄️ unificação 4 bancos → 1 Drift
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
