@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/database/database_helper.dart';
+import '../../../data/services/search_history_service.dart';
 import '../../../data/services/anime_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../l10n/app_localizations.dart';
@@ -46,9 +46,14 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
         _isLoading = false;
       });
 
-      // Add anime names to database
-      final animeNames = results.map((anime) => anime.name).toList();
-      await DatabaseHelper.addAnimeNames(animeNames);
+      // FASE 1 — refatoração de banco:
+      // `DatabaseHelper.addAnimeNames` era write-only (nunca lido). Foi
+      // removido. Em seu lugar usamos `SearchHistoryService` (que
+      // SharedPreferences e **é** consumido pela UI de histórico).
+      final query = _searchController.text.trim();
+      if (query.isNotEmpty) {
+        await SearchHistoryService.saveSearch(query);
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();

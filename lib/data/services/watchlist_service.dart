@@ -43,6 +43,10 @@ class WatchlistService {
     final dbPath = await _resolveDatabasePath();
 
     final db = sql.sqlite3.open(dbPath);
+    // PRAGMAs (Fase 1): WAL para reduzir locks com DownloadService e
+    // foreign_keys para futuras FKs.
+    db.execute('PRAGMA journal_mode = WAL');
+    db.execute('PRAGMA foreign_keys = ON');
     db.execute('''
       CREATE TABLE IF NOT EXISTS $tableName (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

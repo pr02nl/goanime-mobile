@@ -1,4 +1,5 @@
 import '../../data/models/tmdb_models.dart';
+import '../../core/utils/genre_codec.dart';
 
 /// Conteúdo mapeado do PauloFlix Movies com metadados do TMDB.
 ///
@@ -76,7 +77,8 @@ class PauloFlixMovie {
       'bannerUrl': bannerUrl,
       'description': description,
       'score': score,
-      'genres': genres.join(','),
+      // JSON (não CSV): preserva vírgulas dentro de nomes de gênero.
+      'genres': encodeGenres(genres),
       'releaseDate': releaseDate,
       'runtime': runtime,
       'year': year,
@@ -98,12 +100,8 @@ class PauloFlixMovie {
       bannerUrl: map['bannerUrl'] as String?,
       description: map['description'] as String?,
       score: (map['score'] as num?)?.toDouble(),
-      genres:
-          (map['genres'] as String?)
-              ?.split(',')
-              .where((g) => g.isNotEmpty)
-              .toList() ??
-          const [],
+      // Mesma estratégia do PauloFlixContent: tenta JSON, fallback CSV.
+      genres: decodeGenresOrFallback(map['genres']),
       releaseDate: map['releaseDate'] as String?,
       runtime: map['runtime'] as int?,
       year: map['year'] as int?,

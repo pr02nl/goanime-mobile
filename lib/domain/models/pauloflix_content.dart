@@ -1,4 +1,5 @@
 import '../../data/models/jikan_models.dart';
+import '../../core/utils/genre_codec.dart';
 
 /// Conteúdo mapeado do PauloFlix com metadados do Jikan
 class PauloFlixContent {
@@ -65,7 +66,9 @@ class PauloFlixContent {
       'bannerUrl': bannerUrl,
       'description': description,
       'score': score,
-      'genres': genres.join(','),
+      // JSON (não CSV): preserva vírgulas dentro de nomes de gênero
+      // como "Slice of Life" e "Action, Adventure" sem ambiguidade.
+      'genres': encodeGenres(genres),
       'status': status,
       'episodeCount': episodeCount,
       'malId': malId,
@@ -85,12 +88,10 @@ class PauloFlixContent {
       bannerUrl: map['bannerUrl'] as String?,
       description: map['description'] as String?,
       score: map['score'] as double?,
-      genres:
-          (map['genres'] as String?)
-              ?.split(',')
-              .where((g) => g.isNotEmpty)
-              .toList() ??
-          [],
+      // Decodifica JSON. Em bancos legados (pré-Fase 1) com CSV, faz
+      // fallback para split por vírgula para não quebrar a leitura de
+      // instalações antigas antes da migração v1→v3.
+      genres: decodeGenresOrFallback(map['genres']),
       status: map['status'] as String?,
       episodeCount: map['episodeCount'] as int?,
       malId: map['malId'] as int?,

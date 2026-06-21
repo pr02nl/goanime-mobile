@@ -2,7 +2,6 @@
 import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
-import 'core/database/database_helper.dart';
 import 'data/services/download_service.dart';
 import 'data/services/tmdb_service.dart';
 import 'ui/core/utils/performance_config.dart';
@@ -56,11 +55,10 @@ void main() async {
     startupError ??= 'TMDB: $e';
   }
 
-  try {
-    await DatabaseHelper.initializeAll();
-  } catch (e) {
-    startupError ??= 'Database: $e';
-  }
+  // FASE 1 — refatoração de banco: `DatabaseHelper` removido. A
+  // inicialização dos 3 services SQLite legados é feita sob demanda na
+  // primeira chamada (`WatchlistService`, `PauloFlixDatabaseService`,
+  // `PauloFlixMoviesDatabaseService`, `DownloadService`).
 
   runApp(
     PauloFlixApp(

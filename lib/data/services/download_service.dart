@@ -176,12 +176,43 @@ class DownloadService extends ChangeNotifier {
     await _loadDownloads();
   }
 
-  /// Initialize the database
+  /// Initialize the database.
+  ///
+  /// BUG FIX (Fase 1): agora replica o padrão das outras services:
+  /// - PRAGMA journal_mode = WAL e foreign_keys = ON em `_createTables`.
+  /// - Path no Android respeita o legacy `<docs parent>/databases/`
+  ///   (consistente com Watchlist/PauloFlix/PauloFlixMovies).
   Future<sql.Database> _initDatabase() async {
-    final documentsDirectory = await getApplicationDocumentsDirectory();
-    final dbPath = path.join(documentsDirectory.path, 'downloads.db');
-
+    final dbPath = await _resolveDatabasePath();
     final db = sql.sqlite3.open(dbPath);
+    _createDb(db);
+    return db;
+  }
+
+  /// Resolve o path do banco `downloads.db`. No Android, preserva o path
+  /// legacy `<docs parent>/databases/` que o sqflite usava em versões
+  /// anteriores. Em outras plataformas, usa `<docs>/downloads.db`.
+  Future<String> _resolveDatabasePath() async {
+    final documentsDirectory = await getApplicationDocumentsDirectory();
+    if (Platform.isAndroid) {
+      final legacyDir = Directory(
+        path.join(documentsDirectory.parent.path, 'databases'),
+      );
+      final legacyPath = path.join(legacyDir.path, 'downloads.db');
+      if (File(legacyPath).existsSync()) {
+        return legacyPath;
+      }
+      if (!legacyDir.existsSync()) {
+        legacyDir.createSync(recursive: true);
+      }
+      return legacyPath;
+    }
+    return path.join(documentsDirectory.path, 'downloads.db');
+  }
+
+  void _createDb(sql.Database db) {
+    db.execute('PRAGMA journal_mode = WAL');
+    db.execute('PRAGMA foreign_keys = ON');
     db.execute('''
       CREATE TABLE IF NOT EXISTS downloads (
         id TEXT PRIMARY KEY,
@@ -202,7 +233,6 @@ class DownloadService extends ChangeNotifier {
         completedAt INTEGER
       )
     ''');
-    return db;
   }
 
   /// Load downloads from database
@@ -218,11 +248,14 @@ class DownloadService extends ChangeNotifier {
       final download = DownloadItem.fromMap(Map<String, dynamic>.from(row));
       _downloads[download.id] = download;
 
-      // Reset downloading status to queued on app restart
+      // Reset downloading status to queued on app restart.
+      // BUG FIX (Fase 1): antes o reset só acontecia em memória; agora
+      // persistimos com _saveDownload para que o banco não fique
+      // reportando `downloading` para um download que não está rodando.
       if (download.status == DownloadStatus.downloading) {
-        _downloads[download.id] = download.copyWith(
-          status: DownloadStatus.queued,
-        );
+        final reset = download.copyWith(status: DownloadStatus.queued);
+        _downloads[download.id] = reset;
+        await _saveDownload(reset);
       }
     }
 

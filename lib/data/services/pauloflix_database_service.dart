@@ -7,6 +7,7 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../../domain/models/pauloflix_content.dart';
 
+/// Persistência SQLite para conteúdo PauloFlix (independente do banco de animes).
 class PauloFlixDatabaseService {
   static Database? _database;
   static Completer<Database>? _initCompleter;
@@ -54,7 +55,20 @@ class PauloFlixDatabaseService {
     return db;
   }
 
+  /// Escapa caracteres curingas (`%`, `_`, `\`) para uso seguro em `LIKE`
+  /// com `ESCAPE '\'`. Sem isso, queries com termos contendo `%` ou `_`
+  /// casariam falsos positivos.
+  String _escapeLike(String query) => query
+      .replaceAll(r'\', r'\\')
+      .replaceAll('%', r'\%')
+      .replaceAll('_', r'\_');
+
   void _createTables(Database db) {
+    // PRAGMAs de produção: WAL para reduzir locks com DownloadService
+    // e foreign_keys para futuras FKs.
+    db.execute('PRAGMA journal_mode = WAL');
+    db.execute('PRAGMA foreign_keys = ON');
+
     db.execute('''
       CREATE TABLE IF NOT EXISTS $_tableName (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,9 +176,10 @@ class PauloFlixDatabaseService {
 
   Future<List<PauloFlixContent>> searchByName(String query) async {
     final db = await database;
+    final escaped = _escapeLike(query);
     final result = db.select(
-      'SELECT * FROM $_tableName WHERE displayName LIKE ? AND isAvailable = 1 ORDER BY displayName',
-      ['%$query%'],
+      "SELECT * FROM $_tableName WHERE displayName LIKE ? ESCAPE '\\' AND isAvailable = 1 ORDER BY displayName",
+      ['%$escaped%'],
     );
     return result.map((row) => PauloFlixContent.fromMap(row)).toList();
   }
