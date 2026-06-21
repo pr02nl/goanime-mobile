@@ -53,16 +53,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return PopScope(
       canPop: location == '/',
-      child: Actions(
-        actions: <Type, Action<Intent>>{
-          DirectionalFocusIntent: _SidebarEdgeAction(
-            onLeftEdge: isWide ? _expandSidebar : null,
-          ),
-        },
-        child: isWide
-            ? _buildWideLayout(context, location)
-            : _buildMobileLayout(context, location),
-      ),
+      child: isWide
+          ? _buildWideLayout(context, location)
+          : _buildMobileLayout(context, location),
     );
   }
 
@@ -77,8 +70,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         children: [
           Sidebar(
             location: location,
-            // expanded: _sidebarExpanded,
-            expanded: false,
+            expanded: _sidebarExpanded,
+            // expanded: false,
             onClose: _collapseSidebar,
           ),
           Expanded(child: widget.child),
@@ -126,8 +119,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 /// * Demais direções → delega ao [DirectionalFocusAction].
 class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
   final VoidCallback? onLeftEdge;
+  final VoidCallback? onRightEdge;
 
-  _SidebarEdgeAction({this.onLeftEdge});
+  _SidebarEdgeAction({this.onLeftEdge, this.onRightEdge});
 
   @override
   void invoke(DirectionalFocusIntent intent) {
@@ -136,6 +130,12 @@ class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
       DirectionalFocusAction().invoke(intent);
       if (primaryFocus == before && onLeftEdge != null) {
         onLeftEdge!();
+      }
+    } else if (intent.direction == TraversalDirection.right) {
+      final FocusNode? before = primaryFocus;
+      DirectionalFocusAction().invoke(intent);
+      if (primaryFocus == before && onRightEdge != null) {
+        onRightEdge!();
       }
     } else {
       DirectionalFocusAction().invoke(intent);

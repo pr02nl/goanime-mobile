@@ -35,31 +35,31 @@ class _SidebarState extends State<Sidebar> {
     const collapsedW = 72.0;
     const expandedW = 220.0;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      width: widget.expanded ? expandedW : collapsedW,
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        border: const Border(right: BorderSide(color: Colors.white12)),
-      ),
-      child: FocusTraversalGroup(
-        policy: WidgetOrderTraversalPolicy(),
+    return FocusTraversalGroup(
+      policy: WidgetOrderTraversalPolicy(),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        width: widget.expanded ? expandedW : collapsedW,
+        // decoration: BoxDecoration(
+        //   color: AppColors.surface.withValues(alpha: 0.6),
+        //   border: const Border(right: BorderSide(color: Colors.white12)),
+        // ),
         child: Column(
           mainAxisSize: MainAxisSize.max,
           children: [
             const SizedBox(height: 20),
             // ── Logo ─────────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryDark],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.play_circle_filled, color: Colors.white),
-            ),
+            // Container(
+            //   padding: const EdgeInsets.all(8),
+            //   decoration: BoxDecoration(
+            //     gradient: const LinearGradient(
+            //       colors: [AppColors.primary, AppColors.primaryDark],
+            //     ),
+            //     borderRadius: BorderRadius.circular(12),
+            //   ),
+            //   child: const Icon(Icons.play_circle_filled, color: Colors.white),
+            // ),
             // ── Home ─────────────────────────────────────────────────
             _SidebarItem(
               expanded: widget.expanded,
@@ -172,6 +172,9 @@ class _SidebarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FocusableWidget(
+      onSelect: onTap,
+      onFocus: onTap,
+      autoFocus: selected,
       child: Tooltip(
         message: expanded ? '' : label,
         child: SizedBox(
