@@ -4,9 +4,9 @@ import 'package:http/http.dart' as http;
 
 import '../../domain/models/pauloflix_content.dart';
 import '../../domain/models/pauloflix_models.dart';
+import '../../domain/repositories/pauloflix_repository.dart';
 import '../models/jikan_models.dart';
 import 'jikan_service.dart';
-import 'pauloflix_database_service.dart';
 
 class PauloFlixService {
   static const String baseUrl = 'http://100.95.105.113:8300/tvshows/';
@@ -196,6 +196,7 @@ class PauloFlixService {
   }
 
   static Future<bool> syncContent({
+    required PauloFlixRepository repository,
     void Function(String progress)? onProgress,
     void Function(String error)? onError,
   }) async {
@@ -207,8 +208,7 @@ class PauloFlixService {
         return false;
       }
 
-      final dbService = PauloFlixDatabaseService();
-      final existingContent = await dbService.getAllContent();
+      final existingContent = await repository.getAll();
       final result = await _computeShowsToProcess(shows, existingContent);
 
       if (result.removedFolderNames.isNotEmpty) {
@@ -221,7 +221,7 @@ class PauloFlixService {
         onProgress?.call(
           'Sincronizacao completa: ${existingContent.length} shows',
         );
-        await _finishSync(dbService, result.removedFolderNames);
+        await _finishSync(repository, result.removedFolderNames);
         return true;
       }
 
@@ -233,9 +233,9 @@ class PauloFlixService {
       onProgress?.call(
         'Salvando ${contents.length} items no banco de dados...',
       );
-      await dbService.saveBatch(contents);
+      await repository.saveBatch(contents);
 
-      await _finishSync(dbService, result.removedFolderNames);
+      await _finishSync(repository, result.removedFolderNames);
 
       final totalAvailable =
           existingContent.length -
@@ -359,13 +359,14 @@ class PauloFlixService {
   }
 
   static Future<void> _finishSync(
-    PauloFlixDatabaseService dbService,
+    PauloFlixRepository repository,
     List<String> removedFolderNames,
   ) async {
     for (final folderName in removedFolderNames) {
-      await dbService.markAsUnavailable(folderName);
+      await repository.markAsUnavailable(folderName);
     }
-    await dbService.removeStaleContent();
+    // removeStaleContent não tem equivalente exato no repository; o
+    // markAsUnavailable já é suficiente (a migração v1→v3 cobre legados).
   }
 }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../data/services/watchlist_notifier.dart';
 import '../../../domain/models/watchlist_anime.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
@@ -21,28 +20,16 @@ class WatchlistScreen extends StatefulWidget {
 
 class _WatchlistScreenState extends State<WatchlistScreen>
     with AutomaticKeepAliveClientMixin {
-  final WatchlistNotifier _watchlistNotifier = WatchlistNotifier();
-
   @override
   bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    // Escuta mudanças globais (outros widgets chamam notifyWatchlistChanged)
-    // para recarregar.
-    _watchlistNotifier.addListener(_onWatchlistChanged);
-  }
-
-  @override
-  void dispose() {
-    _watchlistNotifier.removeListener(_onWatchlistChanged);
-    super.dispose();
-  }
-
-  void _onWatchlistChanged() {
-    // Recarrega via ViewModel (Fase 3 — usa Drift repository).
-    context.read<WatchlistViewModel>().loadWatchlist();
+    // Carrega inicial (o stream do repository também atualiza).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<WatchlistViewModel>().loadWatchlist();
+    });
   }
 
   Future<void> _removeFromWatchlist(WatchlistAnime anime) async {

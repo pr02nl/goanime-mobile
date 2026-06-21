@@ -81,6 +81,7 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final success = await PauloFlixMoviesService.syncContent(
+        repository: _repository,
         onProgress: (msg) {
           _syncProgress = msg;
           notifyListeners();

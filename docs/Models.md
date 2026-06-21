@@ -1,9 +1,12 @@
 # 📦 Modelos de Dados - Documentação
 
 > **⚠️ Nota sobre persistência:** os modelos `PauloFlixContent`, `PauloFlixMovie`,
-> `WatchlistAnime` e `DownloadItem` estão em transição para Drift. Detalhes do
-> schema alvo e inconsistências atuais (CSV vs JSON para `genres`, ISO vs
-> epoch ms para datas) em [`DATABASE_REFACTORING.md`](./DATABASE_REFACTORING.md).
+> `WatchlistAnime` e `DownloadItem` são os **modelos de domínio**
+> consumidos pelos 4 repositories (Fase 3). A serialização em SQLite
+> (Drift) usa tipos nativos: `genres` é **JSON** (não CSV), datas
+> como `DateTimeColumn` (Drift converte para INTEGER epoch-seconds
+> automaticamente), enums `DownloadStatus`/`DownloadQuality` via
+> `intEnum<>`. Ver `docs/DATABASE_REFACTORING.md`.
 
 ## Jikan API Models
 
@@ -295,9 +298,14 @@ class VideoStreamResult {
 
 ---
 
-## PauloFlixContent
+### PauloFlixContent
 
-Modelo de conteúdo PauloFlix com metadados do Jikan.
+Modelo de conteúdo PauloFlix (animes do file server) com metadados do Jikan.
+
+> **Persistência (Fase 3):** `genres` agora é **JSON serializado** (não
+> CSV), preservando vírgulas dentro de nomes de gênero como "Slice of Life"
+> e "Action, Adventure". Drift `TextColumn` `genres_json`. Ver
+> `lib/core/utils/genre_codec.dart`.
 
 ```dart
 class PauloFlixContent {
@@ -337,6 +345,12 @@ Converte para Map para persistência.
 ## Modelos de Persistência
 
 ### WatchlistAnime
+
+> **Persistência:** tabela `watchlist_items` (Drift). Coluna `addedAt` é
+> `DateTimeColumn` (Drift converte para INTEGER epoch-seconds). Removido
+> da Fase 1 o banco legado `watchlist.db` (sqlite3 FFI). O `WatchlistNotifier`
+> foi removido na Fase 4 (substituído pelo `Stream<List<WatchlistAnime>>`
+> do `WatchlistRepository`).
 ```dart
 class WatchlistAnime {
   final int? id;              // ID local (SQLite)
@@ -349,6 +363,15 @@ class WatchlistAnime {
 ```
 
 ### DownloadItem
+
+> **Persistência (Fase 3):** tabela `downloads` (Drift) com colunas
+> `downloadId` UNIQUE, `quality`/`status` como `intEnum<>` (mapeados dos
+> enums em `core/database/tables/downloads.dart`). Campos `progress`/
+> `bytesDownloaded`/`totalBytes` têm `withDefault(0)`. Datas
+> `createdAt`/`completedAt` são `DateTimeColumn` (Drift converte para
+> INTEGER epoch-seconds). O `DownloadService` (fila HTTP) agora usa
+> `DownloadsRepository` por trás — Fase 4 mantém um ctor legado como
+> fallback de segurança.
 ```dart
 class DownloadItem {
   final String id;                    // ID único (animeId_episodeNumber)

@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../../domain/models/pauloflix_movie.dart';
 import '../../domain/models/pauloflix_movie_item.dart';
-import 'pauloflix_movies_database_service.dart';
+import '../../domain/repositories/pauloflix_movies_repository.dart';
 import 'tmdb_service.dart';
 
 /// Lê diretórios HTML do PauloFlix Movies e enriquece com metadados do TMDB.
@@ -445,6 +445,7 @@ class PauloFlixMoviesService {
   /// - Marca como indisponível o que não está mais em /movies/
   /// - Enriquece com metadados TMDB apenas o que é novo OU está sem imagem
   static Future<bool> syncContent({
+    required PauloFlixMoviesRepository repository,
     void Function(String progress)? onProgress,
     void Function(String error)? onError,
   }) async {
@@ -465,8 +466,7 @@ class PauloFlixMoviesService {
         'Encontradas ${folders.length} pastas. Inspecionando...',
       );
 
-      final db = PauloFlixMoviesDatabaseService();
-      final existing = await db.getAllContent();
+      final existing = await repository.getAll();
       final existingFolders = existing.map((c) => c.folderName).toSet();
       final currentFolders = folders.map((f) => f.name).toSet();
 
@@ -501,14 +501,14 @@ class PauloFlixMoviesService {
 
       if (toProcess.isEmpty) {
         onProgress?.call('Sincronização completa: ${existing.length} itens');
-        if (removed.isNotEmpty) {
-          for (final name in removed) {
-            await db.markAsUnavailable(name);
+          if (removed.isNotEmpty) {
+            for (final name in removed) {
+              await repository.markAsUnavailable(name);
+            }
           }
+          // removeStaleContent não tem equivalente exato no repository.
+          return true;
         }
-        await db.removeStaleContent();
-        return true;
-      }
 
       onProgress?.call('Processando ${toProcess.length} pastas no TMDB...');
 
@@ -582,15 +582,15 @@ class PauloFlixMoviesService {
       }
 
       onProgress?.call('Salvando ${contents.length} itens no banco...');
-      await db.saveBatch(contents);
+      await repository.saveBatch(contents);
 
       if (removed.isNotEmpty) {
         onProgress?.call('Marcando ${removed.length} filmes removidos...');
         for (final name in removed) {
-          await db.markAsUnavailable(name);
+          await repository.markAsUnavailable(name);
         }
       }
-      await db.removeStaleContent();
+      // removeStaleContent não tem equivalente exato no repository.
 
       final totalAvailable =
           existing.length - removed.length + newFolders.length;

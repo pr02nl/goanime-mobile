@@ -455,19 +455,23 @@ Persiste chaves de API do usuário em SharedPreferences.
 
 ## Resumo de Persistência
 
-> **⚠️ Estado atual:** coexistência de 4 bancos SQLite brutos + 1 banco Drift
-> gerado mas não exercitado + 1 helper zumbi. Ver
-> [`DATABASE_REFACTORING.md`](./DATABASE_REFACTORING.md) para o plano de
-> unificação em **1 banco Drift único** com repositories.
+> **Estado atual (pós-Fase 4 do plano `docs/DATABASE_REFACTORING.md`):**
+> **1 banco único** (`pauloflix.db`) gerenciado por **Drift**, com 4
+> tabelas e migrations versionadas. Repositories encapsulam Drift;
+> services de scraping/streaming delegam persistência ao repository.
+> Ver `DATABASE_REFACTORING.md` para a história completa.
 
-|| Serviço | Tecnologia | Chave/Arquivo |
-||---------|------------|---------------|
-|| JikanService | Memória + SharedPreferences | `jikan_home_data_cache` |
-|| DownloadService | SQLite (sqlite3 FFI) | `downloads.db` |
-|| WatchlistService | SQLite (sqlite3 FFI) | `watchlist.db` |
-|| PauloFlixDatabaseService | SQLite (sqlite3 FFI) | `pauloflix.db` |
-|| PauloFlixMoviesDatabaseService | SQLite (sqlite3 FFI) | `pauloflix_movies.db` |
-|| DatabaseHelper | SQLite (sqlite3 FFI) | `anime.db` (zumbi write-only) |
-|| AppDatabase (Drift) | Drift (gerado) | `pauloflix.db` (não instanciado) |
-|| SearchHistoryService | SharedPreferences | `search_history` |
-|| LocaleService | SharedPreferences | `app_locale` |
+|| Camada               | Tecnologia        | Arquivo                |
+|| -------------------- | ------------------ | ---------------------- |
+|| Banco de dados       | Drift (sqlite3)    | `core/database/app_database.dart` |
+|| Repositories         | Drift              | `data/repositories/*_repository_impl.dart` (4 impls) |
+|| Migration v1→v3      | Drift + sqlite3    | `core/database/connection/migration_v1_to_v3.dart` |
+|| Services de scraping | http + html        | `data/services/pauloflix*_service.dart` (2 services) |
+|| Animes API            | http               | `data/services/jikan_service.dart` (cache 30min) |
+|| AniList API           | GraphQL            | `data/services/anilist_service.dart` |
+|| AniSkip API           | http               | `data/services/aniskip_service.dart` |
+|| TMDB API              | http               | `data/services/tmdb_service.dart` (cache + throttle) |
+|| Downloads (fila HTTP) | http + Drift       | `data/services/download_service.dart` (com `DownloadsRepository`) |
+|| Search history       | SharedPreferences  | `data/services/search_history_service.dart` |
+|| Locale               | SharedPreferences  | `ui/core/view_models/locale_viewmodel.dart` |
+|| TV API key            | http server        | `data/services/tv_api_key_server.dart` |

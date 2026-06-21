@@ -17,70 +17,51 @@ lib/
 ├── main.dart                          # Entry point
 ├── app.dart                           # MaterialApp setup, providers, theme
 │
-├── core/                              # Infraestrutura compartilhada
-│   ├── constants/
-│   │   ├── api_constants.dart         # Base URLs, endpoints
-│   │   └── app_constants.dart         # Chaves de SharedPreferences, limites
-│   ├── database/                          # ⚠️ Em refatoração — ver docs/DATABASE_REFACTORING.md
-│   │   ├── app_database.dart          # Drift database definition (FANTASMA — ver plano)
-│   │   ├── app_database.g.dart        # Drift codegen (gerado, não exercitado)
-│   │   ├── database_helper.dart       # Helper SQLite legado (zumbi write-only — remover)
-│   │   └── tables/
-│   │       ├── downloads_table.dart   # Schema downloads
-│   │       ├── pauloflix_table.dart   # Schema PauloFlix animes
-│   │       └── watchlist_table.dart   # Schema watchlist
-│   ├── errors/
-│   │   ├── exceptions.dart            # Exceções sealed (TmdbException, etc.)
-│   │   └── failures.dart              # Failures unificados
-│   ├── logger/
-│   │   └── app_logger.dart            # Logger estruturado
-│   └── network/
-│       ├── dio_client.dart            # Dio com interceptors
-│       ├── logging_interceptor.dart    # Logging HTTP
-│       ├── rate_limit_interceptor.dart # Rate limiting
-│       └── retry_interceptor.dart     # Retry com backoff
+│   ├── core/                              # Infraestrutura compartilhada
+│   │   ├── constants/
+│   │   │   ├── api_constants.dart         # Base URLs, endpoints
+│   │   │   └── app_constants.dart         # Chaves de SharedPreferences, limites
+│   │   ├── database/                          # ✅ Drift (Fase 0-4) — fonte de verdade
+│   │   │   ├── app_database.dart          # @DriftDatabase (4 tabelas)
+│   │   │   ├── app_database.g.dart        # Drift codegen (gerado, ignorado)
+│   │   │   ├── connection/                # openConnection + migration v1→v3
+│   │   │   │   ├── connection.dart        # LazyDatabase + PRAGMAs
+│   │   │   │   └── migration_v1_to_v3.dart # Função pura testada
+│   │   │   └── tables/                    # 4 tabelas Drift
+│   │   │       ├── watchlist_items.dart
+│   │   │       ├── downloads.dart
+│   │   │       ├── pauloflix_content.dart
+│   │   │       └── pauloflix_movies.dart
+│   │   ├── errors/
+│   │   ├── logger/
+│   │   └── network/
 │
-├── domain/                            # Regras de negócio (interfaces + modelos internos)
-│   ├── models/
-│   │   ├── anime.dart                 # Anime unificado (Jikan + AniList)
-│   │   ├── episode.dart               # Episódio
-│   │   ├── pauloflix_content.dart     # Conteúdo PauloFlix (animes)
-│   │   ├── pauloflix_models.dart      # Modelos PauloFlix internos
-│   │   ├── pauloflix_movie.dart       # Filme ou coleção
-│   │   ├── pauloflix_movie_item.dart  # Filme individual (dentro de coleção)
-│   │   ├── video.dart                 # Dados de vídeo
-│   │   └── watchlist_anime.dart       # Item da watchlist
-│   └── repositories/
-│       ├── home_repository.dart       # Interface (abstract)
-│       └── search_repository.dart     # Interface (abstract)
-│
-├── data/                              # Implementações de dados
-│   ├── models/                        # Modelos de API externos
-│   │   ├── anilist_models.dart        # MediaDetails, MediaTitle, CoverImage
-│   │   ├── aniskip_models.dart        # SkipTimes, Skip
-│   │   ├── jikan_models.dart          # JikanAnime, JikanGenre, JikanResponse
-│   │   └── tmdb_models.dart           # TmdbMovie, TmdbGenre
-│   ├── repositories/
-│   │   ├── home_repository_impl.dart  # Implementação concreta
-│   │   └── search_repository_impl.dart
-│   └── services/
-│       ├── anime_service.dart         # AnimeFire/scraping + extração de vídeo
-│       ├── anilist_service.dart       # AniList GraphQL
-│       ├── aniskip_service.dart       # AniSkip skip times
-│       ├── api_key_settings_service.dart  # TMDB API key (SharedPreferences)
-│       ├── download_service.dart      # Downloads offline
-│       ├── episode_thumbnail_service.dart # Thumbnails de episódios
-│       ├── google_video_proxy.dart    # Proxy HTTP para Google Video
-│       ├── jikan_service.dart         # Jikan API (cache 30min)
-│       ├── pauloflix_database_service.dart  # SQLite PauloFlix animes
-│       ├── pauloflix_movies_database_service.dart  # SQLite PauloFlix filmes
-│       ├── pauloflix_movies_service.dart   # PauloFlix Movies: scraping + TMDB
-│       ├── pauloflix_service.dart     # PauloFlix animes: scraping HTML
-│       ├── search_history_service.dart # Histórico de busca (SharedPreferences)
-│       ├── tmdb_service.dart          # TMDB API v3 (cache + throttle)
-│       ├── tv_api_key_server.dart     # Servidor HTTP para setup de API key via QR
-│       ├── watchlist_notifier.dart    # ChangeNotifier da watchlist
-│       └── watchlist_service.dart     # Watchlist (SQLite)
+│   ├── data/                              # Implementações de dados
+│   │   ├── models/                        # Modelos de API externos
+│   │   │   ├── anilist_models.dart
+│   │   │   ├── aniskip_models.dart
+│   │   │   ├── jikan_models.dart
+│   │   │   └── tmdb_models.dart
+│   │   ├── repositories/                  # ✅ Repositories Drift (Fase 3)
+│   │   │   ├── home_repository_impl.dart
+│   │   │   ├── watchlist_repository_impl.dart
+│   │   │   ├── pauloflix_repository_impl.dart
+│   │   │   ├── pauloflix_movies_repository_impl.dart
+│   │   │   └── downloads_repository_impl.dart
+│   │   └── services/                      # Services de scraping/streaming
+│   │       ├── anilist_service.dart
+│   │       ├── anime_service.dart
+│   │       ├── aniskip_service.dart
+│   │       ├── api_key_settings_service.dart
+│   │       ├── download_service.dart      # Aceita DownloadsRepository (Fase 3)
+│   │       ├── episode_thumbnail_service.dart
+│   │       ├── google_video_proxy.dart
+│   │       ├── jikan_service.dart
+│   │       ├── pauloflix_movies_service.dart  # Scraping HTML + repo
+│   │       ├── pauloflix_service.dart        # Scraping HTML + repo
+│   │       ├── search_history_service.dart
+│   │       ├── tmdb_service.dart
+│   │       └── tv_api_key_server.dart
 │
 ├── routing/                           # Navegação
 │   ├── app_router.dart                # go_router config

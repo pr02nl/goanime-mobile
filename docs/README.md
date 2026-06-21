@@ -111,31 +111,33 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 
 ## 💾 Persistência Local
 
-> **⚠️ Estado atual:** 4 bancos SQLite brutos + 1 Drift não exercitado + 1 helper
-> zumbi. Plano de unificação em [`DATABASE_REFACTORING.md`](./DATABASE_REFACTORING.md)
-> (alvo: 1 banco Drift único com migrations versionadas).
+> **Estado atual (pós-refatoração):** **1 banco único** (`pauloflix.db`)
+> gerenciado por **Drift**, com 4 tabelas e migrations versionadas.
+> Veja `docs/DATABASE_REFACTORING.md` para a história completa.
 
-### SQLite (sqlite3)
+### SQLite (Drift — fonte de verdade)
 
-|| Tabela      | Banco                | Propósito                           |
-|| ----------- | -------------------- | ----------------------------------- |
-|| `anime`     | `anime.db`           | Cache de nomes de anime **(zumbi write-only — a remover)** |
-|| `watchlist` | `watchlist.db`       | Animes salvos para assistir depois  |
-|| `downloads` | `downloads.db`       | Metadados de downloads de episódios |
-|| `pauloflix_content` | `pauloflix.db` | Cache de animes PauloFlix           |
-|| `pauloflix_movies` | `pauloflix_movies.db` | Cache de filmes PauloFlix    |
+|| Tabela              | Conteúdo                                         |
+|| ------------------- | ------------------------------------------------ |
+|| `watchlist_items`   | Animes salvos para assistir depois               |
+|| `downloads`         | Metadados de downloads de episódios              |
+|| `paulo_flix_content`| Cache de animes PauloFlix (animes do file server)|
+|| `paulo_flix_movies` | Cache de filmes PauloFlix (filmes do file server)|
 
-### Drift (gerado, não instanciado)
-
-`AppDatabase` declarado em `lib/core/database/app_database.dart` referencia as
-tabelas `WatchlistItems`, `Downloads`, `PauloFlixContent`. Nenhuma instanciação
-em runtime — ver `DATABASE_REFACTORING.md` para reativação.
-
-### SharedPreferences
+### Compartilhadas (SharedPreferences)
 
 - Cache de dados da Home (30 minutos)
 - Histórico de busca
 - Preferências de idioma
+- API key do TMDB
+
+### SQLite (apenas para migration v1→v3)
+
+O pacote `sqlite3` ainda é usado em produção **apenas** pela função
+`migrateV1ToV3` (Fase 2), que abre os 4 bancos legados para popular
+o Drift na primeira inicialização. Após essa migração inicial, o
+Drift é a única persistência — não há mais `sqlite3` FFI no caminho
+de leitura/escrita.
 
 ---
 

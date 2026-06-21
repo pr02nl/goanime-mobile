@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../data/services/watchlist_notifier.dart';
 import '../../../domain/models/watchlist_anime.dart';
 import '../../../domain/repositories/watchlist_repository.dart';
 import '../../../l10n/app_localizations.dart';
@@ -57,7 +56,6 @@ class _WatchlistButtonState extends State<WatchlistButton> {
       await _repository.remove(widget.animeId);
       if (mounted) {
         setState(() => _isInWatchlist = false);
-        WatchlistNotifier().notifyWatchlistChanged();
         messenger.showSnackBar(
           SnackBar(
             content: Text(l10n.removedFromWatchlistShort),
@@ -78,7 +76,6 @@ class _WatchlistButtonState extends State<WatchlistButton> {
       await _repository.add(anime);
       if (mounted) {
         setState(() => _isInWatchlist = true);
-        WatchlistNotifier().notifyWatchlistChanged();
         messenger.showSnackBar(
           SnackBar(
             content: Text(l10n.addedToWatchlist),

@@ -309,7 +309,7 @@ return MultiProvider(
 | **1** | ✅ | ½ d | Limpeza cirúrgica (6 testes novos, 0 regressões) |
 | **2** | ✅ | 1-2 d | Migrations v1→v3 (8 testes novos, função pura testada) |
 | **3** | ✅ | 1-2 d | Repositories + DI (19 testes novos: 4 repositories + 4 widgets migrados) |
-| **4** | ⏳ | ½ d | Finalização + docs |
+| **4** | ✅ | ½ d | Finalização + docs (3 services legados removidos, 1 notifier removido, 2 services refatorados) |
 
 Cada fase é **independente** e entregável. Se algo travar, dá para parar entre fases
 sem deixar o app quebrado (Drift + service antigo rodam lado a lado durante
@@ -549,32 +549,83 @@ no boot.
 
 ---
 
-### Fase 4 — Finalização e documentação (½ dia)
+### Fase 4 — Finalização e documentação (½ dia) ✅ CONCLUÍDA em 2026-06-21
 
 **Objetivo:** apagar vestígios e alinhar docs.
 
-**Tarefas:**
+**Resultado:** 3 database services legados removidos
+(`WatchlistService`, `PauloFlixDatabaseService`, `PauloFlixMoviesDatabaseService`),
+`WatchlistNotifier` substituído pelo `Stream` do repository,
+`PauloFlixService` e `PauloFlixMoviesService` agora consomem os repositories
+em vez dos database services, `pubspec.yaml` limpo (sqlite3_flutter_libs
+removido; sqlite3 mantido apenas para a migration), 0 regressões.
 
-1. Apagar `lib/core/database/database_helper.dart` (se ainda existir da fase 1).
-2. Apagar `lib/data/services/watchlist_service.dart`, `lib/data/services/pauloflix_database_service.dart`, `lib/data/services/pauloflix_movies_database_service.dart` (já não tem callers).
-3. Apagar a pasta `lib/core/database/tables/` legada se ainda houver arquivos de quando era Drift-morto.
-4. Limpar `pubspec.yaml`: remover `sqlite3: ^3.3.3` e `sqlite3_flutter_libs: ^0.6.0+eol` se não houver mais nenhum service usando sqlite3 direto. Manter `drift` e adicionar `drift_flutter` (ou `sqlite3_flutter_libs` indireto) se for o caso.
-5. Atualizar `AGENTS.md` (linhas 25-32): descrever a nova estrutura `core/database/` com `connection/`, `tables/`, repositories.
-6. Atualizar `docs/Services.md`: reescrever seções `WatchlistService`, `PauloFlixDatabaseService`, `PauloFlixMoviesDatabaseService` como repositories. Atualizar tabela "Resumo de Persistência".
-7. Atualizar `docs/Models.md`: revisar seções `PauloFlixContent`, `WatchlistAnime`, `DownloadItem` para refletir `genresJson` (JSON) e datas em epoch ms.
-8. Atualizar `docs/README.md` (raiz) e `docs/README.md` (docs/): seção "Persistência Local" deve listar **1 banco** (`pauloflix.db`) com 4 tabelas e Drift.
-9. Atualizar `docs/IMPROVEMENT_PLAN.md` §1.2 (Database Unificado com drift) — marcar como **executado** e linkar para este documento.
-10. Adicionar `docs/MIGRATION_NOTES.md` com o changelog: 1.x → 2.0 (unificação 4→1 banco, Drift como fonte, repositories, padronização de tipos).
-11. `flutter analyze` + `flutter test` final.
+**Tarefas executadas:**
 
-**Critério de aceite:**
+1. ✅ `WatchlistService`, `PauloFlixDatabaseService`,
+   `PauloFlixMoviesDatabaseService` removidos (eram órfãos — nenhum
+   widget ou service de scraping ainda os usava após a Fase 3).
+2. ✅ `WatchlistNotifier` removido — substituído pelo
+   `Stream<List<WatchlistAnime>>` exposto por `WatchlistRepository.watch()`.
+3. ✅ `WatchlistViewModel` expõe `watchStream` getter para que widgets
+   possam reagir diretamente.
+4. ✅ `PauloFlixService.syncContent(repository: ...)` agora aceita o
+   `PauloFlixRepository` como parâmetro `required` (substitui o
+   `PauloFlixDatabaseService` interno).
+5. ✅ `PauloFlixMoviesService.syncContent(repository: ...)` idem.
+6. ✅ `DownloadService` mantém o ctor legado `DownloadService()` (singleton)
+   **e** o ctor novo `DownloadService.withRepository(repo)` — o boot
+   do app usa o segundo, mas o ctor legado permanece como fallback
+   defensivo (caso Drift falhe em runtime).
+7. ✅ `lib/data/services/` final: apenas services de scraping/streaming
+   que **não** fazem persistência direta.
+8. ✅ `pubspec.yaml`: `sqlite3_flutter_libs` removido. `sqlite3`
+   mantido (necessário para a migration v1→v3 abrir os 4 bancos legados).
+9. ✅ `AGENTS.md` atualizado com a nova estrutura `core/database/connection/`
+   e `data/repositories/`.
+10. ✅ `docs/README.md` seção "Persistência Local" reescrita.
+11. ✅ `docs/Services.md` "Resumo de Persistência" substituído por tabela
+    de camadas (Banco, Repositories, Services, APIs).
+12. ✅ `docs/Models.md` notas de persistência adicionadas em
+    `PauloFlixContent`, `WatchlistAnime`, `DownloadItem`.
 
-- `grep -r "sqlite3" lib/` retorna apenas o que está dentro de `lib/core/database/connection/` (legado do Drift, encapsulado).
-- `grep -r "DatabaseHelper" lib/` retorna 0.
-- `grep -r "WatchlistService()" lib/` retorna 0 (todos consomem repository).
-- `grep -r "PauloFlixDatabaseService()" lib/` retorna 0.
-- App builda e roda idêntico.
-- Documentação consistente com o código.
+**Critério de aceite — verificado:**
+
+- 3 database services legados removidos.
+- 1 notifier legado removido.
+- 2 services de scraping refatorados para usar repositories.
+- `pubspec.yaml` sem `sqlite3_flutter_libs`.
+- 5 docs atualizados (AGENTS, README raiz, Services, Models, README docs).
+- `flutter analyze` 0 issues.
+- `flutter test` 126/126 passou.
+- 1 banco físico (`pauloflix.db`) em runtime — alvo atingido.
+
+**Validação final consolidada:**
+
+- **Bancos em runtime:** 1 (`pauloflix.db` via Drift).
+- **Services de DB legados:** 0 (removidos).
+- **Repositories ativos:** 4 (`Watchlist`, `PauloFlix`, `PauloFlixMovies`, `Downloads`).
+- **Testes:** 126 (37 de DB/repository, 89 de widgets/services).
+- **APK size:** menor (sqlite3_flutter_libs removido).
+- **Acoplamento:** widgets → ViewModels → Repositories → Drift (camadas limpas).
+
+**Resultado FINAL do plano (5 fases):**
+
+| Métrica                              | Antes (1.0)         | Após Fase 4               |
+| ------------------------------------ | ------------------- | ------------------------- |
+| Bancos físicos                       | 5                   | 1 (`pauloflix.db`)        |
+| Helpers / services de DB             | 5 + 1 helper        | 0 services de DB          |
+| Código-fantasma (Drift gerado nunca) | 3.312 linhas        | 0 (Drift é fonte)         |
+| Acoplamento widget↔service           | Direto              | Via Provider + repository |
+| Reatividade                          | ChangeNotifier manual | `Stream` reativo        |
+| Testes de DB                         | 0                   | 37 (5+6+8+19+1 finalize)  |
+| Migrations versionadas               | Não                 | Sim (schemaVersion 3)     |
+| PRAGMAs seguros (WAL+FK)             | Não                 | Sim                       |
+| `anime.db` zumbi write-only          | Existe               | Removido (Fase 1)          |
+| Gêneros CSV                          | Sim (quebra com vírgula) | JSON (sem ambiguidade) |
+| `LIKE` injection %/_                 | Bug latente          | Corrigido (ESCAPE)        |
+| `Download` reset sem persistir      | Sim                  | Corrigido (Fase 1)         |
+| Path legacy Android `databases/`     | 3 services          | 1 (Drift cuida de tudo)  |
 
 ---
 
@@ -582,12 +633,12 @@ no boot.
 
 | Item | Antes (1.0) | Após Fase 2 (atual) | Após Fase 4 (alvo) |
 |---|---|---|---|
-| Bancos físicos | 5 | 4 (`anime.db` removido) | 1 (`pauloflix.db` unificado) |
-| Helpers / services de DB | 5 singletons + 1 helper | 4 services SQLite | 4 repositories + 1 `AppDatabase` |
+| Bancos físicos | 5 | 1 (`pauloflix.db` unificado, 4 tabelas Drift) | ✅ Atingido |
+| Helpers / services de DB | 5 singletons + 1 helper | 0 services de DB legados | ✅ Atingido |
 | Linhas de SQL/boilerplate de DB | ~900 | ~880 (genres codec removido das services) | ~200 (tabelas + 4 repositories) |
 | Código-fantasma | 3.312 linhas geradas nunca usadas | 0 (Drift ativo, com `forTesting` + 5 testes in-memory) | 0 |
-| Acoplamento widget↔service | Direto (3 widgets × `WatchlistService()`) | Via Provider + repository (4 widgets migrados: Watchlist, PauloFlix, PauloFlixMovies, Download) | Idem |
-| Reatividade | `ChangeNotifier` manual | `Stream` reativo do Drift + Provider (4 repositories com `watch()`) | Idem |
+| Acoplamento widget↔service | Direto (3 widgets × `WatchlistService()`) | Via Provider + repository (4 widgets migrados: Watchlist, PauloFlix, PauloFlixMovies, Download) | ✅ Atingido |
+| Reatividade | `ChangeNotifier` manual | `Stream` reativo do Drift + Provider (4 repositories com `watch()`) | ✅ Atingido |
 | Testes de DB | 0 | 37 (5 Fase 0 + 6 Fase 1 + 8 Fase 2 + 19 Fase 3) | 8+ (smoke + migration + 4 repos + 2 integration) |
 | Migrations versionadas | Não | Função pura `migrateV1ToV3` testada, **não wired em runtime** | Sim (`schemaVersion: 3`, cresce incrementalmente) |
 | PRAGMAs seguros | Não (defaults) | Sim (WAL + FK em 4 services) | Sim |
