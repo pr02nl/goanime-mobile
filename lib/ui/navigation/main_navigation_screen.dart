@@ -9,9 +9,12 @@ import 'side_bar.dart';
 
 /// Ponto central de navegação do app.
 ///
-/// Em telas largas (tablet, TV, desktop) exibe uma [Sidebar] à esquerda que
-/// inicia colapsada (apenas ícones) e **expande** ao pressionar ← a partir
-/// do conteúdo (comportamento similar ao YouTube na TV).
+/// Em telas largas (tablet, TV, desktop) exibe uma [Sidebar] à esquerda
+/// estilo YouTube TV:
+/// * Inicia **colapsada** (só ícones) com o foco no conteúdo.
+/// * ← no conteúdo → expande a sidebar e foca o item da rota ativa.
+/// * ↑↓ na sidebar move o anel de foco (focar ≠ ativar).
+/// * → na sidebar ou Enter em um item → colapsa e devolve o foco ao conteúdo.
 ///
 /// Em telas estreitas (mobile) usa um [Drawer] tradicional.
 class MainNavigationScreen extends StatefulWidget {
@@ -25,25 +28,15 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _sidebarExpanded = false;
+  // Chave para acessar SidebarState e focar o item da rota ativa quando o
+  // usuário pressiona ← no conteúdo (comportamento YouTube TV).
+  final GlobalKey<SidebarState> _sidebarKey = GlobalKey<SidebarState>();
 
   bool _isWideScreen(BuildContext context) =>
       MediaQuery.of(context).size.width >= Responsive.phoneMaxWidth;
 
   void _openDrawer() {
     _scaffoldKey.currentState?.openDrawer();
-  }
-
-  void _expandSidebar() {
-    if (!_sidebarExpanded) {
-      setState(() => _sidebarExpanded = true);
-    }
-  }
-
-  void _collapseSidebar() {
-    if (_sidebarExpanded) {
-      setState(() => _sidebarExpanded = false);
-    }
   }
 
   @override
@@ -64,18 +57,28 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // ───────────────────────────────────────────────────────────────────────
 
   Widget _buildWideLayout(BuildContext context, String location) {
+    // Actions captura DirectionalFocusIntent gerado pelo FocusableWidget
+    // (setas → DirectionalFocusIntent). O _SidebarEdgeAction trata ← no
+    // conteúdo: quando o foco não se move (edge esquerdo do conteúdo),
+    // chama onLeftEdge → foca o item da rota ativa na sidebar, que expande
+    // automaticamente por foco do grupo (YouTube TV).
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Row(
-        children: [
-          Sidebar(
-            location: location,
-            expanded: _sidebarExpanded,
-            // expanded: false,
-            onClose: _collapseSidebar,
+      body: Actions(
+        actions: <Type, Action<Intent>>{
+          DirectionalFocusIntent: _SidebarEdgeAction(
+            onLeftEdge: () => _sidebarKey.currentState?.focusActiveItem(),
           ),
-          Expanded(child: widget.child),
-        ],
+        },
+        child: Row(
+          children: [
+            Sidebar(
+              key: _sidebarKey,
+              location: location,
+            ),
+            Expanded(child: widget.child),
+          ],
+        ),
       ),
     );
   }
@@ -115,13 +118,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
 /// Intercepta [DirectionalFocusIntent]:
 ///
-/// * **←** sem movimento de foco → chama [onLeftEdge] (expande sidebar).
+/// * **←** sem movimento de foco (edge esquerdo do conteúdo) → chama
+///   [onLeftEdge] (expande sidebar e foca o item da rota ativa).
 /// * Demais direções → delega ao [DirectionalFocusAction].
 class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
   final VoidCallback? onLeftEdge;
-  final VoidCallback? onRightEdge;
 
-  _SidebarEdgeAction({this.onLeftEdge, this.onRightEdge});
+  _SidebarEdgeAction({this.onLeftEdge});
 
   @override
   void invoke(DirectionalFocusIntent intent) {
@@ -130,12 +133,6 @@ class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
       DirectionalFocusAction().invoke(intent);
       if (primaryFocus == before && onLeftEdge != null) {
         onLeftEdge!();
-      }
-    } else if (intent.direction == TraversalDirection.right) {
-      final FocusNode? before = primaryFocus;
-      DirectionalFocusAction().invoke(intent);
-      if (primaryFocus == before && onRightEdge != null) {
-        onRightEdge!();
       }
     } else {
       DirectionalFocusAction().invoke(intent);
