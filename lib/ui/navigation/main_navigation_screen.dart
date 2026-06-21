@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/themes/app_colors.dart';
 import '../core/utils/responsive.dart';
 import '../core/widgets/content_type_selector.dart';
+import 'key_activable.dart';
+import 'side_bar.dart';
 
 /// Ponto central de navegação do app.
 ///
@@ -72,16 +73,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget _buildWideLayout(BuildContext context, String location) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      drawer: _DrawerMenu(
-        location: location,
-        onItemSelected: () => Navigator.of(context).pop(),
-      ),
       body: Row(
         children: [
           Sidebar(
             location: location,
-            expanded: _sidebarExpanded,
-            // expanded: false,
+            // expanded: _sidebarExpanded,
+            expanded: false,
             onClose: _collapseSidebar,
           ),
           Expanded(child: widget.child),
@@ -157,7 +154,7 @@ class _HamburgerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _KeyActivable(
+    return KeyActivable(
       onActivate: onTap,
       child: Material(
         color: Colors.transparent,
@@ -181,374 +178,6 @@ class _HamburgerButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _KeyActivable — ativação por teclado/TV sem nó de foco extra
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _KeyActivable extends StatelessWidget {
-  final Widget child;
-  final VoidCallback onActivate;
-
-  const _KeyActivable({required this.child, required this.onActivate});
-
-  @override
-  Widget build(BuildContext context) {
-    return Shortcuts(
-      shortcuts: const {
-        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
-        SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
-      },
-      child: Actions(
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              onActivate();
-              return null;
-            },
-          ),
-        },
-        child: child,
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sidebar expansível (TV / desktop)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Sidebar persistente que alterna entre colapsada (só ícones, 72px) e
-/// expandida (ícones + texto, ~220px), similar ao YouTube na TV.
-///
-/// Quando o foco sai da sidebar (navegação →), [onClose] colapsa.
-class Sidebar extends StatefulWidget {
-  final String location;
-  final bool expanded;
-  final VoidCallback onClose;
-
-  const Sidebar({
-    super.key,
-    required this.location,
-    required this.expanded,
-    required this.onClose,
-  });
-
-  @override
-  State<Sidebar> createState() => _SidebarState();
-}
-
-class _SidebarState extends State<Sidebar> {
-  @override
-  Widget build(BuildContext context) {
-    final isAnimeSection = !widget.location.contains('pauloflix-movies');
-    const collapsedW = 72.0;
-    const expandedW = 220.0;
-
-    return Focus(
-      onFocusChange: (hasFocus) {
-        // Colapsa a sidebar quando o foco sai dela
-        if (!hasFocus && widget.expanded) {
-          widget.onClose();
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        width: widget.expanded ? expandedW : collapsedW,
-        decoration: BoxDecoration(
-          color: AppColors.surface.withValues(alpha: 0.6),
-          border: const Border(right: BorderSide(color: Colors.white12)),
-        ),
-        child: FocusTraversalGroup(
-          policy: WidgetOrderTraversalPolicy(),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              const SizedBox(height: 20),
-              // ── Logo ─────────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.play_circle_filled,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // ── Seletor Animes | Filmes ──────────────────────────────
-              _SidebarToggle(
-                expanded: widget.expanded,
-                isAnime: isAnimeSection,
-                onChanged: (animeMode) {
-                  context.go(animeMode ? '/' : '/pauloflix-movies');
-                },
-              ),
-              const SizedBox(height: 8),
-              const _SidebarDivider(expanded: false),
-              const SizedBox(height: 8),
-              // ── Home ─────────────────────────────────────────────────
-              _SidebarItem(
-                expanded: widget.expanded,
-                icon: Icons.home,
-                label: 'Início',
-                selected: widget.location == '/',
-                onTap: () {
-                  context.go('/');
-                  widget.onClose();
-                },
-              ),
-              const SizedBox(height: 4),
-              // ── Buscar ───────────────────────────────────────────────
-              _SidebarItem(
-                expanded: widget.expanded,
-                icon: Icons.search,
-                label: 'Buscar',
-                selected:
-                    widget.location == '/search' ||
-                    widget.location == '/pauloflix-movies/search',
-                onTap: () {
-                  context.push(
-                    isAnimeSection ? '/search' : '/pauloflix-movies/search',
-                  );
-                  widget.onClose();
-                },
-              ),
-              const SizedBox(height: 4),
-              // ── Favoritos ────────────────────────────────────────────
-              _SidebarItem(
-                expanded: widget.expanded,
-                icon: Icons.bookmark,
-                label: 'Favoritos',
-                selected: widget.location == '/watchlist',
-                onTap: () {
-                  context.push('/watchlist');
-                  widget.onClose();
-                },
-              ),
-              const SizedBox(height: 4),
-              // ── Downloads ────────────────────────────────────────────
-              _SidebarItem(
-                expanded: widget.expanded,
-                icon: Icons.download_outlined,
-                label: 'Downloads',
-                selected: widget.location == '/downloads',
-                onTap: () {
-                  context.push('/downloads');
-                  widget.onClose();
-                },
-              ),
-              const SizedBox(height: 4),
-              // ── Ajustes ──────────────────────────────────────────────
-              _SidebarItem(
-                expanded: widget.expanded,
-                icon: Icons.settings_outlined,
-                label: 'Ajustes',
-                selected: widget.location == '/settings',
-                onTap: () {
-                  context.push('/settings');
-                  widget.onClose();
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Item da sidebar — mostra só ícone no estado colapsado,
-/// ícone + rótulo no estado expandido.
-class _SidebarItem extends StatelessWidget {
-  final bool expanded;
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _SidebarItem({
-    required this.expanded,
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _KeyActivable(
-      onActivate: onTap,
-      child: Tooltip(
-        message: expanded ? '' : label,
-        child: SizedBox(
-          height: 48,
-          child: InkWell(
-            canRequestFocus: true,
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              alignment: Alignment.centerLeft,
-              padding: EdgeInsets.only(
-                left: expanded ? 16 : (72 - 24) / 2, // centraliza ícone
-              ),
-              decoration: BoxDecoration(
-                color: selected
-                    ? AppColors.primary.withValues(alpha: 0.15)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    icon,
-                    size: 24,
-                    color: selected ? AppColors.primary : Colors.white70,
-                  ),
-                  if (expanded) ...[
-                    const SizedBox(width: 16),
-                    Flexible(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          color: selected ? Colors.white : Colors.white70,
-                          fontWeight: selected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          fontSize: 15,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Toggle Animes / Filmes na sidebar.
-class _SidebarToggle extends StatelessWidget {
-  final bool expanded;
-  final bool isAnime;
-  final ValueChanged<bool> onChanged;
-
-  const _SidebarToggle({
-    required this.expanded,
-    required this.isAnime,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _ToggleIcon(
-          expanded: expanded,
-          icon: Icons.tv,
-          label: 'Animes',
-          active: isAnime,
-          accent: AppColors.primary,
-          onTap: () => onChanged(true),
-        ),
-        const SizedBox(height: 4),
-        _ToggleIcon(
-          expanded: expanded,
-          icon: Icons.movie_outlined,
-          label: 'Filmes',
-          active: !isAnime,
-          accent: const Color(0xFFDC2626),
-          onTap: () => onChanged(false),
-        ),
-      ],
-    );
-  }
-}
-
-class _ToggleIcon extends StatelessWidget {
-  final bool expanded;
-  final IconData icon;
-  final String label;
-  final bool active;
-  final Color accent;
-  final VoidCallback onTap;
-
-  const _ToggleIcon({
-    required this.expanded,
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.accent,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _KeyActivable(
-      onActivate: onTap,
-      child: SizedBox(
-        height: 40,
-        child: InkWell(
-          canRequestFocus: true,
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            alignment: Alignment.centerLeft,
-            padding: EdgeInsets.only(left: expanded ? 16 : (72 - 24) / 2),
-            decoration: BoxDecoration(
-              color: active
-                  ? accent.withValues(alpha: 0.2)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: active ? accent : Colors.white54),
-                if (expanded) ...[
-                  const SizedBox(width: 14),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: active ? accent : Colors.white54,
-                      fontSize: 13,
-                      fontWeight: active ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SidebarDivider extends StatelessWidget {
-  final bool expanded;
-  const _SidebarDivider({required this.expanded});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: expanded ? 16 : 20),
-      height: 1,
-      color: Colors.white12,
     );
   }
 }
@@ -699,7 +328,7 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _KeyActivable(
+    return KeyActivable(
       onActivate: onTap,
       child: ListTile(
         leading: Icon(
