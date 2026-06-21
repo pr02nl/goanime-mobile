@@ -1,20 +1,38 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/data/services/pauloflix_database_service.dart';
 import 'package:goanime/domain/models/pauloflix_content.dart';
+import 'package:goanime/domain/repositories/pauloflix_repository.dart';
 import 'package:goanime/ui/pauloflix/view_models/pauloflix_provider.dart';
 
-/// Banco fake que retorna dados em memória, sem precisar de SQLite real.
-class FakePauloFlixDatabaseService extends PauloFlixDatabaseService {
+/// Fake do repository (Fase 3) — retorna dados em memória.
+class FakePauloFlixRepository implements PauloFlixRepository {
   final List<PauloFlixContent> fakeData;
   final bool shouldThrow;
 
-  FakePauloFlixDatabaseService(this.fakeData, {this.shouldThrow = false});
+  FakePauloFlixRepository(this.fakeData, {this.shouldThrow = false});
 
   @override
-  Future<List<PauloFlixContent>> getAllContent() async {
+  Future<List<PauloFlixContent>> getAll() async {
     if (shouldThrow) throw Exception('DB error');
     return fakeData;
   }
+
+  @override
+  Future<List<PauloFlixContent>> searchByName(String query) async => fakeData;
+  @override
+  Future<PauloFlixContent?> getByFolderName(String folderName) async => null;
+  @override
+  Future<PauloFlixContent?> getByMalId(int malId) async => null;
+  @override
+  Future<void> saveContent(PauloFlixContent content) async {}
+  @override
+  Future<void> saveBatch(List<PauloFlixContent> contents) async {}
+  @override
+  Future<void> markAsUnavailable(String folderName) async {}
+  @override
+  Future<Map<String, int>> getStats() async =>
+      {'total': 0, 'available': 0, 'withMetadata': 0};
+  @override
+  Stream<List<PauloFlixContent>> watch() => const Stream.empty();
 }
 
 void main() {
@@ -45,8 +63,8 @@ void main() {
     ];
 
     test('status inicial deve ser initial', () {
-      final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService([]),
+      final provider = PauloFlixProvider.withRepository(
+        FakePauloFlixRepository([]),
       );
       expect(provider.status, PauloFlixStatus.initial);
       expect(provider.contents, isEmpty);
@@ -56,11 +74,8 @@ void main() {
     });
 
     test('loadContents deve carregar dados do banco', () async {
-      final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService([
-          testAnimes[0],
-          testAnimes[1],
-        ]),
+      final provider = PauloFlixProvider.withRepository(
+        FakePauloFlixRepository([testAnimes[0], testAnimes[1]]),
       );
 
       await provider.loadContents();
@@ -72,8 +87,8 @@ void main() {
     });
 
     test('loadContents deve lidar com erro do banco', () async {
-      final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService([], shouldThrow: true),
+      final provider = PauloFlixProvider.withRepository(
+        FakePauloFlixRepository([], shouldThrow: true),
       );
 
       await provider.loadContents();
@@ -83,8 +98,8 @@ void main() {
     });
 
     test('search deve filtrar por displayName', () async {
-      final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      final provider = PauloFlixProvider.withRepository(
+        FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -96,8 +111,8 @@ void main() {
     });
 
     test('search deve filtrar por genero', () async {
-      final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      final provider = PauloFlixProvider.withRepository(
+        FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -109,8 +124,8 @@ void main() {
     });
 
     test('search com query vazia deve retornar todos', () async {
-      final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      final provider = PauloFlixProvider.withRepository(
+        FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -121,8 +136,8 @@ void main() {
     });
 
     test('clearSearch deve restaurar lista completa', () async {
-      final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      final provider = PauloFlixProvider.withRepository(
+        FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -135,8 +150,8 @@ void main() {
     });
 
     test('getByMalId deve retornar anime correto', () async {
-      final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      final provider = PauloFlixProvider.withRepository(
+        FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -149,8 +164,8 @@ void main() {
     });
 
     test('isAvailableOnPauloFlix deve verificar por nome', () async {
-      final provider = PauloFlixProvider(
-        databaseService: FakePauloFlixDatabaseService([...testAnimes]),
+      final provider = PauloFlixProvider.withRepository(
+        FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 

@@ -1,23 +1,40 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:goanime/data/services/api_key_settings_service.dart';
-import 'package:goanime/data/services/pauloflix_movies_database_service.dart';
 import 'package:goanime/domain/models/pauloflix_movie.dart';
+import 'package:goanime/domain/repositories/pauloflix_movies_repository.dart';
 import 'package:goanime/ui/pauloflix_movies/view_models/pauloflix_movies_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Banco fake para filmes.
-class FakePauloFlixMoviesDatabaseService
-    extends PauloFlixMoviesDatabaseService {
+/// Fake do repository (Fase 3) — retorna dados em memória.
+class FakePauloFlixMoviesRepository implements PauloFlixMoviesRepository {
   final List<PauloFlixMovie> fakeData;
   final bool shouldThrow;
 
-  FakePauloFlixMoviesDatabaseService(this.fakeData, {this.shouldThrow = false});
+  FakePauloFlixMoviesRepository(this.fakeData, {this.shouldThrow = false});
 
   @override
-  Future<List<PauloFlixMovie>> getAllContent() async {
+  Future<List<PauloFlixMovie>> getAll() async {
     if (shouldThrow) throw Exception('DB error');
     return fakeData;
   }
+
+  @override
+  Future<List<PauloFlixMovie>> searchByName(String query) async => fakeData;
+  @override
+  Future<PauloFlixMovie?> getByFolderName(String folderName) async => null;
+  @override
+  Future<PauloFlixMovie?> getByTmdbId(int tmdbId) async => null;
+  @override
+  Future<void> saveContent(PauloFlixMovie content) async {}
+  @override
+  Future<void> saveBatch(List<PauloFlixMovie> contents) async {}
+  @override
+  Future<void> markAsUnavailable(String folderName) async {}
+  @override
+  Future<Map<String, int>> getStats() async =>
+      {'total': 0, 'available': 0, 'withMetadata': 0, 'collections': 0};
+  @override
+  Stream<List<PauloFlixMovie>> watch() => const Stream.empty();
 }
 
 /// Settings fake que não toca SharedPreferences.
@@ -52,8 +69,8 @@ void main() {
     ];
 
     test('status inicial deve ser initial', () {
-      final provider = PauloFlixMoviesProvider(
-        databaseService: FakePauloFlixMoviesDatabaseService([]),
+      final provider = PauloFlixMoviesProvider.withServices(
+        repository: FakePauloFlixMoviesRepository([]),
       );
       expect(provider.status, PauloFlixMoviesStatus.initial);
       expect(provider.contents, isEmpty);
@@ -62,8 +79,8 @@ void main() {
     });
 
     test('loadContents deve carregar dados do banco', () async {
-      final provider = PauloFlixMoviesProvider(
-        databaseService: FakePauloFlixMoviesDatabaseService([testMovies[0]]),
+      final provider = PauloFlixMoviesProvider.withServices(
+        repository: FakePauloFlixMoviesRepository([testMovies[0]]),
       );
       await provider.loadContents();
 
@@ -73,11 +90,8 @@ void main() {
     });
 
     test('loadContents deve lidar com erro do banco', () async {
-      final provider = PauloFlixMoviesProvider(
-        databaseService: FakePauloFlixMoviesDatabaseService(
-          [],
-          shouldThrow: true,
-        ),
+      final provider = PauloFlixMoviesProvider.withServices(
+        repository: FakePauloFlixMoviesRepository([], shouldThrow: true),
       );
       await provider.loadContents();
 
@@ -86,8 +100,8 @@ void main() {
     });
 
     test('search deve filtrar por displayName', () async {
-      final provider = PauloFlixMoviesProvider(
-        databaseService: FakePauloFlixMoviesDatabaseService([...testMovies]),
+      final provider = PauloFlixMoviesProvider.withServices(
+        repository: FakePauloFlixMoviesRepository([...testMovies]),
       );
       await provider.loadContents();
 
@@ -103,8 +117,8 @@ void main() {
     });
 
     test('search com query vazia deve retornar todos', () async {
-      final provider = PauloFlixMoviesProvider(
-        databaseService: FakePauloFlixMoviesDatabaseService([...testMovies]),
+      final provider = PauloFlixMoviesProvider.withServices(
+        repository: FakePauloFlixMoviesRepository([...testMovies]),
       );
       await provider.loadContents();
 
@@ -114,8 +128,8 @@ void main() {
     });
 
     test('clearSearch deve restaurar lista completa', () async {
-      final provider = PauloFlixMoviesProvider(
-        databaseService: FakePauloFlixMoviesDatabaseService([...testMovies]),
+      final provider = PauloFlixMoviesProvider.withServices(
+        repository: FakePauloFlixMoviesRepository([...testMovies]),
       );
       await provider.loadContents();
 
@@ -132,8 +146,8 @@ void main() {
       () async {
         SharedPreferences.setMockInitialValues({'tmdb_api_key': ''});
 
-        final provider = PauloFlixMoviesProvider(
-          databaseService: FakePauloFlixMoviesDatabaseService([]),
+        final provider = PauloFlixMoviesProvider.withServices(
+          repository: FakePauloFlixMoviesRepository([]),
           settingsService: FakeApiKeySettingsService(configured: false),
         );
 

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../data/services/watchlist_notifier.dart';
-import '../../../data/services/watchlist_service.dart';
 import '../../../domain/models/watchlist_anime.dart';
+import '../../../domain/repositories/watchlist_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../themes/app_colors.dart';
 import 'focusable_widget.dart';
@@ -26,7 +27,9 @@ class WatchlistButton extends StatefulWidget {
 }
 
 class _WatchlistButtonState extends State<WatchlistButton> {
-  final WatchlistService _watchlistService = WatchlistService();
+  WatchlistRepository get _repository =>
+      context.read<WatchlistRepository>();
+
   bool _isInWatchlist = false;
   bool _isLoading = true;
 
@@ -37,7 +40,7 @@ class _WatchlistButtonState extends State<WatchlistButton> {
   }
 
   Future<void> _checkWatchlist() async {
-    final isInWatchlist = await _watchlistService.isInWatchlist(widget.animeId);
+    final isInWatchlist = await _repository.isInWatchlist(widget.animeId);
     if (mounted) {
       setState(() {
         _isInWatchlist = isInWatchlist;
@@ -46,17 +49,13 @@ class _WatchlistButtonState extends State<WatchlistButton> {
     }
   }
 
-  // --- IGNORE ---
-
   Future<void> _toggleWatchlist() async {
     final messenger = ScaffoldMessenger.of(context);
     final l10n = AppLocalizations.of(context);
 
     if (_isInWatchlist) {
-      final success = await _watchlistService.removeFromWatchlist(
-        widget.animeId,
-      );
-      if (success && mounted) {
+      await _repository.remove(widget.animeId);
+      if (mounted) {
         setState(() => _isInWatchlist = false);
         WatchlistNotifier().notifyWatchlistChanged();
         messenger.showSnackBar(
@@ -76,8 +75,8 @@ class _WatchlistButtonState extends State<WatchlistButton> {
         myAnimeListUrl: widget.myAnimeListUrl,
         addedAt: DateTime.now(),
       );
-      final success = await _watchlistService.addToWatchlist(anime);
-      if (success && mounted) {
+      await _repository.add(anime);
+      if (mounted) {
         setState(() => _isInWatchlist = true);
         WatchlistNotifier().notifyWatchlistChanged();
         messenger.showSnackBar(

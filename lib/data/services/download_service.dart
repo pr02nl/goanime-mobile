@@ -7,25 +7,21 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
+import '../../core/database/tables/downloads.dart'
+    show DownloadQuality, DownloadStatus;
 import 'anime_service.dart';
+import '../../domain/repositories/downloads_repository.dart';
 
-/// Download status enum
-enum DownloadStatus {
-  queued,
-  downloading,
-  paused,
-  completed,
-  failed,
-  cancelled,
-}
+// Os enums `DownloadQuality` e `DownloadStatus` são importados de
+// `tables/downloads.dart` (definidos lá para uso com Drift `intEnum<>`).
+// `DownloadItem` (modelo de domínio, manual) é importado de
+// `download_service.dart`. Ambos compartilham os mesmos enums via
+// import.
 
-/// Download quality enum
-enum DownloadQuality {
-  auto,
-  low, // 480p
-  medium, // 720p
-  high, // 1080p
-}
+// Re-exporta os enums para o código que ainda importa daqui
+// (ex: downloads_screen.dart, episode_grid_card.dart).
+export '../../core/database/tables/downloads.dart'
+    show DownloadQuality, DownloadStatus;
 
 /// Download item model
 class DownloadItem {
@@ -143,7 +139,16 @@ class DownloadItem {
 class DownloadService extends ChangeNotifier {
   static final DownloadService _instance = DownloadService._internal();
   factory DownloadService() => _instance;
-  DownloadService._internal();
+  DownloadService._internal() : _repository = null;
+
+  /// Ctor de produção com repository injetado (Fase 3). Use este no
+  /// boot do app em vez do `DownloadService()` singleton.
+  DownloadService.withRepository(this._repository)
+      : _database = null,
+        assert(_repository != null);
+
+  /// Repository Drift (Fase 3). Null no ctor legado (sqlite3 FFI direto).
+  final DownloadsRepository? _repository;
 
   sql.Database? _database;
   final Map<String, DownloadItem> _downloads = {};
@@ -172,8 +177,30 @@ class DownloadService extends ChangeNotifier {
 
   /// Initialize the download service
   Future<void> initialize() async {
-    _database = await _initDatabase();
-    await _loadDownloads();
+    if (_repository != null) {
+      // FASE 3: usa repository (Drift). _database fica null.
+      await _loadDownloadsFromRepository();
+    } else {
+      _database = await _initDatabase();
+      await _loadDownloads();
+    }
+  }
+
+  /// Carrega downloads do repository (Fase 3).
+  Future<void> _loadDownloadsFromRepository() async {
+    final repo = _repository!;
+    final items = await repo.getAll();
+    _downloads.clear();
+    for (final download in items) {
+      _downloads[download.id] = download;
+      // Reset downloading → queued (Fase 1 fix, preservado na Fase 3).
+      if (download.status == DownloadStatus.downloading) {
+        await repo.resetStaleToQueued();
+        final reset = download.copyWith(status: DownloadStatus.queued);
+        _downloads[download.id] = reset;
+      }
+    }
+    notifyListeners();
   }
 
   /// Initialize the database.
@@ -668,7 +695,11 @@ class DownloadService extends ChangeNotifier {
     }
 
     // Remove from database
-    _database?.execute('DELETE FROM downloads WHERE id = ?', [id]);
+    if (_repository != null) {
+      await _repository.delete(id);
+    } else {
+      _database?.execute('DELETE FROM downloads WHERE id = ?', [id]);
+    }
     _downloads.remove(id);
     notifyListeners();
   }
@@ -710,6 +741,12 @@ class DownloadService extends ChangeNotifier {
 
   /// Save download to database
   Future<void> _saveDownload(DownloadItem download) async {
+    if (_repository != null) {
+      // FASE 3: delega ao Drift.
+      await _repository.save(download);
+      return;
+    }
+    // Legado: sqlite3 FFI.
     final map = download.toMap();
     _database?.execute(
       '''INSERT OR REPLACE INTO downloads

@@ -5,6 +5,7 @@ import 'app.dart';
 import 'core/database/app_database.dart';
 import 'core/database/connection/connection.dart';
 import 'core/database/connection/migration_v1_to_v3.dart';
+import 'data/repositories/downloads_repository_impl.dart';
 import 'data/services/download_service.dart';
 import 'data/services/tmdb_service.dart';
 import 'ui/core/utils/performance_config.dart';
@@ -26,15 +27,6 @@ void main() async {
     PerformanceConfig.init();
   } catch (e) {
     startupError ??= 'PerformanceConfig: $e';
-  }
-
-  late final DownloadService downloadService;
-  try {
-    downloadService = DownloadService();
-    await downloadService.initialize();
-  } catch (e) {
-    downloadService = DownloadService();
-    startupError ??= 'DownloadService: $e';
   }
 
   final themeViewModel = ThemeViewModel();
@@ -64,19 +56,21 @@ void main() async {
   // 3. Cria AppDatabase e roda a migration v1→v3 (popula o Drift com
   //    dados dos 4 bancos legados).
   late final AppDatabase appDatabase;
+  late final DownloadService realDownloadService;
   try {
     final dbPath = await resolvePauloflixDbPath();
     await prepareMigration(dbPath);
     appDatabase = AppDatabase();
     // Garante que as tabelas Drift foram criadas antes de migrar.
-    // (Drift faz isso em onCreate na primeira abertura, mas aqui
-    // disparamos via customSelect que lazy-inicializa a conexão.)
     await appDatabase.customSelect('SELECT 1').get();
     final legacyPaths = resolveLegacyDatabasePaths(dbPath);
     await migrateV1ToV3(target: appDatabase, legacy: legacyPaths);
+    // Cria o DownloadService com o repository (Fase 3) e inicializa.
+    final downloadsRepo = DownloadsRepositoryImpl(appDatabase);
+    realDownloadService = DownloadService.withRepository(downloadsRepo);
+    await realDownloadService.initialize();
   } catch (e) {
     startupError ??= 'AppDatabase: $e';
-    // Fallback: rethrow no startup para evitar rodar app quebrado.
     rethrow;
   }
 
@@ -84,7 +78,7 @@ void main() async {
     PauloFlixApp(
       themeViewModel: themeViewModel,
       localeViewModel: localeViewModel,
-      downloadService: downloadService,
+      downloadService: realDownloadService,
       appDatabase: appDatabase,
       startupError: startupError,
     ),

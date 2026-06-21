@@ -3,26 +3,39 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../data/services/api_key_settings_service.dart';
-import '../../../data/services/pauloflix_movies_database_service.dart';
 import '../../../data/services/pauloflix_movies_service.dart';
 import '../../../data/services/tmdb_service.dart';
 import '../../../domain/models/pauloflix_movie.dart';
+import '../../../domain/repositories/pauloflix_movies_repository.dart';
 
 enum PauloFlixMoviesStatus { initial, loading, loaded, error }
 
-/// Provider da área de filmes PauloFlix.
+/// Provider da área de filmes PauloFlix (Fase 3 do plano
+/// `docs/DATABASE_REFACTORING.md`).
+///
+/// Consome `PauloFlixMoviesRepository` (Drift) em vez de
+/// `PauloFlixMoviesDatabaseService` (sqlite3 FFI). O `TmdbService`
+/// e o `PauloFlixMoviesService` (scraping HTML) continuam usados
+/// pelo `syncContent`.
 class PauloFlixMoviesProvider extends ChangeNotifier {
-  final PauloFlixMoviesDatabaseService _dbService;
+  final PauloFlixMoviesRepository _repository;
   final TmdbService _tmdb;
   final ApiKeySettingsService _settings;
 
-  PauloFlixMoviesProvider({
-    PauloFlixMoviesDatabaseService? databaseService,
+  /// Ctor padrão (compat) — usa um no-op repository.
+  PauloFlixMoviesProvider()
+      : _repository = _NullPauloFlixMoviesRepository(),
+        _tmdb = TmdbService(),
+        _settings = ApiKeySettingsService();
+
+  /// Ctor com repository + services opcionais (testes).
+  PauloFlixMoviesProvider.withServices({
+    required PauloFlixMoviesRepository repository,
     TmdbService? tmdbService,
     ApiKeySettingsService? settingsService,
-  }) : _dbService = databaseService ?? PauloFlixMoviesDatabaseService(),
-       _tmdb = tmdbService ?? TmdbService(),
-       _settings = settingsService ?? ApiKeySettingsService();
+  })  : _repository = repository,
+        _tmdb = tmdbService ?? TmdbService(),
+        _settings = settingsService ?? ApiKeySettingsService();
 
   PauloFlixMoviesStatus _status = PauloFlixMoviesStatus.initial;
   List<PauloFlixMovie> _contents = [];
@@ -41,16 +54,14 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   Future<void> loadContents() async {
     _status = PauloFlixMoviesStatus.loading;
     notifyListeners();
-
     try {
-      _contents = await _dbService.getAllContent();
+      _contents = await _repository.getAll();
       _filteredContents = _contents;
       _status = PauloFlixMoviesStatus.loaded;
     } catch (e) {
       _errorMessage = 'Erro ao carregar filmes: $e';
       _status = PauloFlixMoviesStatus.error;
     }
-
     notifyListeners();
   }
 
@@ -65,11 +76,9 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-
     _status = PauloFlixMoviesStatus.loading;
     _syncProgress = 'Iniciando sincronização de filmes...';
     notifyListeners();
-
     try {
       final success = await PauloFlixMoviesService.syncContent(
         onProgress: (msg) {
@@ -81,14 +90,12 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
           notifyListeners();
         },
       );
-
       if (success) {
         await loadContents();
       } else {
         _status = PauloFlixMoviesStatus.error;
         notifyListeners();
       }
-
       return success;
     } catch (e) {
       _errorMessage = 'Erro na sincronização de filmes: $e';
@@ -124,4 +131,26 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     _filteredContents = _contents;
     notifyListeners();
   }
+}
+
+class _NullPauloFlixMoviesRepository implements PauloFlixMoviesRepository {
+  @override
+  Future<List<PauloFlixMovie>> getAll() async => [];
+  @override
+  Future<List<PauloFlixMovie>> searchByName(String query) async => [];
+  @override
+  Future<PauloFlixMovie?> getByFolderName(String folderName) async => null;
+  @override
+  Future<PauloFlixMovie?> getByTmdbId(int tmdbId) async => null;
+  @override
+  Future<void> saveContent(PauloFlixMovie content) async {}
+  @override
+  Future<void> saveBatch(List<PauloFlixMovie> contents) async {}
+  @override
+  Future<void> markAsUnavailable(String folderName) async {}
+  @override
+  Future<Map<String, int>> getStats() async =>
+      {'total': 0, 'available': 0, 'withMetadata': 0, 'collections': 0};
+  @override
+  Stream<List<PauloFlixMovie>> watch() => const Stream.empty();
 }

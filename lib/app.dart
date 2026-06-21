@@ -3,10 +3,16 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/database/app_database.dart';
+import 'data/repositories/downloads_repository_impl.dart';
 import 'data/repositories/home_repository_impl.dart';
+import 'data/repositories/pauloflix_movies_repository_impl.dart';
+import 'data/repositories/pauloflix_repository_impl.dart';
 import 'data/repositories/watchlist_repository_impl.dart';
 import 'data/services/download_service.dart';
+import 'domain/repositories/downloads_repository.dart';
 import 'domain/repositories/home_repository.dart';
+import 'domain/repositories/pauloflix_movies_repository.dart';
+import 'domain/repositories/pauloflix_repository.dart';
 import 'domain/repositories/watchlist_repository.dart';
 import 'l10n/app_localizations.dart';
 import 'routing/app_router.dart';
@@ -46,12 +52,29 @@ class PauloFlixApp extends StatelessWidget {
         Provider<WatchlistRepository>(
           create: (_) => WatchlistRepositoryImpl(appDatabase),
         ),
+        Provider<PauloFlixRepository>(
+          create: (_) => PauloFlixRepositoryImpl(appDatabase),
+        ),
+        Provider<PauloFlixMoviesRepository>(
+          create: (_) => PauloFlixMoviesRepositoryImpl(appDatabase),
+        ),
+        Provider<DownloadsRepository>(
+          create: (_) => DownloadsRepositoryImpl(appDatabase),
+        ),
         // Services e viewmodels legados.
         ChangeNotifierProvider.value(value: themeViewModel),
         ChangeNotifierProvider.value(value: localeViewModel),
         ChangeNotifierProvider.value(value: downloadService),
-        ChangeNotifierProvider(create: (_) => PauloFlixProvider()),
-        ChangeNotifierProvider(create: (_) => PauloFlixMoviesProvider()),
+        ChangeNotifierProvider(
+          create: (ctx) => PauloFlixProvider.withRepository(
+            ctx.read<PauloFlixRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => PauloFlixMoviesProvider.withServices(
+            repository: ctx.read<PauloFlixMoviesRepository>(),
+          ),
+        ),
         Provider<HomeRepository>(create: (_) => HomeRepositoryImpl()),
         ChangeNotifierProvider(
           create: (ctx) =>
