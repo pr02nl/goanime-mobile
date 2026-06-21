@@ -10,18 +10,30 @@ import '../core/widgets/focusable_widget.dart';
 
 /// Sidebar persistente estilo YouTube TV.
 ///
-/// * **Colapsada** (só ícones, 72px) quando o grupo não tem foco.
-/// * **Expandida** (ícones + labels, 220px) quando o grupo recebe foco.
-/// * Expande automaticamente ao receber foco (← vindo do conteúdo) e
-///   **colapsa ao perder foco** (→ ou Select em um item).
-/// * **Focar ≠ ativar**: ↑↓ move o anel de foco entre itens sem navegar;
-///   só Enter/Select/click dispara [onSelect] do item.
-/// * Ao receber foco vindo de fora, redireciona ao item da rota ativa
-///   (chamado de fora via [focusActiveItem]).
+/// O estado expandido/colapsado é controlado pelo shell via [expanded] (não
+/// por listener de foco do escopo) — isso evita colapso indesejado quando uma
+/// nova tela rouba o foco via autofocus durante a navegação por ↑↓.
+///
+/// Comportamento D-pad:
+/// * **↑↓** move o foco entre itens e **seleciona** o conteúdo
+///   (foco = ativação, como no YouTube TV). A sidebar permanece expandida.
+/// * **Enter/Select/click** fecha a sidebar e devolve o foco ao conteúdo
+///   (via [onClose]).
+/// * **→** é interceptada pelo shell (`_SidebarEdgeAction`) → fecha a sidebar.
+///
+/// O shell chama [focusActiveItem] ao abrir a sidebar (← no edge do conteúdo
+/// ou botão Back) para posicionar o foco no item da rota ativa.
 class Sidebar extends StatefulWidget {
   final String location;
+  final bool expanded;
+  final VoidCallback onClose;
 
-  const Sidebar({super.key, required this.location});
+  const Sidebar({
+    super.key,
+    required this.location,
+    required this.expanded,
+    required this.onClose,
+  });
 
   @override
   State<Sidebar> createState() => SidebarState();
@@ -33,12 +45,6 @@ class SidebarState extends State<Sidebar> {
   /// FocusNodes por item — permite focar o item da rota ativa de fora.
   late final List<FocusNode> _itemFocusNodes;
 
-  /// Guarda "sidebar estava com foco?" no último evento — detecta transição
-  /// "ganhou foco vindo de fora" para redirecionar ao item ativo.
-  bool _hadFocus = false;
-
-  bool _expanded = false;
-
   static const double _collapsedWidth = 72.0;
   static const double _expandedWidth = 220.0;
 
@@ -46,14 +52,11 @@ class SidebarState extends State<Sidebar> {
   void initState() {
     super.initState();
     _itemFocusNodes = List.generate(_navItems.length, (_) => FocusNode());
-    _scopeNode.addListener(_onScopeFocusChange);
   }
 
   @override
   void didUpdateWidget(covariant Sidebar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Se o número de itens mudou, recria os FocusNodes (não esperado, mas
-    // defensivo contra regressões futuras).
     if (_itemFocusNodes.length != _navItems.length) {
       for (final n in _itemFocusNodes) {
         n.dispose();
@@ -64,7 +67,6 @@ class SidebarState extends State<Sidebar> {
 
   @override
   void dispose() {
-    _scopeNode.removeListener(_onScopeFocusChange);
     _scopeNode.dispose();
     for (final n in _itemFocusNodes) {
       n.dispose();
@@ -72,35 +74,24 @@ class SidebarState extends State<Sidebar> {
     super.dispose();
   }
 
-  void _onScopeFocusChange() {
-    if (!mounted) return;
-    final hasFocus = _scopeNode.hasFocus;
-    if (hasFocus == _hadFocus) return;
+  /// Se algum descendente da sidebar tem o foco primário.
+  bool get hasFocus => _scopeNode.hasFocus;
 
-    if (hasFocus) {
-      // Sidebar ganhou foco vindo de fora: expande e redireciona ao item ativo.
-      setState(() {
-        _expanded = true;
-        _hadFocus = true;
-      });
-      _focusActiveItem();
-    } else {
-      // Sidebar perdeu foco: colapsa.
-      setState(() {
-        _expanded = false;
-        _hadFocus = false;
-      });
+  /// Se [node] está dentro do escopo da sidebar (usado pelo shell para
+  /// distinguish conteúdo vs sidebar em `_SidebarEdgeAction`).
+  bool containsNode(FocusNode node) {
+    FocusNode? current = node;
+    while (current != null) {
+      if (current == _scopeNode) return true;
+      current = current.parent;
     }
+    return false;
   }
 
-  /// Foca o item da rota ativa. Chamado pelo shell ao capturar ← no conteúdo
-  /// (edge) — expande a sidebar e posiciona o d-pad no item da rota atual.
+  /// Foca o item da rota ativa. Chamado pelo shell ao abrir a sidebar
+  /// (← no edge do conteúdo ou botão Back).
   void focusActiveItem() {
     if (!mounted) return;
-    _focusActiveItem();
-  }
-
-  void _focusActiveItem() {
     final items = _navItems;
     final idx = items.indexWhere((i) => i.isSelected(widget.location));
     final target = idx >= 0 ? _itemFocusNodes[idx] : _itemFocusNodes.first;
@@ -109,14 +100,27 @@ class SidebarState extends State<Sidebar> {
     }
   }
 
-  /// Navega para a rota do item e devolve o foco ao conteúdo (a sidebar
-  /// colapsa automaticamente ao perder foco via [_onScopeFocusChange]).
-  void _onItemTap(int index) {
-    final ctx = context;
-    _navItems[index].onTap(ctx);
-    // Remove o foco do item da sidebar — o Flutter move o foco primário
-    // para o escopo da rota filha, onde a nova tela pode ter autofocus.
-    FocusScope.of(ctx).unfocus();
+  /// ↑↓ focou um item → navega (se a rota for diferente) + re-foca o item
+  /// pós-frame para contrapor autofocus steal da nova tela.
+  void _onItemFocus(int index) {
+    final target = _navItems[index];
+    if (!target.isSelected(widget.location)) {
+      target.onTap(context); // context.go
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_itemFocusNodes[index].hasFocus) {
+        _itemFocusNodes[index].requestFocus();
+      }
+    });
+  }
+
+  /// Enter/Select/click → navega (se necessário) + fecha a sidebar.
+  void _onItemSelect(int index) {
+    final target = _navItems[index];
+    if (!target.isSelected(widget.location)) {
+      target.onTap(context); // context.go (caso clique sem foco prévio)
+    }
+    widget.onClose();
   }
 
   List<_NavItem> get _navItems => [
@@ -145,26 +149,26 @@ class SidebarState extends State<Sidebar> {
           loc == '/search' || loc == '/pauloflix-movies/search',
       onTap: (ctx) {
         final isAnimeSection = !widget.location.contains('pauloflix-movies');
-        ctx.push(isAnimeSection ? '/search' : '/pauloflix-movies/search');
+        ctx.go(isAnimeSection ? '/search' : '/pauloflix-movies/search');
       },
     ),
     _NavItem(
       icon: Icons.bookmark,
       label: 'Favoritos',
       isSelected: (loc) => loc == '/watchlist',
-      onTap: (ctx) => ctx.push('/watchlist'),
+      onTap: (ctx) => ctx.go('/watchlist'),
     ),
     _NavItem(
       icon: Icons.download_outlined,
       label: 'Downloads',
       isSelected: (loc) => loc == '/downloads',
-      onTap: (ctx) => ctx.push('/downloads'),
+      onTap: (ctx) => ctx.go('/downloads'),
     ),
     _NavItem(
       icon: Icons.settings_outlined,
       label: 'Ajustes',
       isSelected: (loc) => loc == '/settings',
-      onTap: (ctx) => ctx.push('/settings'),
+      onTap: (ctx) => ctx.go('/settings'),
     ),
   ];
 
@@ -174,11 +178,13 @@ class SidebarState extends State<Sidebar> {
     return FocusScope(
       node: _scopeNode,
       child: FocusTraversalGroup(
-        policy: WidgetOrderTraversalPolicy(),
+        // ↑↓ usa ordered traversal (next/previous) — evita falha rect-based
+        // com gaps de 4px entre itens. ← → é interceptado pelo shell.
+        policy: _SidebarTraversalPolicy(),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
-          width: _expanded ? _expandedWidth : _collapsedWidth,
+          width: widget.expanded ? _expandedWidth : _collapsedWidth,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.max,
@@ -189,12 +195,13 @@ class SidebarState extends State<Sidebar> {
                 const SizedBox(height: 12),
                 for (var i = 0; i < items.length; i++) ...[
                   _SidebarItem(
-                    expanded: _expanded,
+                    expanded: widget.expanded,
                     icon: items[i].icon,
                     label: items[i].label,
                     selected: items[i].isSelected(widget.location),
                     focusNode: _itemFocusNodes[i],
-                    onSelect: () => _onItemTap(i),
+                    onFocus: () => _onItemFocus(i),
+                    onSelect: () => _onItemSelect(i),
                   ),
                   const SizedBox(height: 4),
                 ],
@@ -234,6 +241,23 @@ class SidebarState extends State<Sidebar> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Política de travessia da sidebar — ↑↓ ordenado, ← → delega ao shell
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// ↑↓ usa `next()`/`previous()` (ordered traversal) para ignorar gaps de 4px
+/// entre itens (o algoritmo rect-based falha com gaps). ← → delega ao
+/// `super.inDirection()` — mas na prática é interceptado pelo `_SidebarEdgeAction`
+/// do shell antes de chegar aqui.
+class _SidebarTraversalPolicy extends WidgetOrderTraversalPolicy {
+  @override
+  bool inDirection(FocusNode currentNode, TraversalDirection direction) {
+    if (direction == TraversalDirection.down) return next(currentNode);
+    if (direction == TraversalDirection.up) return previous(currentNode);
+    return super.inDirection(currentNode, direction);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Modelo de item de navegação
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -253,7 +277,7 @@ class _NavItem {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Item da sidebar — só ícone no estado colapsado, ícone + rótulo no expandido.
-// Focar (d-pad ↑↓) move o anel de foco; só Enter/Select/click ativa onSelect.
+// ↑↓ (onFocus) navega; Enter/Select/click (onSelect) fecha a sidebar.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SidebarItem extends StatelessWidget {
@@ -262,6 +286,7 @@ class _SidebarItem extends StatelessWidget {
   final String label;
   final bool selected;
   final FocusNode focusNode;
+  final VoidCallback onFocus;
   final VoidCallback onSelect;
 
   const _SidebarItem({
@@ -270,6 +295,7 @@ class _SidebarItem extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.focusNode,
+    required this.onFocus,
     required this.onSelect,
   });
 
@@ -277,9 +303,8 @@ class _SidebarItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return FocusableWidget(
       onSelect: onSelect,
+      onFocus: onFocus,
       focusNode: focusNode,
-      // Sem onFocus: focar (d-pad ↑↓) não navega — só Enter/Select ativa.
-      // Sem autoFocus: o foco inicial é do conteúdo, não da sidebar.
       focusPadding: EdgeInsets.zero,
       focusScale: 1.0,
       borderRadius: 12,

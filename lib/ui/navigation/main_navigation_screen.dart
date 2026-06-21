@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/themes/app_colors.dart';
@@ -12,9 +13,14 @@ import 'side_bar.dart';
 /// Em telas largas (tablet, TV, desktop) exibe uma [Sidebar] à esquerda
 /// estilo YouTube TV:
 /// * Inicia **colapsada** (só ícones) com o foco no conteúdo.
-/// * ← no conteúdo → expande a sidebar e foca o item da rota ativa.
-/// * ↑↓ na sidebar move o anel de foco (focar ≠ ativar).
-/// * → na sidebar ou Enter em um item → colapsa e devolve o foco ao conteúdo.
+/// * **←** no conteúdo no item mais à esquerda → expande a sidebar e foca o
+///   item da rota ativa. ← no meio do conteúdo move entre itens.
+/// * **↑↓** na sidebar seleciona o conteúdo e atualiza o lado direito
+///   imediatamente (foco = ativação). A sidebar permanece expandida.
+/// * **→** na sidebar ou **Enter/Select** em um item → colapsa e devolve o
+///   foco ao último item selecionado no conteúdo.
+/// * **Back** do d-pad → abre a sidebar (se fechada) ou fecha + devolve foco
+///   ao conteúdo (se aberta).
 ///
 /// Em telas estreitas (mobile) usa um [Drawer] tradicional.
 class MainNavigationScreen extends StatefulWidget {
@@ -28,16 +34,160 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  // Chave para acessar SidebarState e focar o item da rota ativa quando o
-  // usuário pressiona ← no conteúdo (comportamento YouTube TV).
   final GlobalKey<SidebarState> _sidebarKey = GlobalKey<SidebarState>();
+
+  /// Estado de expansão da sidebar — controlado pelo shell (não por listener
+  /// de foco) para evitar colapso indesejado durante autofocus steal.
+  bool _sidebarOpen = false;
+
+  /// Escopo de foco do conteúdo — permite rastrear o último item focado e
+  /// restaurá-lo quando a sidebar fecha.
+  final FocusScopeNode _contentScopeNode = FocusScopeNode();
+  FocusNode? _lastContentFocusNode;
+
+  /// Debounce do botão Back (HardwareKeyboard + PopScope podem disparar).
+  DateTime? _lastBackTime;
 
   bool _isWideScreen(BuildContext context) =>
       MediaQuery.of(context).size.width >= Responsive.phoneMaxWidth;
 
-  void _openDrawer() {
-    _scaffoldKey.currentState?.openDrawer();
+  @override
+  void initState() {
+    super.initState();
+    _contentScopeNode.addListener(_onContentFocusChange);
+    HardwareKeyboard.instance.addHandler(_onHardwareKey);
   }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onHardwareKey);
+    _contentScopeNode.removeListener(_onContentFocusChange);
+    _contentScopeNode.dispose();
+    super.dispose();
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Tracking do último foco no conteúdo
+  // ───────────────────────────────────────────────────────────────────────
+
+  void _onContentFocusChange() {
+    if (_contentScopeNode.hasFocus) {
+      final focused = _contentScopeNode.focusedChild;
+      if (focused != null) {
+        _lastContentFocusNode = focused;
+      }
+    }
+  }
+
+  /// Restaura o foco ao conteúdo: último nó focado (se ainda válido) →
+  /// focusedChild do escopo → unfocus (d-pad foca no primeiro arrow).
+  void _restoreContentFocus() {
+    final last = _lastContentFocusNode;
+    if (last != null && last.context != null) {
+      last.requestFocus();
+      return;
+    }
+    final focused = _contentScopeNode.focusedChild;
+    if (focused != null && focused.context != null) {
+      focused.requestFocus();
+      return;
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Controle da sidebar
+  // ───────────────────────────────────────────────────────────────────────
+
+  void _openSidebar() {
+    if (_sidebarOpen) return;
+    setState(() => _sidebarOpen = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sidebarKey.currentState?.focusActiveItem();
+    });
+  }
+
+  void _closeSidebar() {
+    if (!_sidebarOpen) return;
+    setState(() => _sidebarOpen = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _restoreContentFocus();
+    });
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Botão Back (ponto 4)
+  // ───────────────────────────────────────────────────────────────────────
+
+  bool _shellHasFocus() {
+    final sidebar = _sidebarKey.currentState;
+    return (sidebar?.hasFocus ?? false) || _contentScopeNode.hasFocus;
+  }
+
+  bool _onHardwareKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    if (event.logicalKey != LogicalKeyboardKey.goBack) return false;
+    // Só trata Back no layout largo (TV/desktop) e quando o shell está ativo
+    // (não intercepta em telas de detalhe pushed fora do shell).
+    final views = WidgetsBinding.instance.platformDispatcher.views;
+    if (views.isEmpty) return false;
+    final view = views.first;
+    final screenWidth = view.physicalSize.width / view.devicePixelRatio;
+    if (screenWidth < Responsive.phoneMaxWidth) return false;
+    if (!_shellHasFocus()) return false;
+    _onBackButton();
+    return true; // consome → suprime o system pop
+  }
+
+  void _onBackButton() {
+    final now = DateTime.now();
+    if (_lastBackTime != null &&
+        now.difference(_lastBackTime!) < const Duration(milliseconds: 300)) {
+      return; // debounce: HardwareKeyboard + PopScope podem disparar juntos
+    }
+    _lastBackTime = now;
+    if (_sidebarOpen) {
+      _closeSidebar();
+    } else {
+      _openSidebar();
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Detecção de edge esquerdo do conteúdo (ponto 1)
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// True se [node] é o item selecionável mais à esquerda na sua linha
+  /// (mesma banda vertical) dentro do conteúdo. Rect-based e síncrono —
+  /// não depende de `requestFocus` (que é assíncrono).
+  bool _isAtLeftEdge(FocusNode node) {
+    if (node.context == null || node.rect == Rect.zero) return true;
+    final scope = node.nearestScope;
+    if (scope == null) return true;
+    final sidebar = _sidebarKey.currentState;
+    final descendants = scope.traversalDescendants.where((n) {
+      if (!n.canRequestFocus || n.skipTraversal) return false;
+      if (n.context == null || n.rect == Rect.zero) return false;
+      if (sidebar?.containsNode(n) ?? false) return false; // exclui sidebar
+      return true;
+    }).toList();
+    if (descendants.isEmpty) return true;
+    // Mesma linha = sobreposição vertical (band) com o nó atual.
+    final band = node.rect;
+    final sameRow = descendants.where((n) {
+      return !(n.rect.bottom < band.top || n.rect.top > band.bottom);
+    }).toList();
+    if (sameRow.isEmpty) return true;
+    double minDx = sameRow.first.rect.center.dx;
+    for (final n in sameRow) {
+      if (n.rect.center.dx < minDx) minDx = n.rect.center.dx;
+    }
+    return node.rect.center.dx <= minDx + 0.5;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Build
+  // ───────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +195,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final isWide = _isWideScreen(context);
 
     return PopScope(
-      canPop: location == '/',
+      // Wide: nunca pop via sistema (HardwareKeyboard trata Back).
+      // Mobile: comportamento legado (canPop na root).
+      canPop: isWide ? false : location == '/',
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && isWide) _onBackButton();
+      },
       child: isWide
           ? _buildWideLayout(context, location)
           : _buildMobileLayout(context, location),
@@ -57,17 +212,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // ───────────────────────────────────────────────────────────────────────
 
   Widget _buildWideLayout(BuildContext context, String location) {
-    // Actions captura DirectionalFocusIntent gerado pelo FocusableWidget
-    // (setas → DirectionalFocusIntent). O _SidebarEdgeAction trata ← no
-    // conteúdo: quando o foco não se move (edge esquerdo do conteúdo),
-    // chama onLeftEdge → foca o item da rota ativa na sidebar, que expande
-    // automaticamente por foco do grupo (YouTube TV).
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Actions(
         actions: <Type, Action<Intent>>{
           DirectionalFocusIntent: _SidebarEdgeAction(
-            onLeftEdge: () => _sidebarKey.currentState?.focusActiveItem(),
+            isInSidebar: (n) =>
+                _sidebarKey.currentState?.containsNode(n) ?? false,
+            isAtLeftEdge: _isAtLeftEdge,
+            onLeftEdge: _openSidebar,
+            onRightEdgeFromSidebar: _closeSidebar,
           ),
         },
         child: Row(
@@ -75,8 +229,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             Sidebar(
               key: _sidebarKey,
               location: location,
+              expanded: _sidebarOpen,
+              onClose: _closeSidebar,
             ),
-            Expanded(child: widget.child),
+            Expanded(
+              child: FocusScope(node: _contentScopeNode, child: widget.child),
+            ),
           ],
         ),
       ),
@@ -110,32 +268,57 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
     );
   }
+
+  void _openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Ação de borda: expande sidebar ao ← ou foca conteúdo ao →
+// Ação de borda: ← no edge do conteúdo abre sidebar; → na sidebar fecha
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Intercepta [DirectionalFocusIntent]:
+/// Intercepta [DirectionalFocusIntent] (gerado por FocusableWidget ao
+/// mapear setas):
 ///
-/// * **←** sem movimento de foco (edge esquerdo do conteúdo) → chama
-///   [onLeftEdge] (expande sidebar e foca o item da rota ativa).
-/// * Demais direções → delega ao [DirectionalFocusAction].
+/// * **←** na sidebar → no-op (sidebar já está no edge esquerdo).
+/// * **←** no conteúdo no edge → [onLeftEdge] (abre sidebar).
+/// * **←** no conteúdo no meio → move dentro do conteúdo (default).
+/// * **→** na sidebar → [onRightEdgeFromSidebar] (fecha sidebar + restaura foco).
+/// * **→** no conteúdo → move dentro do conteúdo (default).
+/// * **↑↓** → default (move dentro da sidebar via `_SidebarTraversalPolicy`
+///   ou dentro do conteúdo).
 class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
-  final VoidCallback? onLeftEdge;
+  final bool Function(FocusNode) isInSidebar;
+  final bool Function(FocusNode) isAtLeftEdge;
+  final VoidCallback onLeftEdge;
+  final VoidCallback onRightEdgeFromSidebar;
 
-  _SidebarEdgeAction({this.onLeftEdge});
+  _SidebarEdgeAction({
+    required this.isInSidebar,
+    required this.isAtLeftEdge,
+    required this.onLeftEdge,
+    required this.onRightEdgeFromSidebar,
+  });
 
   @override
   void invoke(DirectionalFocusIntent intent) {
+    final node = primaryFocus;
     if (intent.direction == TraversalDirection.left) {
-      final FocusNode? before = primaryFocus;
-      DirectionalFocusAction().invoke(intent);
-      if (primaryFocus == before && onLeftEdge != null) {
-        onLeftEdge!();
+      if (node != null && isInSidebar(node)) return; // sidebar: ← no-op
+      if (node != null && isAtLeftEdge(node)) {
+        onLeftEdge();
+      } else {
+        DirectionalFocusAction().invoke(intent); // move ← no conteúdo
+      }
+    } else if (intent.direction == TraversalDirection.right) {
+      if (node != null && isInSidebar(node)) {
+        onRightEdgeFromSidebar(); // fecha sidebar
+      } else {
+        DirectionalFocusAction().invoke(intent); // move → no conteúdo
       }
     } else {
-      DirectionalFocusAction().invoke(intent);
+      DirectionalFocusAction().invoke(intent); // ↑↓ default
     }
   }
 }

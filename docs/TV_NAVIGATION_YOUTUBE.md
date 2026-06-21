@@ -1,146 +1,128 @@
 # Navegação estilo YouTube TV — `MainNavigationScreen`
 
-> Documentação recarregável entre sessões. Implementado em 2026-06-21.
-> Plano executável em `.hermes/plans/2026-06-21_youtube-tv-navigation.md`.
+> Documentação recarregável entre sessões. Implementação v2 (2026-06-21),
+> corrigida após teste real do usuário na TV.
+> Plano executável: `.hermes/plans/2026-06-21_youtube-tv-navigation-v2.md`.
 
-## Visão geral
-
-O shell de navegação (`lib/ui/navigation/main_navigation_screen.dart` +
-`lib/ui/navigation/side_bar.dart`) reproduz o comportamento do YouTube TV na
-TV/desktop: sidebar colapsada por padrão, expansão por foco, foco ≠ ativar,
-foco sempre devolvido ao conteúdo.
-
-## Comportamento (D-pad / teclado)
+## Comportamento (confirmado na TV real)
 
 | Ação | Resultado |
 |---|---|
-| Load inicial | Sidebar **colapsada** (72px, só ícones) + **foco no conteúdo** |
-| ← no conteúdo (edge esquerdo) | Sidebar **expande** (220px) + foca o **item da rota ativa** |
-| ↑↓ na sidebar | Move o anel de foco entre itens. **Nada navega** (focar ≠ ativar) |
-| → na sidebar | Sidebar **colapsa** + foco **volta ao conteúdo** |
-| Enter/Select/click em item | Navega para a rota + sidebar **colapsa** + foco **vai ao conteúdo** |
+| Load inicial | Sidebar **colapsada** (72px) + foco no conteúdo |
+| ← no meio do conteúdo | Move entre itens (não abre sidebar) |
+| ← no item mais à esquerda do conteúdo | Sidebar **expande** + foca item da rota ativa |
+| ↑↓ na sidebar | **Seleciona** o conteúdo e atualiza o lado direito (foco = ativação). Sidebar permanece expandida |
+| → na sidebar | Sidebar **colapsa** + foco volta ao **último item do conteúdo** |
+| Enter/Select/click em item | Fecha sidebar + foco no conteúdo (rota já selecionada pelo foco) |
+| Back (sidebar fechada) | **Abre+expande** sidebar imediatamente, foca item da rota ativa |
+| Back (sidebar aberta) | **Fecha** sidebar + foco volta ao último item do conteúdo |
 | Hover/foco em item colapsado | Tooltip com o label |
 
-## Arquitetura de foco
+## Decisão chave: expand/collapse controlado pelo shell
+
+v1 usava listener do `FocusScopeNode` da sidebar para expandir/colapsar.
+**Problema**: quando ↑↓ navega (ponto 3), `context.go` rebuilda a nova tela e
+seu `autofocus` rouba o foco da sidebar → listener colapsa a sidebar
+indevidamente durante a navegação.
+
+**v2**: o shell mantém `bool _sidebarOpen` e passa `expanded: _sidebarOpen` à
+sidebar. Expand/collapse é determinístico, independente de flutuações de foco
+transitórias. A sidebar só colapsa quando o shell decide (→, Back, Select).
+
+## Arquitetura
 
 ### `Sidebar` (`side_bar.dart`)
 
-- **State público `SidebarState`** (acessível via `GlobalKey<SidebarState>`)
-  — permite ao shell chamar `focusActiveItem()`.
-- **`FocusScopeNode _scopeNode`** envolve toda a sidebar via
-  `FocusScope(node: _scopeNode)`. Um listener em `_scopeNode` detecta
-  ganho/perda de foco do grupo:
-  - `hasFocus: false → true` (ganhou foco vindo de fora): expande +
-    `_focusActiveItem()` redireciona ao item da rota ativa.
-  - `hasFocus: true → false` (perdeu foco): colapsa.
-- **`List<FocusNode> _itemFocusNodes`** — um por item; passados ao
-  `FocusableWidget` de cada `_SidebarItem`. Permite focar o item ativo de
-  fora.
-- **`_hadFocus`** guarda o estado anterior para detectar transição
-  "ganhou vindo de fora" (e evitar loop no redirecionamento).
+- **Props**: `location`, `expanded` (do shell), `onClose` (shell fecha).
+- **`SidebarState`** (público via `GlobalKey`):
+  - `focusActiveItem()` — foca o item da rota ativa (chamado pelo shell ao abrir).
+  - `containsNode(FocusNode)` — true se o nó está dentro do escopo da sidebar
+    (usado pelo `_SidebarEdgeAction` para distinguir conteúdo vs sidebar).
+  - `hasFocus` getter — `_scopeNode.hasFocus`.
+- **`_SidebarTraversalPolicy`** — ↑↓ usa `next()`/`previous()` (ordered
+  traversal) para ignorar gaps de 4px entre itens (rect-based falha com gaps).
+  ← → é interceptado pelo shell antes de chegar aqui.
+- **`_SidebarItem`**:
+  - `onFocus` → `_onItemFocus(index)`: se `!isSelected(location)` →
+    `context.go(target)` + post-frame re-foca o item (contrapor autofocus steal).
+  - `onSelect` → `_onItemSelect(index)`: se `!isSelected(location)` →
+    `context.go(target)` + `widget.onClose()`.
+- **Todos os itens usam `context.go`** (não `push`) — sem back-stack entre
+  seções (Back controla sidebar, per YouTube TV).
 
-### `_SidebarItem` (`side_bar.dart`)
+### `_MainNavigationScreenState` (`main_navigation_screen.dart`)
 
-- **Sem `onFocus`** — focar (d-pad ↑↓) **não navega**. Só `onSelect`
-  (Enter/Select/click) ativa.
-- **Sem `autoFocus`** — o foco inicial é do conteúdo, não da sidebar.
-- `selected` é só indicador visual da rota ativa (cor primária no
-  ícone/label); `focused` é o anel do d-pad. **Independentes**.
+- **`_sidebarOpen`** (bool) — controle de expand/collapse.
+- **`_contentScopeNode`** (FocusScopeNode) — envolve o conteúdo via `FocusScope`.
+  Listener `_onContentFocusChange` grava `_lastContentFocusNode` quando o
+  conteúdo tem foco.
+- **`_restoreContentFocus()`** — `_lastContentFocusNode` (se válido) →
+  `_contentScopeNode.focusedChild` → `unfocus()` (fallback).
+- **`_openSidebar()`** — `setState(_sidebarOpen=true)` + post-frame
+  `focusActiveItem()`.
+- **`_closeSidebar()`** — `setState(_sidebarOpen=false)` + post-frame
+  `_restoreContentFocus()`.
+- **Back button** (`_onHardwareKey` + `_onBackButton`):
+  - `HardwareKeyboard.instance.addHandler` intercepta `goBack` (KeyDownEvent).
+  - Só trata se `isWide` (via `platformDispatcher.views.first`) E
+    `_shellHasFocus()` (sidebar ou conteúdo com foco — não intercepta em
+    telas de detalhe pushed fora do shell).
+  - `return true` consome o key event → suprime o system pop.
+  - `_onBackButton()` (debounce 300ms): se `_sidebarOpen` → `_closeSidebar`;
+    senão → `_openSidebar`.
+  - `PopScope(canPop: isWide ? false : location=='/')` — safety net.
+- **`_isAtLeftEdge(node)`** (rect-based, síncrono): o nó é o mais à esquerda
+  na sua linha (mesma banda vertical) dentro do conteúdo? Filtra nós da
+  sidebar via `containsNode`. Não depende de `requestFocus` (assíncrono).
+- **`_SidebarEdgeAction`** (4 callbacks):
+  - ← na sidebar → no-op.
+  - ← no conteúdo no edge → `onLeftEdge` (`_openSidebar`).
+  - ← no conteúdo no meio → `DirectionalFocusAction` default (move entre cards).
+  - → na sidebar → `onRightEdgeFromSidebar` (`_closeSidebar`).
+  - → no conteúdo → default.
+  - ↑↓ → default.
 
-### `_SidebarEdgeAction` (`main_navigation_screen.dart`)
+## Bugs corrigidos (v1 → v2)
 
-- Intercepta `DirectionalFocusIntent` no `_buildWideLayout` via `Actions`.
-- ← no conteúdo: chama `DirectionalFocusAction().invoke(intent)` (tenta
-  mover o foco). Se `primaryFocus` não mudou (edge esquerdo do conteúdo),
-  chama `onLeftEdge` → `_sidebarKey.currentState?.focusActiveItem()`.
-- Demais direções (→, ↑, ↓): delega ao `DirectionalFocusAction` default.
-
-### `_MainNavigationScreenState`
-
-- **Sem `_sidebarExpanded` / `_expandSidebar` / `_collapseSidebar`** — a
-  expansão é interna da sidebar (por foco do grupo), não state do pai.
-- **`GlobalKey<SidebarState> _sidebarKey`** — acessa `focusActiveItem()`.
-- `_buildWideLayout` envolve o `Row` em `Actions` com
-  `DirectionalFocusIntent: _SidebarEdgeAction(onLeftEdge: ...)`.
-
-## Decisões validadas
-
-1. **Expansão por foco do grupo, não state manual** — a sidebar expande
-   quando `_scopeNode.hasFocus` vira true, colapsa quando vira false.
-   Remove a necessidade de `_sidebarExpanded` no shell.
-2. **`focusActiveItem()` redireciona ao item da rota ativa** — quando a
-   sidebar ganha foco vindo de fora (← do conteúdo), o listener
-   redireciona ao item `selected`. Evita que o d-pad caia num item
-   aleatório (o Flutter faria traversal espacial).
-3. **`FocusScope.of(ctx).unfocus()` após selecionar item** — devolve o
-   foco ao escopo da rota filha, onde a nova tela pode ter autofocus.
-4. **→ na sidebar é natural** — o Flutter move o foco para o conteúdo à
-   direita na `Row`; a sidebar colapsa automaticamente ao perder foco.
-   Sem handler especial.
-5. **`FocusableWidget` recebe `focusNode` do pai** — assim a sidebar
-   controla quais nodes focar. O `FocusableWidget` não descarta nodes
-   que recebeu (`if (widget.focusNode == null) _focusNode.dispose()`).
-
-## Bugs corrigidos (estado anterior)
-
-| Bug | Causa | Correção |
+| Bug v1 | Causa | Correção v2 |
 |---|---|---|
-| Focar item navegava sem Enter | `onFocus: onTap` no `_SidebarItem` | Removido `onFocus` |
-| Sidebar roubava foco no load | `autoFocus: selected` no `_SidebarItem` | Removido `autoFocus` |
-| Sidebar nunca expandia | `_SidebarEdgeAction` definido mas não conectado; `_expandSidebar` nunca chamado | Conectado via `Actions` no `_buildWideLayout` + expansão por foco do grupo |
-| Sidebar não colapsava ao perder foco | `onClose` só chamado no `onTap` dos itens | Colapso automático via listener do `_scopeNode` |
-| Foco não voltava ao conteúdo após Select | Sem `unfocus` após navegar | `FocusScope.of(ctx).unfocus()` em `_onItemTap` |
-| `selected` e `focused` convergiam | `onFocus: onTap` mutava a rota ao focar | Removido `onFocus` — independentes |
-
-## Polimento (Fase 2)
-
-- **Logo no topo** da sidebar (`_buildLogo`) — não-focusable, visual only.
-- **Scroll vertical** via `SingleChildScrollView` — suporta mais itens
-  sem estourar.
-
-## Itens fora de escopo (não alterados nesta iteração)
-
-- Breakpoint `>= 600px` (`Responsive.phoneMaxWidth`) para layout wide.
-- Lista de itens da sidebar (Início, Animes, Filmes, Buscar, Favoritos,
-  Downloads, Ajustes).
-- Drawer mobile (`_DrawerMenu`).
-- `FocusableWidget`, `KeyActivable`.
-- Telas de conteúdo (HomeScreen, SearchScreen, etc.) — o foco inicial
-  depende do autofocus de cada tela; o shell não força.
+| ← sempre abre sidebar | `primaryFocus == before` após `requestFocus` (assíncrono) → sempre true | Detecção rect-based `_isAtLeftEdge` (síncrono) |
+| → na sidebar não fecha | `FocusTraversalGroup` não deixa → escapar | `_SidebarEdgeAction` intercepta → na sidebar → `_closeSidebar` |
+| ↑↓ não seleciona | v1 removeu `onFocus: onTap` (assunção errada) | Re-adicionar `onFocus` → `context.go` + re-focus pós-frame |
+| Back fecha app | `PopScope` não bloqueia no ShellRoute | `HardwareKeyboard` consome `goBack` + `PopScope(canPop:false)` safety net |
+| Sidebar colapsa durante ↑↓ (autofocus steal) | Listener de foco do escopo colapsa on focus loss | Expand/collapse controlado pelo shell (`_sidebarOpen`), não por listener |
 
 ## Verificação
 
 ```bash
 flutter analyze          # 0 issues
 dart fix --apply         # nothing to fix
-flutter analyze          # 0 issues (re-confirm)
+flutter analyze          # 0 issues
 flutter test             # All tests passed (70)
 ```
-
-**Teste manual (TV/desktop):**
-
-1. Load → sidebar colapsada, foco no conteúdo.
-2. ← no conteúdo → sidebar expande, foco no item da rota ativa.
-3. ↑↓ na sidebar → move anel de foco, nada navega.
-4. → na sidebar → colapsa, foco volta ao conteúdo.
-5. Enter em "Buscar" → vai para /search, sidebar colapsa, foco no campo
-   de busca ou primeiro card.
-6. Hover/foco em item colapsado → tooltip com label.
 
 ## Riscos & mitigações
 
 | Risco | Mitigação |
 |---|---|
-| `unfocus()` não devolve foco ao conteúdo se a nova tela não tem autofocus | Telas de conteúdo devem ter `autofocus` no primeiro elemento (responsabilidade delas, não do shell) |
-| Listener do `_scopeNode` causa loop de foco | Guarda `_hadFocus` + `if (!target.hasFocus)` antes de `requestFocus` |
-| ← no meio de um carrossel deveria mover entre cards, não ir à sidebar | `_SidebarEdgeAction` só chama `onLeftEdge` quando o foco **não se move** (edge); ← no meio move entre cards normalmente |
-| `FocusScopeNode` não é descartado | `dispose()` remove listener e descarta `_scopeNode` + `_itemFocusNodes` |
+| `HardwareKeyboard` não suprime system pop em todos os devices | `PopScope(canPop:false)` como safety net; se persistir, adicionar `WillPopScope` |
+| Back no load (antes do autofocus) → não intercepta → exit | Edge case breve; após autofocus, `_shellHasFocus()` é true |
+| `_onItemFocus` chama `context.go` de dentro de focus listener | `context.go` é deferred (não rebuild síncrono) — seguro |
+| Content sem autofocus → `_restoreContentFocus` cai em `unfocus()` | Usuário pressiona arrow → d-pad foca primeiro focusable do conteúdo |
+| `FocusableWidget` mapeia `goBack` → `DismissIntent` | `HardwareKeyboard` handler roda antes e consome Back → `DismissIntent` não dispara |
+
+## Itens fora de escopo
+
+- Breakpoint `>= 600px` (`Responsive.phoneMaxWidth`).
+- Lista de itens da sidebar.
+- Drawer mobile (`_DrawerMenu`) — não mudou.
+- `FocusableWidget`, `KeyActivable`, carrosséis (`_ClampedTraversalPolicy`).
+- Telas de conteúdo — não refatoradas (apenas tracking de foco via `_contentScopeNode`).
+- Comportamento Back no mobile (legado `canPop: location == '/'`).
 
 ## Referências
 
-- Skill `flutter-development` → "Custom Focus Traversal Policies" e
-  "NavigationRail + Drawer as AppBar Replacement".
-- Skill `flutter-reactivity-gotchas` → seção #14 (d-pad), #16 (TextField
-  foco), #17 (TextButton invisível ao d-pad).
-- `references/focus-traversal-policy.md` (skill flutter-development) —
-  `_ClampedTraversalPolicy`, `_SidebarTraversalPolicy`, `_LeftEdgeMenuAction`.
+- Skill `flutter-development` → "Custom Focus Traversal Policies".
+- Skill `flutter-reactivity-gotchas` → #14 (d-pad), #16 (TextField foco).
+- `references/focus-traversal-policy.md` — `_ClampedTraversalPolicy`,
+  `_SidebarTraversalPolicy`, `_SidebarEdgeAction`.
