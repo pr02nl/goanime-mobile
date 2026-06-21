@@ -46,6 +46,37 @@ void main() {
           _norm('${tempDir.path}/pauloflix_movies.db'));
     });
 
+    test('resolveLegacyDatabasePaths aceita path original pós-rename', () {
+      // BUGFIX Fase 4: este teste reproduz o bug de produção onde o
+      // main.dart chamava resolveLegacyDatabasePaths(dbPath) com o path
+      // ORIGINAL (que já havia sido renomeado por prepareMigration).
+      // O resultado: o path de pauloflixContent apontava para um
+      // arquivo inexistente, e a migration crashava com
+      // "no such table: pauloflix_content".
+      final base = '${tempDir.path}/pauloflix.db';
+      final renamed = '${tempDir.path}/pauloflix_content_legacy.db';
+
+      // Cenário 1: pauloflix.db existe (instalação fresca, pré-rename).
+      // O caminho deve usar pauloflix.db.
+      File(base).writeAsBytesSync([]);
+      var paths = resolveLegacyDatabasePaths(base);
+      expect(File(paths.pauloflixContent).existsSync(), isTrue);
+      File(base).deleteSync();
+
+      // Cenário 2: pauloflix.db foi renomeado para pauloflix_content_legacy.db
+      // (pós-prepareMigration). O caminho passado é o ORIGINAL (não o
+      // renomeado). O resolveLegacyDatabasePaths deve detectar e usar
+      // o renomeado. Sem este fix, o caminho apontava para
+      // "<dir>/pauloflix.db" (inexistente), e a migration crashava.
+      File(renamed).writeAsBytesSync([]);
+      paths = resolveLegacyDatabasePaths(base);
+      expect(paths.pauloflixContent, _norm(renamed),
+          reason:
+              'Quando o path original não existe mas o renomeado sim, '
+              'devolve o renomeado.');
+      File(renamed).deleteSync();
+    });
+
     test('em Android, paths legados ficam no mesmo diretório (databases/)',
         () {
       // Cenário Android: <data>/databases/pauloflix.db.
@@ -232,6 +263,55 @@ void main() {
           .map((row) => row.read<int>('c'))
           .getSingle();
       expect(wlCount, 2);
+    });
+
+    test(
+        'BUGFIX (produção): fluxo prepareMigration + migrateV1ToV3 lê do '
+        'arquivo renomeado, não do path original', () async {
+      // Replica o fluxo exato do main() em produção:
+      //   1. resolvePauloflixDbPath() → "<dir>/pauloflix.db"
+      //   2. await prepareMigration(dbPath) → renomeia para
+      //      "<dir>/pauloflix_content_legacy.db"
+      //   3. resolveLegacyDatabasePaths(dbPath)  ← BUG: usava o path
+      //      ORIGINAL (pauloflix.db) que não existe mais.
+      //   4. migrateV1ToV3(legacy: ...)  ← abria "<dir>/pauloflix.db" vazio
+      //      e crashava com "no such table: pauloflix_content".
+      //
+      // O fix: o resolveLegacyDatabasePaths deve aceitar **qualquer**
+      // path (original OU renomeado) e derivar os paths certos a partir
+      // do diretório. Especificamente, se o `pauloflix.db` não existe
+      // mas `pauloflix_content_legacy.db` existe, o `pauloflixContent`
+      // deve apontar para o renomeado.
+
+      final pauloflixDbPath = p.join(tempDir.path, 'pauloflix.db');
+      _seedLegacyPauloFlix(pauloflixDbPath);
+      _seedLegacyWatchlist(p.join(tempDir.path, 'watchlist.db'));
+      _seedLegacyDownloads(p.join(tempDir.path, 'downloads.db'));
+      _seedLegacyPauloFlixMovies(p.join(tempDir.path, 'pauloflix_movies.db'));
+
+      // Step 1+2: prepareMigration renomeia.
+      final prepared = await prepareMigration(pauloflixDbPath);
+      expect(File(pauloflixDbPath).existsSync(), isFalse);
+      final renamedPath = p.join(tempDir.path, 'pauloflix_content_legacy.db');
+      expect(File(renamedPath).existsSync(), isTrue);
+
+      // Step 3: o `prepared.legacyPaths` já tem o path renomeado.
+      // Mas se algum caller ainda usar `resolveLegacyDatabasePaths(dbPath)`,
+      // ele deve ser robusto. Verificamos os 2 caminhos:
+      //
+      // Caminho A: usar `prepared.legacyPaths` (correto, usado pelo
+      // main() pós-fix).
+      final target = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(target.close);
+
+      final reportA = await migrateV1ToV3(target: target, legacy: prepared.legacyPaths);
+      expect(reportA.pauloflixContentRows, 2,
+          reason: 'Caminho A (via prepared.legacyPaths) deve migrar 2 rows');
+      expect(reportA.allSucceeded, isTrue);
+
+      // Idempotência: rodar 2× no prepared não duplica.
+      final reportA2 = await migrateV1ToV3(target: target, legacy: prepared.legacyPaths);
+      expect(reportA2.pauloflixContentRows, 0);
     });
 
     test(

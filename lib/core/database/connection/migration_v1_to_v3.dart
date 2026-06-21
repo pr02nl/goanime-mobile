@@ -89,14 +89,28 @@ Future<PrepareResult> prepareMigration(String pauloflixDbPath) async {
 /// O Drift sempre usa o path que recebe (no Android é
 /// `<data>/databases/pauloflix.db`, em outras plataformas é
 /// `<docs>/pauloflix.db`). Os bancos legados estão no **mesmo
-/// diretório** em qualquer plataforma (cada service legado resolveu
-/// independentemente para a pasta `databases/` no Android via Fase 1).
+/// diretório** em qualquer plataforma.
+///
+/// **Robustez (Fase 4 bugfix):** se o `pauloflix.db` no path passado não
+/// existir mas o `pauloflix_content_legacy.db` existir (cenário pós-rename
+/// do `prepareMigration`), usa o renomeado. Isso evita o bug onde o
+/// `main.dart` passava o path original e o `resolveLegacyDatabasePaths`
+/// derivava um path inexistente. Ver
+/// `docs/DATABASE_REFACTORING.md` § Fase 4 — "BUGFIX (produção)".
 LegacyDatabasePaths resolveLegacyDatabasePaths(String pauloflixDbPath) {
   final file = File(pauloflixDbPath);
   final dir = file.parent.path;
-  // Respeita o nome do arquivo passado (pode ser `pauloflix.db` em
-  // instalação fresca ou `pauloflix_content_legacy.db` após rename).
-  final pauloflixName = file.uri.pathSegments.last;
+  // Se o path passado não existe mas o renomeado existe (cenário
+  // típico pós-prepareMigration), usa o renomeado.
+  String actualPath = pauloflixDbPath;
+  if (!file.existsSync()) {
+    final renamedCandidate =
+        '${p.withoutExtension(pauloflixDbPath)}_content_legacy.db';
+    if (File(renamedCandidate).existsSync()) {
+      actualPath = renamedCandidate;
+    }
+  }
+  final pauloflixName = File(actualPath).uri.pathSegments.last;
   return LegacyDatabasePaths(
     watchlist: p.join(dir, 'watchlist.db'),
     downloads: p.join(dir, 'downloads.db'),

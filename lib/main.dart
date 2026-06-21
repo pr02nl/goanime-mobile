@@ -55,16 +55,17 @@ void main() async {
   // 2. Renomeia o banco legado (se existir) para liberar o path.
   // 3. Cria AppDatabase e roda a migration v1→v3 (popula o Drift com
   //    dados dos 4 bancos legados).
+  // 4. Usa `prepared.legacyPaths` (retorno do prepareMigration) que
+  //    já contém os paths corretos pós-rename — ver bugfix Fase 4.
   late final AppDatabase appDatabase;
   late final DownloadService realDownloadService;
   try {
     final dbPath = await resolvePauloflixDbPath();
-    await prepareMigration(dbPath);
+    final prepared = await prepareMigration(dbPath);
     appDatabase = AppDatabase();
     // Garante que as tabelas Drift foram criadas antes de migrar.
     await appDatabase.customSelect('SELECT 1').get();
-    final legacyPaths = resolveLegacyDatabasePaths(dbPath);
-    await migrateV1ToV3(target: appDatabase, legacy: legacyPaths);
+    await migrateV1ToV3(target: appDatabase, legacy: prepared.legacyPaths);
     // Cria o DownloadService com o repository (Fase 3) e inicializa.
     final downloadsRepo = DownloadsRepositoryImpl(appDatabase);
     realDownloadService = DownloadService.withRepository(downloadsRepo);
