@@ -128,19 +128,19 @@ class SidebarState extends State<Sidebar> {
       icon: Icons.home,
       label: 'Início',
       isSelected: (loc) => loc == '/',
-      onTap: (ctx) => ctx.go('/'),
+      onTap: (ctx) => ctx.goNamed('home'),
     ),
     _NavItem(
       icon: Icons.tv,
       label: 'Animes',
       isSelected: (loc) => loc == '/pauloflix-see-all',
-      onTap: (ctx) => ctx.go('/pauloflix-see-all'),
+      onTap: (ctx) => ctx.goNamed('pauloflix-see-all'),
     ),
     _NavItem(
       icon: Icons.movie_outlined,
       label: 'Filmes',
       isSelected: (loc) => loc == '/pauloflix-movies',
-      onTap: (ctx) => ctx.go('/pauloflix-movies'),
+      onTap: (ctx) => ctx.goNamed('pauloflix-movies'),
     ),
     _NavItem(
       icon: Icons.search,
@@ -155,12 +155,12 @@ class SidebarState extends State<Sidebar> {
         // para /pauloflix-movies/search.
         final current = widget.location;
         if (current.contains('pauloflix-movies')) {
-          ctx.push('/pauloflix-movies/search');
+          ctx.pushNamed('pauloflix-movies-search');
         } else if (current == '/pauloflix-see-all' ||
             current == '/pauloflix-search') {
-          ctx.push('/pauloflix-search');
+          ctx.pushNamed('pauloflix-search');
         } else {
-          ctx.push('/search');
+          ctx.pushNamed('search');
         }
       },
     ),
@@ -168,19 +168,19 @@ class SidebarState extends State<Sidebar> {
       icon: Icons.bookmark,
       label: 'Favoritos',
       isSelected: (loc) => loc == '/watchlist',
-      onTap: (ctx) => ctx.go('/watchlist'),
+      onTap: (ctx) => ctx.goNamed('watchlist'),
     ),
     _NavItem(
       icon: Icons.download_outlined,
       label: 'Downloads',
       isSelected: (loc) => loc == '/downloads',
-      onTap: (ctx) => ctx.go('/downloads'),
+      onTap: (ctx) => ctx.goNamed('downloads'),
     ),
     _NavItem(
       icon: Icons.settings_outlined,
       label: 'Ajustes',
       isSelected: (loc) => loc == '/settings',
-      onTap: (ctx) => ctx.go('/settings'),
+      onTap: (ctx) => ctx.goNamed('settings'),
     ),
   ];
 

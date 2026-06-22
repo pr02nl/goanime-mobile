@@ -427,8 +427,10 @@ class _DrawerMenu extends StatelessWidget {
                       ? ContentType.anime
                       : ContentType.movie,
                   onChanged: (type) {
-                    context.go(
-                      type == ContentType.movie ? '/pauloflix-movies' : '/',
+                    context.goNamed(
+                      type == ContentType.movie
+                          ? 'pauloflix-movies'
+                          : 'home',
                     );
                     onItemSelected();
                   },
@@ -441,7 +443,7 @@ class _DrawerMenu extends StatelessWidget {
                 label: 'Início',
                 selected: location == '/',
                 onTap: () {
-                  context.go('/');
+                  context.goNamed('home');
                   onItemSelected();
                 },
               ),
@@ -455,12 +457,12 @@ class _DrawerMenu extends StatelessWidget {
                 onTap: () {
                   // Comportamento contextual — mesmo padrão do sidebar.
                   if (location.contains('pauloflix-movies')) {
-                    context.go('/pauloflix-movies/search');
+                    context.goNamed('pauloflix-movies-search');
                   } else if (location == '/pauloflix-see-all' ||
                       location == '/pauloflix-search') {
-                    context.go('/pauloflix-search');
+                    context.goNamed('pauloflix-search');
                   } else {
-                    context.go('/search');
+                    context.goNamed('search');
                   }
                   onItemSelected();
                 },
@@ -470,7 +472,7 @@ class _DrawerMenu extends StatelessWidget {
                 label: 'Favoritos',
                 selected: location == '/watchlist',
                 onTap: () {
-                  context.push('/watchlist');
+                  context.pushNamed('watchlist');
                   onItemSelected();
                 },
               ),
@@ -479,7 +481,7 @@ class _DrawerMenu extends StatelessWidget {
                 label: 'Downloads',
                 selected: location == '/downloads',
                 onTap: () {
-                  context.push('/downloads');
+                  context.pushNamed('downloads');
                   onItemSelected();
                 },
               ),
@@ -488,7 +490,7 @@ class _DrawerMenu extends StatelessWidget {
                 label: 'Ajustes',
                 selected: location == '/settings',
                 onTap: () {
-                  context.push('/settings');
+                  context.pushNamed('settings');
                   onItemSelected();
                 },
               ),

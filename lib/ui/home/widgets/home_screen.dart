@@ -152,9 +152,9 @@ class _HomeScreenState extends State<HomeScreen>
                     title: l10n.pauloFlix,
                     contents: pauloflix.contents.take(15).toList(),
                     isTV: viewModel.isTV,
-                    onSeeAll: () => context.push('/pauloflix-see-all'),
+                    onSeeAll: () => context.pushNamed('pauloflix-see-all'),
                     onItemTap: (content) =>
-                        context.push('/pauloflix-episodes', extra: content),
+                        context.pushNamed('pauloflix-episodes', extra: content),
                   ),
                 );
               },
@@ -249,8 +249,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _onAnimeTap(JikanAnime anime) {
-    context.push(
-      '/source-selection',
+    context.pushNamed(
+      'source-selection',
       extra: SourceSelectionRouteData(
         animeTitle: anime.title,
         imageUrl: anime.imageUrl,
@@ -260,8 +260,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _onSeeAll(String title, int genreId) {
-    context.push(
-      '/genre',
+    context.pushNamed(
+      'genre',
       extra: GenreRouteData(
         title: title,
         icon: Icons.movie,
