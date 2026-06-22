@@ -21,6 +21,7 @@ import 'package:provider/provider.dart';
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
+import '../../core/utils/pagination.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
@@ -29,7 +30,7 @@ import '../view_models/pauloflix_movies_provider.dart';
 import '_empty_state.dart';
 import '_movie_hero_banner.dart';
 import '_movie_section.dart';
-import '_movies_grid_paginated.dart';
+import '_movies_paginated_grid.dart';
 
 class PauloFlixMoviesHomeScreen extends StatefulWidget {
   const PauloFlixMoviesHomeScreen({super.key});
@@ -46,7 +47,8 @@ class _PauloFlixMoviesHomeScreenState
 
   // ─── Snapshot derivado (memoizado por hash do conteúdo) ─────────────
   List<PauloFlixMovie> _allContents = const [];
-  PaginationResult _pagination = const PaginationResult(
+  PaginationResult<PauloFlixMovie> _pagination =
+      const PaginationResult<PauloFlixMovie>(
     pages: [],
     letterToPageIndex: {},
     availableLetters: [],
@@ -339,7 +341,7 @@ class _PauloFlixMoviesHomeScreenState
             ),
           ),
           const SizedBox(height: 12),
-          MoviesGridPaginated(
+          MoviesPaginatedGrid(
             pagination: _pagination,
             isTV: _isTV,
           ),

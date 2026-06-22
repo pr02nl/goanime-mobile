@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../../../domain/models/pauloflix_movie.dart';
-import '../../core/utils/responsive.dart';
-import '../../core/widgets/netflix_card.dart';
-import '../../core/widgets/pauloflix_movies_badge.dart';
-import '../view_models/pauloflix_movies_provider.dart';
-import '_letter_index.dart';
-import 'pauloflix_movie_detail_screen.dart';
+import '../utils/pagination.dart';
+import '../utils/responsive.dart';
+import 'letter_index.dart';
+import 'netflix_card.dart';
 
-/// Grid paginado de filmes com índice A–Z lateral.
+/// Grid paginado genérico com índice A–Z lateral.
+///
+/// Aceita qualquer tipo [T] (e.g. `PauloFlixMovie`, `PauloFlixContent`)
+/// e delega a renderização de cada item ao callback [cardBuilder].
+/// Isso permite reuso entre Movies Home e Animes See All sem acoplar
+/// o widget a um modelo específico.
 ///
 /// Layout:
 /// * **Mobile**: `PageView` horizontal entre páginas + índice vertical
@@ -18,21 +20,41 @@ import 'pauloflix_movie_detail_screen.dart';
 /// Sem `autofocus: true` nos cards (anti-pattern #19 do skill
 /// `flutter-reactivity-gotchas` — assertion no FocusScope persistente
 /// do shell).
-class MoviesGridPaginated extends StatefulWidget {
-  final PaginationResult pagination;
+class PaginatedLetterGrid<T> extends StatefulWidget {
+  /// Resultado de paginação produzido por
+  /// [PauloFlixMoviesProvider.paginateByLetter] ou
+  /// [PauloFlixProvider.paginateByLetter].
+  final PaginationResult<T> pagination;
+
+  /// Callback que renderiza cada item como card. Deve cuidar de
+  /// dimensões, badge e tap.
+  final Widget Function(BuildContext, T) cardBuilder;
+
+  /// True se o dispositivo é TV (ajusta comportamento do `NetflixCard`).
   final bool isTV;
 
-  const MoviesGridPaginated({
+  /// Função que extrai o nome de cada item (usado para o índice A–Z).
+  /// Deve ser consistente com o `getSortKey` usado na paginação.
+  final String Function(T) nameOf;
+
+  /// Cor de destaque do índice A–Z e do indicador de página.
+  /// Default: vermelho PauloFlix Movies.
+  final Color accentColor;
+
+  const PaginatedLetterGrid({
     super.key,
     required this.pagination,
-    required this.isTV,
+    required this.cardBuilder,
+    required this.nameOf,
+    this.isTV = false,
+    this.accentColor = const Color(0xFFDC2626),
   });
 
   @override
-  State<MoviesGridPaginated> createState() => _MoviesGridPaginatedState();
+  State<PaginatedLetterGrid<T>> createState() => _PaginatedLetterGridState<T>();
 }
 
-class _MoviesGridPaginatedState extends State<MoviesGridPaginated> {
+class _PaginatedLetterGridState<T> extends State<PaginatedLetterGrid<T>> {
   late final PageController _pageController;
   int _currentPage = 0;
 
@@ -80,9 +102,9 @@ class _MoviesGridPaginatedState extends State<MoviesGridPaginated> {
     }
     final page = widget.pagination.pages[_currentPage];
     if (page.isEmpty) return null;
-    final firstName = page.first.displayName;
-    if (firstName.isEmpty) return null;
-    return _letterOf(firstName);
+    final name = widget.nameOf(page.first);
+    if (name.isEmpty) return null;
+    return _letterOf(name);
   }
 
   String _letterOf(String name) {
@@ -96,7 +118,8 @@ class _MoviesGridPaginatedState extends State<MoviesGridPaginated> {
     if (pages.isEmpty) return const SizedBox.shrink();
 
     final crossAxisCount = _getCrossAxisCount(context);
-    final isWide = MediaQuery.of(context).size.width >= Responsive.phoneMaxWidth;
+    final isWide =
+        MediaQuery.of(context).size.width >= Responsive.phoneMaxWidth;
     final activeLetter = _getActiveLetter();
 
     return Column(
@@ -106,6 +129,7 @@ class _MoviesGridPaginatedState extends State<MoviesGridPaginated> {
           availableLetters: widget.pagination.availableLetters,
           activeLetter: activeLetter,
           onLetterSelected: _jumpToLetter,
+          accentColor: widget.accentColor,
         ),
         const SizedBox(height: 8),
         Stack(
@@ -134,6 +158,7 @@ class _MoviesGridPaginatedState extends State<MoviesGridPaginated> {
                     availableLetters: widget.pagination.availableLetters,
                     activeLetter: activeLetter,
                     onLetterSelected: _jumpToLetter,
+                    accentColor: widget.accentColor,
                   ),
                 ),
               ),
@@ -145,6 +170,7 @@ class _MoviesGridPaginatedState extends State<MoviesGridPaginated> {
           child: _PageIndicator(
             current: _currentPage + 1,
             total: pages.length,
+            accentColor: widget.accentColor,
           ),
         ),
       ],
@@ -153,7 +179,7 @@ class _MoviesGridPaginatedState extends State<MoviesGridPaginated> {
 
   Widget _buildPageGrid(
     BuildContext context,
-    List<PauloFlixMovie> page,
+    List<T> page,
     int crossAxisCount,
   ) {
     return GridView.builder(
@@ -167,13 +193,13 @@ class _MoviesGridPaginatedState extends State<MoviesGridPaginated> {
       ),
       itemCount: page.length,
       itemBuilder: (context, index) {
-        return _MovieGridCard(movie: page[index], isTV: widget.isTV);
+        return widget.cardBuilder(context, page[index]);
       },
     );
   }
 
   double _calculateGridHeight(
-    List<List<PauloFlixMovie>> pages,
+    List<List<T>> pages,
     int crossAxisCount,
   ) {
     if (pages.isEmpty) return 0;
@@ -186,35 +212,40 @@ class _MoviesGridPaginatedState extends State<MoviesGridPaginated> {
   }
 }
 
-class _MovieGridCard extends StatelessWidget {
-  final PauloFlixMovie movie;
+/// Card de filme usado como exemplo de `cardBuilder` no Movies Home.
+/// Mantido aqui para referência — prefira importar [NetflixCard]
+/// diretamente no caller.
+class NetflixGridCard extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final double? rating;
   final bool isTV;
+  final Widget? overlay;
+  final VoidCallback? onTap;
 
-  const _MovieGridCard({required this.movie, required this.isTV});
+  const NetflixGridCard({
+    super.key,
+    required this.imageUrl,
+    required this.title,
+    required this.isTV,
+    this.rating,
+    this.overlay,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return NetflixCard(
-      imageUrl: movie.imageUrl ?? '',
-      title: movie.displayName,
-      rating: movie.score,
+      imageUrl: imageUrl,
+      title: title,
+      rating: rating,
       width: double.infinity,
       height: double.infinity,
       isTV: isTV,
       showTitle: true,
-      showRating: movie.score != null,
-      overlayWidget: movie.isCollection
-          ? const CollectionBadge()
-          : const PauloFlixMoviesBadge(),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                PauloFlixMovieDetailScreen(content: movie),
-          ),
-        );
-      },
+      showRating: rating != null,
+      overlayWidget: overlay,
+      onTap: onTap,
     );
   }
 }
@@ -222,8 +253,13 @@ class _MovieGridCard extends StatelessWidget {
 class _PageIndicator extends StatelessWidget {
   final int current;
   final int total;
+  final Color accentColor;
 
-  const _PageIndicator({required this.current, required this.total});
+  const _PageIndicator({
+    required this.current,
+    required this.total,
+    required this.accentColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -233,16 +269,16 @@ class _PageIndicator extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFFDC2626).withValues(alpha: 0.15),
+            color: accentColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: const Color(0xFFDC2626).withValues(alpha: 0.4),
+              color: accentColor.withValues(alpha: 0.4),
             ),
           ),
           child: Text(
             'Pág. $current de $total',
-            style: const TextStyle(
-              color: Color(0xFFEF4444),
+            style: TextStyle(
+              color: accentColor,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),

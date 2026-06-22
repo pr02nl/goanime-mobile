@@ -7,6 +7,7 @@ import '../../../data/services/pauloflix_movies_service.dart';
 import '../../../data/services/tmdb_service.dart';
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../../domain/repositories/pauloflix_movies_repository.dart';
+import '../../core/utils/pagination.dart';
 
 enum PauloFlixMoviesStatus { initial, loading, loaded, error }
 
@@ -232,18 +233,18 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   /// Retorna um [PaginationResult] com:
   /// - [PaginationResult.pages]: lista de páginas (cada uma com até [perPage] filmes).
   /// - [PaginationResult.letterToPageIndex]: mapa letra → índice da primeira
-  ///   página que contém filmes com essa letra. Usado pelo `_LetterIndex`
+  ///   página que contém filmes com essa letra. Usado pelo `LetterIndex`
   ///   para "pular para letra".
   /// - [PaginationResult.availableLetters]: letras (A–Z + "#") que têm ≥1 filme.
   ///
   /// Filmes com displayName iniciando com número/símbolo caem em "#".
   /// Ordenação é case-insensitive.
-  static PaginationResult paginateByLetter(
+  static PaginationResult<PauloFlixMovie> paginateByLetter(
     List<PauloFlixMovie> movies, {
     int perPage = 24,
   }) {
     if (movies.isEmpty) {
-      return const PaginationResult(
+      return const PaginationResult<PauloFlixMovie>(
         pages: [],
         letterToPageIndex: {},
         availableLetters: [],
@@ -297,7 +298,7 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
       return a.compareTo(b);
     });
 
-    return PaginationResult(
+    return PaginationResult<PauloFlixMovie>(
       pages: pages,
       letterToPageIndex: letterToPageIndex,
       availableLetters: availableLetters,
@@ -324,26 +325,6 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     _filteredContents = _contents;
     notifyListeners();
   }
-}
-
-/// Resultado de [PauloFlixMoviesProvider.paginateByLetter].
-class PaginationResult {
-  /// Páginas de filmes (cada uma com até `perPage` items).
-  final List<List<PauloFlixMovie>> pages;
-
-  /// Mapa `letra → índice da primeira página com essa letra`.
-  /// Usado pelo `_LetterIndex` para `scrollToLetter('A')`.
-  final Map<String, int> letterToPageIndex;
-
-  /// Letras que têm ≥1 filme, em ordem de aparição nas páginas.
-  /// Letras não-presentes são omitidas (não clicáveis).
-  final List<String> availableLetters;
-
-  const PaginationResult({
-    required this.pages,
-    required this.letterToPageIndex,
-    required this.availableLetters,
-  });
 }
 
 class _NullPauloFlixMoviesRepository implements PauloFlixMoviesRepository {

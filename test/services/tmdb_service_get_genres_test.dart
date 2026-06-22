@@ -117,13 +117,8 @@ void main() {
       expect(first[28], 'Ação');
 
       // 2ª chamada: cache em memória hit (mesma instância do service).
-      Future<Never> handler2(http.BaseRequest req) async {
-        fail('TMDB não deveria ser chamado: ${req.url.path}');
-      }
-
-      // Re-criamos o service para verificar que o cache em memória está
-      // vivo na instância original. Mas como o handler2 não vai ser
-      // chamado, basta chamar o `tmdb` original de novo.
+      // Não precisa de handler2 — a chamada `tmdb.getGenres` abaixo
+      // usa o mesmo cache em memória e não invoca o HTTP client.
       final second = await tmdb.getGenres(locale: 'pt-BR');
       expect(second, first);
     });

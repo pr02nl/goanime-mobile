@@ -33,13 +33,13 @@ class AppLocalizations {
   String get watchEpisodes =>
       locale.languageCode == 'pt' ? 'Assistir Episódios' : 'Watch Episodes';
   String get genres => locale.languageCode == 'pt' ? 'Gêneros' : 'Genres';
-  String get synopsis =>
-      locale.languageCode == 'pt' ? 'Sinopse' : 'Synopsis';
+  String get synopsis => locale.languageCode == 'pt' ? 'Sinopse' : 'Synopsis';
   String get information =>
       locale.languageCode == 'pt' ? 'Informações' : 'Information';
   String get seasonLabel =>
       locale.languageCode == 'pt' ? 'Temporada' : 'Season';
-  String get anilistId => locale.languageCode == 'pt' ? 'AniList ID' : 'AniList ID';
+  String get anilistId =>
+      locale.languageCode == 'pt' ? 'AniList ID' : 'AniList ID';
   String get malId =>
       locale.languageCode == 'pt' ? 'MyAnimeList ID' : 'MyAnimeList ID';
   String get popularity =>
@@ -48,16 +48,14 @@ class AppLocalizations {
   String get spring => locale.languageCode == 'pt' ? 'Primavera' : 'Spring';
   String get summer => locale.languageCode == 'pt' ? 'Verão' : 'Summer';
   String get fall => locale.languageCode == 'pt' ? 'Outono' : 'Fall';
-  String get aired =>
-      locale.languageCode == 'pt' ? 'Lançado' : 'Aired';
+  String get aired => locale.languageCode == 'pt' ? 'Lançado' : 'Aired';
   String get notYetAired =>
       locale.languageCode == 'pt' ? 'Não Lançado' : 'Not Yet Aired';
   String get currentlyAiring =>
       locale.languageCode == 'pt' ? 'Em Exibição' : 'Currently Airing';
   String get cancelled =>
       locale.languageCode == 'pt' ? 'Cancelado' : 'Cancelled';
-  String get hiatus =>
-      locale.languageCode == 'pt' ? 'Em Hiato' : 'On Hiatus';
+  String get hiatus => locale.languageCode == 'pt' ? 'Em Hiato' : 'On Hiatus';
 
   // Home Screen
   String get home => locale.languageCode == 'pt' ? 'Início' : 'Home';
@@ -87,8 +85,9 @@ class AppLocalizations {
   String get searchingBestEpisodes => locale.languageCode == 'pt'
       ? 'Procurando pelos melhores episódios...'
       : 'Searching for the best episodes...';
-  String get exploreCatalog =>
-      locale.languageCode == 'pt' ? 'Explore o catálogo' : 'Explore the catalog';
+  String get exploreCatalog => locale.languageCode == 'pt'
+      ? 'Explore o catálogo'
+      : 'Explore the catalog';
   String get searchPrompt => locale.languageCode == 'pt'
       ? 'Pesquise por títulos populares, gêneros ou utilize sua lista de favoritos.'
       : 'Search for popular titles, genres or use your favorites list.';
@@ -105,8 +104,9 @@ class AppLocalizations {
       locale.languageCode == 'pt' ? 'Tema claro' : 'Light mode';
   String get darkMode =>
       locale.languageCode == 'pt' ? 'Tema escuro' : 'Dark mode';
-  String get startMarathon =>
-      locale.languageCode == 'pt' ? 'Comece uma nova maratona' : 'Start a new marathon';
+  String get startMarathon => locale.languageCode == 'pt'
+      ? 'Comece uma nova maratona'
+      : 'Start a new marathon';
   String get searchScreenSubtitle => locale.languageCode == 'pt'
       ? 'Pesquise por títulos, sagas ou estúdios para encontrar seu anime.'
       : 'Search for titles, sagas or studios to find your anime.';
@@ -149,15 +149,14 @@ class AppLocalizations {
   // PauloFlix / Movies
   String get pauloFlix =>
       locale.languageCode == 'pt' ? 'PauloFlix' : 'PauloFlix';
-  String get sync =>
-      locale.languageCode == 'pt' ? 'Sincronizar' : 'Sync';
-  String get movies =>
-      locale.languageCode == 'pt' ? 'Filmes' : 'Movies';
+  String get sync => locale.languageCode == 'pt' ? 'Sincronizar' : 'Sync';
+  String get movies => locale.languageCode == 'pt' ? 'Filmes' : 'Movies';
   String movieCount(int count) => locale.languageCode == 'pt'
       ? '$count ${count == 1 ? 'filme' : 'filmes'}'
       : '$count ${count == 1 ? 'movie' : 'movies'}';
-  String get noMoviesAvailable =>
-      locale.languageCode == 'pt' ? 'Nenhum filme disponível' : 'No movies available';
+  String get noMoviesAvailable => locale.languageCode == 'pt'
+      ? 'Nenhum filme disponível'
+      : 'No movies available';
   String get syncMovies =>
       locale.languageCode == 'pt' ? 'Sincronizar Filmes' : 'Sync Movies';
   String get syncContent =>
@@ -165,25 +164,29 @@ class AppLocalizations {
   String get tmdbNotConfigured => locale.languageCode == 'pt'
       ? 'TMDB não configurado. Vá em Configurações → API Keys para adicionar a chave.'
       : 'TMDB not configured. Go to Settings → API Keys to add the key.';
-  String get availableEpisodes =>
-      locale.languageCode == 'pt' ? 'Episódios disponíveis' : 'Available Episodes';
+  String get availableEpisodes => locale.languageCode == 'pt'
+      ? 'Episódios disponíveis'
+      : 'Available Episodes';
 
   // Settings Screen
-  String get apiKeys =>
-      locale.languageCode == 'pt' ? 'API Keys' : 'API Keys';
-  String get theMovieDatabase =>
-      locale.languageCode == 'pt' ? 'The Movie Database (TMDB)' : 'The Movie Database (TMDB)';
+  String get apiKeys => locale.languageCode == 'pt' ? 'API Keys' : 'API Keys';
+  String get theMovieDatabase => locale.languageCode == 'pt'
+      ? 'The Movie Database (TMDB)'
+      : 'The Movie Database (TMDB)';
   String get configured =>
       locale.languageCode == 'pt' ? 'Configurado' : 'Configured';
   String get notConfigured =>
       locale.languageCode == 'pt' ? 'Não configurado' : 'Not Configured';
-  String get addYourKey =>
-      locale.languageCode == 'pt' ? 'Adicione sua chave TMDB' : 'Add your TMDB key';
-  String get pasteApiKeyHint =>
-      locale.languageCode == 'pt' ? 'Cole aqui sua API key v3' : 'Paste your API key v3 here';
+  String get addYourKey => locale.languageCode == 'pt'
+      ? 'Adicione sua chave TMDB'
+      : 'Add your TMDB key';
+  String get pasteApiKeyHint => locale.languageCode == 'pt'
+      ? 'Cole aqui sua API key v3'
+      : 'Paste your API key v3 here';
   String get save => locale.languageCode == 'pt' ? 'Salvar' : 'Save';
-  String get validKeyRequired =>
-      locale.languageCode == 'pt' ? 'Digite uma chave válida' : 'Enter a valid key';
+  String get validKeyRequired => locale.languageCode == 'pt'
+      ? 'Digite uma chave válida'
+      : 'Enter a valid key';
   String get tmdbKeySaved => locale.languageCode == 'pt'
       ? 'Chave do TMDB salva com sucesso'
       : 'TMDB key saved successfully';
@@ -197,19 +200,21 @@ class AppLocalizations {
   // Downloads Screen
   String get downloads =>
       locale.languageCode == 'pt' ? 'Downloads' : 'Downloads';
-  String get activeTab =>
-      locale.languageCode == 'pt' ? 'Ativos' : 'Active';
+  String get activeTab => locale.languageCode == 'pt' ? 'Ativos' : 'Active';
   String get completedTab =>
       locale.languageCode == 'pt' ? 'Concluídos' : 'Completed';
-  String get downloadSettings =>
-      locale.languageCode == 'pt' ? 'Configurações de Download' : 'Download Settings';
+  String get downloadSettings => locale.languageCode == 'pt'
+      ? 'Configurações de Download'
+      : 'Download Settings';
   String get maxConcurrentDownloads => locale.languageCode == 'pt'
       ? 'Downloads Simultâneos'
       : 'Max Concurrent Downloads';
-  String get noActiveDownloads =>
-      locale.languageCode == 'pt' ? 'Nenhum download ativo' : 'No active downloads';
-  String get noCompletedDownloads =>
-      locale.languageCode == 'pt' ? 'Nenhum download concluído' : 'No completed downloads';
+  String get noActiveDownloads => locale.languageCode == 'pt'
+      ? 'Nenhum download ativo'
+      : 'No active downloads';
+  String get noCompletedDownloads => locale.languageCode == 'pt'
+      ? 'Nenhum download concluído'
+      : 'No completed downloads';
   String get deleteDownload =>
       locale.languageCode == 'pt' ? 'Excluir Download' : 'Delete Download';
   String get deleteDownloadConfirmation => locale.languageCode == 'pt'
@@ -219,10 +224,10 @@ class AppLocalizations {
       ? '$count ${count == 1 ? 'episódio' : 'episódios'}'
       : '$count ${count == 1 ? 'episode' : 'episodes'}';
   String get paused => locale.languageCode == 'pt' ? 'Pausado' : 'Paused';
-  String get waiting => locale.languageCode == 'pt' ? 'Aguardando...' : 'Waiting...';
-  String failedWith(String error) => locale.languageCode == 'pt'
-      ? 'Falhou: $error'
-      : 'Failed: $error';
+  String get waiting =>
+      locale.languageCode == 'pt' ? 'Aguardando...' : 'Waiting...';
+  String failedWith(String error) =>
+      locale.languageCode == 'pt' ? 'Falhou: $error' : 'Failed: $error';
   String get unknownError =>
       locale.languageCode == 'pt' ? 'Erro desconhecido' : 'Unknown error';
   String get clearAllCompleted =>
@@ -318,9 +323,8 @@ class AppLocalizations {
   String get subtitlesOffDescription => locale.languageCode == 'pt'
       ? 'Desativa todas as legendas.'
       : 'Disable all subtitles.';
-  String get embeddedSubtitles => locale.languageCode == 'pt'
-      ? 'Embutidas no vídeo'
-      : 'Embedded in video';
+  String get embeddedSubtitles =>
+      locale.languageCode == 'pt' ? 'Embutidas no vídeo' : 'Embedded in video';
   String get externalSubtitles =>
       locale.languageCode == 'pt' ? 'Externas (.srt)' : 'External (.srt)';
   String get unknownLanguage =>
@@ -366,28 +370,24 @@ class AppLocalizations {
   // PauloFlix Movies Home — section titles
   String get sectionCollections =>
       locale.languageCode == 'pt' ? 'Coleções' : 'Collections';
-  String get sectionTopRated => locale.languageCode == 'pt'
-      ? 'Mais Bem Avaliados'
-      : 'Top Rated';
+  String get sectionTopRated =>
+      locale.languageCode == 'pt' ? 'Mais Bem Avaliados' : 'Top Rated';
   String get sectionRecent =>
       locale.languageCode == 'pt' ? 'Recentes' : 'Recent';
-  String get sectionAllMovies => locale.languageCode == 'pt'
-      ? 'Todos os Filmes'
-      : 'All Movies';
-  String get playNow =>
-      locale.languageCode == 'pt' ? 'Assistir' : 'Play';
+  String get sectionAllMovies =>
+      locale.languageCode == 'pt' ? 'Todos os Filmes' : 'All Movies';
+  String get sectionAllAnimes =>
+      locale.languageCode == 'pt' ? 'Todos os Animes' : 'All Animes';
+  String get playNow => locale.languageCode == 'pt' ? 'Assistir' : 'Play';
   String pageIndicator(int current, int total) => locale.languageCode == 'pt'
       ? 'Pág. $current de $total'
       : 'Page $current of $total';
-  String get jumpToLetter => locale.languageCode == 'pt'
-      ? 'Pular para letra'
-      : 'Jump to letter';
-  String get moviesAvailable => locale.languageCode == 'pt'
-      ? 'filmes disponíveis'
-      : 'movies available';
-  String get collectionsCount => locale.languageCode == 'pt'
-      ? 'coleções'
-      : 'collections';
+  String get jumpToLetter =>
+      locale.languageCode == 'pt' ? 'Pular para letra' : 'Jump to letter';
+  String get moviesAvailable =>
+      locale.languageCode == 'pt' ? 'filmes disponíveis' : 'movies available';
+  String get collectionsCount =>
+      locale.languageCode == 'pt' ? 'coleções' : 'collections';
 
   // Settings Screen
   String get language => locale.languageCode == 'pt' ? 'Idioma' : 'Language';
