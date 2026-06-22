@@ -40,9 +40,7 @@ class PauloFlixSeeAllScreen extends StatelessWidget {
           if (isSyncing) _buildSyncProgress(provider),
 
           // Search Bar + Grid com FocusTraversalGroup
-          SliverToBoxAdapter(
-            child: _SearchBarWithGrid(contents: contents),
-          ),
+          SliverToBoxAdapter(child: _SearchBarWithGrid(contents: contents)),
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
@@ -216,8 +214,13 @@ class _SearchBarWithGridState extends State<_SearchBarWithGrid> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Buscar anime...',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-                prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.5)),
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
                 suffixIcon: _query.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, color: Colors.white54),
@@ -232,7 +235,10 @@ class _SearchBarWithGridState extends State<_SearchBarWithGrid> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF6366F1),
+                    width: 2,
+                  ),
                 ),
               ),
             ),
@@ -303,10 +309,14 @@ class _SearchBarWithGridState extends State<_SearchBarWithGrid> {
         ),
         itemCount: contents.length,
         itemBuilder: (context, index) {
-          return _ContentCard(
-            content: contents[index],
-            autofocus: index == 0, // Autofoco no primeiro card
-          );
+          // Sem autofocus aqui: o shell já gerencia o foco inicial via
+          // _contentScopeNode + _lastContentFocusNode, e autofocus em
+          // um NetflixCard aninhado num FocusTraversalGroup sob um
+          // FocusScope persistente causa corrida com o dispose do
+          // node da rota anterior — disparando o assertion
+          // "Focused child does not have the same idea of its
+          // enclosing scope" no FocusScopeNode do shell.
+          return _ContentCard(content: contents[index]);
         },
       ),
     );
@@ -325,12 +335,8 @@ class _SearchBarWithGridState extends State<_SearchBarWithGrid> {
 
 class _ContentCard extends StatelessWidget {
   final PauloFlixContent content;
-  final bool autofocus;
 
-  const _ContentCard({
-    required this.content,
-    this.autofocus = false,
-  });
+  const _ContentCard({required this.content});
 
   @override
   Widget build(BuildContext context) {
@@ -341,7 +347,6 @@ class _ContentCard extends StatelessWidget {
       width: double.infinity,
       height: double.infinity,
       isTV: true,
-      autofocus: autofocus,
       onTap: () {
         Navigator.push(
           context,
