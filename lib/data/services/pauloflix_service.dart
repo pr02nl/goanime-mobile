@@ -277,9 +277,7 @@ class PauloFlixService {
         .where(
           (c) =>
               currentFolderNames.contains(c.folderName) &&
-              (c.imageUrl == null ||
-                  c.imageUrl!.isEmpty ||
-                  c.lastSynced.isBefore(staleThreshold)),
+              (_isIncomplete(c) || c.lastSynced.isBefore(staleThreshold)),
         )
         .toList();
 
@@ -306,7 +304,7 @@ class PauloFlixService {
     final total = shows.length;
     final jikanService = JikanService();
     final List<PauloFlixContent> contents = [];
-    const batchSize = 5;
+    const batchSize = 3;
 
     for (int i = 0; i < shows.length; i += batchSize) {
       final batch = shows.skip(i).take(batchSize).toList();
@@ -372,6 +370,18 @@ class PauloFlixService {
     }
     // removeStaleContent não tem equivalente exato no repository; o
     // markAsUnavailable já é suficiente (a migração v1→v3 cobre legados).
+  }
+
+  /// Um conteúdo PauloFlix é considerado "incompleto" quando falta um
+  /// dos dois metadados essenciais para exibição: `imageUrl` (card/hero)
+  /// ou `malId` (vínculo com Jikan/AniList). Shows incompletos são
+  /// re-enriquecidos em todo `syncContent`, independente do TTL de 7
+  /// dias, para que o Jikan tenha novas chances de preencher o que
+  /// faltou em tentativas anteriores (anime obscure, rate limit etc.).
+  static bool _isIncomplete(PauloFlixContent content) {
+    final imageMissing = content.imageUrl == null || content.imageUrl!.isEmpty;
+    final malIdMissing = content.malId == null;
+    return imageMissing || malIdMissing;
   }
 }
 
