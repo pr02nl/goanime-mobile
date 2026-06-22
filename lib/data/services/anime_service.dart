@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
+import '../../core/constants/api_constants.dart';
 import '../../domain/models/anime.dart';
 import '../../domain/models/episode.dart';
 import '../../domain/models/video.dart';
@@ -12,7 +13,7 @@ import 'anilist_service.dart';
 import 'episode_thumbnail_service.dart';
 
 class AnimeService {
-  static const String baseSiteUrl = 'https://animefire.plus';
+  static const String baseSiteUrl = ApiConstants.animeFireBaseUrl;
   static const String _googleVideoUserAgent =
       'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1';
 
@@ -414,7 +415,7 @@ class AnimeService {
         final pageRequest = await pageClient.getUrl(Uri.parse(bloggerUrl));
         pageRequest.headers
           ..set(HttpHeaders.userAgentHeader, _googleVideoUserAgent)
-          ..set(HttpHeaders.refererHeader, 'https://animefire.plus/')
+          ..set(HttpHeaders.refererHeader, '${ApiConstants.animeFireBaseUrl}/')
           ..set(HttpHeaders.acceptHeader, 'text/html,application/xhtml+xml,*/*')
           ..set(HttpHeaders.acceptLanguageHeader, 'en-US,en;q=0.9')
           ..set(HttpHeaders.connectionHeader, 'keep-alive');
@@ -638,7 +639,7 @@ class AnimeService {
       final request = await httpClient.getUrl(Uri.parse(bloggerUrl));
       request.headers
         ..set(HttpHeaders.userAgentHeader, _googleVideoUserAgent)
-        ..set(HttpHeaders.refererHeader, 'https://animefire.plus/')
+        ..set(HttpHeaders.refererHeader, '${ApiConstants.animeFireBaseUrl}/')
         ..set(HttpHeaders.acceptHeader, 'text/html,application/xhtml+xml,*/*')
         ..set(HttpHeaders.acceptLanguageHeader, 'en-US,en;q=0.9')
         ..set(HttpHeaders.connectionHeader, 'keep-alive');

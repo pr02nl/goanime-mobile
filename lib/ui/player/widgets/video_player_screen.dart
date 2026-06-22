@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../data/services/anime_service.dart';
 import '../../../data/services/google_video_proxy.dart';
 import '../../../domain/models/anime.dart';
@@ -450,7 +451,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         final playbackHeaders = <String, String>{
           HttpHeaders.userAgentHeader:
               'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36',
-          HttpHeaders.refererHeader: 'https://animefire.plus/',
+          HttpHeaders.refererHeader: '${ApiConstants.animeFireBaseUrl}/',
         };
 
         if (actualVideo.hasHeaders) {

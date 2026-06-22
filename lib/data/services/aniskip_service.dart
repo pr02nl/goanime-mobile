@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../core/constants/api_constants.dart';
 import '../models/aniskip_models.dart';
 
 class AniSkipService {
-  static const String baseUrl = 'https://api.aniskip.com/v2';
+  static const String baseUrl = ApiConstants.aniskipBaseUrl;
 
   /// Fetches skip times data trying multiple strategies
   /// 1. Try with MAL ID if available

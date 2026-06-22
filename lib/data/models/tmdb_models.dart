@@ -1,3 +1,5 @@
+import '../../core/constants/api_constants.dart';
+
 // Data models para The Movie Database (TMDB) API v3.
 //
 // Documentação oficial:
@@ -95,12 +97,12 @@ class TmdbMovie {
 
   String getFullPosterUrl({String size = 'w500'}) {
     if (posterPath == null || posterPath!.isEmpty) return '';
-    return 'https://image.tmdb.org/t/p/$size$posterPath';
+    return '${ApiConstants.tmdbImageBase}/$size$posterPath';
   }
 
   String getFullBackdropUrl({String size = 'w1280'}) {
     if (backdropPath == null || backdropPath!.isEmpty) return '';
-    return 'https://image.tmdb.org/t/p/$size$backdropPath';
+    return '${ApiConstants.tmdbImageBase}/$size$backdropPath';
   }
 
   /// Factory para /movie/{id} (detalhes completos).
@@ -122,7 +124,8 @@ class TmdbMovie {
       status: json['status'],
       imdbId: json['imdb_id'],
       homepage: json['homepage'],
-      genres: (json['genres'] as List<dynamic>?)
+      genres:
+          (json['genres'] as List<dynamic>?)
               ?.map((g) => TmdbGenre.fromJson(g as Map<String, dynamic>))
               .toList() ??
           const [],
@@ -149,8 +152,7 @@ class TmdbMovie {
       voteAverage: (json['vote_average'] as num?)?.toDouble(),
       voteCount: json['vote_count'] as int?,
       popularity: (json['popularity'] as num?)?.toDouble(),
-      genreIds:
-          (json['genre_ids'] as List<dynamic>?)?.cast<int>() ?? const [],
+      genreIds: (json['genre_ids'] as List<dynamic>?)?.cast<int>() ?? const [],
     );
   }
 
@@ -165,10 +167,7 @@ class TmdbGenre {
   TmdbGenre({required this.id, required this.name});
 
   factory TmdbGenre.fromJson(Map<String, dynamic> json) {
-    return TmdbGenre(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? 'Desconhecido',
-    );
+    return TmdbGenre(id: json['id'] ?? 0, name: json['name'] ?? 'Desconhecido');
   }
 
   @override

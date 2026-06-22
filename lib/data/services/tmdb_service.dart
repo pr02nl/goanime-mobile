@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../core/constants/api_constants.dart';
 import '../models/tmdb_models.dart';
 import 'api_key_settings_service.dart';
 
@@ -32,7 +33,7 @@ class _CacheEntry<T> {
 /// Movies. Para feature completa da API, extenda com métodos adicionais.
 class TmdbService {
   /// Base URL oficial da API v3 (referenciada pela doc oficial).
-  static const String baseUrl = 'https://api.themoviedb.org/3';
+  static const String baseUrl = ApiConstants.tmdbBaseUrl;
 
   /// ISO 3166-1 alpha-2 do Brasil — região padrão para priorizar resultados.
   static const String regionBR = 'BR';

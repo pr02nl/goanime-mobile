@@ -9,11 +9,11 @@ import '../../core/constants/api_constants.dart';
 class EpisodeThumbnailService {
   static const String _tmdbApiKey =
       '6c71a5457f310ab5f5464cf8bb67d365'; // Public TMDB API key
-  static const String _tmdbApiBase = 'https://api.themoviedb.org/3';
-  static const String _tmdbImageBase = 'https://image.tmdb.org/t/p/w500';
-  static const String _kitsuApiBase = 'https://kitsu.io/api/edge';
+  static const String _tmdbApiBase = ApiConstants.tmdbBaseUrl;
+  static const String _tmdbImageBase = '${ApiConstants.tmdbImageBase}/w500';
+  static const String _kitsuApiBase = ApiConstants.kitsuBaseUrl;
   static const String _jikanApiBase = ApiConstants.jikanBaseUrl;
-  static const String _anilistGraphQL = 'https://graphql.anilist.co';
+  static const String _anilistGraphQL = ApiConstants.anilistBaseUrl;
 
   /// Fetch episode thumbnail from multiple sources
   static Future<String?> getEpisodeThumbnail({

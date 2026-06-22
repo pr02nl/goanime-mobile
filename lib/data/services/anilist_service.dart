@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../core/constants/api_constants.dart';
 import '../models/anilist_models.dart';
 
 class AniListService {
-  static const String _apiUrl = 'https://graphql.anilist.co';
+  static const String _apiUrl = ApiConstants.anilistBaseUrl;
   static const String _graphQLQuery = '''
     query (\$search: String) {
       Media(search: \$search, type: ANIME) {
