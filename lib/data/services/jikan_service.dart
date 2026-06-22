@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../models/jikan_models.dart';
 
 /// Cache entry com timestamp para expiração
@@ -74,7 +75,7 @@ class HomeData {
 }
 
 class JikanService {
-  static const String baseUrl = 'https://api.jikan.moe/v4';
+  static const String baseUrl = ApiConstants.jikanBaseUrl;
   static const String _homeDataCacheKey = 'jikan_home_data_cache';
 
   // Cache em memória singleton para toda a app

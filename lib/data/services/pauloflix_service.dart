@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
+import '../../core/constants/api_constants.dart';
 import '../../domain/models/pauloflix_content.dart';
 import '../../domain/models/pauloflix_models.dart';
 import '../../domain/repositories/pauloflix_repository.dart';
@@ -9,7 +10,7 @@ import '../models/jikan_models.dart';
 import 'jikan_service.dart';
 
 class PauloFlixService {
-  static const String baseUrl = 'http://100.95.105.113:8300/tvshows/';
+  static const String baseUrl = ApiConstants.animePauloFlix;
   static const Duration reEnrichThreshold = Duration(days: 7);
 
   static Future<List<PauloFlixShow>> fetchAllShows() async {
@@ -153,8 +154,10 @@ class PauloFlixService {
 
   static int? _extractSeasonNumber(String name) {
     // Padrão 1: "Season 01", "Season 1" (formato completo)
-    final seasonMatch = RegExp(r'Season\s+(\d+)', caseSensitive: false)
-        .firstMatch(name);
+    final seasonMatch = RegExp(
+      r'Season\s+(\d+)',
+      caseSensitive: false,
+    ).firstMatch(name);
     if (seasonMatch != null) return int.tryParse(seasonMatch.group(1)!);
 
     // Padrão 2: "S01", "S1" (abreviação comum)
@@ -163,8 +166,10 @@ class PauloFlixService {
     if (sMatch != null) return int.tryParse(sMatch.group(1)!);
 
     // Padrão 3: "Temporada 01" (português)
-    final ptMatch = RegExp(r'Temporada\s+(\d+)', caseSensitive: false)
-        .firstMatch(name);
+    final ptMatch = RegExp(
+      r'Temporada\s+(\d+)',
+      caseSensitive: false,
+    ).firstMatch(name);
     if (ptMatch != null) return int.tryParse(ptMatch.group(1)!);
 
     return null;

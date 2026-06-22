@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
+import '../../core/constants/api_constants.dart';
 import '../../domain/models/pauloflix_movie.dart';
 import '../../domain/models/pauloflix_movie_item.dart';
 import '../../domain/repositories/pauloflix_movies_repository.dart';
@@ -29,7 +30,7 @@ import 'tmdb_service.dart';
 /// O nome do arquivo (`.mkv`/`.mp4`) só é usado para localizar a URL de
 /// streaming — nunca é passado pro TMDB.
 class PauloFlixMoviesService {
-  static const String baseUrl = 'http://100.95.105.113:8300/movies/';
+  static const String baseUrl = ApiConstants.moviePauloFlix;
   static const Duration reEnrichThreshold = Duration(days: 7);
 
   /// Extensões de vídeo reconhecidas.
@@ -501,14 +502,14 @@ class PauloFlixMoviesService {
 
       if (toProcess.isEmpty) {
         onProgress?.call('Sincronização completa: ${existing.length} itens');
-          if (removed.isNotEmpty) {
-            for (final name in removed) {
-              await repository.markAsUnavailable(name);
-            }
+        if (removed.isNotEmpty) {
+          for (final name in removed) {
+            await repository.markAsUnavailable(name);
           }
-          // removeStaleContent não tem equivalente exato no repository.
-          return true;
         }
+        // removeStaleContent não tem equivalente exato no repository.
+        return true;
+      }
 
       onProgress?.call('Processando ${toProcess.length} pastas no TMDB...');
 

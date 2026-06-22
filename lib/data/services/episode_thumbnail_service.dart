@@ -1,6 +1,9 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
+import '../../core/constants/api_constants.dart';
 
 /// Service to fetch episode-specific thumbnails from multiple sources
 class EpisodeThumbnailService {
@@ -9,7 +12,7 @@ class EpisodeThumbnailService {
   static const String _tmdbApiBase = 'https://api.themoviedb.org/3';
   static const String _tmdbImageBase = 'https://image.tmdb.org/t/p/w500';
   static const String _kitsuApiBase = 'https://kitsu.io/api/edge';
-  static const String _jikanApiBase = 'https://api.jikan.moe/v4';
+  static const String _jikanApiBase = ApiConstants.jikanBaseUrl;
   static const String _anilistGraphQL = 'https://graphql.anilist.co';
 
   /// Fetch episode thumbnail from multiple sources
