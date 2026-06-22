@@ -1,12 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/anime.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/utils/text_utils.dart';
 import '../../core/widgets/focusable_widget.dart';
-import '../../player/widgets/episode_list_screen.dart';
 
 class AnimeDetailScreen extends StatelessWidget {
   final Anime anime;
@@ -242,12 +242,9 @@ class AnimeDetailScreen extends StatelessWidget {
                     child: FocusableWidget(
                       onSelect: () {
                         HapticFeedback.lightImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                EpisodeListScreen(anime: anime),
-                          ),
+                        context.pushNamed(
+                          'episode-list',
+                          extra: anime,
                         );
                       },
                       borderRadius: 12,
@@ -255,12 +252,9 @@ class AnimeDetailScreen extends StatelessWidget {
                       child: FilledButton.icon(
                         onPressed: () {
                           HapticFeedback.lightImpact();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  EpisodeListScreen(anime: anime),
-                            ),
+                          context.pushNamed(
+                            'episode-list',
+                            extra: anime,
                           );
                         },
                         icon: const Icon(Icons.play_arrow_rounded, size: 20),

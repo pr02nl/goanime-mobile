@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
@@ -11,7 +12,6 @@ import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
 import '../view_models/pauloflix_movies_provider.dart';
-import 'pauloflix_movie_detail_screen.dart';
 
 /// Tela de busca de filmes PauloFlix.
 ///
@@ -373,11 +373,9 @@ class _PauloFlixMoviesSearchScreenState
       showTitle: true,
       showRating: content.score != null,
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PauloFlixMovieDetailScreen(content: content),
-          ),
+        context.pushNamed(
+          'pauloflix-movie-detail',
+          extra: content,
         );
       },
     );

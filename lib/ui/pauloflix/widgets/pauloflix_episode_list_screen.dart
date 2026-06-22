@@ -5,16 +5,17 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/pauloflix_badge.dart';
-import '../../player/widgets/video_player_screen.dart';
 import '../view_models/pauloflix_episode_list_viewmodel.dart';
 import 'pauloflix_episode_card.dart';
 import 'pauloflix_season_selector.dart';
@@ -235,21 +236,20 @@ class _HeroBanner extends StatelessWidget {
         )
         .toList();
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ModernVideoPlayerScreen(
-          episode: episodes[index],
-          episodeList: episodes,
-          episodeIndex: index,
-          animeTitle: vm.content.displayName,
-          anime: Anime(
-            name: vm.content.displayName,
-            url: vm.content.serverUrl,
-            source: AnimeSource.pauloFlix,
-            fallbackImageUrl: vm.content.imageUrl,
-          ),
+    context.pushNamed(
+      'player',
+      extra: PlayerRouteData(
+        episode: episodes[index],
+        animeTitle: vm.content.displayName,
+        anime: Anime(
+          name: vm.content.displayName,
+          url: vm.content.serverUrl,
+          source: AnimeSource.pauloFlix,
+          fallbackImageUrl: vm.content.imageUrl,
         ),
+        isMovie: false,
+        episodeList: episodes,
+        episodeIndex: index,
       ),
     );
   }
@@ -514,21 +514,20 @@ class _EpisodesList extends StatelessWidget {
         )
         .toList();
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ModernVideoPlayerScreen(
-          episode: episodes[index],
-          episodeList: episodes,
-          episodeIndex: index,
-          animeTitle: vm.content.displayName,
-          anime: Anime(
-            name: vm.content.displayName,
-            url: vm.content.serverUrl,
-            source: AnimeSource.pauloFlix,
-            fallbackImageUrl: vm.content.imageUrl,
-          ),
+    context.pushNamed(
+      'player',
+      extra: PlayerRouteData(
+        episode: episodes[index],
+        animeTitle: vm.content.displayName,
+        anime: Anime(
+          name: vm.content.displayName,
+          url: vm.content.serverUrl,
+          source: AnimeSource.pauloFlix,
+          fallbackImageUrl: vm.content.imageUrl,
         ),
+        isMovie: false,
+        episodeList: episodes,
+        episodeIndex: index,
       ),
     );
   }

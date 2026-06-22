@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
-import 'pauloflix_movie_detail_screen.dart';
 
 /// Carrossel horizontal padronizado para uma seção de filmes.
 ///
@@ -56,12 +56,9 @@ class MovieSection extends StatelessWidget {
           ? CollectionBadge(fontSize: movie.availableMovieCount > 9 ? 10 : 9)
           : const PauloFlixMoviesBadge(fontSize: 10),
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                PauloFlixMovieDetailScreen(content: movie),
-          ),
+        context.pushNamed(
+          'pauloflix-movie-detail',
+          extra: movie,
         );
       },
     );

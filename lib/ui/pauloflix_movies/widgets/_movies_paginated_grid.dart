@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../core/utils/pagination.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/paginated_letter_grid.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
-import 'pauloflix_movie_detail_screen.dart';
 
 /// Wrapper sobre [PaginatedLetterGrid] específico para [PauloFlixMovie].
 /// Fixa a cor de destaque (vermelho PauloFlix Movies) e o builder
@@ -43,12 +43,9 @@ class MoviesPaginatedGrid extends StatelessWidget {
               ? const CollectionBadge()
               : const PauloFlixMoviesBadge(),
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    PauloFlixMovieDetailScreen(content: movie),
-              ),
+            context.pushNamed(
+              'pauloflix-movie-detail',
+              extra: movie,
             );
           },
         );

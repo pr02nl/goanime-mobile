@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/services/anime_service.dart';
 import '../../../domain/models/anime.dart';
@@ -8,7 +9,6 @@ import '../../core/themes/app_colors.dart';
 import '../../core/themes/netflix_theme.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/watchlist_button.dart';
-import '../../player/widgets/modern_episode_list_screen.dart';
 
 class SourceSelectionScreen extends StatefulWidget {
   final String animeTitle;
@@ -99,11 +99,9 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
         await AnimeService.enrichAnimeWithAniList(selectedAnime);
 
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ModernEpisodeListScreen(anime: selectedAnime),
-          ),
+        context.pushReplacementNamed(
+          'modern-episode-list',
+          extra: selectedAnime,
         );
       } else {
         // Apenas um resultado, usa diretamente
@@ -113,11 +111,9 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
         await AnimeService.enrichAnimeWithAniList(anime);
 
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ModernEpisodeListScreen(anime: anime),
-          ),
+        context.pushReplacementNamed(
+          'modern-episode-list',
+          extra: anime,
         );
       }
     } else {
@@ -133,11 +129,9 @@ class _SourceSelectionScreenState extends State<SourceSelectionScreen>
       await AnimeService.enrichAnimeWithAniList(anime);
 
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ModernEpisodeListScreen(anime: anime),
-        ),
+      context.pushReplacementNamed(
+        'modern-episode-list',
+        extra: anime,
       );
     }
   }

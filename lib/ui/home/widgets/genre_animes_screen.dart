@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/models/jikan_models.dart';
 import '../../../data/services/jikan_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/themes/netflix_theme.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/netflix_card.dart';
-import '../../search/widgets/source_selection_screen.dart';
 
 class GenreAnimesScreen extends StatefulWidget {
   final String title;
@@ -129,14 +130,12 @@ class _GenreAnimesScreenState extends State<GenreAnimesScreen> {
   }
 
   void _onAnimeTap(JikanAnime jikanAnime) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SourceSelectionScreen(
-          animeTitle: jikanAnime.title,
-          imageUrl: jikanAnime.imageUrl,
-          myAnimeListUrl: 'https://myanimelist.net/anime/${jikanAnime.malId}',
-        ),
+    context.pushNamed(
+      'source-selection',
+      extra: SourceSelectionRouteData(
+        animeTitle: jikanAnime.title,
+        imageUrl: jikanAnime.imageUrl,
+        myAnimeListUrl: 'https://myanimelist.net/anime/${jikanAnime.malId}',
       ),
     );
   }

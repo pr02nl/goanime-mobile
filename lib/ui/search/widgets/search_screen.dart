@@ -1,18 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/models/jikan_models.dart';
 import '../../../data/services/jikan_service.dart';
 import '../../../data/services/search_history_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/themes/netflix_theme.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
-import 'source_selection_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final VoidCallback? onBackPressed;
@@ -281,14 +282,12 @@ class _SearchScreenState extends State<SearchScreen>
 
     // Navega para tela de seleção de fonte
     if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SourceSelectionScreen(
-          animeTitle: anime.title,
-          imageUrl: anime.imageUrl,
-          myAnimeListUrl: 'https://myanimelist.net/anime/${anime.malId}',
-        ),
+    context.pushNamed(
+      'source-selection',
+      extra: SourceSelectionRouteData(
+        animeTitle: anime.title,
+        imageUrl: anime.imageUrl,
+        myAnimeListUrl: 'https://myanimelist.net/anime/${anime.malId}',
       ),
     );
   }

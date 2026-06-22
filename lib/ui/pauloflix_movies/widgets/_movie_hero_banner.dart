@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../core/widgets/netflix_hero_card.dart';
-import 'pauloflix_movie_detail_screen.dart';
 
 /// Hero banner que destaca um filme/coleção no topo da home.
 ///
@@ -41,11 +41,9 @@ class MovieHeroBanner extends StatelessWidget {
   }
 
   void _openDetail(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PauloFlixMovieDetailScreen(content: movie),
-      ),
+    context.pushNamed(
+      'pauloflix-movie-detail',
+      extra: movie,
     );
   }
 }

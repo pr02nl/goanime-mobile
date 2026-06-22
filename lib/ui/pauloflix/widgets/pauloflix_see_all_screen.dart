@@ -21,6 +21,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../domain/models/pauloflix_content.dart';
@@ -34,7 +35,6 @@ import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/paginated_letter_grid.dart';
 import '../../core/widgets/pauloflix_badge.dart';
 import '../view_models/pauloflix_provider.dart';
-import 'pauloflix_episode_list_screen.dart';
 
 class PauloFlixSeeAllScreen extends StatefulWidget {
   const PauloFlixSeeAllScreen({super.key});
@@ -544,11 +544,9 @@ class _AnimeHeroBanner extends StatelessWidget {
   }
 
   void _openEpisodeList(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PauloFlixEpisodeListScreen(content: content),
-      ),
+    context.pushNamed(
+      'pauloflix-episodes',
+      extra: content,
     );
   }
 }
@@ -643,12 +641,9 @@ class _AnimeCarouselCard extends StatelessWidget {
       showRating: content.score != null,
       overlayWidget: const PauloFlixBadge(fontSize: 9),
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                PauloFlixEpisodeListScreen(content: content),
-          ),
+        context.pushNamed(
+          'pauloflix-episodes',
+          extra: content,
         );
       },
     );
@@ -674,12 +669,9 @@ class _AnimeGridCard extends StatelessWidget {
       showRating: content.score != null,
       overlayWidget: const PauloFlixBadge(),
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                PauloFlixEpisodeListScreen(content: content),
-          ),
+        context.pushNamed(
+          'pauloflix-episodes',
+          extra: content,
         );
       },
     );

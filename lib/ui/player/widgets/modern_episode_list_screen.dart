@@ -1,9 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/services/anime_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
+import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/utils/text_utils.dart';
@@ -11,7 +13,6 @@ import '../../core/widgets/focusable_widget.dart';
 import '../../downloads/widgets/download_button.dart';
 import 'episode_grid_card.dart';
 import 'episode_list_card.dart';
-import 'video_player_screen.dart';
 
 // Funções de extração de número de episódio movidas para episode_utils.dart
 
@@ -88,16 +89,14 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
       'AniList ID: ${widget.anime.anilistId}, '
       'MAL ID: ${widget.anime.malId}',
     );
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ModernVideoPlayerScreen(
-          anime: widget.anime,
-          episode: episode,
-          animeTitle: widget.anime.name,
-          episodeList: _episodes,
-          episodeIndex: index >= 0 ? index : null,
-        ),
+    context.pushNamed(
+      'player',
+      extra: PlayerRouteData(
+        episode: episode,
+        animeTitle: widget.anime.name,
+        anime: widget.anime,
+        episodeList: _episodes,
+        episodeIndex: index >= 0 ? index : null,
       ),
     );
   }

@@ -518,6 +518,9 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
       'AniList ID: ${widget.anime.anilistId}, '
       'MAL ID: ${widget.anime.malId}',
     );
+    // Mantido como Navigator.push com PageRouteBuilder custom:
+    // a transição de slide horizontal é intencional aqui (diferente da
+    // transição padrão do GoRouter) e define a UX do player legacy.
     Navigator.push(
       context,
       PageRouteBuilder(

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/services/search_history_service.dart';
 import '../../../data/services/anime_service.dart';
@@ -9,8 +10,6 @@ import '../../../domain/models/anime.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/widgets/anime_result_card.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
-import '../../home/widgets/anime_detail_screen.dart';
-import '../../player/widgets/episode_list_screen.dart';
 import '../../settings/view_models/theme_viewmodel.dart';
 
 // Search Screen
@@ -273,21 +272,11 @@ class _AnimeSearchScreenState extends State<AnimeSearchScreen> {
               index: index,
               onTap: () {
                 HapticFeedback.lightImpact();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AnimeDetailScreen(anime: anime),
-                  ),
-                );
+                context.pushNamed('anime-detail', extra: anime);
               },
               onEpisodesTap: () {
                 HapticFeedback.lightImpact();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EpisodeListScreen(anime: anime),
-                  ),
-                );
+                context.pushNamed('episode-list', extra: anime);
               },
             );
           },

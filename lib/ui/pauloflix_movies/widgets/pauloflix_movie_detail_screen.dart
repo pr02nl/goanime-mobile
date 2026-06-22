@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../data/services/pauloflix_movies_service.dart';
@@ -6,9 +7,9 @@ import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../../domain/models/pauloflix_movie_item.dart';
+import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
-import '../../player/widgets/video_player_screen.dart';
 
 class PauloFlixMovieDetailScreen extends StatefulWidget {
   final PauloFlixMovie content;
@@ -137,23 +138,21 @@ class _PauloFlixMovieDetailScreenState
         )
         .toList();
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ModernVideoPlayerScreen(
-          episode: Episode(
-            number: '1',
-            url: videoUrl,
-            subtitleTracks: episodeTracks,
-          ),
-          animeTitle: title,
-          isMovie: true,
-          anime: Anime(
-            name: title,
-            url: widget.content.serverUrl,
-            source: AnimeSource.pauloFlix,
-            fallbackImageUrl: widget.content.imageUrl,
-          ),
+    context.pushNamed(
+      'player',
+      extra: PlayerRouteData(
+        episode: Episode(
+          number: '1',
+          url: videoUrl,
+          subtitleTracks: episodeTracks,
+        ),
+        animeTitle: title,
+        isMovie: true,
+        anime: Anime(
+          name: title,
+          url: widget.content.serverUrl,
+          source: AnimeSource.pauloFlix,
+          fallbackImageUrl: widget.content.imageUrl,
         ),
       ),
     );
