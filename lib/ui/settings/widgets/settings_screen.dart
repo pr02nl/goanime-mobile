@@ -75,6 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.tmdbKeySaved), backgroundColor: Colors.green),
     );
+    ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
   }
 
   Future<void> _removeTmdbKey() async {

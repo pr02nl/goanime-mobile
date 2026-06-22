@@ -58,6 +58,7 @@ class _TvQrSetupDialogState extends State<TvQrSetupDialog> {
         TmdbService().setApiKey(key);
         if (!mounted) return;
         setState(() => _keyReceived = true);
+        ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
 
         // Fecha o dialog após 2 segundos mostrando sucesso
         await Future.delayed(const Duration(seconds: 2));
