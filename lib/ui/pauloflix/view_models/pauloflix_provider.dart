@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../data/services/pauloflix_service.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/pauloflix_repository.dart';
 
@@ -65,7 +66,24 @@ class PauloFlixProvider extends ChangeNotifier {
       // pelo app; aqui apenas refletimos o estado. O repository já
       // estará populado pelo service (que internamente usa o repository
       // na Fase 3 completa).
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final sync = await PauloFlixService.syncContent(
+        repository: _repository,
+        onProgress: (progress) {
+          _syncProgress = progress;
+          notifyListeners();
+        },
+        onError: (error) {
+          _errorMessage = 'Erro na sincronização: $error';
+          _status = PauloFlixStatus.error;
+          notifyListeners();
+        },
+      );
+      if (!sync) {
+        _errorMessage = 'Sincronização falhou por motivos desconhecidos.';
+        _status = PauloFlixStatus.error;
+        notifyListeners();
+        return;
+      }
       _status = PauloFlixStatus.loaded;
     } catch (e) {
       _errorMessage = 'Erro na sincronização: $e';
@@ -140,8 +158,11 @@ class _NullPauloFlixRepository implements PauloFlixRepository {
   @override
   Future<void> markAsUnavailable(String folderName) async {}
   @override
-  Future<Map<String, int>> getStats() async =>
-      {'total': 0, 'available': 0, 'withMetadata': 0};
+  Future<Map<String, int>> getStats() async => {
+    'total': 0,
+    'available': 0,
+    'withMetadata': 0,
+  };
   @override
   Stream<List<PauloFlixContent>> watch() => const Stream.empty();
 }
