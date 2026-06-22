@@ -6,6 +6,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
+import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
 import '../view_models/pauloflix_movies_provider.dart';
@@ -79,13 +80,23 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
         ),
         leading: const Icon(Icons.key_off, color: Color(0xFFDC2626)),
         actions: [
-          TextButton(
-            onPressed: () {
+          FocusableWidget(
+            onSelect: () {
               if (mounted) {
                 ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
               }
             },
-            child: const Text('OK', style: TextStyle(color: Color(0xFFDC2626))),
+            child: TextButton(
+              onPressed: () {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+                }
+              },
+              child: const Text(
+                'OK',
+                style: TextStyle(color: Color(0xFFDC2626)),
+              ),
+            ),
           ),
         ],
       ),
