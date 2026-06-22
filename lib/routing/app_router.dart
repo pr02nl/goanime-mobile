@@ -71,17 +71,17 @@ GoRouter createAppRouter({String? initialError}) {
             builder: (context, state) => const PauloFlixSeeAllScreen(),
           ),
           GoRoute(
-            path: '/pauloflix-search',
-            name: 'pauloflix-search',
-            builder: (context, state) => const PauloFlixSearchScreen(),
-          ),
-          GoRoute(
             path: '/error',
             name: 'error',
             builder: (context, state) =>
                 _startupErrorScreen(initialError ?? 'Erro desconhecido'),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/pauloflix-search',
+        name: 'pauloflix-search',
+        builder: (context, state) => const PauloFlixSearchScreen(),
       ),
       GoRoute(
         path: '/pauloflix-movies/search',
