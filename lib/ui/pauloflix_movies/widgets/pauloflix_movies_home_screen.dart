@@ -81,7 +81,9 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+              if (mounted) {
+                ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+              }
             },
             child: const Text('OK', style: TextStyle(color: Color(0xFFDC2626))),
           ),

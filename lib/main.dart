@@ -3,8 +3,6 @@ import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
 import 'core/database/app_database.dart';
-import 'core/database/connection/connection.dart';
-import 'core/database/connection/migration_v1_to_v3.dart';
 import 'data/repositories/downloads_repository_impl.dart';
 import 'data/services/download_service.dart';
 import 'data/services/tmdb_service.dart';
@@ -60,12 +58,10 @@ void main() async {
   late final AppDatabase appDatabase;
   late final DownloadService realDownloadService;
   try {
-    final dbPath = await resolvePauloflixDbPath();
-    final prepared = await prepareMigration(dbPath);
+    // final dbPath = await resolvePauloflixDbPath();
     appDatabase = AppDatabase();
     // Garante que as tabelas Drift foram criadas antes de migrar.
     await appDatabase.customSelect('SELECT 1').get();
-    await migrateV1ToV3(target: appDatabase, legacy: prepared.legacyPaths);
     // Cria o DownloadService com o repository (Fase 3) e inicializa.
     final downloadsRepo = DownloadsRepositoryImpl(appDatabase);
     realDownloadService = DownloadService.withRepository(downloadsRepo);
