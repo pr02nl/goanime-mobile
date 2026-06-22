@@ -174,6 +174,28 @@ class TmdbGenre {
   String toString() => name;
 }
 
+/// Resposta do endpoint `/genre/movie/list` — lista completa de gêneros
+/// oficiais do TMDB no idioma solicitado. Lista é estática (TMDB raramente
+/// adiciona novos gêneros); a resposta é cacheada pelo [TmdbService] na
+/// tabela `tmdb_genres` (Drift).
+class TmdbGenreList {
+  final List<TmdbGenre> genres;
+
+  TmdbGenreList({required this.genres});
+
+  factory TmdbGenreList.fromJson(Map<String, dynamic> json) {
+    final raw = (json['genres'] as List<dynamic>?) ?? const [];
+    return TmdbGenreList(
+      genres: raw.map((e) => TmdbGenre.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
+
+  /// Converte para `Map<int, String>` (id → nome) para lookup O(1).
+  Map<int, String> toIdMap() {
+    return {for (final g in genres) g.id: g.name};
+  }
+}
+
 /// Resposta paginada de /search/movie.
 class TmdbSearchResponse {
   final int page;

@@ -45,11 +45,36 @@ class PauloFlixMovie {
   }) : lastSynced = lastSynced ?? DateTime.now();
 
   /// Cria a partir de dados do TMDB (filme individual).
+  ///
+  /// **Heurística de resolução de gêneros:**
+  /// 1. Se [tmdb.genres] está populado (endpoint `/movie/{id}`),
+  ///    usa os nomes diretamente.
+  /// 2. Se [tmdb.genres] está vazio (endpoint `/search/movie`, que só
+  ///    retorna `genre_ids`) e [genreIdToName] é fornecido, traduz
+  ///    cada `genre_id` em nome via o mapa.
+  /// 3. Caso contrário, `genres` fica vazio.
+  ///
+  /// O [genreIdToName] é populado pelo [TmdbService.getGenres] a partir
+  /// do endpoint `/genre/movie/list` (cacheado na tabela `tmdb_genres`).
+  /// Sem ele, filmes vindos do search ficam sem gêneros.
   factory PauloFlixMovie.fromTmdb({
     required String folderName,
     required String serverUrl,
     required TmdbMovie tmdb,
+    Map<int, String>? genreIdToName,
   }) {
+    final List<String> resolvedGenres;
+    if (tmdb.genres.isNotEmpty) {
+      resolvedGenres = tmdb.genres.map((g) => g.name).toList();
+    } else if (genreIdToName != null && tmdb.genreIds.isNotEmpty) {
+      resolvedGenres = tmdb.genreIds
+          .map((id) => genreIdToName[id])
+          .whereType<String>()
+          .toList();
+    } else {
+      resolvedGenres = const [];
+    }
+
     return PauloFlixMovie(
       folderName: folderName,
       displayName: tmdb.title,
@@ -58,7 +83,7 @@ class PauloFlixMovie {
       bannerUrl: tmdb.getFullBackdropUrl(),
       description: tmdb.overview,
       score: tmdb.voteAverage,
-      genres: tmdb.genres.map((g) => g.name).toList(),
+      genres: resolvedGenres,
       releaseDate: tmdb.releaseDate,
       runtime: tmdb.runtime,
       year: tmdb.year,
@@ -125,4 +150,48 @@ class PauloFlixMovie {
 
   @override
   String toString() => 'PauloFlixMovie($displayName)';
+
+  /// Cria uma cópia deste filme substituindo os campos fornecidos.
+  /// Campos não fornecidos mantêm o valor original.
+  ///
+  /// Usado pela migração leve em `_repopulateMissingGenres` para
+  /// atualizar apenas `genres` mantendo todo o resto.
+  PauloFlixMovie copyWith({
+    String? folderName,
+    String? displayName,
+    String? serverUrl,
+    String? imageUrl,
+    String? bannerUrl,
+    String? description,
+    double? score,
+    List<String>? genres,
+    String? releaseDate,
+    int? runtime,
+    int? year,
+    int? tmdbId,
+    bool? isCollection,
+    int? availableMovieCount,
+    DateTime? lastSynced,
+    bool? isAvailable,
+  }) {
+    return PauloFlixMovie(
+      id: id,
+      folderName: folderName ?? this.folderName,
+      displayName: displayName ?? this.displayName,
+      serverUrl: serverUrl ?? this.serverUrl,
+      imageUrl: imageUrl ?? this.imageUrl,
+      bannerUrl: bannerUrl ?? this.bannerUrl,
+      description: description ?? this.description,
+      score: score ?? this.score,
+      genres: genres ?? this.genres,
+      releaseDate: releaseDate ?? this.releaseDate,
+      runtime: runtime ?? this.runtime,
+      year: year ?? this.year,
+      tmdbId: tmdbId ?? this.tmdbId,
+      isCollection: isCollection ?? this.isCollection,
+      availableMovieCount: availableMovieCount ?? this.availableMovieCount,
+      lastSynced: lastSynced ?? this.lastSynced,
+      isAvailable: isAvailable ?? this.isAvailable,
+    );
+  }
 }

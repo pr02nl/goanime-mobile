@@ -5,8 +5,11 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
+import '../../core/database/app_database.dart';
+import '../../ui/core/view_models/locale_viewmodel.dart';
 import '../models/tmdb_models.dart';
 import 'api_key_settings_service.dart';
+import 'tmdb_genre_cache.dart';
 
 /// Cache entry com TTL.
 class _CacheEntry<T> {
@@ -42,6 +45,12 @@ class TmdbService {
   factory TmdbService() => _instance;
   TmdbService._internal();
 
+  /// Ctor de teste — injeta `http.Client` e `AppDatabase` para isolar
+  /// dependências externas. Produção continua usando o singleton.
+  TmdbService.forTesting({http.Client? httpClient, AppDatabase? database})
+    : _httpClient = httpClient,
+      _db = database;
+
   final ApiKeySettingsService _settings = ApiKeySettingsService();
 
   // Caches separados por endpoint para evitar colisões.
@@ -49,10 +58,41 @@ class TmdbService {
   final Map<int, _CacheEntry<TmdbMovie>> _detailsCache = {};
   static const int _maxCacheSize = 100;
 
+  /// Cache em memória do mapeamento `genreId → name` (por locale).
+  /// `null` = ainda não carregado para o locale atual. Ver
+  /// [getGenres] e [invalidateGenresCache].
+  Map<int, String>? _genresCache;
+  String? _genresCacheLocale;
+
+  /// Banco de dados para persistência do cache de gêneros.
+  /// `null` em produção antes do `app.dart` inicializar — o `getGenres`
+  /// detecta e faz fallback para memória.
+  AppDatabase? _db;
+
+  /// HTTP client injetável em testes; produção usa `http.get` direto.
+  http.Client? _httpClient;
+
   // Rate limiting: TMDB permite até 50 req/s, usamos 25 req/s por margem.
   String? _apiKey;
   DateTime? _lastRequestTime;
   static const Duration _minRequestInterval = Duration(milliseconds: 40);
+
+  /// Define o banco de dados para o cache de gêneros. Chamado pelo
+  /// `app.dart` na inicialização (singleton já existe; só atribuímos
+  /// a dependência).
+  void setDatabase(AppDatabase db) {
+    _db = db;
+    // Invalida o cache em memória para forçar releitura do banco.
+    _genresCache = null;
+    _genresCacheLocale = null;
+  }
+
+  /// Reseta o cache em memória para forçar releitura do banco.
+  /// Chamado pelo `LocaleViewModel` quando o usuário muda o idioma.
+  void invalidateGenresCache() {
+    _genresCache = null;
+    _genresCacheLocale = null;
+  }
 
   // Timeout de uma request — doc não especifica, 10s é razoável.
   static const Duration _requestTimeout = Duration(seconds: 10);
@@ -142,9 +182,16 @@ class TmdbService {
 
     final http.Response response;
     try {
-      response = await http
-          .get(uri, headers: _buildHeaders())
-          .timeout(_requestTimeout);
+      final client = _httpClient;
+      if (client != null) {
+        response = await client
+            .get(uri, headers: _buildHeaders())
+            .timeout(_requestTimeout);
+      } else {
+        response = await http
+            .get(uri, headers: _buildHeaders())
+            .timeout(_requestTimeout);
+      }
     } on TimeoutException {
       throw const TmdbRequestException('Timeout na chamada TMDB');
     } catch (e) {
@@ -284,6 +331,115 @@ class TmdbService {
     } on TmdbException {
       // Outros erros: devolve null sem derrubar tudo.
       return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // /genre/movie/list — cache do mapeamento genreId → nome
+  // ---------------------------------------------------------------------------
+
+  /// Retorna o mapeamento `genreId → name` no idioma do app.
+  ///
+  /// Estratégia em camadas (ordem de prioridade):
+  /// 1. **Cache em memória** (`_genresCache`) — hit instantâneo, válido
+  ///    apenas se o locale bate com o último carregamento.
+  /// 2. **Tabela `tmdb_genres` no Drift** (filtrada por locale) — hit ~5ms.
+  /// 3. **TMDB `/genre/movie/list?language=<locale>`** — cache miss total.
+  ///    Resposta é persistida no banco (replace all do locale) para
+  ///    próximas sessões.
+  ///
+  /// Detecção de idioma:
+  /// * Se [locale] explícito for passado, usa ele.
+  /// * Caso contrário, usa `LocaleViewModel.instance.currentLocale`.
+  /// * Mapeamento: 'pt' → 'pt-BR', 'en' → 'en-US', outros → 'en-US'.
+  Future<Map<int, String>> getGenres({
+    bool forceRefresh = false,
+    String? locale,
+  }) async {
+    final lang = _resolveLanguage(locale);
+
+    // Camada 1: cache em memória.
+    if (!forceRefresh && _genresCache != null && _genresCacheLocale == lang) {
+      return _genresCache!;
+    }
+
+    // Camada 2: banco (se disponível).
+    final db = _db;
+    if (!forceRefresh && db != null) {
+      final cache = TmdbGenreCache(db: db, language: lang);
+      if (await cache.hasAny) {
+        final map = await cache.asMap();
+        _genresCache = map;
+        _genresCacheLocale = lang;
+        return map;
+      }
+    }
+
+    // Camada 3: TMDB.
+    final body = await _request(
+      '/genre/movie/list',
+      queryParameters: {'language': lang},
+    );
+    final list = TmdbGenreList.fromJson(body);
+    final genresMap = list.toIdMap();
+
+    // Persistir no banco (se disponível).
+    if (db != null) {
+      final cache = TmdbGenreCache(db: db, language: lang);
+      await cache.replaceAll(genresMap);
+    }
+
+    _genresCache = genresMap;
+    _genresCacheLocale = lang;
+    return genresMap;
+  }
+
+  /// Verifica se todos os [genreIds] estão no cache. Se algum não
+  /// estiver, recarrega o cache do TMDB (assumindo que o TMDB adicionou
+  /// um novo gênero — raro mas possível).
+  ///
+  /// Idempotente: pode ser chamado após cada `searchMovies` sem custo
+  /// quando o cache já cobre todos os IDs.
+  Future<void> ensureGenresCover(List<int> genreIds) async {
+    if (genreIds.isEmpty) return;
+    final cache = await getGenres();
+    final missing = genreIds.where((id) => !cache.containsKey(id)).toSet();
+    if (missing.isEmpty) return;
+    debugPrint(
+      '[Tmdb] Novos genre_ids detectados: $missing — atualizando cache',
+    );
+    await getGenres(forceRefresh: true);
+  }
+
+  /// Resolve o locale para o formato TMDB ('pt-BR', 'en-US').
+  /// Se [requested] for null, lê do `LocaleViewModel`; se isso falhar,
+  /// usa 'en-US' como fallback.
+  String _resolveLanguage(String? requested) {
+    if (requested != null) return _mapLocaleToTmdb(requested);
+    final vm = _localeViewModel;
+    if (vm == null) return 'en-US';
+    return _mapLocaleToTmdb(vm.locale.languageCode);
+  }
+
+  /// Referência injetada para o LocaleViewModel. Setada em [setLocaleViewModel]
+  /// (mesma ocasião que temos o contexto de inicialização).
+  LocaleViewModel? _localeViewModel;
+
+  /// Define o LocaleViewModel para o `getGenres` detectar mudanças de
+  /// idioma. Chamado pelo `app.dart` na inicialização.
+  void setLocaleViewModel(LocaleViewModel viewModel) {
+    _localeViewModel = viewModel;
+    invalidateGenresCache();
+  }
+
+  String _mapLocaleToTmdb(String langCode) {
+    switch (langCode) {
+      case 'pt':
+        return 'pt-BR';
+      case 'en':
+        return 'en-US';
+      default:
+        return 'en-US';
     }
   }
 

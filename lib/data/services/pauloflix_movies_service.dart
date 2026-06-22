@@ -457,6 +457,15 @@ class PauloFlixMoviesService {
         return false;
       }
 
+      // Carrega o cache de gêneros (camada memória → banco → TMDB).
+      // É barato no caminho normal (cache hit), e o caso miss já vai
+      // popular tanto o cache quanto a tabela `tmdb_genres`.
+      final genreIdToName = await tmdb.getGenres();
+      debugPrint(
+        '[PauloFlix Movies] Cache de gêneros carregado: '
+        '${genreIdToName.length} entradas',
+      );
+
       onProgress?.call('Buscando pastas do PauloFlix Movies...');
       final folders = await fetchRootFolders();
       if (folders.isEmpty) {
@@ -507,6 +516,13 @@ class PauloFlixMoviesService {
             await repository.markAsUnavailable(name);
           }
         }
+        // Mesmo sem novas pastas, tenta re-popular gêneros de filmes
+        // salvos anteriormente com `genres` vazio.
+        await _repopulateMissingGenres(
+          repository,
+          genreIdToName,
+          onProgress,
+        );
         // removeStaleContent não tem equivalente exato no repository.
         return true;
       }
@@ -532,6 +548,18 @@ class PauloFlixMoviesService {
                 year: video.year,
                 limit: 3,
               );
+
+              // Detecta se algum genre_id do resultado não está no
+              // cache. Se sim, recarrega o cache do TMDB.
+              final allGenreIds = searchResults
+                  .expand((m) => m.genreIds)
+                  .toList();
+              if (allGenreIds.isNotEmpty) {
+                await tmdb.ensureGenresCover(allGenreIds);
+              }
+              // Recarrega o mapa (pode ter sido atualizado acima).
+              final currentGenreMap = await tmdb.getGenres();
+
               final match = tmdb.matchInResults(
                 searchResults,
                 video.cleanedName,
@@ -542,6 +570,7 @@ class PauloFlixMoviesService {
                     folderName: folder.name,
                     serverUrl: folder.url,
                     tmdb: match,
+                    genreIdToName: currentGenreMap,
                   ),
                 );
               } else {
@@ -613,6 +642,75 @@ class PauloFlixMoviesService {
       folderName: folderName,
       serverUrl: folderUrl,
       displayName: displayName ?? folderName,
+    );
+  }
+
+  /// Migração leve: re-popula `genres` de filmes já salvos que estão
+  /// com a coluna vazia. Roda automaticamente no `syncContent`.
+  ///
+  /// Estratégia: para cada filme com `tmdbId != null` e `genres.isEmpty`,
+  /// chama `getMovieDetails(tmdbId)` (que retorna `genres` completo
+  /// via `TmdbMovie.fromJson`) e atualiza o registro.
+  ///
+  /// Throttle: 2 req/s para respeitar o rate-limit do TMDB.
+  /// Filmes sem `tmdbId` são pulados (não dá para resolver).
+  static Future<void> _repopulateMissingGenres(
+    PauloFlixMoviesRepository repository,
+    Map<int, String> genreIdToName,
+    void Function(String progress)? onProgress,
+  ) async {
+    final all = await repository.getAll();
+    final needFix = all
+        .where(
+          (m) =>
+              m.tmdbId != null && !m.isCollection && m.genres.isEmpty,
+        )
+        .toList();
+    if (needFix.isEmpty) {
+      debugPrint(
+        '[PauloFlix Movies] Nenhum filme com genres vazio para re-popular.',
+      );
+      return;
+    }
+
+    onProgress?.call(
+      'Atualizando gêneros de ${needFix.length} filmes...',
+    );
+    final tmdb = TmdbService();
+    int fixed = 0;
+    for (final m in needFix) {
+      try {
+        final details = await tmdb.getMovieDetails(m.tmdbId!);
+        if (details != null && details.genres.isNotEmpty) {
+          // Detalhes tem `genres: List<TmdbGenre>` populado, sem precisar
+          // do cache. Esse é o caminho mais confiável.
+          final newGenres =
+              details.genres.map((g) => g.name).toList(growable: false);
+          await repository.saveContent(
+            m.copyWith(genres: newGenres),
+          );
+          fixed++;
+        } else if (genreIdToName.isNotEmpty && m.tmdbId != null) {
+          // Fallback: usar o cache de genre_id → nome. Mas o filme já
+          // salvo não tem `genreIds` separado, então este caminho
+          // só funciona se houver match por nome (não é o caso
+          // comum — fica como placeholder).
+        }
+      } catch (e) {
+        debugPrint(
+          '[PauloFlix Movies] _repopulateMissingGenres skip '
+          '${m.folderName}: $e',
+        );
+      }
+      // Throttle gentil: 2 req/s.
+      if (fixed % 2 == 1) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    }
+    onProgress?.call('Gêneros atualizados em $fixed filmes');
+    debugPrint(
+      '[PauloFlix Movies] _repopulateMissingGenres: '
+      'processados=${needFix.length}, atualizados=$fixed',
     );
   }
 

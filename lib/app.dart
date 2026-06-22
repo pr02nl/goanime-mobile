@@ -9,6 +9,7 @@ import 'data/repositories/pauloflix_movies_repository_impl.dart';
 import 'data/repositories/pauloflix_repository_impl.dart';
 import 'data/repositories/watchlist_repository_impl.dart';
 import 'data/services/download_service.dart';
+import 'data/services/tmdb_service.dart';
 import 'domain/repositories/downloads_repository.dart';
 import 'domain/repositories/home_repository.dart';
 import 'domain/repositories/pauloflix_movies_repository.dart';
@@ -43,6 +44,13 @@ class PauloFlixApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final router = createAppRouter(initialError: startupError);
+
+    // Inicializa o TmdbService com o banco + locale viewmodel ANTES do
+    // MultiProvider para que esteja pronto quando o sync rodar.
+    // O TmdbService é um singleton, então basta chamar uma vez.
+    TmdbService()
+      ..setDatabase(appDatabase)
+      ..setLocaleViewModel(localeViewModel);
 
     return MultiProvider(
       providers: [

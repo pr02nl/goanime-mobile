@@ -4,6 +4,7 @@ import 'connection/connection.dart';
 import 'tables/downloads.dart';
 import 'tables/pauloflix_content.dart';
 import 'tables/pauloflix_movies.dart';
+import 'tables/tmdb_genres.dart';
 import 'tables/watchlist_items.dart';
 
 part 'app_database.g.dart';
@@ -20,7 +21,13 @@ part 'app_database.g.dart';
 /// PauloFlix, PauloFlixMovies, Download) continuam usando sqlite3 FFI até a
 /// Fase 3.
 @DriftDatabase(
-  tables: [WatchlistItems, Downloads, PauloFlixContent, PauloFlixMovies],
+  tables: [
+    WatchlistItems,
+    Downloads,
+    PauloFlixContent,
+    PauloFlixMovies,
+    TmdbGenres,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   /// Ctor de produção: abre `pauloflix.db` no diretório de documentos
@@ -32,10 +39,13 @@ class AppDatabase extends _$AppDatabase {
   /// `NativeDatabase.memory()`).
   AppDatabase.forTesting(super.executor);
 
-  /// Schema começa em **3** porque cobre todas as instalações 1.x e 2.x
-  /// (versões que tinham bancos legados separados).
+  /// Schema começa em **4**:
+  /// * v1-v3: cobre todas as instalações 1.x e 2.x (versões que tinham
+  ///   bancos legados separados).
+  /// * v4 (2026-06-22): adiciona tabela `tmdb_genres` para cache do
+  ///   mapeamento `genreId → nome` da API TMDB (resolvido em pt-BR/en-US).
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -45,6 +55,16 @@ class AppDatabase extends _$AppDatabase {
           // (ver `docs/DATABASE_REFACTORING.md` §3).
         },
         // Migrations futuras (1.x → 3) implementadas na Fase 2.
+        onUpgrade: (m, from, to) async {
+          // v3 → v4: adiciona tabela tmdb_genres.
+          if (from < 4) {
+            // `Migrator.database` é tipado como `GeneratedDatabase` (base),
+            // mas em runtime é a nossa `AppDatabase`. Cast para acessar
+            // os getters gerados.
+            final db = m.database as AppDatabase;
+            await m.createTable(db.tmdbGenres);
+          }
+        },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
           await customStatement('PRAGMA journal_mode = WAL');
