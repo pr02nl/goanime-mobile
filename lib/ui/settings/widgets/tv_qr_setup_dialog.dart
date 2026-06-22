@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../data/services/tmdb_service.dart';
@@ -106,188 +107,202 @@ class _TvQrSetupDialogState extends State<TvQrSetupDialog> {
   }
 
   Widget _buildQrCode() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Header
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE50914).withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.qr_code_2,
-                color: Color(0xFFE50914),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Configurar API Key',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE50914).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.qr_code_2,
+                  color: Color(0xFFE50914),
+                  size: 24,
                 ),
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white54),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        // Instructions
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
-              _buildStep(1, 'Abra a câmera do celular'),
-              const SizedBox(height: 8),
-              _buildStep(2, 'Escaneie o QR code ao lado'),
-              const SizedBox(height: 8),
-              _buildStep(3, 'Digite a API key no celular'),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Configurar API Key',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white54),
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
             ],
           ),
-        ),
-        const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
-        // QR Code
-        if (_serverUrl != null)
+          // Instructions
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: QrImageView(
-              data: _serverUrl!,
-              version: QrVersions.auto,
-              size: 200,
-              backgroundColor: Colors.white,
-              eyeStyle: const QrEyeStyle(
-                eyeShape: QrEyeShape.square,
-                color: Color(0xFF1A1A2E),
-              ),
-              dataModuleStyle: const QrDataModuleStyle(
-                dataModuleShape: QrDataModuleShape.square,
-                color: Color(0xFF1A1A2E),
-              ),
-            ),
-          )
-        else
-          const SizedBox(
-            width: 200,
-            height: 200,
-            child: Center(
-              child: CircularProgressIndicator(color: Color(0xFFE50914)),
-            ),
-          ),
-        const SizedBox(height: 16),
-
-        // Server URL
-        if (_serverUrl != null)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              _serverUrl!,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 14,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ),
-        const SizedBox(height: 12),
-
-        // Debug info - Alternative IPs (TV debugging)
-        if (_server.allIps.length > 1)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.network_check,
-                      size: 14,
-                      color: Colors.amber.withValues(alpha: 0.8),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Redes detectadas:',
-                      style: TextStyle(
-                        color: Colors.amber.withValues(alpha: 0.9),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                ..._server.allIps
-                    .skip(1)
-                    .map(
-                      (ip) => Padding(
-                        padding: const EdgeInsets.only(left: 20, top: 2),
-                        child: Text(
-                          '• http://$ip:${_server.localIp == ip ? 8080 : "[porta]"}',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ),
-                    ),
+                _buildStep(1, 'Abra a câmera do celular'),
+                const SizedBox(height: 8),
+                _buildStep(2, 'Escaneie o QR code ao lado'),
+                const SizedBox(height: 8),
+                _buildStep(3, 'Digite a API key no celular'),
               ],
             ),
           ),
-        const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-        // Waiting indicator
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: const Color(0xFFE50914).withValues(alpha: 0.7),
+          // QR Code
+          if (_serverUrl != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: QrImageView(
+                data: _serverUrl!,
+                version: QrVersions.auto,
+                size: 200,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: Color(0xFF1A1A2E),
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: Color(0xFF1A1A2E),
+                ),
+              ),
+            )
+          else
+            const SizedBox(
+              width: 200,
+              height: 200,
+              child: Center(
+                child: CircularProgressIndicator(color: Color(0xFFE50914)),
               ),
             ),
-            const SizedBox(width: 10),
-            Text(
-              'Aguardando configuração no celular...',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 13,
+          const SizedBox(height: 16),
+
+          // Server URL
+          if (_serverUrl != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: FocusableWidget(
+                onSelect: () {
+                  // Copia a URL para a área de transferência
+                  Clipboard.setData(ClipboardData(text: _serverUrl ?? ''));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('URL copiada para a área de transferência'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: SelectableText(
+                  _serverUrl!,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 14,
+                    fontFamily: 'monospace',
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
-      ],
+          const SizedBox(height: 12),
+
+          // Debug info - Alternative IPs (TV debugging)
+          if (_server.allIps.length > 1)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.network_check,
+                        size: 14,
+                        color: Colors.amber.withValues(alpha: 0.8),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Redes detectadas:',
+                        style: TextStyle(
+                          color: Colors.amber.withValues(alpha: 0.9),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  ..._server.allIps
+                      .skip(1)
+                      .map(
+                        (ip) => Padding(
+                          padding: const EdgeInsets.only(left: 20, top: 2),
+                          child: Text(
+                            '• http://$ip:${_server.localIp == ip ? 8080 : "[porta]"}',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 20),
+
+          // Waiting indicator
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: const Color(0xFFE50914).withValues(alpha: 0.7),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Aguardando configuração no celular...',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
