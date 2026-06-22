@@ -450,11 +450,18 @@ class _DrawerMenu extends StatelessWidget {
                 label: 'Buscar',
                 selected:
                     location == '/search' ||
+                    location == '/pauloflix-search' ||
                     location == '/pauloflix-movies/search',
                 onTap: () {
-                  context.push(
-                    isAnimeSection ? '/search' : '/pauloflix-movies/search',
-                  );
+                  // Comportamento contextual — mesmo padrão do sidebar.
+                  if (location.contains('pauloflix-movies')) {
+                    context.go('/pauloflix-movies/search');
+                  } else if (location == '/pauloflix-see-all' ||
+                      location == '/pauloflix-search') {
+                    context.go('/pauloflix-search');
+                  } else {
+                    context.go('/search');
+                  }
                   onItemSelected();
                 },
               ),

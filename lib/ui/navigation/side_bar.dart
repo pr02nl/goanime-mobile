@@ -146,10 +146,22 @@ class SidebarState extends State<Sidebar> {
       icon: Icons.search,
       label: 'Buscar',
       isSelected: (loc) =>
-          loc == '/search' || loc == '/pauloflix-movies/search',
+          loc == '/search' ||
+          loc == '/pauloflix-search' ||
+          loc == '/pauloflix-movies/search',
       onTap: (ctx) {
-        final isAnimeSection = !widget.location.contains('pauloflix-movies');
-        ctx.go(isAnimeSection ? '/search' : '/pauloflix-movies/search');
+        // Comportamento contextual: o item "Buscar" da sidebar leva o
+        // usuário para a busca da seção atual. Mesmo padrão já usado
+        // para /pauloflix-movies/search.
+        final current = widget.location;
+        if (current.contains('pauloflix-movies')) {
+          ctx.push('/pauloflix-movies/search');
+        } else if (current == '/pauloflix-see-all' ||
+            current == '/pauloflix-search') {
+          ctx.push('/pauloflix-search');
+        } else {
+          ctx.push('/search');
+        }
       },
     ),
     _NavItem(

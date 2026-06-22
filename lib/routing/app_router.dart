@@ -11,6 +11,7 @@ import '../ui/home/widgets/genre_animes_screen.dart';
 import '../ui/home/widgets/home_screen.dart';
 import '../ui/navigation/main_navigation_screen.dart';
 import '../ui/pauloflix/widgets/pauloflix_episode_list_screen.dart';
+import '../ui/pauloflix/widgets/pauloflix_search_screen.dart';
 import '../ui/pauloflix/widgets/pauloflix_see_all_screen.dart';
 import '../ui/pauloflix_movies/widgets/pauloflix_movie_detail_screen.dart';
 import '../ui/pauloflix_movies/widgets/pauloflix_movies_home_screen.dart';
@@ -68,6 +69,11 @@ GoRouter createAppRouter({String? initialError}) {
             path: '/pauloflix-see-all',
             name: 'pauloflix-see-all',
             builder: (context, state) => const PauloFlixSeeAllScreen(),
+          ),
+          GoRoute(
+            path: '/pauloflix-search',
+            name: 'pauloflix-search',
+            builder: (context, state) => const PauloFlixSearchScreen(),
           ),
           GoRoute(
             path: '/error',

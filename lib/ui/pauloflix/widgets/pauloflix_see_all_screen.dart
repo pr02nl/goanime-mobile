@@ -1,8 +1,12 @@
-/// Tela "Ver Todos" do PauloFlix — grid com busca e sincronização.
+/// Tela "Ver Todos" do PauloFlix — grid de animes sincronizados do servidor.
 ///
-/// Reutiliza o PauloFlixProvider existente para dados e busca.
-/// Usa TVDetector direto para detecção de TV (sem setState).
-/// Suporte completo a D-pad com FocusTraversalGroup.
+/// A busca foi extraída para [PauloFlixSearchScreen] (acessada pelo
+/// item "Buscar" da sidebar) para eliminar os problemas de foco do
+/// `TVSafeTextField` embutido em listagem.
+///
+/// Suporte completo a D-pad com FocusTraversalGroup; sem `autofocus: true`
+/// em cards para evitar race com o dispose de nodes do shell
+/// (anti-pattern #19 do skill `flutter-reactivity-gotchas`).
 library;
 
 import 'package:flutter/material.dart';
@@ -15,7 +19,6 @@ import '../../core/utils/responsive.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/pauloflix_badge.dart';
-import '../../core/widgets/tv_safe_text_field.dart';
 import '../view_models/pauloflix_provider.dart';
 import 'pauloflix_episode_list_screen.dart';
 
@@ -39,8 +42,8 @@ class PauloFlixSeeAllScreen extends StatelessWidget {
           // Sync Progress
           if (isSyncing) _buildSyncProgress(provider),
 
-          // Search Bar + Grid com FocusTraversalGroup
-          SliverToBoxAdapter(child: _SearchBarWithGrid(contents: contents)),
+          // Grid
+          SliverToBoxAdapter(child: _ContentsGrid(contents: contents)),
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
@@ -144,53 +147,15 @@ class PauloFlixSeeAllScreen extends StatelessWidget {
   }
 }
 
-// --- Search Bar + Grid com FocusTraversalGroup ---
+// --- Grid simples (sem busca local; busca foi para PauloFlixSearchScreen) ---
 
-class _SearchBarWithGrid extends StatefulWidget {
+class _ContentsGrid extends StatelessWidget {
   final List<PauloFlixContent> contents;
 
-  const _SearchBarWithGrid({required this.contents});
-
-  @override
-  State<_SearchBarWithGrid> createState() => _SearchBarWithGridState();
-}
-
-class _SearchBarWithGridState extends State<_SearchBarWithGrid> {
-  final TextEditingController _controller = TextEditingController();
-  String _query = '';
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onChanged(String query) {
-    setState(() => _query = query);
-    context.read<PauloFlixProvider>().search(query);
-  }
-
-  void _clear() {
-    _controller.clear();
-    _onChanged('');
-  }
-
-  List<PauloFlixContent> get _filteredContents {
-    if (_query.isEmpty) return widget.contents;
-    return widget.contents
-        .where(
-          (c) =>
-              c.displayName.toLowerCase().contains(_query.toLowerCase()) ||
-              c.genres.any(
-                (g) => g.toLowerCase().contains(_query.toLowerCase()),
-              ),
-        )
-        .toList();
-  }
+  const _ContentsGrid({required this.contents});
 
   @override
   Widget build(BuildContext context) {
-    final contents = _filteredContents;
     final width = MediaQuery.of(context).size.width;
     int crossAxisCount;
     if (width < Responsive.phoneMaxWidth) {
@@ -201,123 +166,34 @@ class _SearchBarWithGridState extends State<_SearchBarWithGrid> {
       crossAxisCount = 6;
     }
 
+    if (contents.isEmpty) {
+      return const _EmptyState();
+    }
+
     return FocusTraversalGroup(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TVSafeTextField(
-              controller: _controller,
-              onChanged: _onChanged,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Buscar anime...',
-                hintStyle: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
-                suffixIcon: _query.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.white54),
-                        onPressed: _clear,
-                      )
-                    : null,
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF6366F1),
-                    width: 2,
-                  ),
-                ),
-              ),
-            ),
+      child: SizedBox(
+        height: _calculateGridHeight(contents.length, crossAxisCount),
+        child: GridView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 0.65,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
-
-          // Results Count
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              '${contents.length} anime${contents.length != 1 ? 's' : ''} encontrado${contents.length != 1 ? 's' : ''}',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 13,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Grid or Empty State
-          if (contents.isEmpty)
-            _buildEmptyState()
-          else
-            _buildGrid(contents, crossAxisCount),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48),
-        child: Column(
-          children: [
-            Icon(
-              Icons.search_off,
-              color: Colors.white.withValues(alpha: 0.3),
-              size: 64,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _query.isNotEmpty
-                  ? 'Nenhum resultado para "$_query"'
-                  : 'Nenhum conteúdo disponível',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 16,
-              ),
-            ),
-          ],
+          itemCount: contents.length,
+          itemBuilder: (context, index) {
+            // Sem autofocus aqui: o shell já gerencia o foco inicial via
+            // _contentScopeNode + _lastContentFocusNode, e autofocus em
+            // um NetflixCard aninhado num FocusTraversalGroup sob um
+            // FocusScope persistente causa corrida com o dispose do
+            // node da rota anterior — disparando o assertion
+            // "Focused child does not have the same idea of its
+            // enclosing scope" no FocusScopeNode do shell.
+            return _ContentCard(content: contents[index]);
+          },
         ),
-      ),
-    );
-  }
-
-  Widget _buildGrid(List<PauloFlixContent> contents, int crossAxisCount) {
-    return SizedBox(
-      height: _calculateGridHeight(contents.length, crossAxisCount),
-      child: GridView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
-          childAspectRatio: 0.65,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: contents.length,
-        itemBuilder: (context, index) {
-          // Sem autofocus aqui: o shell já gerencia o foco inicial via
-          // _contentScopeNode + _lastContentFocusNode, e autofocus em
-          // um NetflixCard aninhado num FocusTraversalGroup sob um
-          // FocusScope persistente causa corrida com o dispose do
-          // node da rota anterior — disparando o assertion
-          // "Focused child does not have the same idea of its
-          // enclosing scope" no FocusScopeNode do shell.
-          return _ContentCard(content: contents[index]);
-        },
       ),
     );
   }
@@ -327,7 +203,37 @@ class _SearchBarWithGridState extends State<_SearchBarWithGrid> {
     final rows = (itemCount / crossAxisCount).ceil();
     // Altura do card = largura / 0.65 (aspectRatio)
     // Espaçamento = 12 * (rows - 1)
-    return (rows * 200.0) + ((rows - 1) * 12.0); // 200 ≈ card height estimada
+    return (rows * 200.0) + ((rows - 1) * 12.0);
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        child: Column(
+          children: [
+            Icon(
+              Icons.tv_off,
+              color: Colors.white.withValues(alpha: 0.3),
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Nenhum conteúdo disponível',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
