@@ -185,7 +185,7 @@ class _FocusableWidgetState extends State<FocusableWidget>
                   '${custom.runtimeType} (hashCode=${custom.hashCode}) '
                   'for direction=${intent.direction}',
                 );
-                return custom.invoke(intent);
+                Actions.invoke(context, intent);
               }
               // Sem action customizada: usa o default do Flutter
               // (DirectionalFocusAction) via Actions.maybeFind.
@@ -196,7 +196,7 @@ class _FocusableWidgetState extends State<FocusableWidget>
                 intent: intent,
               );
               if (ancestor != null) {
-                return ancestor.invoke(intent);
+                return Actions.invoke(context, intent);
               }
               return null;
             },
