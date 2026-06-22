@@ -128,10 +128,222 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     super.dispose();
   }
 
+  // ───────────────────────────────────────────────────────────────────────
+  // Métodos puros de agrupamento/ordenação (testáveis diretamente)
+  //
+  // São `static` para permitir testes sem mockar ChangeNotifier. Mesma
+  // estratégia do `applyFilter` da `PauloFlixSearchScreen`. A UI chama
+  // esses métodos em `initState`/`didChangeDependencies` (snapshot local)
+  // para derivar as seções da home.
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// Escolhe o filme/coleção para o hero banner.
+  ///
+  /// Critério de ranking (em ordem):
+  /// 1. Maior [PauloFlixMovie.score] (filmes sem score vão pro final).
+  /// 2. Desempate: ano mais recente ([PauloFlixMovie.year]).
+  /// 3. Desempate final: maior [PauloFlixMovie.availableMovieCount] —
+  ///    preferência por coleções cheias.
+  ///
+  /// Retorna `null` se [movies] estiver vazia.
+  static PauloFlixMovie? pickFeaturedMovie(List<PauloFlixMovie> movies) {
+    if (movies.isEmpty) return null;
+    final sorted = [...movies]..sort((a, b) {
+      final scoreCmp = (b.score ?? 0).compareTo(a.score ?? 0);
+      if (scoreCmp != 0) return scoreCmp;
+      final yearCmp = (b.year ?? 0).compareTo(a.year ?? 0);
+      if (yearCmp != 0) return yearCmp;
+      return b.availableMovieCount.compareTo(a.availableMovieCount);
+    });
+    return sorted.first;
+  }
+
+  /// Agrupa filmes pelos [maxGenres] gêneros com mais filmes.
+  ///
+  /// Para cada gênero top, retorna até [perGenre] filmes ranqueados por
+  /// score descendente. Filmes sem score vão pro final do grupo.
+  ///
+  /// Gêneros com menos de [minPerGenre] filmes NÃO aparecem no map
+  /// (heurística do caller para evitar carrosséis de 1 filme).
+  static Map<String, List<PauloFlixMovie>> groupByTopGenres(
+    List<PauloFlixMovie> movies, {
+    int maxGenres = 4,
+    int perGenre = 12,
+    int minPerGenre = 3,
+  }) {
+    if (movies.isEmpty) return const {};
+
+    // 1. Conta filmes por gênero.
+    final genreCount = <String, int>{};
+    for (final m in movies) {
+      for (final g in m.genres) {
+        if (g.isEmpty) continue;
+        genreCount[g] = (genreCount[g] ?? 0) + 1;
+      }
+    }
+
+    // 2. Top N gêneros por contagem.
+    final topGenres = genreCount.entries.where((e) => e.value >= minPerGenre).toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final selected = topGenres.take(maxGenres).map((e) => e.key).toList();
+
+    // 3. Para cada gênero top, filtra e ranqueia.
+    final result = <String, List<PauloFlixMovie>>{};
+    for (final g in selected) {
+      final filtered = movies.where((m) => m.genres.contains(g)).toList()
+        ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+      result[g] = filtered.take(perGenre).toList();
+    }
+    return result;
+  }
+
+  /// Retorna o ícone Material apropriado para um gênero de filme.
+  ///
+  /// Tabela hardcoded — se o gênero não estiver mapeado, usa `movie_outlined`.
+  /// Gêneros vêm em inglês do TMDB; mapeamento cobre os 20+ mais comuns.
+  static String genreIcon(String genre) {
+    const map = {
+      'Action': 'flash_on',
+      'Adventure': 'explore',
+      'Animation': 'animation',
+      'Comedy': 'sentiment_very_satisfied',
+      'Crime': 'gavel',
+      'Documentary': 'article',
+      'Drama': 'theater_comedy',
+      'Family': 'family_restroom',
+      'Fantasy': 'auto_awesome',
+      'History': 'history_edu',
+      'Horror': 'dark_mode',
+      'Music': 'music_note',
+      'Mystery': 'search',
+      'Romance': 'favorite',
+      'Science Fiction': 'rocket_launch',
+      'Sci-Fi': 'rocket_launch',
+      'TV Movie': 'tv',
+      'Thriller': 'psychology',
+      'War': 'military_tech',
+      'Western': 'landscape',
+    };
+    return map[genre] ?? 'movie_outlined';
+  }
+
+  /// Pagina filmes em ordem alfabética para o grid "Todos os Filmes".
+  ///
+  /// Retorna um [PaginationResult] com:
+  /// - [PaginationResult.pages]: lista de páginas (cada uma com até [perPage] filmes).
+  /// - [PaginationResult.letterToPageIndex]: mapa letra → índice da primeira
+  ///   página que contém filmes com essa letra. Usado pelo `_LetterIndex`
+  ///   para "pular para letra".
+  /// - [PaginationResult.availableLetters]: letras (A–Z + "#") que têm ≥1 filme.
+  ///
+  /// Filmes com displayName iniciando com número/símbolo caem em "#".
+  /// Ordenação é case-insensitive.
+  static PaginationResult paginateByLetter(
+    List<PauloFlixMovie> movies, {
+    int perPage = 24,
+  }) {
+    if (movies.isEmpty) {
+      return const PaginationResult(
+        pages: [],
+        letterToPageIndex: {},
+        availableLetters: [],
+      );
+    }
+
+    // 1. Ordena alfabeticamente, agrupando "#" no fim.
+    //    Para garantir que "#" venha depois de "Z", usamos uma sentinela
+    //    (caractere high-value) ao comparar: '#' (0x23) viria antes de 'A'
+    //    (0x41) na comparação default — substituímos por '~' (0x7E) que
+    //    está depois de todas as letras maiúsculas.
+    final sorted = [...movies]..sort((a, b) {
+      final aKey = _sortKey(a.displayName);
+      final bKey = _sortKey(b.displayName);
+      final cmp = aKey.compareTo(bKey);
+      if (cmp != 0) return cmp;
+      return a.displayName
+          .toLowerCase()
+          .compareTo(b.displayName.toLowerCase());
+    });
+
+    // 2. Pagina.
+    final pages = <List<PauloFlixMovie>>[];
+    for (var i = 0; i < sorted.length; i += perPage) {
+      final end = i + perPage > sorted.length ? sorted.length : i + perPage;
+      pages.add(sorted.sublist(i, end));
+    }
+
+    // 3. Mapeia letra → primeira página onde aparece. Itera por TODOS
+    //    os filmes de cada página (não só o primeiro) para capturar letras
+    //    que aparecem no meio de uma página.
+    final letterToPageIndex = <String, int>{};
+    final availableLetters = <String>[];
+    for (var i = 0; i < pages.length; i++) {
+      for (final m in pages[i]) {
+        final letter = _normalizeFirstChar(m.displayName);
+        if (!letterToPageIndex.containsKey(letter)) {
+          letterToPageIndex[letter] = i;
+          // availableLetters em ordem alfabética: a primeira vez que
+          // aparece, registramos. Como já passamos por todas as páginas
+          // anteriores, isso naturalmente fica em ordem alfabética.
+          availableLetters.add(letter);
+        }
+      }
+    }
+    // availableLetters deve estar em ordem alfabética para o _LetterIndex.
+    // Sort customizado: '#' sempre no fim, letras A–Z na frente (ordem ASCII).
+    availableLetters.sort((a, b) {
+      if (a == '#') return 1; // '#' sempre depois
+      if (b == '#') return -1;
+      return a.compareTo(b);
+    });
+
+    return PaginationResult(
+      pages: pages,
+      letterToPageIndex: letterToPageIndex,
+      availableLetters: availableLetters,
+    );
+  }
+
+  /// Helper privado: normaliza o primeiro caractere de [name].
+  /// Letras A–Z retornam a si próprias; qualquer outra coisa vira "#".
+  static String _normalizeFirstChar(String name) {
+    if (name.isEmpty) return '#';
+    final first = name[0].toUpperCase();
+    final isLetter = RegExp(r'^[A-Z]$').hasMatch(first);
+    return isLetter ? first : '#';
+  }
+
+  /// Helper privado: retorna a chave de ordenação. "#" vira "~" (0x7E) para
+  /// que seja maior que qualquer letra A–Z (0x41–0x5A) na comparação default.
+  static String _sortKey(String name) {
+    final first = _normalizeFirstChar(name);
+    return first == '#' ? '~' : first;
+  }
+
   void clearSearch() {
     _filteredContents = _contents;
     notifyListeners();
   }
+}
+
+/// Resultado de [PauloFlixMoviesProvider.paginateByLetter].
+class PaginationResult {
+  /// Páginas de filmes (cada uma com até `perPage` items).
+  final List<List<PauloFlixMovie>> pages;
+
+  /// Mapa `letra → índice da primeira página com essa letra`.
+  /// Usado pelo `_LetterIndex` para `scrollToLetter('A')`.
+  final Map<String, int> letterToPageIndex;
+
+  /// Letras que têm ≥1 filme, em ordem de aparição nas páginas.
+  /// Letras não-presentes são omitidas (não clicáveis).
+  final List<String> availableLetters;
+
+  const PaginationResult({
+    required this.pages,
+    required this.letterToPageIndex,
+    required this.availableLetters,
+  });
 }
 
 class _NullPauloFlixMoviesRepository implements PauloFlixMoviesRepository {

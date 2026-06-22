@@ -363,6 +363,32 @@ class AppLocalizations {
   String get watchlistCleared =>
       locale.languageCode == 'pt' ? 'Watchlist limpa' : 'Watchlist cleared';
 
+  // PauloFlix Movies Home — section titles
+  String get sectionCollections =>
+      locale.languageCode == 'pt' ? 'Coleções' : 'Collections';
+  String get sectionTopRated => locale.languageCode == 'pt'
+      ? 'Mais Bem Avaliados'
+      : 'Top Rated';
+  String get sectionRecent =>
+      locale.languageCode == 'pt' ? 'Recentes' : 'Recent';
+  String get sectionAllMovies => locale.languageCode == 'pt'
+      ? 'Todos os Filmes'
+      : 'All Movies';
+  String get playNow =>
+      locale.languageCode == 'pt' ? 'Assistir' : 'Play';
+  String pageIndicator(int current, int total) => locale.languageCode == 'pt'
+      ? 'Pág. $current de $total'
+      : 'Page $current of $total';
+  String get jumpToLetter => locale.languageCode == 'pt'
+      ? 'Pular para letra'
+      : 'Jump to letter';
+  String get moviesAvailable => locale.languageCode == 'pt'
+      ? 'filmes disponíveis'
+      : 'movies available';
+  String get collectionsCount => locale.languageCode == 'pt'
+      ? 'coleções'
+      : 'collections';
+
   // Settings Screen
   String get language => locale.languageCode == 'pt' ? 'Idioma' : 'Language';
   String get selectLanguage =>
