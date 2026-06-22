@@ -103,10 +103,10 @@ class SidebarState extends State<Sidebar> {
   /// ↑↓ focou um item → navega (se a rota for diferente) + re-foca o item
   /// pós-frame para contrapor autofocus steal da nova tela.
   void _onItemFocus(int index) {
-    final target = _navItems[index];
-    if (!target.isSelected(widget.location)) {
-      target.onTap(context); // context.go
-    }
+    // final target = _navItems[index];
+    // if (!target.isSelected(widget.location)) {
+    //   target.onTap(context); // context.go
+    // }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_itemFocusNodes[index].hasFocus) {
         _itemFocusNodes[index].requestFocus();
