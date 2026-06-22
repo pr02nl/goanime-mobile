@@ -22,6 +22,26 @@ class FocusableWidget extends StatefulWidget {
   final double borderRadius;
   final bool enableDpadNavigation;
 
+  /// Action opcional para processar `DirectionalFocusIntent` antes do
+  /// fallback do `DirectionalFocusAction` default. Usado pelo shell
+  /// (que precisa interceptar setas para abrir/fechar a sidebar).
+  ///
+  /// Por que isso é necessário: o `Shortcuts` deste widget mapeia setas
+  /// para `DirectionalFocusIntent`. O `Actions` local deste widget é o
+  /// primeiro ancestor e captura o intent. Se este widget não tiver
+  /// um handler para o intent, o Flutter NÃO sobe até o próximo
+  /// `Actions` ancestor — o intent é descartado.
+  ///
+  /// Como o `Actions` ancestor do shell (`_SidebarEdgeAction` no
+  /// `MainNavigationScreen`) está acima de vários outros `Actions`
+  /// defaults do framework, o pass-through via `Actions.maybeFind`
+  /// não consegue chegar nele de forma confiável.
+  ///
+  /// A solução é o shell passar explicitamente sua action via este
+  /// parâmetro. Widgets core que não têm shell não passam nada, e o
+  /// comportamento default (foco no traversal) é preservado.
+  final Action<DirectionalFocusIntent>? directionalAction;
+
   const FocusableWidget({
     super.key,
     required this.child,
@@ -35,6 +55,7 @@ class FocusableWidget extends StatefulWidget {
     this.focusColor,
     this.borderRadius = 12.0,
     this.enableDpadNavigation = true,
+    this.directionalAction,
   });
 
   @override
@@ -47,6 +68,14 @@ class _FocusableWidgetState extends State<FocusableWidget>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   bool _isFocused = false;
+
+  /// `BuildContext` do PARENT do `Actions` local. Usado pelo
+  /// pass-through de `DirectionalFocusIntent` para buscar a action
+  /// no `Actions` ancestor (o do shell), evitando o `Actions` local
+  /// (que é o primeiro ancestor e causaria loop infinito).
+  ///
+  /// Capturado em `build`. Null antes do primeiro build.
+  BuildContext? _parentOfActionsContext;
 
   @override
   void initState() {
@@ -91,6 +120,10 @@ class _FocusableWidgetState extends State<FocusableWidget>
         widget.focusColor ?? Theme.of(context).colorScheme.primary;
     final splash = effectiveColor.withValues(alpha: 0.18);
     final highlight = effectiveColor.withValues(alpha: 0.08);
+    // Captura o context do parent ANTES do `Actions` local. Esse context
+    // aponta para um lugar ACIMA do nosso `Actions`, então `Actions.maybeFind`
+    // (que sobe a partir dele) vai achar o ANCESTRAL do nosso — não o local.
+    _parentOfActionsContext = context;
 
     // Shortcuts mapeia Enter/Space/Select → ActivateIntent.
     // Actions associa ActivateIntent → _activate(), o que aciona onSelect
@@ -104,14 +137,18 @@ class _FocusableWidgetState extends State<FocusableWidget>
         SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
         SingleActivator(LogicalKeyboardKey.gameButtonA): ActivateIntent(),
         // Navegação direcional D-pad — move o foco na direção da seta
-        SingleActivator(LogicalKeyboardKey.arrowUp):
-            DirectionalFocusIntent(TraversalDirection.up),
-        SingleActivator(LogicalKeyboardKey.arrowDown):
-            DirectionalFocusIntent(TraversalDirection.down),
-        SingleActivator(LogicalKeyboardKey.arrowLeft):
-            DirectionalFocusIntent(TraversalDirection.left),
-        SingleActivator(LogicalKeyboardKey.arrowRight):
-            DirectionalFocusIntent(TraversalDirection.right),
+        SingleActivator(LogicalKeyboardKey.arrowUp): DirectionalFocusIntent(
+          TraversalDirection.up,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowDown): DirectionalFocusIntent(
+          TraversalDirection.down,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowLeft): DirectionalFocusIntent(
+          TraversalDirection.left,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowRight): DirectionalFocusIntent(
+          TraversalDirection.right,
+        ),
         // ESC/Back — desfoca este widget (volta para o pai)
         SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
         SingleActivator(LogicalKeyboardKey.goBack): DismissIntent(),
@@ -127,6 +164,40 @@ class _FocusableWidgetState extends State<FocusableWidget>
           DismissIntent: CallbackAction<DismissIntent>(
             onInvoke: (_) {
               _focusNode.unfocus();
+              return null;
+            },
+          ),
+          // Repassa `DirectionalFocusIntent` para a action do shell
+          // (se fornecida via [widget.directionalAction]) ou usa o
+          // default `DirectionalFocusAction` do Flutter (foco no traversal).
+          //
+          // Por que injetar a action do shell em vez de fazer lookup?
+          // O `Actions.maybeFind` percorre a árvore e pode encontrar
+          // outros `Actions` ancestors (defaults do framework) ANTES
+          // de chegar no `Actions` do shell. A action do shell precisa
+          // de prioridade para que a sidebar funcione corretamente.
+          DirectionalFocusIntent: CallbackAction<DirectionalFocusIntent>(
+            onInvoke: (intent) {
+              final custom = widget.directionalAction;
+              if (custom != null) {
+                debugPrint(
+                  '[FocusableWidget] using custom directional action: '
+                  '${custom.runtimeType} (hashCode=${custom.hashCode}) '
+                  'for direction=${intent.direction}',
+                );
+                return custom.invoke(intent);
+              }
+              // Sem action customizada: usa o default do Flutter
+              // (DirectionalFocusAction) via Actions.maybeFind.
+              final parentCtx = _parentOfActionsContext;
+              if (parentCtx == null) return null;
+              final ancestor = Actions.maybeFind<DirectionalFocusIntent>(
+                parentCtx,
+                intent: intent,
+              );
+              if (ancestor != null) {
+                return ancestor.invoke(intent);
+              }
               return null;
             },
           ),
@@ -161,20 +232,12 @@ class _FocusableWidgetState extends State<FocusableWidget>
                     autofocus: widget.autoFocus,
                     canRequestFocus: true,
                     onTap: widget.onSelect,
-                    onFocusChange: (hasFocus) {
-                      // Sincroniza foco explicitamente: garante animação
-                      // e borda mesmo quando o listener do FocusNode
-                      // não dispara (ex: foco via mouse no Windows).
-                      if (!mounted) return;
-                      setState(() => _isFocused = hasFocus);
-                      if (hasFocus) {
-                        _animationController.forward();
-                        widget.onFocus?.call();
-                      } else {
-                        _animationController.reverse();
-                        widget.onUnfocus?.call();
-                      }
-                    },
+                    // SEM `onFocusChange:` no InkWell — a cobertura
+                    // de foco é feita EXCLUSIVAMENTE pelo listener
+                    // `_focusNode.addListener(_handleFocusChange)`
+                    // em initState. Manter o `onFocusChange` aqui
+                    // causa chamada dupla de `widget.onFocus` (e
+                    // `widget.onUnfocus`) a cada mudança de foco.
                     borderRadius: BorderRadius.circular(widget.borderRadius),
                     splashColor: splash,
                     highlightColor: highlight,

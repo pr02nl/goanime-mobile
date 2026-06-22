@@ -91,23 +91,33 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return node.nearestScope == _contentScopeNode;
   }
 
-  /// Restaura o foco ao conteúdo: último nó focado (se ainda válido) →
-  /// primaryFocus do escopo (se ainda pertence a este scope) → unfocus.
+  /// Restaura o foco ao conteúdo:
+  /// 1. Último nó focado (se ainda válido E for um widget focável real,
+  ///    não um `FocusScopeNode`).
+  /// 2. Caso contrário, primeiro descendente focável do `_contentScopeNode`.
+  /// 3. Caso contrário, `unfocus()` (último recurso).
+  ///
+  /// Por que não aceitar scope: focar um `FocusScopeNode` não move o
+  /// foco visualmente — só marca o scope como "primário". O usuário
+  /// ficaria sem anel de foco visível após fechar a sidebar.
   ///
   /// Mesma defesa do `_onContentFocusChange`: nunca chama
   /// `_contentScopeNode.focusedChild` (getter com assertion).
   void _restoreContentFocus() {
     final last = _lastContentFocusNode;
-    if (last != null && last.context != null) {
+    if (last != null && last.context != null && last.canRequestFocus) {
       last.requestFocus();
       return;
     }
-    final primary = FocusManager.instance.primaryFocus;
-    if (primary != null && primary.context != null &&
-        _isInContentScope(primary)) {
-      primary.requestFocus();
+    // Fallback: primeiro descendente focável do scope de conteúdo.
+    final fallback = _contentScopeNode.traversalDescendants
+        .where((n) => n.canRequestFocus && !n.skipTraversal && n.context != null)
+        .firstOrNull;
+    if (fallback != null) {
+      fallback.requestFocus();
       return;
     }
+    // Último recurso.
     FocusManager.instance.primaryFocus?.unfocus();
   }
 
@@ -117,17 +127,48 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   void _openSidebar() {
     if (_sidebarOpen) return;
+    // Captura o foco atual ANTES de qualquer mudança — vai ser o
+    // alvo do `_restoreContentFocus` quando a sidebar fechar
+    // (via → ou Back). Garante que sempre há um último foco válido,
+    // mesmo na primeira vez (quando `_lastContentFocusNode` ainda
+    // é null ou o usuário nunca focou explicitamente no conteúdo).
+    //
+    // IMPORTANTE: o `primaryFocus` pode ser um `FocusScopeNode` (root
+    // da rota) quando o usuário não chegou a focar explicitamente em
+    // um widget. Focar um scope não move o foco visualmente — só
+    // garante que o scope é o "primário". Para evitar isso, só
+    // capturamos se for um widget focável real (`canRequestFocus`).
+    final currentFocus = FocusManager.instance.primaryFocus;
+    debugPrint('[SIDEBAR] _openSidebar — primaryFocus antes: '
+        'hasPrimary=${currentFocus?.hasPrimaryFocus} '
+        'inContent=${currentFocus != null ? _isInContentScope(currentFocus) : "N/A"} '
+        'canRequest=${currentFocus?.canRequestFocus}');
+    if (currentFocus != null &&
+        _isInContentScope(currentFocus) &&
+        currentFocus.canRequestFocus) {
+      _lastContentFocusNode = currentFocus;
+      debugPrint('[SIDEBAR] _openSidebar — _lastContentFocusNode set to: '
+          '${currentFocus.toString().substring(0, 60)}...');
+    }
     setState(() => _sidebarOpen = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('[SIDEBAR] _openSidebar — post-frame focusActiveItem');
       _sidebarKey.currentState?.focusActiveItem();
     });
   }
 
   void _closeSidebar() {
+    debugPrint('[SIDEBAR] _closeSidebar — wasOpen=$_sidebarOpen, '
+        'primaryFocus=${FocusManager.instance.primaryFocus?.toString().substring(0, 60)}');
     if (!_sidebarOpen) return;
     setState(() => _sidebarOpen = false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _restoreContentFocus();
+      if (mounted) {
+        debugPrint('[SIDEBAR] _closeSidebar — post-frame _restoreContentFocus. '
+            'last=${_lastContentFocusNode?.toString().substring(0, 60)}, '
+            'contextNull=${_lastContentFocusNode?.context == null}');
+        _restoreContentFocus();
+      }
     });
   }
 
@@ -177,6 +218,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   /// (mesma banda vertical) dentro do conteúdo. Rect-based e síncrono —
   /// não depende de `requestFocus` (que é assíncrono).
   bool _isAtLeftEdge(FocusNode node) {
+    debugPrint('[SIDEBAR] _isAtLeftEdge — '
+        'contextNull=${node.context == null}, '
+        'rect=${node.rect}, '
+        'rectIsZero=${node.rect == Rect.zero}, '
+        'nearestScope=${node.nearestScope != null}, '
+        'primaryFocus=$node');
     if (node.context == null || node.rect == Rect.zero) return true;
     final scope = node.nearestScope;
     if (scope == null) return true;
@@ -187,18 +234,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       if (sidebar?.containsNode(n) ?? false) return false; // exclui sidebar
       return true;
     }).toList();
+    debugPrint('[SIDEBAR] _isAtLeftEdge — descendants count: ${descendants.length}');
     if (descendants.isEmpty) return true;
     // Mesma linha = sobreposição vertical (band) com o nó atual.
     final band = node.rect;
     final sameRow = descendants.where((n) {
       return !(n.rect.bottom < band.top || n.rect.top > band.bottom);
     }).toList();
+    debugPrint('[SIDEBAR] _isAtLeftEdge — sameRow count: ${sameRow.length}');
     if (sameRow.isEmpty) return true;
     double minDx = sameRow.first.rect.center.dx;
     for (final n in sameRow) {
       if (n.rect.center.dx < minDx) minDx = n.rect.center.dx;
     }
-    return node.rect.center.dx <= minDx + 0.5;
+    final result = node.rect.center.dx <= minDx + 0.5;
+    debugPrint('[SIDEBAR] _isAtLeftEdge — result: $result '
+        '(node.dx=${node.rect.center.dx}, minDx=$minDx)');
+    return result;
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -320,6 +372,10 @@ class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
   @override
   void invoke(DirectionalFocusIntent intent) {
     final node = primaryFocus;
+    debugPrint('[SIDEBAR] _SidebarEdgeAction.invoke — '
+        'direction=${intent.direction}, '
+        'primaryFocus=$node, '
+        'inSidebar=${node != null ? isInSidebar(node) : "N/A"}');
     if (intent.direction == TraversalDirection.left) {
       if (node != null && isInSidebar(node)) return; // sidebar: ← no-op
       if (node != null && isAtLeftEdge(node)) {

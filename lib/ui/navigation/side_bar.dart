@@ -100,17 +100,34 @@ class SidebarState extends State<Sidebar> {
     }
   }
 
-  /// ↑↓ focou um item → navega (se a rota for diferente) + re-foca o item
-  /// pós-frame para contrapor autofocus steal da nova tela.
+  /// ↑↓ focou um item → re-foca o item pós-frame para contrapor
+  /// autofocus steal da nova tela.
+  ///
+  /// **Padrão "focar ≠ ativar"**: ↑↓ apenas move o anel de foco
+  /// entre os itens. Navegação só acontece via click/Enter/Select
+  /// (handler `_onItemSelect`). O re-foco pós-frame é mantido
+  /// porque o `FocusableWidget` da nova rota pode roubar foco
+  /// durante a transição.
   void _onItemFocus(int index) {
-    // final target = _navItems[index];
-    // if (!target.isSelected(widget.location)) {
-    //   target.onTap(context); // context.go
-    // }
+    // No-op: ↑↓ não dispara navegação. Apenas garante que o foco
+    // permanece no item da sidebar mesmo se a árvore tentar roubá-lo.
+    //
+    // IMPORTANTE: o post-frame callback aqui é o que pode estar
+    // causando o bug de "foco preso na sidebar". Quando o usuário
+    // aperta → e _closeSidebar roda, o post-frame deste _onItemFocus
+    // (agendado NA EXPANSÃO) pode rodar DEPOIS do _restoreContentFocus
+    // e roubar o foco de volta para o item.
+    //
+    // Para evitar isso, verificamos se a sidebar ainda está aberta
+    // no momento do callback — se não, deixamos o foco ir.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_itemFocusNodes[index].hasFocus) {
-        _itemFocusNodes[index].requestFocus();
-      }
+      if (!mounted) return;
+      // Só re-foca se (a) ainda estamos no shell e (b) a sidebar
+      // está aberta. Se a sidebar foi fechada entre o agendamento
+      // e a execução do callback, NÃO rouba o foco de volta.
+      if (!widget.expanded) return;
+      if (_itemFocusNodes[index].hasFocus) return;
+      _itemFocusNodes[index].requestFocus();
     });
   }
 
