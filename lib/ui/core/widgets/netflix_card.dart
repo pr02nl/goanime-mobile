@@ -247,7 +247,7 @@ class _NetflixCardState extends State<NetflixCard> {
                       ),
                     ),
                   // Focus border for TV
-                  if (widget.isTV && _isFocused)
+                  if (_isFocused)
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
