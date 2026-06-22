@@ -112,6 +112,32 @@ class PauloFlixProvider extends ChangeNotifier {
     });
   }
 
+  /// Busca no banco (Drift) por `displayName` (LIKE + ESCAPE).
+  ///
+  /// **Quando usar**: telas de busca dedicadas (ex:
+  /// [PauloFlixSearchScreen]) que NÃO querem carregar a lista
+  /// inteira do provider em memória. Query vazia retorna lista
+  /// vazia (não chama SQL).
+  ///
+  /// **Vantagens sobre o [search] legado (in-memory)**:
+  /// - Zero alocação da lista completa do provider.
+  /// - Memória constante: só os resultados da query ficam em RAM.
+  /// - Funciona bem com milhares de itens (SQLite local é rápido
+  ///   para `LIKE` em 10k+ linhas).
+  ///
+  /// O `search` legado é mantido para outros usos (ex: filtro da
+  /// `PauloFlixSeeAllScreen` se aplicável).
+  Future<List<PauloFlixContent>> searchByName(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return const [];
+    try {
+      return await _repository.searchByName(q);
+    } catch (e) {
+      debugPrint('searchByName falhou: $e');
+      return const [];
+    }
+  }
+
   @override
   void dispose() {
     _searchDebounce?.cancel();

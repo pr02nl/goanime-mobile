@@ -18,7 +18,6 @@ class NetflixCard extends StatefulWidget {
   final bool showRating;
   final bool isTV;
   final Widget? overlayWidget;
-  final bool autofocus;
 
   const NetflixCard({
     super.key,
@@ -32,7 +31,6 @@ class NetflixCard extends StatefulWidget {
     this.showRating = true,
     this.isTV = false,
     this.overlayWidget,
-    this.autofocus = false,
   });
 
   @override
@@ -63,8 +61,11 @@ class _NetflixCardState extends State<NetflixCard> {
       onEnter: (_) => _handleHover(true),
       onExit: (_) => _handleHover(false),
       cursor: SystemMouseCursors.click,
+      // Sem `autofocus: true` aqui — anti-pattern #19 do skill
+      // `flutter-reactivity-gotchas` (assertion no FocusScope
+      // persistente do shell). O shell é dono do foco inicial via
+      // `_lastContentFocusNode` + `_restoreContentFocus`.
       child: Focus(
-        autofocus: widget.autofocus,
         onFocusChange: _handleFocus,
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent) {

@@ -71,25 +71,41 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // ───────────────────────────────────────────────────────────────────────
 
   void _onContentFocusChange() {
-    if (_contentScopeNode.hasFocus) {
-      final focused = _contentScopeNode.focusedChild;
-      if (focused != null) {
-        _lastContentFocusNode = focused;
-      }
-    }
+    // NÃO usamos `_contentScopeNode.focusedChild` aqui: durante reparenting
+    // de rota filha sob ModalRoute por cima, o getter dispara a assertion
+    // `_focusedChildren.last.enclosingScope == this` (anti-pattern #19 do
+    // skill `flutter-reactivity-gotchas`). Em vez disso, lemos o
+    // `primaryFocus` global e validamos manualmente se ele pertence a este
+    // scope — caminho público, sem assertion interna.
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary == null) return;
+    if (!_isInContentScope(primary)) return;
+    if (primary.context == null) return;
+    _lastContentFocusNode = primary;
+  }
+
+  /// True se [node] é um descendente direto do `_contentScopeNode`
+  /// (não da sidebar). `nearestScope` é a API pública que sobe a árvore
+  /// até o `FocusScope` mais próximo — sem tocar em `focusedChild`.
+  bool _isInContentScope(FocusNode node) {
+    return node.nearestScope == _contentScopeNode;
   }
 
   /// Restaura o foco ao conteúdo: último nó focado (se ainda válido) →
-  /// focusedChild do escopo → unfocus (d-pad foca no primeiro arrow).
+  /// primaryFocus do escopo (se ainda pertence a este scope) → unfocus.
+  ///
+  /// Mesma defesa do `_onContentFocusChange`: nunca chama
+  /// `_contentScopeNode.focusedChild` (getter com assertion).
   void _restoreContentFocus() {
     final last = _lastContentFocusNode;
     if (last != null && last.context != null) {
       last.requestFocus();
       return;
     }
-    final focused = _contentScopeNode.focusedChild;
-    if (focused != null && focused.context != null) {
-      focused.requestFocus();
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary != null && primary.context != null &&
+        _isInContentScope(primary)) {
+      primary.requestFocus();
       return;
     }
     FocusManager.instance.primaryFocus?.unfocus();

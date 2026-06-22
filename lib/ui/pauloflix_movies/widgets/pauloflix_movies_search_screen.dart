@@ -15,17 +15,19 @@ import '../view_models/pauloflix_movies_provider.dart';
 
 /// Tela de busca de filmes PauloFlix.
 ///
-/// Substitui o TextField que ficava embutido em
-/// [PauloFlixMoviesHomeScreen]. Foi extraída para uma tela dedicada porque:
-/// 1. O TextField consumia foco de teclado no desktop/d-pad sem liberar
-///    (Escape não saía, Tab era o único caminho livre).
-/// 2. Manter a busca em tela cheia permite que o resultado seja navegável
-///    de forma independente (Netflix/YouTube pattern).
-/// 3. A lógica de Provider é global — filtrar localmente nesta tela evita
-///    que o estado da home-screen fique turbinado com filtro de busca.
+/// **Padrão YouTube/Netflix**: tela inicia **vazia**, query no banco
+/// (Drift) à medida que o usuário digita. Zero carga inicial de
+/// dados em memória — funciona bem com milhares de filmes.
 ///
-/// O snapshot local de [_allContents] garante que mudanças feitas no Provider
-/// em outras telas (sync de filmes, etc.) não perturbem a busca já em curso.
+/// A busca é feita via `PauloFlixMoviesProvider.searchByName(query)`
+/// (delega ao `PauloFlixMoviesRepository.searchByName` que faz
+/// `LIKE + ESCAPE` no SQL puro).
+///
+/// **Foco**: `autofocus: true` no TextField é seguro aqui porque esta
+/// tela está **fora do `ShellRoute`** (ver `app_router.dart:86-90`),
+/// ou seja, o `FocusScope` persistente do shell
+/// `MainNavigationScreen` não está presente. Sem risco do
+/// anti-pattern #19 do skill `flutter-reactivity-gotchas`.
 class PauloFlixMoviesSearchScreen extends StatefulWidget {
   const PauloFlixMoviesSearchScreen({super.key});
 
@@ -44,39 +46,31 @@ class _PauloFlixMoviesSearchScreenState
     debugLabel: 'pauloflix-movie-search.first-card',
   );
 
-  // Snapshot LOCAL dos filmes PauloFlix no momento da entrada da tela.
-  // Filtro é feito sobre essa lista, não sobre o Provider.
-  List<PauloFlixMovie> _allContents = const [];
-  List<PauloFlixMovie> _filteredContents = const [];
+  /// Resultados da query SQL. Tela inicia vazia (sem snapshot).
+  List<PauloFlixMovie> _results = const [];
   String _searchQuery = '';
+  bool _isSearching = false;
   bool _isTV = false;
-  bool _snapshotLoaded = false;
 
-  // Debounce trailing edge de 150ms para o filtro de busca: cada keystroke
-  // reagenda o _applyFilter() e só o último dispara a atualização do estado.
-  // Custo do filtro é O(n) sobre snapshot local em memória (microssegundos),
-  // mas o debounce padroniza o ritmo da UI em teclado físico (cada tecla é
-  // ~30–80ms no desktop) e deixa espaço para instrumentação futura sem
-  // precisar refatorar.
+  /// Contador de geração: cada keystroke incrementa. Quando a busca
+  /// assíncrona termina, descarta o resultado se uma busca mais nova
+  /// já foi disparada (evita race de "iron" chegar depois de "iron man").
+  int _searchGeneration = 0;
+
+  /// Debounce trailing edge de 300ms para a busca no banco.
+  /// Cada keystroke reagenda a busca; só o último dispara SQL.
   Timer? _debounce;
-  static const Duration _debounceDuration = Duration(milliseconds: 150);
+  static const Duration _debounceDuration = Duration(milliseconds: 300);
 
-  // Hardware keyboard: instalado em initState, removido em dispose.
+  /// Hardware keyboard: instalado em initState, removido em dispose.
   bool _hardwareKeyboardHandlerInstalled = false;
 
   @override
   void initState() {
     super.initState();
-
-    // Detecta TV + carrega snapshot local no primeiro frame.
+    // Detecta TV no primeiro frame (sem tocar provider/repo).
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-
-      // Snapshot: copia os filmes do provider no momento de entrada.
-      // NUNCA chama provider.search() — isso filtrearia o estado global
-      // e a home-screen mostraria os resultados quando o usuário voltasse.
-      final provider = context.read<PauloFlixMoviesProvider>();
-      final contents = provider.contents;
 
       // Detecta TV via PlatformDispatcher + TVDetector.
       final screenWidth =
@@ -97,14 +91,8 @@ class _PauloFlixMoviesSearchScreenState
 
       if (!mounted) return;
       setState(() {
-        _allContents = List<PauloFlixMovie>.from(contents);
-        _filteredContents = _allContents;
         _isTV = isTvBuild || screenWidth >= Responsive.tabletMaxWidth;
-        _snapshotLoaded = true;
       });
-
-      // Auto-foco no campo de busca para o teclado ficar pronto imediatamente.
-      _searchFocusNode.requestFocus();
     });
 
     _installHardwareKeyboardHandler();
@@ -150,56 +138,62 @@ class _PauloFlixMoviesSearchScreenState
   }
 
   /// Handler do `onChanged` do TextField. Implementa debounce trailing edge
-  /// de 150ms:
-  ///
-  /// 1. Cada keystroke CANCELA o timer anterior.
-  /// 2. Agenda novo timer que, ao disparar, chama [_applyFilter] com o
-  ///    valor ATUAL do `_searchController.text` (não a String capturada
-  ///    no handler — isso é importante para digitações rápidas).
+  /// de 300ms.
   ///
   /// Casos especiais:
-  /// - Se query é vazia, aplica IMEDIATAMENTE (sem esperar debounce).
-  ///   UX: ao limpar campo, lista volta completo sem delay perceptível.
-  /// - [_clearSearch] chama [_applyFilter] direto para o mesmo motivo.
+  /// - Se query é vazia, limpa IMEDIATAMENTE (sem esperar debounce).
   void _onSearchChanged(String query) {
     if (query.trim().isEmpty) {
-      // Limpar/empty → aplica já, sem debounce.
       _debounce?.cancel();
-      _searchQuery = '';
-      _filteredContents = _allContents;
-      setState(() {});
+      setState(() {
+        _results = const [];
+        _searchQuery = '';
+        _isSearching = false;
+      });
       return;
     }
     _debounce?.cancel();
-    _debounce = Timer(_debounceDuration, _applyFilter);
+    setState(() {
+      _isSearching = true;
+    });
+    _debounce = Timer(_debounceDuration, () => _performSearch(query));
   }
 
-  /// Aplica o filtro sobre o snapshot local. Chamado pelo debounce timer
-  /// ou diretamente por [_clearSearch].
-  void _applyFilter() {
+  /// Executa a busca no banco (via provider) e atualiza o estado.
+  /// Usa [_searchGeneration] para descartar resultados de buscas
+  /// obsoletas (race com digitação rápida).
+  Future<void> _performSearch(String query) async {
+    final myGen = ++_searchGeneration;
+    final provider = context.read<PauloFlixMoviesProvider>();
+    final results = await provider.searchByName(query);
     if (!mounted) return;
-    final q = _searchController.text.toLowerCase().trim();
-    _searchQuery = q;
-    _filteredContents = _allContents.where((c) {
-      return c.displayName.toLowerCase().contains(q) ||
-          c.genres.any((g) => g.toLowerCase().contains(q));
-    }).toList();
-    setState(() {});
+    if (myGen != _searchGeneration) return; // busca mais nova já foi disparada
+    setState(() {
+      _results = results;
+      _searchQuery = query.toLowerCase().trim();
+      _isSearching = false;
+    });
   }
 
   void _clearSearch() {
     _debounce?.cancel();
     _searchController.clear();
     _searchFocusNode.requestFocus();
-    _searchQuery = '';
-    _filteredContents = _allContents;
-    setState(() {});
+    setState(() {
+      _results = const [];
+      _searchQuery = '';
+      _isSearching = false;
+    });
   }
 
-  bool _isEmptyState() {
-    return _snapshotLoaded &&
+  bool _isIdleState() {
+    return _searchQuery.isEmpty && !_isSearching;
+  }
+
+  bool _isEmptyResultState() {
+    return !_isSearching &&
         _searchQuery.isNotEmpty &&
-        _filteredContents.isEmpty;
+        _results.isEmpty;
   }
 
   int _getCrossAxisCount(BuildContext context) {
@@ -226,6 +220,11 @@ class _PauloFlixMoviesSearchScreenState
             title: TVSafeTextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
+              // `autofocus: true` é SEGURO aqui — esta tela está
+              // FORA do ShellRoute, então o FocusScope persistente
+              // do shell `MainNavigationScreen` não está presente.
+              // Sem risco do anti-pattern #19 (assertion no
+              // _focusedChildren.last.enclosingScope).
               autofocus: true,
               downFocusNode: _firstCardFocusNode,
               onSubmitted: (_) {
@@ -266,22 +265,22 @@ class _PauloFlixMoviesSearchScreenState
             ),
           ),
 
-          // Contador
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${_filteredContents.length} '
-                    '${_filteredContents.length == 1 ? "resultado" : "resultados"}',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 13,
+          // Contador (só aparece depois que tem query)
+          if (_searchQuery.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${_results.length} '
+                      '${_results.length == 1 ? "resultado" : "resultados"}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                  if (_searchQuery.isNotEmpty)
                     Text(
                       'filtro: "$_searchQuery"',
                       style: TextStyle(
@@ -290,19 +289,12 @@ class _PauloFlixMoviesSearchScreenState
                         fontStyle: FontStyle.italic,
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
 
-          if (!_snapshotLoaded)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: CircularProgressIndicator(color: Color(0xFFDC2626)),
-              ),
-            )
-          else if (_filteredContents.isEmpty)
+          if (_isIdleState())
             SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
@@ -310,15 +302,45 @@ class _PauloFlixMoviesSearchScreenState
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      _isEmptyState() ? Icons.search_off : Icons.movie_outlined,
+                      Icons.search,
                       color: Colors.white.withValues(alpha: 0.3),
                       size: 64,
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      _isEmptyState()
-                          ? 'Nenhum resultado para "$_searchQuery"'
-                          : 'Nenhum filme disponível',
+                      'Digite para buscar filmes',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (_isSearching)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+              ),
+            )
+          else if (_isEmptyResultState())
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.search_off,
+                      color: Colors.white.withValues(alpha: 0.3),
+                      size: 64,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Nenhum resultado para "$_searchQuery"',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 16,
@@ -340,7 +362,7 @@ class _PauloFlixMoviesSearchScreenState
                   mainAxisSpacing: 12,
                 ),
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  final content = _filteredContents[index];
+                  final content = _results[index];
                   // Primeiro card recebe focusNode explícito para que o
                   // seta-para-baixo no campo de busca possa entregá-lo
                   // ao primeiro card por d-pad no futuro (já preparado).
@@ -348,7 +370,7 @@ class _PauloFlixMoviesSearchScreenState
                   return index == 0
                       ? Focus(focusNode: _firstCardFocusNode, child: card)
                       : card;
-                }, childCount: _filteredContents.length),
+                }, childCount: _results.length),
               ),
             ),
 

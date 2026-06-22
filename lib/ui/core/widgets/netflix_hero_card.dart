@@ -6,8 +6,12 @@ import '../themes/app_colors.dart';
 import '../themes/netflix_theme.dart';
 
 /// Hero card variant for featured content.
-/// On TV / d-pad the Play button auto-focuses so the user can immediately
-/// press Select to start watching.
+///
+/// **Sem `autofocus: true`** em descendentes — anti-pattern #19 do skill
+/// `flutter-reactivity-gotchas` (assertion no FocusScope persistente do
+/// shell `MainNavigationScreen`). O shell gerencia o foco inicial via
+/// `_lastContentFocusNode` + `_restoreContentFocus`; autofocus declarativo
+/// aqui causa race condition com ModalRoute por cima.
 class NetflixHeroCard extends StatelessWidget {
   final String imageUrl;
   final String title;
@@ -129,12 +133,14 @@ class NetflixHeroCard extends StatelessWidget {
                     Row(
                       children: [
                         if (onPlay != null)
+                          // Sem `autofocus: isTV` aqui — o shell gerencia
+                          // o foco inicial. Foco no Play via d-pad é
+                          // responsabilidade do `_restoreContentFocus`.
                           _HeroActionButton(
                             onPressed: onPlay!,
                             icon: Icons.play_arrow,
                             label: 'Play',
                             filled: true,
-                            autofocus: isTV,
                           ),
                         if (onMyList != null) ...[
                           const SizedBox(width: NetflixTheme.md),
@@ -165,14 +171,12 @@ class _HeroActionButton extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool filled;
-  final bool autofocus;
 
   const _HeroActionButton({
     required this.onPressed,
     required this.icon,
     required this.label,
     required this.filled,
-    this.autofocus = false,
   });
 
   @override
@@ -213,7 +217,7 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
           );
 
     return Focus(
-      autofocus: widget.autofocus,
+      // Sem `autofocus: true` — ver doc do `NetflixHeroCard`.
       onFocusChange: (focused) => setState(() => _isFocused = focused),
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
