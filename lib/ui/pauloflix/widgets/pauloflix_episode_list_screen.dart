@@ -30,10 +30,21 @@ class PauloFlixEpisodeListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => PauloFlixEpisodeProgressViewModel(
+      // IMPORTANTE: `context.read<...>()` precisa do `BuildContext` do
+      // `MultiProvider` global, NÃO do `PauloFlixEpisodeListScreen`.
+      // O `create:` callback recebe um `BuildContext` ancorado no
+      // widget acima deste `ChangeNotifierProvider` — esse `context`
+      // tem acesso ao `PauloFlixEpisodeProgressRepository` e
+      // `PauloFlixEpisodeSyncService` declarados em `app.dart`.
+      //
+      // Se movêssemos o `context.read<...>()` para FORA do callback
+      // (no `build` direto), o Flutter lançaria `ProviderNotFoundException`
+      // porque esse `context` é ancestral do provider que estamos
+      // criando (ver doc do package:provider).
+      create: (ctx) => PauloFlixEpisodeProgressViewModel(
         content: content,
-        repository: context.read<PauloFlixEpisodeProgressRepository>(),
-        syncService: context.read<PauloFlixEpisodeSyncService>(),
+        repository: ctx.read<PauloFlixEpisodeProgressRepository>(),
+        syncService: ctx.read<PauloFlixEpisodeSyncService>(),
       )..loadSeasons(),
       child: const _PauloFlixEpisodeListView(),
     );
