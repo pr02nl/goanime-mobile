@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 
 import 'connection/connection.dart';
 import 'tables/downloads.dart';
+import 'tables/paulo_flix_episodes.dart';
+import 'tables/paulo_flix_seasons.dart';
 import 'tables/pauloflix_content.dart';
 import 'tables/pauloflix_movies.dart';
 import 'tables/tmdb_genres.dart';
@@ -26,6 +28,8 @@ part 'app_database.g.dart';
     Downloads,
     PauloFlixContent,
     PauloFlixMovies,
+    PauloFlixSeasons,
+    PauloFlixEpisodes,
     TmdbGenres,
   ],
 )
@@ -39,13 +43,17 @@ class AppDatabase extends _$AppDatabase {
   /// `NativeDatabase.memory()`).
   AppDatabase.forTesting(super.executor);
 
-  /// Schema começa em **4**:
+  /// Schema começa em **5**:
   /// * v1-v3: cobre todas as instalações 1.x e 2.x (versões que tinham
   ///   bancos legados separados).
   /// * v4 (2026-06-22): adiciona tabela `tmdb_genres` para cache do
   ///   mapeamento `genreId → nome` da API TMDB (resolvido em pt-BR/en-US).
+  /// * v5 (2026-06-22): adiciona tabelas `paulo_flix_seasons` e
+  ///   `paulo_flix_episodes` para persistir seasons, episódios assistidos,
+  ///   tempo assistido e flag de temporada completa. Ver plano
+  ///   `.hermes/plans/2026-06-22_2230-pauloflix-episodes-progress.md`.
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -63,6 +71,14 @@ class AppDatabase extends _$AppDatabase {
             // os getters gerados.
             final db = m.database as AppDatabase;
             await m.createTable(db.tmdbGenres);
+          }
+          // v4 → v5: adiciona tabelas paulo_flix_seasons e paulo_flix_episodes
+          // (Fase 0 do plano de progresso). Cria seasons PRIMEIRO porque
+          // episodes tem FK para seasons.
+          if (from < 5) {
+            final db = m.database as AppDatabase;
+            await m.createTable(db.pauloFlixSeasons);
+            await m.createTable(db.pauloFlixEpisodes);
           }
         },
         beforeOpen: (details) async {
