@@ -1,9 +1,9 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/data/services/episode_progress_service.dart';
 import 'package:goanime/domain/repositories/paulo_flix_episode_progress_repository.dart';
-import 'package:goanime/ui/player/services/episode_progress_recorder.dart';
 
-/// Testes do `EpisodeProgressRecorder` (Fase 2.1 do plano
+/// Testes do `EpisodeProgressService` (Fase 2.1 do plano
 /// `.hermes/plans/2026-06-22_2230-pauloflix-episodes-progress.md`).
 ///
 /// Foco:
@@ -18,7 +18,7 @@ void main() {
   group('shouldResetForResume (Decisão 6)', () {
     test('isCompleted=true → reset (reassistir)', () {
       expect(
-        EpisodeProgressRecorder.shouldResetForResume(
+        EpisodeProgressService.shouldResetForResume(
           isCompleted: true,
           positionSeconds: 95,
           durationSeconds: 100,
@@ -30,7 +30,7 @@ void main() {
 
     test('isCompleted=true, position=0 → reset (consistente)', () {
       expect(
-        EpisodeProgressRecorder.shouldResetForResume(
+        EpisodeProgressService.shouldResetForResume(
           isCompleted: true,
           positionSeconds: 0,
           durationSeconds: 100,
@@ -42,7 +42,7 @@ void main() {
 
     test('ratio < 10% sem isCompleted → reset (fechou sem querer)', () {
       expect(
-        EpisodeProgressRecorder.shouldResetForResume(
+        EpisodeProgressService.shouldResetForResume(
           isCompleted: false,
           positionSeconds: 5,
           durationSeconds: 100,
@@ -54,7 +54,7 @@ void main() {
 
     test('ratio >= 10% e < 90% → retomar (parou intencionalmente)', () {
       expect(
-        EpisodeProgressRecorder.shouldResetForResume(
+        EpisodeProgressService.shouldResetForResume(
           isCompleted: false,
           positionSeconds: 30,
           durationSeconds: 100,
@@ -66,7 +66,7 @@ void main() {
 
     test('ratio ~89% → retomar (perto do fim, ainda incompleto)', () {
       expect(
-        EpisodeProgressRecorder.shouldResetForResume(
+        EpisodeProgressService.shouldResetForResume(
           isCompleted: false,
           positionSeconds: 89,
           durationSeconds: 100,
@@ -78,7 +78,7 @@ void main() {
 
     test('duration=0 (sem info) → retomar (não reseta sem dados)', () {
       expect(
-        EpisodeProgressRecorder.shouldResetForResume(
+        EpisodeProgressService.shouldResetForResume(
           isCompleted: false,
           positionSeconds: 0,
           durationSeconds: 0,
@@ -94,13 +94,13 @@ void main() {
   group('prepareResumeOrReset', () {
     test('reset=true chama repo.resetProgress e retorna true', () async {
       final repo = _MockRepo();
-      final recorder = EpisodeProgressRecorder(
+      final service = EpisodeProgressService(
         repo: repo,
         seasonId: 1,
         episodeNumber: 1,
       );
 
-      final shouldReset = await recorder.prepareResumeOrReset(
+      final shouldReset = await service.prepareResumeOrReset(
         isCompleted: true,
         positionSeconds: 95,
         durationSeconds: 100,
@@ -115,13 +115,13 @@ void main() {
     test('reset=false NÃO chama repo.resetProgress e retorna false',
         () async {
       final repo = _MockRepo();
-      final recorder = EpisodeProgressRecorder(
+      final service = EpisodeProgressService(
         repo: repo,
         seasonId: 1,
         episodeNumber: 1,
       );
 
-      final shouldReset = await recorder.prepareResumeOrReset(
+      final shouldReset = await service.prepareResumeOrReset(
         isCompleted: false,
         positionSeconds: 30,
         durationSeconds: 100,
@@ -139,7 +139,7 @@ void main() {
       // dispara sem precisar esperar 5s reais.
       fakeAsync((async) {
         final repo = _MockRepo();
-        final recorder = EpisodeProgressRecorder(
+        final service = EpisodeProgressService(
           repo: repo,
           seasonId: 1,
           episodeNumber: 1,
@@ -147,7 +147,7 @@ void main() {
 
         // Posição muda a cada chamada (simula o player avançando).
         var pos = 0;
-        recorder.start(
+        service.start(
           getCurrentPosition: () => Duration(seconds: pos),
           getDuration: () => const Duration(seconds: 100),
         );
@@ -172,13 +172,13 @@ void main() {
         () {
       fakeAsync((async) {
         final repo = _MockRepo();
-        final recorder = EpisodeProgressRecorder(
+        final service = EpisodeProgressService(
           repo: repo,
           seasonId: 1,
           episodeNumber: 1,
         );
 
-        recorder.start(
+        service.start(
           getCurrentPosition: () => const Duration(seconds: 5),
           getDuration: () => const Duration(seconds: 100),
         );
@@ -195,14 +195,14 @@ void main() {
     test('flush faz último save e cancela o timer', () {
       fakeAsync((async) {
         final repo = _MockRepo();
-        final recorder = EpisodeProgressRecorder(
+        final service = EpisodeProgressService(
           repo: repo,
           seasonId: 1,
           episodeNumber: 1,
         );
 
         var pos = 50;
-        recorder.start(
+        service.start(
           getCurrentPosition: () => Duration(seconds: pos),
           getDuration: () => const Duration(seconds: 100),
         );
@@ -215,7 +215,7 @@ void main() {
         // Flush: posição muda para 75.
         pos = 75;
         async.flushMicrotasks();
-        recorder
+        service
             .flush(
               getCurrentPosition: () => Duration(seconds: pos),
               getDuration: () => const Duration(seconds: 100),
@@ -237,19 +237,19 @@ void main() {
     test('flush é idempotente (chamar 2x não duplica save)', () {
       fakeAsync((async) {
         final repo = _MockRepo();
-        final recorder = EpisodeProgressRecorder(
+        final service = EpisodeProgressService(
           repo: repo,
           seasonId: 1,
           episodeNumber: 1,
         );
 
-        recorder.start(
+        service.start(
           getCurrentPosition: () => const Duration(seconds: 30),
           getDuration: () => const Duration(seconds: 100),
         );
 
         // Flush 1: posição 30, primeiro save.
-        recorder
+        service
             .flush(
               getCurrentPosition: () => const Duration(seconds: 30),
               getDuration: () => const Duration(seconds: 100),
@@ -259,7 +259,7 @@ void main() {
               expect(callsAfterFirst, 1);
 
               // Flush 2: mesma posição = no-op.
-              recorder
+              service
                   .flush(
                     getCurrentPosition: () => const Duration(seconds: 30),
                     getDuration: () => const Duration(seconds: 100),
@@ -276,13 +276,13 @@ void main() {
     test('stop() cancela o timer sem flush', () {
       fakeAsync((async) {
         final repo = _MockRepo();
-        final recorder = EpisodeProgressRecorder(
+        final service = EpisodeProgressService(
           repo: repo,
           seasonId: 1,
           episodeNumber: 1,
         );
 
-        recorder.start(
+        service.start(
           getCurrentPosition: () => const Duration(seconds: 5),
           getDuration: () => const Duration(seconds: 100),
         );
@@ -291,7 +291,7 @@ void main() {
         async.elapse(const Duration(seconds: 5));
         expect(repo.updateCalls, 1);
 
-        recorder.stop();
+        service.stop();
 
         // Avança mais 30s = 6 ticks esperados, mas timer foi cancelado.
         async.elapse(const Duration(seconds: 30));

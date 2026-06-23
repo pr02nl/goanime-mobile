@@ -54,7 +54,7 @@ lib/
 │   ├── paulo_flix_episode_progress_viewmodel.dart  # NOVO — wrapper de UI
 │   └── paulo_flix_continue_watching_viewmodel.dart # NOVO — Home/See All
 └── ui/player/services/
-└── episode_progress_recorder.dart  # NOVO — grava progresso no player
+└── episode_progress_service.dart   # NOVO — grava progresso no player
 ```
 
 ### Arquivos modificados
@@ -63,7 +63,7 @@ lib/
 lib/
 ├── core/database/app_database.dart       # Add tabelas + bump schemaVersion para 5
 ├── data/services/pauloflix_service.dart  # Adicionar fetchSeasonsAndEpisodes para sync on-demand
-├── ui/player/widgets/video_player_screen.dart  # Wire EpisodeProgressRecorder
+├── ui/player/widgets/video_player_screen.dart  # Wire EpisodeProgressService
 ├── ui/pauloflix/view_models/pauloflix_episode_list_viewmodel.dart  # Carregar do banco
 ├── ui/pauloflix/widgets/pauloflix_episode_list_screen.dart  # Mostrar status (assistido/continuar/temporada completa)
 ├── ui/pauloflix/widgets/pauloflix_episode_card.dart  # Indicador de progresso
@@ -88,7 +88,7 @@ test/
 ├── ui/pauloflix/view_models/
 │   └── paulo_flix_episode_progress_viewmodel_test.dart
 ├── ui/player/services/
-│   └── episode_progress_recorder_test.dart
+│   └── episode_progress_service_test.dart
 ├── ui/pauloflix/widgets/
 │   ├── paulo_flix_continue_watching_section_test.dart  # NOVO
 │   ├── paulo_flix_episode_card_test.dart
@@ -542,11 +542,14 @@ class PauloFlixEpisodeProgressRepositoryImpl
 }
 ```
 
-### 3. Recorder no player
+### 3. Service de progresso no player (MVVM: service em `data/services/`)
 
 ```dart
-// lib/ui/player/services/episode_progress_recorder.dart
-class EpisodeProgressRecorder {
+// lib/data/services/episode_progress_service.dart
+// (nome: *Service para seguir convenção do projeto — PauloFlixEpisodeSyncService,
+// DownloadService, TmdbService. Localização: data/services, não ui/, porque é
+// lógica de domínio/IO, não UI).
+class EpisodeProgressService {
   final PauloFlixEpisodeProgressRepository _repository;
   final int seasonId;
   final int episodeNumber;
@@ -576,7 +579,7 @@ class EpisodeProgressRecorder {
     return ratio < 0.1;
   }
 
-  EpisodeProgressRecorder({
+  EpisodeProgressService({
     required this._repository,
     required this.seasonId,
     required this.episodeNumber,
@@ -733,11 +736,11 @@ class PauloFlixEpisodeListViewModel extends ChangeNotifier {
 - Função: `Future<List<PauloFlixEpisode>> syncFromServer({required int contentId, required String serverUrl})` — orquestra fetch HTTP + upsert no repo. Separado do `PauloFlixRepositoryImpl` para manter o repo focado em persistência e o service focado em HTTP+orquestração.
 - Test: `test/data/services/paulo_flix_episode_sync_service_test.dart` (mock `http.Client` + mock repo)
 
-### Fase 2 — Recorder no player (2 patches TDD)
+### Fase 2 — Service de progresso no player (2 patches TDD)
 
-**Task 2.1: `EpisodeProgressRecorder`**
-- Files: `lib/ui/player/services/episode_progress_recorder.dart` (novo)
-- Test: `test/ui/player/services/episode_progress_recorder_test.dart` (mock repo)
+**Task 2.1: `EpisodeProgressService`**
+- Files: `lib/data/services/episode_progress_service.dart` (novo)
+- Test: `test/data/services/episode_progress_service_test.dart` (mock repo)
 - TDD casos:
   - **`shouldResetForResume` (função pura — cobrir todos os 6 cenários da Decisão 6):**
     - `isCompleted=true, position=95, duration=100` → `true` (reassistir)
@@ -758,10 +761,10 @@ class PauloFlixEpisodeListViewModel extends ChangeNotifier {
 - Files: `lib/ui/player/widgets/video_player_screen.dart` (modificar), `lib/routing/route_data.dart` (modificar)
 - Mudanças:
   - `PlayerRouteData` ganha `seasonId: int?` e `episodeNumber: String?` (nullable — outros fluxos que não sejam PauloFlix passam null)
-  - Instanciar `EpisodeProgressRecorder` no `_initializeVideoPlayer` SE for PauloFlix (i.e., `widget.anime?.source == AnimeSource.pauloFlix && seasonId != null`)
-  - **ANTES do `Media.open`:** ler `positionSeconds`/`durationSeconds`/`isCompleted` do banco, chamar `_recorder.prepareResumeOrReset(...)`. Se reset → abrir do zero. Se retomar → abrir normal e, **após `Media.open` completar**, fazer `await _player!.seek(Duration(seconds: positionSeconds))` (libmpv exige seek pós-open).
-  - **APÓS `Media.open` bem-sucedido**: chamar `_recorder.start(getPos, getDur)` para iniciar o timer de 5s.
-  - No `dispose` e na troca de episódio (`_replaceEpisode`): chamar `await _recorder.flush(getPos, getDur)` ANTES de trocar (garante último save).
+  - Instanciar `EpisodeProgressService` no `_initializeVideoPlayer` SE for PauloFlix (i.e., `widget.anime?.source == AnimeSource.pauloFlix && seasonId != null`)
+  - **ANTES do `Media.open`:** ler `positionSeconds`/`durationSeconds`/`isCompleted` do banco, chamar `_progressService.prepareResumeOrReset(...)`. Se reset → abrir do zero. Se retomar → abrir normal e, **após `Media.open` completar**, fazer `await _player!.seek(Duration(seconds: positionSeconds))` (libmpv exige seek pós-open).
+  - **APÓS `Media.open` bem-sucedido**: chamar `_progressService.start(getPos: getPos, getDur: getDur)` para iniciar o timer de 5s.
+  - No `dispose` e na troca de episódio (`_replaceEpisode`): chamar `await _progressService.flush(getPos: getPos, getDur: getDur)` ANTES de trocar (garante último save).
   - **Não** chamar `requestFocus` ou hooks de focus — não impacta TV navigation.
 - Test: smoke test manual via `flutter run` (não automatizável por `flutter test`)
 
@@ -904,13 +907,13 @@ Critérios de aceitação:
 |-------|---------|-----------|
 | Sync HTTP falha mid-way | Tela de episódios vazia | Try/catch em `syncSeasonEpisodes`; fallback para seasons já no banco (não faz wipe) |
 | Drift migration v4→v5 corrompe DB existente | Perda de shows PauloFlix | Migration é puramente aditiva (`createTable`); Drift gerencia atomicamente. Smoke test em instalação limpa + upgrade |
-| `positionTimer` no player conflita com timer já existente (`positionTimer` no AniSkip mixin) | Timer leak | Recorder usa **field próprio** `_progressTimer`, não compartilha com mixin. Cancelado em `dispose` antes do mixin |
+| `positionTimer` no player conflita com timer já existente (`positionTimer` no AniSkip mixin) | Timer leak | Service de progresso usa **field próprio** `_timer`, não compartilha com mixin. Cancelado em `dispose` antes do mixin |
 | Sync on-demand para todos os animes deixa o primeiro `loadContents()` lento | UX ruim no home | NÃO chamar sync de episodes no home — só na `EpisodeListScreen`. Home continua usando só `paulo_flix_content` (já existe) |
 | `Episode.number` é String (no domain `Episode`) mas Int no banco | Type mismatch | Converte no `_toDomain` (já feito) + no `_buildEpisodeKey` (já feito no player) |
 | FK cascade apaga season ao apagar content | Perda de progresso se user apaga show | Desejado: se user apaga show (`markAsUnavailable`), progresso some junto. Comportamento OK |
 | `_recomputeSeasonCompleted` chamado em loop durante bulk watch | Performance | Disparar apenas dentro de `updateProgress` (não é chamado em loops de bulk) — OK |
 | `player.seek` chamado ANTES de `Media.open` (libmpv é no-op nesse caso) | Não retoma | Sempre chamar `seek` **depois** de `Media.open` retornar OK. Heurística de reset é **antes** do open, mas o `seek` é **depois** |
-| Usuário reassiste episódio completo: player recomeça do zero (perde referência da última posição) | UX ruim, mas aceitável | Reset intencional — é o que ele pediu ao reassistir. `_lastSavedPosition = -1` no recorder força próximo save |
+| Usuário reassiste episódio completo: player recomeça do zero (perde referência da última posição) | UX ruim, mas aceitável | Reset intencional — é o que ele pediu ao reassistir. `_lastSavedPosition = -1` no service força próximo save |
 | Heurística < 10% reseta episódio pausado em 8% (ex: fechou 1min de 12min) | Posição perdida | Aceitável — provavelmente fechou sem querer. Pior seria retomar de 1min num anime de 12min |
 | `autofocus: true` no card do "Continue assistindo" causa assertion `Focused child does not have the same idea of its enclosing scope` (skill #19) | Crash ao navegar para HomeScreen | **NUNCA** usar `autofocus: true` em descendentes do `FocusScope(node: _contentScopeNode)` do `MainNavigationScreen`. O shell gerencia foco. Section é só visual |
 | Stream `watchInProgressContents` re-emit toda vez que `lastWatched` muda (a cada 5s) | Lista "pisca" na home | Aceitável — reatividade é o objetivo. Drift deduplica inserts/idempotentes. Se UX ruim, debounce no VM |

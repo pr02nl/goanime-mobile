@@ -1,40 +1,50 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-import 'package:meta/meta.dart';
+import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 
-import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
-
-/// Recorder de progresso de episódio usado pelo player.
+/// Service de gravação de progresso de episódio usado pelo player.
 ///
 /// **Fase 2.1 do plano**
 /// `.hermes/plans/2026-06-22_2230-pauloflix-episodes-progress.md`.
 ///
-/// Responsabilidades:
+/// ## Por que "Service" (e não "Recorder" no nome) e por que em `data/services/`?
+///
+/// Seguindo o padrão do projeto:
+/// - `PauloFlixEpisodeSyncService` (sync HTTP)
+/// - `DownloadService` (downloads locais)
+/// - `TmdbService` (cache de gêneros)
+/// - **Nomenclatura**: todos terminam em `Service` (sem "Recorder"/"Manager"/"Helper" no nome).
+/// - **Localização**: `lib/data/services/` — services de I/O e persistência.
+///   Nada de UI aqui; o player **consome** este service via injeção.
+///
+/// ## Responsabilidades
+///
 /// 1. Decidir se o player deve retomar de `positionSeconds` ou começar do
 ///    zero (`shouldResetForResume` — função pura testável).
 /// 2. Gravar progresso a cada 5s durante playback (timer periódico).
 /// 3. Garantir último save no `dispose` do player (flush).
 ///
-/// **Design:** o recorder NÃO conhece `Player`/`VideoController` —
-/// recebe `getCurrentPosition`/`getDuration` como callbacks. Vantagem:
+/// ## Design: o service NÃO conhece `Player`/`VideoController`
+///
+/// Recebe `getCurrentPosition`/`getDuration` como callbacks. Vantagem:
 /// 100% testável sem mockar `media_kit`. O player passa closures que
 /// retornam `_player!.state.position`/`_player!.state.duration`.
 ///
-/// **Quando usar:**
+/// ## Quando usar
+///
 /// ```dart
-/// final recorder = EpisodeProgressRecorder(
+/// final service = EpisodeProgressService(
 ///   repo: context.read<PauloFlixEpisodeProgressRepository>(),
 ///   seasonId: routeData.seasonId!,
 ///   episodeNumber: routeData.episodeNumber!,
 /// );
-/// final shouldReset = await recorder.prepareResumeOrReset(...);
+/// final shouldReset = await service.prepareResumeOrReset(...);
 /// // ...abre o vídeo...
-/// recorder.start(getPos, getDur);
+/// service.start(getPos: getPos, getDur: getDur);
 /// // ...no dispose:
-/// await recorder.flush(getPos, getDur);
+/// await service.flush(getPos: getPos, getDur: getDur);
 /// ```
-class EpisodeProgressRecorder {
+class EpisodeProgressService {
   final PauloFlixEpisodeProgressRepository _repository;
   final int seasonId;
   final int episodeNumber;
@@ -49,7 +59,7 @@ class EpisodeProgressRecorder {
 
   Timer? _timer;
 
-  EpisodeProgressRecorder({
+  EpisodeProgressService({
     required PauloFlixEpisodeProgressRepository repo,
     required this.seasonId,
     required this.episodeNumber,
@@ -69,7 +79,6 @@ class EpisodeProgressRecorder {
   ///   sem querer)
   ///
   /// **Retomar** caso contrário (parou intencionalmente entre 10% e 90%).
-  @visibleForTesting
   static bool shouldResetForResume({
     required bool isCompleted,
     required int positionSeconds,
