@@ -25,6 +25,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../domain/models/pauloflix_content.dart';
+import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/pagination.dart';
@@ -34,7 +35,9 @@ import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/paginated_letter_grid.dart';
 import '../../core/widgets/pauloflix_badge.dart';
+import '../view_models/paulo_flix_continue_watching_viewmodel.dart';
 import '../view_models/pauloflix_provider.dart';
+import 'paulo_flix_continue_watching_section.dart';
 
 class PauloFlixSeeAllScreen extends StatefulWidget {
   const PauloFlixSeeAllScreen({super.key});
@@ -187,6 +190,14 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
 
   List<Widget> _buildContentSlivers(AppLocalizations l10n) {
     final slivers = <Widget>[];
+
+    // 0. Continue assistindo (Fase 5.3) — topo da See All.
+    // Some automaticamente via `SizedBox.shrink()` quando vazia.
+    slivers.add(
+      SliverToBoxAdapter(
+        child: _buildContinueWatchingSection(),
+      ),
+    );
 
     // 1. Hero banner.
     if (_featured != null) {
@@ -397,6 +408,41 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Fase 5.3 — Seção "Continue assistindo" no topo da See All.
+  ///
+  /// Encapsula o `ChangeNotifierProvider` + `Consumer` para que o
+  /// `PauloFlixContinueWatchingViewModel` viva dentro do `SliverToBoxAdapter`
+  /// e suma naturalmente quando vazio
+  /// (`PauloFlixContinueWatchingSection` retorna `SizedBox.shrink()`).
+  Widget _buildContinueWatchingSection() {
+    return ChangeNotifierProvider<PauloFlixContinueWatchingViewModel>(
+      create: (ctx) => PauloFlixContinueWatchingViewModel(
+        repository: ctx.read<PauloFlixEpisodeProgressRepository>(),
+      ),
+      child: Consumer<PauloFlixContinueWatchingViewModel>(
+        builder: (_, vm, _) {
+          // Esconde enquanto carrega (evita flash de "vazio" antes do
+          // primeiro evento do stream).
+          if (vm.loading) return const SizedBox.shrink();
+          return PauloFlixContinueWatchingSection(
+            contents: vm.contents,
+            isTV: _isTV,
+            onContentTap: _onContinueWatchingTap,
+          );
+        },
+      ),
+    );
+  }
+
+  /// Abre a tela de episodes do anime clicado em "Continue assistindo".
+  /// Usa o mesmo `pushNamed` do hero banner e dos cards da grid.
+  void _onContinueWatchingTap(PauloFlixContent content) {
+    context.pushNamed(
+      'pauloflix-episode-list',
+      extra: content,
     );
   }
 }
