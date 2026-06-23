@@ -81,7 +81,20 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(db.pauloFlixEpisodes);
           }
         },
+        // CRÍTICO: configurar `busy_timeout` ANTES de qualquer operação
+        // de migration. Sem isso, qualquer DDL em uma instalação que
+        // ficou em estado inconsistente (lock órfão do SQLite após crash
+        // do app) falha com `SQLITE_BUSY (5) — database is locked`.
+        //
+        // O padrão SQLite é 0ms (falha imediata). 5s dá tempo suficiente
+        // para outra conexão liberar o lock (ex: hot-reload do debug
+        // segurando handle antigo).
         beforeOpen: (details) async {
+          // CRÍTICO: `busy_timeout = 5000` evita `SQLITE_BUSY (5)` em
+          // DDL quando o banco ficou em estado inconsistente (lock órfão
+          // do SQLite após crash do app ou hot-reload do debug segurando
+          // handle antigo). Padrão SQLite é 0ms (falha imediata).
+          await customStatement('PRAGMA busy_timeout = 5000');
           await customStatement('PRAGMA foreign_keys = ON');
           await customStatement('PRAGMA journal_mode = WAL');
         },
