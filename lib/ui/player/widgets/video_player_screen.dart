@@ -726,12 +726,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       // Merge default headers with controller headers for better compatibility
       final defaultHeaders = {
+        // UA Android real — o app roda exclusivamente em Android (celular/TV).
+        // UA "Windows" não agrega valor e pode confundir middlewares que
+        // olham o SO do cliente.
         'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.0',
+            'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
         'Accept-Encoding': 'identity;q=1, *;q=0',
-        'Connection': 'keep-alive',
+        // 'Connection: keep-alive' removido: libmpv já usa HTTP/1.1 nativo
+        // e ignora esse header. Em alguns servers (Caddy com config agressiva)
+        // pode causar warning ou re-negociação desnecessária.
         'Referer': referer,
         'Sec-Fetch-Dest': 'video',
         'Sec-Fetch-Mode': 'no-cors',
