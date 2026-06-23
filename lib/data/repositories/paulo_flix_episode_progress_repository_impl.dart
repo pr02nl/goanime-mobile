@@ -209,79 +209,11 @@ class PauloFlixEpisodeProgressRepositoryImpl
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Sync on-demand
+  // Upserts de baixo nível (usados pelo PauloFlixEpisodeSyncService)
   // ═══════════════════════════════════════════════════════════════════════
 
   @override
-  Future<void> syncSeasonEpisodes({
-    required int contentId,
-    required String contentServerUrl,
-  }) async {
-    // 1. Fetch seasons do servidor.
-    final seasons =
-        await _PauloFlixServiceShim.fetchShowSeasons(contentServerUrl);
-
-    for (final s in seasons) {
-      // 2. Upsert season — preserva `isCompleted` e `episodeCount` se já
-      // existirem.
-      final seasonId = await _upsertSeason(
-        contentId: contentId,
-        seasonNumber: s.number,
-        displayName: s.name,
-        folderName: s.name,
-      );
-
-      // 3. Fetch episodes desta season.
-      final episodes = await _PauloFlixServiceShim.fetchSeasonEpisodes(s.url);
-
-      // 4. Upsert cada episode — preserva `positionSeconds`,
-      // `isCompleted`, `lastWatched` e `durationSeconds` se já existirem.
-      for (final e in episodes) {
-        await _upsertEpisode(
-          seasonId: seasonId,
-          episodeNumber: e.number,
-          title: e.title,
-          videoUrl: e.url,
-        );
-      }
-
-      // 5. Atualiza episodeCount com o total descoberto no scrape.
-      await (_db.update(_db.pauloFlixSeasons)
-            ..where((t) => t.id.equals(seasonId)))
-          .write(PauloFlixSeasonsCompanion(
-        episodeCount: Value(episodes.length),
-        lastSynced: Value(DateTime.now()),
-      ));
-    }
-  }
-
-  // ─── Helpers internos ────────────────────────────────────────────────
-
-  /// Recalcula `season.isCompleted` baseado nos episodes da season.
-  /// `true` se TODOS os episodes estão completos (e há pelo menos 1).
-  /// `false` caso contrário (incluindo season vazia).
-  Future<void> _recomputeSeasonCompleted(int seasonId) async {
-    final total = await (_db.selectOnly(_db.pauloFlixEpisodes)
-          ..addColumns([_db.pauloFlixEpisodes.episodeNumber.count()])
-          ..where(_db.pauloFlixEpisodes.seasonId.equals(seasonId)))
-        .getSingle();
-    final completed = await (_db.selectOnly(_db.pauloFlixEpisodes)
-          ..addColumns([_db.pauloFlixEpisodes.episodeNumber.count()])
-          ..where(_db.pauloFlixEpisodes.seasonId.equals(seasonId) &
-              _db.pauloFlixEpisodes.isCompleted.equals(true)))
-        .getSingle();
-    final totalN = total.read(_db.pauloFlixEpisodes.episodeNumber.count()) ?? 0;
-    final completedN =
-        completed.read(_db.pauloFlixEpisodes.episodeNumber.count()) ?? 0;
-    final allCompleted = totalN > 0 && totalN == completedN;
-    await (_db.update(_db.pauloFlixSeasons)
-          ..where((t) => t.id.equals(seasonId)))
-        .write(PauloFlixSeasonsCompanion(
-      isCompleted: Value(allCompleted),
-    ));
-  }
-
-  Future<int> _upsertSeason({
+  Future<int> upsertSeason({
     required int contentId,
     required int seasonNumber,
     required String displayName,
@@ -315,7 +247,8 @@ class PauloFlixEpisodeProgressRepositoryImpl
         );
   }
 
-  Future<void> _upsertEpisode({
+  @override
+  Future<void> upsertEpisode({
     required int seasonId,
     required int episodeNumber,
     required String title,
@@ -348,6 +281,43 @@ class PauloFlixEpisodeProgressRepositoryImpl
             ),
           );
     }
+  }
+
+  @override
+  Future<void> updateSeasonCount(int seasonId, int count) async {
+    // NÃO sobrescreve isCompleted.
+    await (_db.update(_db.pauloFlixSeasons)
+          ..where((t) => t.id.equals(seasonId)))
+        .write(PauloFlixSeasonsCompanion(
+      episodeCount: Value(count),
+      lastSynced: Value(DateTime.now()),
+    ));
+  }
+
+  // ─── Helpers internos ────────────────────────────────────────────────
+
+  /// Recalcula `season.isCompleted` baseado nos episodes da season.
+  /// `true` se TODOS os episodes estão completos (e há pelo menos 1).
+  /// `false` caso contrário (incluindo season vazia).
+  Future<void> _recomputeSeasonCompleted(int seasonId) async {
+    final total = await (_db.selectOnly(_db.pauloFlixEpisodes)
+          ..addColumns([_db.pauloFlixEpisodes.episodeNumber.count()])
+          ..where(_db.pauloFlixEpisodes.seasonId.equals(seasonId)))
+        .getSingle();
+    final completed = await (_db.selectOnly(_db.pauloFlixEpisodes)
+          ..addColumns([_db.pauloFlixEpisodes.episodeNumber.count()])
+          ..where(_db.pauloFlixEpisodes.seasonId.equals(seasonId) &
+              _db.pauloFlixEpisodes.isCompleted.equals(true)))
+        .getSingle();
+    final totalN = total.read(_db.pauloFlixEpisodes.episodeNumber.count()) ?? 0;
+    final completedN =
+        completed.read(_db.pauloFlixEpisodes.episodeNumber.count()) ?? 0;
+    final allCompleted = totalN > 0 && totalN == completedN;
+    await (_db.update(_db.pauloFlixSeasons)
+          ..where((t) => t.id.equals(seasonId)))
+        .write(PauloFlixSeasonsCompanion(
+      isCompleted: Value(allCompleted),
+    ));
   }
 
   // ─── Mappers (DB → domain) ──────────────────────────────────────────
@@ -402,46 +372,4 @@ class PauloFlixEpisodeProgressRepositoryImpl
       isAvailable: row.isAvailable,
     );
   }
-}
-
-/// Shim que encapsula as chamadas HTTP do `PauloFlixService`.
-///
-/// Por que um shim?
-/// - Permite mockar o HTTP em testes futuros (Fase 1.4 — sync service).
-/// - Mantém o `PauloFlixEpisodeProgressRepositoryImpl` focado em
-///   persistência; a parte de "como buscar seasons/episodes" fica
-///   no `PauloFlixService` (scraping HTML).
-/// - O `_` no nome marca como detalhe de implementação — **não**
-///   exportar.
-class _PauloFlixServiceShim {
-  static Future<List<_SeasonStub>> fetchShowSeasons(String showUrl) async {
-    // Implementação real vem no service de sync (Fase 1.4). Por enquanto
-    // este método é o ponto de injeção — testes podem substituí-lo via
-    // uma versão com override. No caminho de produção, a Fase 1.4 vai
-    // trocar este shim por uma chamada ao `PauloFlixService` real.
-    throw UnimplementedError(
-      'syncSeasonEpisodes requer PauloFlixEpisodeSyncService (Fase 1.4). '
-      'Esta impl é provisória.',
-    );
-  }
-
-  static Future<List<_EpisodeStub>> fetchSeasonEpisodes(String seasonUrl) async {
-    throw UnimplementedError(
-      'syncSeasonEpisodes requer PauloFlixEpisodeSyncService (Fase 1.4).',
-    );
-  }
-}
-
-class _SeasonStub {
-  final String name;
-  final String url;
-  final int number;
-  const _SeasonStub(this.name, this.url, this.number);
-}
-
-class _EpisodeStub {
-  final int number;
-  final String title;
-  final String url;
-  const _EpisodeStub(this.number, this.title, this.url);
 }

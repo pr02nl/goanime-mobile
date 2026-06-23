@@ -95,27 +95,38 @@ abstract class PauloFlixEpisodeProgressRepository {
   Stream<List<PauloFlixEpisodeRecord>> watchEpisodesForSeason(int seasonId);
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Sync on-demand (chamado pela tela de episodes ao abrir)
+  // Upserts de baixo nível (usados pelo PauloFlixEpisodeSyncService)
   // ═══════════════════════════════════════════════════════════════════════
 
-  /// Sincroniza seasons + episodes do servidor PauloFlix para o banco.
+  /// Insere ou atualiza uma season. Se já existir (mesmo
+  /// `contentId+seasonNumber`), atualiza `displayName`/`folderName`/
+  /// `lastSynced` mas **preserva** `isCompleted` e `episodeCount`.
   ///
-  /// Comportamento:
-  /// 1. Faz fetch HTTP das seasons via `PauloFlixService.fetchShowSeasons`.
-  /// 2. Para cada season: upsert (se já existe, atualiza `displayName`/
-  ///    `folderName`/`lastSynced` MAS **preserva** `isCompleted` e
-  ///    `episodeCount`).
-  /// 3. Para cada season: fetch HTTP dos episodes via
-  ///    `PauloFlixService.fetchSeasonEpisodes`.
-  /// 4. Para cada episode: upsert (atualiza `title`/`videoUrl`/
-  ///    `lastSynced` MAS **preserva** `positionSeconds`/`isCompleted`/
-  ///    `lastWatched`/`durationSeconds`).
-  /// 5. Atualiza `episodeCount` da season com `episodes.length`.
-  ///
-  /// Lança exceção se a rede falhar (caller decide se mostra erro ou
-  /// usa seasons/episodes já em cache).
-  Future<void> syncSeasonEpisodes({
+  /// Chamado por `PauloFlixEpisodeSyncService` durante o sync on-demand.
+  Future<int> upsertSeason({
     required int contentId,
-    required String contentServerUrl,
+    required int seasonNumber,
+    required String displayName,
+    required String folderName,
   });
+
+  /// Insere ou atualiza um episode. Se já existir (mesmo
+  /// `seasonId+episodeNumber`), atualiza `title`/`videoUrl`/
+  /// `lastSynced` mas **preserva** `positionSeconds`/`isCompleted`/
+  /// `lastWatched`/`durationSeconds`.
+  ///
+  /// Chamado por `PauloFlixEpisodeSyncService` durante o sync on-demand.
+  Future<void> upsertEpisode({
+    required int seasonId,
+    required int episodeNumber,
+    required String title,
+    required String videoUrl,
+  });
+
+  /// Atualiza `episodeCount` e `lastSynced` da season.
+  ///
+  /// **NÃO** sobrescreve `isCompleted` (preservado).
+  /// Chamado por `PauloFlixEpisodeSyncService` após o upsert dos
+  /// episodes para persistir o total descoberto.
+  Future<void> updateSeasonCount(int seasonId, int count);
 }

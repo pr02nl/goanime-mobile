@@ -63,7 +63,8 @@ void main() {
       expect(r.watchSeasonsForContent, isA<Function>());
       expect(r.getEpisodesForSeason, isA<Function>());
       expect(r.watchEpisodesForSeason, isA<Function>());
-      expect(r.syncSeasonEpisodes, isA<Function>());
+      expect(r.upsertSeason, isA<Function>());
+      expect(r.upsertEpisode, isA<Function>());
     });
 
     test('updateProgress aceita os 4 parâmetros nomeados', () async {
@@ -168,11 +169,31 @@ void main() {
       },
     );
 
-    test('syncSeasonEpisodes aceita os 2 parâmetros nomeados', () async {
-      // Não chama HTTP real (stub no-op). Só valida a assinatura.
-      await repo.syncSeasonEpisodes(
+    test('upsertSeason aceita os 4 parâmetros nomeados', () async {
+      // Não falha (assinatura compatível com o contrato).
+      await repo.upsertSeason(
         contentId: 1,
-        contentServerUrl: 'https://server/Test/',
+        seasonNumber: 1,
+        displayName: 'S01',
+        folderName: 'S01',
+      );
+    });
+
+    test('upsertEpisode aceita os 4 parâmetros nomeados', () async {
+      final seasonId = await db.into(db.pauloFlixSeasons).insert(
+            PauloFlixSeasonsCompanion.insert(
+              contentId: 1,
+              seasonNumber: 1,
+              displayName: 'S01',
+              folderName: 'S01',
+              lastSynced: DateTime.now(),
+            ),
+          );
+      await repo.upsertEpisode(
+        seasonId: seasonId,
+        episodeNumber: 1,
+        title: 'ep 1',
+        videoUrl: 'https://server/ep1.mkv',
       );
     });
 
@@ -278,10 +299,61 @@ class _ContractStub implements PauloFlixEpisodeProgressRepository {
   }
 
   @override
-  Future<void> syncSeasonEpisodes({
+  Future<int> upsertSeason({
     required int contentId,
-    required String contentServerUrl,
+    required int seasonNumber,
+    required String displayName,
+    required String folderName,
   }) async {
-    // No-op: stub não chama HTTP.
+    final existing = await (_db.select(_db.pauloFlixSeasons)
+          ..where((t) =>
+              t.contentId.equals(contentId) &
+              t.seasonNumber.equals(seasonNumber))
+          ..limit(1))
+        .getSingleOrNull();
+    if (existing != null) return existing.id;
+    return _db.into(_db.pauloFlixSeasons).insert(
+          PauloFlixSeasonsCompanion.insert(
+            contentId: contentId,
+            seasonNumber: seasonNumber,
+            displayName: displayName,
+            folderName: folderName,
+            lastSynced: DateTime.now(),
+          ),
+        );
+  }
+
+  @override
+  Future<void> upsertEpisode({
+    required int seasonId,
+    required int episodeNumber,
+    required String title,
+    required String videoUrl,
+  }) async {
+    final existing = await (_db.select(_db.pauloFlixEpisodes)
+          ..where((t) =>
+              t.seasonId.equals(seasonId) &
+              t.episodeNumber.equals(episodeNumber))
+          ..limit(1))
+        .getSingleOrNull();
+    if (existing != null) return;
+    await _db.into(_db.pauloFlixEpisodes).insert(
+          PauloFlixEpisodesCompanion.insert(
+            seasonId: seasonId,
+            episodeNumber: episodeNumber,
+            title: title,
+            videoUrl: videoUrl,
+            lastSynced: DateTime.now(),
+          ),
+        );
+  }
+
+  @override
+  Future<void> updateSeasonCount(int seasonId, int count) async {
+    await (_db.update(_db.pauloFlixSeasons)
+          ..where((t) => t.id.equals(seasonId)))
+        .write(PauloFlixSeasonsCompanion(
+      episodeCount: Value(count),
+    ));
   }
 }
