@@ -82,19 +82,24 @@ class PauloFlixApp extends StatelessWidget {
         // 2. `ModernVideoPlayerScreen` (não precisa — o player lê do
         //    banco via repo, não faz sync).
         // Injetado via `http.Client()` real (não mockado em produção).
+        //
+        // IMPORTANTE: NÃO usar `create: (_) => context.read<Repo>(...)`
+        // aqui — o `create:` callback de providers dentro de um
+        // `MultiProvider` recebe um `context` que é ANCESTRAL de
+        // todos os providers declarados no mesmo list. Isso causa
+        // `ProviderNotFoundException` em runtime. Use o ctor
+        // `fromDatabase(appDatabase)` que constrói o repo internamente.
+        // O `appDatabase` está disponível como field da `PauloFlixApp`.
         Provider<PauloFlixEpisodeSyncService>(
-          create: (_) => PauloFlixEpisodeSyncService(
-            context.read<PauloFlixEpisodeProgressRepository>(),
-          ),
+          create: (_) => PauloFlixEpisodeSyncService.fromDatabase(appDatabase),
         ),
         // Services e viewmodels legados.
         ChangeNotifierProvider.value(value: themeViewModel),
         ChangeNotifierProvider.value(value: localeViewModel),
         ChangeNotifierProvider.value(value: downloadService),
         ChangeNotifierProvider(
-          create: (ctx) => PauloFlixProvider.withRepository(
-            ctx.read<PauloFlixRepository>(),
-          ),
+          create: (ctx) =>
+              PauloFlixProvider.withRepository(ctx.read<PauloFlixRepository>()),
         ),
         ChangeNotifierProvider(
           create: (ctx) => PauloFlixMoviesProvider.withServices(

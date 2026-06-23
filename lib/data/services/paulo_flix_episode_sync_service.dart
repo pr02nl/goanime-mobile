@@ -3,7 +3,9 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
+import '../../core/database/app_database.dart' hide PauloFlixSeason, PauloFlixEpisode;
 import '../../core/utils/episode_utils.dart';
+import '../../data/repositories/paulo_flix_episode_progress_repository_impl.dart';
 import '../../domain/models/pauloflix_models.dart';
 import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 
@@ -40,6 +42,30 @@ class PauloFlixEpisodeSyncService {
   /// Ctor de produção: usa `http.Client()` padrão + URL base do PauloFlix.
   PauloFlixEpisodeSyncService(this._repo, {http.Client? httpClient})
       : _httpClient = httpClient ?? http.Client();
+
+  /// Ctor alternativo: recebe `appDatabase` e constrói o repo internamente.
+  ///
+  /// **Por que existe:** evita a dependência circular em
+  /// `app.dart` onde o `Provider<PauloFlixEpisodeSyncService>` é
+  /// declarado no MESMO `MultiProvider` que
+  /// `Provider<PauloFlixEpisodeProgressRepository>`. Ler o repo via
+  /// `context.read<...>()` no `create:` callback lança
+  /// `ProviderNotFoundException` (o context é ancestral do repo no
+  /// mesmo MultiProvider).
+  ///
+  /// Em vez disso, este ctor constrói o repo lazy (o `appDatabase` já
+  /// está disponível como field da `PauloFlixApp`). Use ESTE ctor
+  /// no `MultiProvider`. O ctor `PauloFlixEpisodeSyncService(repo)`
+  /// continua disponível para testes unitários (ver test/data/services/).
+  factory PauloFlixEpisodeSyncService.fromDatabase(
+    AppDatabase appDatabase, {
+    http.Client? httpClient,
+  }) {
+    return PauloFlixEpisodeSyncService(
+      PauloFlixEpisodeProgressRepositoryImpl(appDatabase),
+      httpClient: httpClient,
+    );
+  }
 
   /// Extensões de vídeo reconhecidas (mesma lista do `PauloFlixService`).
   /// Duplicada aqui para isolar do legado.
