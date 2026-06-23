@@ -98,8 +98,10 @@ class PauloFlixApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: localeViewModel),
         ChangeNotifierProvider.value(value: downloadService),
         ChangeNotifierProvider(
-          create: (ctx) =>
-              PauloFlixProvider.withRepository(ctx.read<PauloFlixRepository>()),
+          create: (ctx) => PauloFlixProvider.withRepositories(
+            repository: ctx.read<PauloFlixRepository>(),
+            episodeSyncService: ctx.read<PauloFlixEpisodeSyncService>(),
+          ),
         ),
         ChangeNotifierProvider(
           create: (ctx) => PauloFlixMoviesProvider.withServices(

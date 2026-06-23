@@ -168,8 +168,22 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
 
   // ─── Ações ──────────────────────────────────────────────────────────
 
-  /// Carrega as seasons do banco. Se `syncService` foi injetado e o
-  /// banco está vazio, faz sync HTTP primeiro.
+  /// Carrega as seasons do banco. Comportamento:
+  ///
+  /// **Caso normal (Fase 2 — sync geral já rodou):** banco tem
+  /// seasons/episodes. Lê do banco e subscreve o watch stream.
+  /// **Zero HTTP.**
+  ///
+  /// **Fallback lazy (primeira vez do anime na vida do app, ou sync
+  /// geral nunca rodou):** banco vazio + syncService disponível →
+  /// faz `syncSeasonEpisodes` pontual desse anime (HTTP 1 show +
+  /// N seasons). **NÃO** usa `reconcileSeasonEpisodes` (que deleta
+  /// órfãos) — sync pontual ao entrar no anime deve ser **aditivo**
+  /// (só adiciona), porque a deleção é responsabilidade do sync geral.
+  ///
+  /// **Sem syncService:** se banco vazio, mostra estado vazio (não
+  /// chama HTTP). Caller pode mostrar empty state + botão "Voltar
+  /// e sincronizar".
   ///
   /// Idempotente: chamar 2x não duplica seasons (UNIQUE em
   /// `contentId+seasonNumber`).
@@ -183,7 +197,9 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
       // 1. Verifica se já tem seasons no banco.
       final existing = await _repository.getSeasonsForContent(content.id!);
 
-      // 2. Se banco vazio E syncService disponível → HTTP.
+      // 2. Fallback lazy: banco vazio + syncService disponível.
+      //    Sincroniza pontualmente ESTE anime (sync aditivo, sem
+      //    reconciliação).
       if (existing.isEmpty && _syncService != null && content.id != null) {
         await _syncService.syncSeasonEpisodes(
           contentId: content.id!,

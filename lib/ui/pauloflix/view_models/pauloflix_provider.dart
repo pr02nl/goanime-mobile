@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../data/services/paulo_flix_episode_sync_service.dart';
 import '../../../data/services/pauloflix_service.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/pauloflix_repository.dart';
@@ -19,12 +20,32 @@ enum PauloFlixStatus { initial, loading, loaded, error }
 class PauloFlixProvider extends ChangeNotifier {
   final PauloFlixRepository _repository;
 
+  /// Service de scraping de seasons/episodes. Opcional — quando
+  /// `null`, o sync geral **não** dispara o sync de seasons/episodes
+  /// (só sincroniza shows do `PauloFlixRepository`). Em produção,
+  /// `app.dart` injeta via `withRepositories` (Fase 2). Em
+  /// testes/legado, fica `null` e o sync pula o passo de
+  /// reconciliação de seasons/episodes.
+  final PauloFlixEpisodeSyncService? _episodeSyncService;
+
   /// Ctor padrão — provider sem dependência (cria PauloFlixService
   /// internamente para o sync; usado em testes/legado).
-  PauloFlixProvider() : _repository = _NullPauloFlixRepository();
+  PauloFlixProvider()
+      : _repository = _NullPauloFlixRepository(),
+        _episodeSyncService = null;
 
   /// Ctor com repository (Fase 3) — usado pelo Provider do app.
-  PauloFlixProvider.withRepository(this._repository);
+  PauloFlixProvider.withRepository(this._repository)
+      : _episodeSyncService = null;
+
+  /// Ctor completo (Fase 2) — injeta o sync service para que
+  /// `syncContent` faça o sync completo (shows + seasons + episodes)
+  /// em uma única operação.
+  PauloFlixProvider.withRepositories({
+    required PauloFlixRepository repository,
+    required PauloFlixEpisodeSyncService episodeSyncService,
+  })  : _repository = repository,
+        _episodeSyncService = episodeSyncService;
 
   PauloFlixStatus _status = PauloFlixStatus.initial;
   List<PauloFlixContent> _contents = [];
@@ -56,17 +77,23 @@ class PauloFlixProvider extends ChangeNotifier {
   /// Sync com o servidor via `PauloFlixService` (scraping) seguido de
   /// `saveContent` no repository. Mantido o comportamento do service
   /// legado.
+  ///
+  /// **Fase 2 (Fase 2 do plano de seasons/episodes progress):**
+  /// quando o provider foi construído via `withRepositories` (com
+  /// episode repository + sync service injetados), o sync também
+  /// sincroniza seasons + episodes de cada show processado via
+  /// `reconcileSeasonEpisodes`. Resultado: o botão "Sincronizar" da
+  /// See All faz TUDO em uma operação — shows, seasons, episodes.
+  ///
+  /// Para ctors legados (`PauloFlixProvider()` ou `withRepository`),
+  /// o sync mostra/episodes só acontece via sync pontual ao entrar
+  /// no anime (lazy fallback — `PauloFlixEpisodeProgressViewModel
+  /// .loadSeasons`).
   Future<void> syncContent() async {
-    // Importação dinâmica para evitar ciclo: PauloFlixService importa
-    // este provider via testes; em produção, a sync é sempre via service.
     _status = PauloFlixStatus.loading;
     _syncProgress = 'Iniciando sincronização...';
     notifyListeners();
     try {
-      // Placeholder de compat: PauloFlixService.syncContent é chamado
-      // pelo app; aqui apenas refletimos o estado. O repository já
-      // estará populado pelo service (que internamente usa o repository
-      // na Fase 3 completa).
       final sync = await PauloFlixService.syncContent(
         repository: _repository,
         onProgress: (progress) {
@@ -78,6 +105,31 @@ class PauloFlixProvider extends ChangeNotifier {
           _status = PauloFlixStatus.error;
           notifyListeners();
         },
+        // Fase 2: callback que dispara o sync de seasons/episodes
+        // para cada show recém-salvo. Só ativo se o service de
+        // episode sync foi injetado (via withRepositories).
+        onContentSynced: _episodeSyncService == null
+            ? null
+            : (content) async {
+                final id = content.id;
+                if (id == null) return;
+                try {
+                  await _episodeSyncService.reconcileSeasonEpisodes(
+                    contentId: id,
+                    contentServerUrl: content.serverUrl,
+                  );
+                } catch (e) {
+                  // Erros em shows individuais são logados mas não
+                  // interrompem o sync geral — o callback
+                  // `onContentSynced` do service envolve o try/catch
+                  // por show, mas deixamos o catch também aqui como
+                  // segurança extra.
+                  debugPrint(
+                    '[PauloFlix] Erro ao sincronizar seasons/episodes '
+                    'de ${content.displayName}: $e',
+                  );
+                }
+              },
       );
       if (!sync) {
         _errorMessage = 'Sincronização falhou por motivos desconhecidos.';

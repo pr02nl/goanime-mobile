@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' hide isNotNull, isNull;
+import 'package:flutter/foundation.dart';
 
 import '../../core/database/app_database.dart';
 import '../../domain/models/pauloflix_content.dart';
@@ -292,6 +293,104 @@ class PauloFlixEpisodeProgressRepositoryImpl
       episodeCount: Value(count),
       lastSynced: Value(DateTime.now()),
     ));
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Reconciliação (Fase 2)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<List<int>> removeMissingSeasons({
+    required int contentId,
+    required Set<int> scrapedSeasonNumbers,
+  }) async {
+    // Busca seasons existentes (com episodeCount para diagnóstico).
+    final existing = await (_db.select(_db.pauloFlixSeasons)
+          ..where((t) => t.contentId.equals(contentId)))
+        .get();
+    final removed = <int>[];
+    for (final s in existing) {
+      if (scrapedSeasonNumbers.contains(s.seasonNumber)) continue;
+      // Verifica se tem progresso: se QUALQUER episode da season tem
+      // positionSeconds > 0 ou isCompleted = true, MANTÉM.
+      final hasProgress = await (_db.selectOnly(_db.pauloFlixEpisodes)
+            ..addColumns([_db.pauloFlixEpisodes.id.count()])
+            ..where(_db.pauloFlixEpisodes.seasonId.equals(s.id) &
+                (_db.pauloFlixEpisodes.positionSeconds.isBiggerThanValue(0) |
+                    _db.pauloFlixEpisodes.isCompleted.equals(true))))
+          .map((row) => row.read(_db.pauloFlixEpisodes.id.count()) ?? 0)
+          .getSingle();
+      if (hasProgress > 0) {
+        debugPrint(
+          '[PauloFlixSync] Season ${s.seasonNumber} (id=${s.id}) '
+          'ausente do scrape, mas tem progresso — MANTENDO.',
+        );
+        continue;
+      }
+      // Sem progresso — safe delete (cascade apaga os episodes).
+      await (_db.delete(_db.pauloFlixSeasons)
+            ..where((t) => t.id.equals(s.id)))
+          .go();
+      removed.add(s.id);
+      debugPrint(
+        '[PauloFlixSync] Season ${s.seasonNumber} (id=${s.id}) '
+        'ausente do scrape + sem progresso — REMOVIDA.',
+      );
+    }
+    return removed;
+  }
+
+  @override
+  Future<List<int>> removeMissingEpisodes({
+    required int seasonId,
+    required Set<int> scrapedEpisodeNumbers,
+  }) async {
+    final existing = await (_db.select(_db.pauloFlixEpisodes)
+          ..where((t) => t.seasonId.equals(seasonId)))
+        .get();
+    final removed = <int>[];
+    for (final e in existing) {
+      if (scrapedEpisodeNumbers.contains(e.episodeNumber)) continue;
+      // Guarda de progresso: se tem position > 0 OU isCompleted, MANTÉM.
+      if (e.positionSeconds > 0 || e.isCompleted) {
+        debugPrint(
+          '[PauloFlixSync] Episode ${e.episodeNumber} (id=${e.id}) '
+          'ausente do scrape, mas tem progresso — MANTENDO.',
+        );
+        continue;
+      }
+      await (_db.delete(_db.pauloFlixEpisodes)
+            ..where((t) => t.id.equals(e.id)))
+          .go();
+      removed.add(e.id);
+      debugPrint(
+        '[PauloFlixSync] Episode ${e.episodeNumber} (id=${e.id}) '
+        'ausente do scrape + sem progresso — REMOVIDO.',
+      );
+    }
+    return removed;
+  }
+
+  @override
+  Future<Set<int>> getSeasonNumbersForContent(int contentId) async {
+    final rows = await (_db.selectOnly(_db.pauloFlixSeasons)
+          ..addColumns([_db.pauloFlixSeasons.seasonNumber])
+          ..where(_db.pauloFlixSeasons.contentId.equals(contentId)))
+        .get();
+    return rows
+        .map((r) => r.read(_db.pauloFlixSeasons.seasonNumber)!)
+        .toSet();
+  }
+
+  @override
+  Future<Set<int>> getEpisodeNumbersForSeason(int seasonId) async {
+    final rows = await (_db.selectOnly(_db.pauloFlixEpisodes)
+          ..addColumns([_db.pauloFlixEpisodes.episodeNumber])
+          ..where(_db.pauloFlixEpisodes.seasonId.equals(seasonId)))
+        .get();
+    return rows
+        .map((r) => r.read(_db.pauloFlixEpisodes.episodeNumber)!)
+        .toSet();
   }
 
   // ─── Helpers internos ────────────────────────────────────────────────

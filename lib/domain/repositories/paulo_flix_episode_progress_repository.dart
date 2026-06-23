@@ -129,4 +129,45 @@ abstract class PauloFlixEpisodeProgressRepository {
   /// Chamado por `PauloFlixEpisodeSyncService` após o upsert dos
   /// episodes para persistir o total descoberto.
   Future<void> updateSeasonCount(int seasonId, int count);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Reconciliação (chamado pelo sync geral — Fase 2)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Remove seasons que **não** estão em [scrapedSeasonNumbers] (lista
+  /// de seasonNumbers raspadas do servidor).
+  ///
+  /// **Política de segurança**: só remove seasons **sem episodes com
+  /// progresso** (`positionSeconds > 0 || isCompleted`). Se a season
+  /// tem progresso, ela é **mantida** com `episodeCount=0` e removida
+  /// do "scrape atual" — o usuário pode recuperá-la em sincronizações
+  /// futuras se o servidor trouxer de volta.
+  ///
+  /// Retorna a lista de seasonIds efetivamente removidos (para log).
+  Future<List<int>> removeMissingSeasons({
+    required int contentId,
+    required Set<int> scrapedSeasonNumbers,
+  });
+
+  /// Remove episodes que **não** estão em [scrapedEpisodeNumbers]
+  /// (lista de episodeNumbers raspados do servidor).
+  ///
+  /// **Política de segurança**: só remove episodes com
+  /// `positionSeconds == 0 && isCompleted == false`. Se o episode tem
+  /// qualquer progresso do usuário, é mantido — o servidor pode ter
+  /// tido hiccup e o episode voltar na próxima sync.
+  ///
+  /// Retorna a lista de episodeIds efetivamente removidos (para log).
+  Future<List<int>> removeMissingEpisodes({
+    required int seasonId,
+    required Set<int> scrapedEpisodeNumbers,
+  });
+
+  /// Lista os `seasonNumber` existentes para um content (sem HTTP).
+  /// Usado pelo sync geral para construir o diff.
+  Future<Set<int>> getSeasonNumbersForContent(int contentId);
+
+  /// Lista os `episodeNumber` existentes para uma season (sem HTTP).
+  /// Usado pelo sync geral para construir o diff.
+  Future<Set<int>> getEpisodeNumbersForSeason(int seasonId);
 }

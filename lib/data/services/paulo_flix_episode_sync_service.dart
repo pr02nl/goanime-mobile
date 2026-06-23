@@ -33,6 +33,10 @@ import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 /// 3. Chama `repo.upsertSeason` / `repo.upsertEpisode` (Fase 1.3).
 /// 4. Atualiza `episodeCount` da season.
 ///
+/// **Fase 2:** o método [reconcileSeasonEpisodes] estende o sync com
+/// deleção de seasons/episodes que sumiram do servidor (com guarda de
+/// progresso — só remove o que o usuário não assistiu).
+///
 /// Lança exceção se a rede falhar em qualquer step. Caller decide se
 /// mostra erro ou usa seasons/episodes já em cache do banco.
 class PauloFlixEpisodeSyncService {
@@ -84,6 +88,16 @@ class PauloFlixEpisodeSyncService {
   ///
   /// [contentId] é o ID do `PauloFlixContent` (banco local).
   /// [contentServerUrl] é a URL do show no file server PauloFlix.
+  ///
+  /// **Comportamento:**
+  /// 1. Fetch + parse seasons (HTTP).
+  /// 2. Para cada season scrapeada: upsert (preserva `isCompleted`).
+  /// 3. Fetch + parse episodes da season (HTTP).
+  /// 4. Upsert cada episode (preserva progresso do user).
+  /// 5. Atualiza `episodeCount` + `lastSynced` da season.
+  ///
+  /// **NÃO** faz reconciliação (deleção de seasons/episodes órfãos do
+  /// servidor) — use [reconcileSeasonEpisodes] para isso.
   Future<void> syncSeasonEpisodes({
     required int contentId,
     required String contentServerUrl,
@@ -124,6 +138,93 @@ class PauloFlixEpisodeSyncService {
         'season ${s.number} (${episodes.length} episodes) sincronizada',
       );
     }
+  }
+
+  /// Sincroniza seasons + episodes E reconcilia com o banco.
+  ///
+  /// Combina [syncSeasonEpisodes] (upsert) com a deleção de
+  /// seasons/episodes que sumiram do servidor.
+  ///
+  /// **Política de segurança:** seasons/episodes com progresso do
+  /// usuário NUNCA são deletados (mesmo se ausentes do servidor) —
+  /// ver `PauloFlixEpisodeProgressRepository.removeMissingSeasons`
+  /// e `removeMissingEpisodes`.
+  ///
+  /// **Quando usar:** no sync geral (botão "Sincronizar" da
+  /// `PauloFlixSeeAllScreen`), onde se quer o estado 100% espelhado
+  /// com o servidor. NÃO usar para sync pontual ao entrar num anime
+  /// (o `syncSeasonEpisodes` simples basta — sem remover nada).
+  Future<SeasonEpisodesReconciliationStats> reconcileSeasonEpisodes({
+    required int contentId,
+    required String contentServerUrl,
+  }) async {
+    // 1. Snapshot do banco ANTES do sync — para detectar o que vai
+    //    sumir.
+    final preExistingSeasons =
+        await _repo.getSeasonNumbersForContent(contentId);
+    final seasonsBefore = await _repo.getSeasonsForContent(contentId);
+    final preExistingEpisodesBySeason = <int, Set<int>>{};
+    for (final s in seasonsBefore) {
+      preExistingEpisodesBySeason[s.id!] =
+          await _repo.getEpisodeNumbersForSeason(s.id!);
+    }
+
+    // 2. Sync básico (upsert).
+    await syncSeasonEpisodes(
+      contentId: contentId,
+      contentServerUrl: contentServerUrl,
+    );
+
+    // 3. Diff de seasons: o que está no banco mas NÃO foi scrapeado?
+    final scrapedSeasonNumbers =
+        await _repo.getSeasonNumbersForContent(contentId);
+    final missingSeasonNumbers =
+        preExistingSeasons.difference(scrapedSeasonNumbers);
+
+    // 4. Remove seasons ausentes (se não tiverem progresso). O
+    //    repository já retorna a lista de ids removidos; o caller
+    //    não precisa saber quais seasonNumbers foram mantidos
+    //    individualmente — a heurística é "sem progresso =
+    //    removida; com progresso = mantida".
+    final seasonsRemoved = await _repo.removeMissingSeasons(
+      contentId: contentId,
+      scrapedSeasonNumbers: scrapedSeasonNumbers,
+    );
+
+    // 5. Para cada season scrapeada, reconcilia episodes.
+    var episodesRemoved = 0;
+    var episodesKept = 0;
+    final seasonsAfter = await _repo.getSeasonsForContent(contentId);
+    for (final s in seasonsAfter) {
+      final preEpNums = preExistingEpisodesBySeason[s.id!] ?? <int>{};
+      final postEpNums = await _repo.getEpisodeNumbersForSeason(s.id!);
+
+      // A season foi raspada nesta sync, então seus episodes atuais
+      // correspondem ao scrape novo (+ possíveis episodes
+      // pré-existentes que o scrape não trouxe de volta). O diff
+      // `preEpNums - postEpNums` = episodes que o servidor removeu.
+      final removedIds = await _repo.removeMissingEpisodes(
+        seasonId: s.id!,
+        scrapedEpisodeNumbers: postEpNums,
+      );
+      episodesRemoved += removedIds.length;
+      episodesKept +=
+          preEpNums.difference(postEpNums).length - removedIds.length;
+    }
+
+    debugPrint(
+      '[PauloFlixSync] Reconciliação content $contentId: '
+      '${seasonsRemoved.length} seasons removidas, '
+      '${missingSeasonNumbers.length - seasonsRemoved.length} mantidas, '
+      '$episodesRemoved episodes removidos, $episodesKept mantidos.',
+    );
+
+    return SeasonEpisodesReconciliationStats(
+      seasonsRemoved: seasonsRemoved.length,
+      seasonsKept: missingSeasonNumbers.length - seasonsRemoved.length,
+      episodesRemoved: episodesRemoved,
+      episodesKept: episodesKept,
+    );
   }
 
   /// Atualiza `episodeCount` + `lastSynced` da season. Chamado após
@@ -271,4 +372,37 @@ class _EpisodeInfo {
   final int number;
   final String title;
   const _EpisodeInfo({required this.number, required this.title});
+}
+
+/// Estatísticas de uma reconciliação de seasons/episodes.
+///
+/// Usado pelo `PauloFlixProvider` para reportar progresso ao usuário
+/// durante o sync geral.
+class SeasonEpisodesReconciliationStats {
+  const SeasonEpisodesReconciliationStats({
+    required this.seasonsRemoved,
+    required this.seasonsKept,
+    required this.episodesRemoved,
+    required this.episodesKept,
+  });
+
+  /// Seasons removidas (ausentes do servidor + sem progresso).
+  final int seasonsRemoved;
+
+  /// Seasons mantidas apesar de ausentes (tinham progresso do user).
+  final int seasonsKept;
+
+  /// Episodes removidos (ausentes do servidor + sem progresso).
+  final int episodesRemoved;
+
+  /// Episodes mantidos apesar de ausentes (tinham progresso do user).
+  final int episodesKept;
+
+  @override
+  String toString() =>
+      'SeasonEpisodesReconciliationStats('
+      'seasonsRemoved: $seasonsRemoved, '
+      'seasonsKept: $seasonsKept, '
+      'episodesRemoved: $episodesRemoved, '
+      'episodesKept: $episodesKept)';
 }

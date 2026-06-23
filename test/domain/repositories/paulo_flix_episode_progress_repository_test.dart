@@ -356,4 +356,30 @@ class _ContractStub implements PauloFlixEpisodeProgressRepository {
       episodeCount: Value(count),
     ));
   }
+
+  @override
+  Future<List<int>> removeMissingSeasons({
+    required int contentId,
+    required Set<int> scrapedSeasonNumbers,
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<List<int>> removeMissingEpisodes({
+    required int seasonId,
+    required Set<int> scrapedEpisodeNumbers,
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<Set<int>> getSeasonNumbersForContent(int contentId) async {
+    return <int>{};
+  }
+
+  @override
+  Future<Set<int>> getEpisodeNumbersForSeason(int seasonId) async {
+    return <int>{};
+  }
 }

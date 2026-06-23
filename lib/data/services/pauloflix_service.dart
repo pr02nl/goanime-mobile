@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
 import '../../domain/models/pauloflix_content.dart';
 import '../../domain/models/pauloflix_models.dart';
+import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../domain/repositories/pauloflix_repository.dart';
 import '../models/jikan_models.dart';
 import 'jikan_service.dart';
@@ -204,6 +205,21 @@ class PauloFlixService {
     required PauloFlixRepository repository,
     void Function(String progress)? onProgress,
     void Function(String error)? onError,
+
+    /// Callback chamado **após** cada show ser salvo no banco.
+    /// Usado pelo `PauloFlixProvider` para disparar o sync de
+    /// seasons/episodes do show imediatamente após ele existir no banco
+    /// (evita uma segunda passada por show no final).
+    ///
+    /// [PauloFlixContent.id] é guaranteed non-null no callback (o show
+    /// acabou de ser inserido com id auto-gerado).
+    Future<void> Function(PauloFlixContent content)? onContentSynced,
+
+    /// Opcional (Fase 2) — quando fornecido, **também** sincroniza
+    /// seasons/episodes de shows novos ou que mudaram de pasta.
+    /// Usado pelo `PauloFlixProvider.syncContent` que tem o
+    /// `PauloFlixEpisodeSyncService` injetado.
+    PauloFlixEpisodeProgressRepository? episodeRepository,
   }) async {
     try {
       onProgress?.call('Buscando shows do PauloFlix...');
@@ -240,6 +256,34 @@ class PauloFlixService {
       );
       await repository.saveBatch(contents);
 
+      // Relê o batch inserido para obter os ids reais (autoincrement).
+      // Para cada show, dispara o callback onContentSynced (que pode
+      // acionar o sync de seasons/episodes, se o caller passar
+      // episodeRepository). O callback é chamado **sequencialmente** para
+      // não martelar o servidor com requests paralelas.
+      if (onContentSynced != null) {
+        final saved = await _loadSavedContentsWithIds(
+          repository,
+          contents.map((c) => c.folderName).toList(),
+        );
+        var i = 0;
+        for (final c in saved) {
+          i++;
+          onProgress?.call(
+            'Sincronizando seasons/episodes $i/${saved.length} (${c.displayName})...',
+          );
+          try {
+            await onContentSynced(c);
+          } catch (e) {
+            debugPrint(
+              '[PauloFlix] Erro no sync de seasons/episodes '
+              'de ${c.displayName}: $e',
+            );
+            // Continua com os outros shows.
+          }
+        }
+      }
+
       await _finishSync(repository, result.removedFolderNames);
 
       final totalAvailable =
@@ -253,6 +297,23 @@ class PauloFlixService {
       onError?.call('Erro na sincronizacao: $e');
       return false;
     }
+  }
+
+  /// Relê do banco os `PauloFlixContent` pelos folderNames recém
+  /// inseridos, retornando-os com `id` preenchido.
+  ///
+  /// Necessário porque `saveBatch` não retorna os ids gerados pelo
+  /// autoincrement. 1 query batch (1 round-trip ao banco) em vez de N.
+  static Future<List<PauloFlixContent>> _loadSavedContentsWithIds(
+    PauloFlixRepository repository,
+    List<String> folderNames,
+  ) async {
+    final all = await repository.getAll();
+    final byFolder = {for (final c in all) c.folderName: c};
+    return [
+      for (final name in folderNames)
+        if (byFolder.containsKey(name)) byFolder[name]!,
+    ];
   }
 
   static Future<_ComputeResult> _computeShowsToProcess(
