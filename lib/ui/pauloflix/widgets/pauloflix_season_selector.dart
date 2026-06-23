@@ -26,12 +26,23 @@ class PauloflixSeasonSelector extends StatelessWidget {
   final ValueChanged<int> onSeasonSelected;
   final int? episodeCounts;
 
+  /// Mapa opcional `seasonIndex → isCompleted`. Quando `null` ou vazio,
+  /// nenhum badge é exibido. Quando presente, o selector renderiza
+  /// "✓ Completa" ao lado das seasons marcadas como `true`.
+  ///
+  /// **Por que opcional:** o widget recebe `PauloFlixSeason` (modelo
+  /// de scraping HTTP) que não tem `isCompleted`. O call site cruza
+  /// com `PauloFlixSeasonRecord` (banco) e constrói este map.
+  /// Default `null` mantém compatibilidade.
+  final Map<int, bool>? isCompletedByIndex;
+
   const PauloflixSeasonSelector({
     super.key,
     required this.seasons,
     required this.selectedIndex,
     required this.onSeasonSelected,
     this.episodeCounts,
+    this.isCompletedByIndex,
   });
 
   @override
@@ -46,6 +57,8 @@ class PauloflixSeasonSelector extends StatelessWidget {
         itemBuilder: (context, index) {
           final season = seasons[index];
           final isSelected = index == selectedIndex;
+          final isCompleted =
+              isCompletedByIndex?[index] ?? false;
 
           return FocusableWidget(
             onSelect: () => onSeasonSelected(index),
@@ -89,6 +102,24 @@ class PauloflixSeasonSelector extends StatelessWidget {
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  // Fase 3: badge "✓ Completa" se season foi toda assistida.
+                  if (isCompleted) ...[
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 3),
+                    const Text(
+                      'Completa',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ],
