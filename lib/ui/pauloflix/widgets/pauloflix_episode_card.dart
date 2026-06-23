@@ -29,6 +29,23 @@ class PauloflixEpisodeCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isTV;
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Fase 3 — Indicadores de progresso (PauloFlix)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Posição salva do episódio (segundos). `null` ou `0` = nunca
+  /// assistido. Quando `> 0 && !isCompleted` → mostra barra de
+  /// progresso.
+  final int? positionSeconds;
+
+  /// Duração total do vídeo (segundos). Usada para calcular o ratio
+  /// da barra. `null` = sem info, mostra barra indeterminada ou 0.
+  final int? durationSeconds;
+
+  /// Flag `isCompleted` do banco. Quando `true` → mostra ícone ✓
+  /// verde em vez da barra.
+  final bool isCompleted;
+
   const PauloflixEpisodeCard({
     super.key,
     required this.episode,
@@ -36,7 +53,31 @@ class PauloflixEpisodeCard extends StatelessWidget {
     this.thumbnailUrl,
     required this.onTap,
     this.isTV = false,
+    this.positionSeconds,
+    this.durationSeconds,
+    this.isCompleted = false,
   });
+
+  /// Computa o ratio de progresso (0.0 a 1.0) para a barra.
+  /// Retorna `0.0` se `durationSeconds` for null/0 ou
+  /// `positionSeconds` for null/0.
+  double get _progressRatio {
+    final dur = durationSeconds;
+    final pos = positionSeconds;
+    if (dur == null || dur <= 0 || pos == null || pos <= 0) return 0.0;
+    final r = pos / dur;
+    return r > 1.0 ? 1.0 : r;
+  }
+
+  /// `true` se deve mostrar a barra de progresso (em andamento).
+  bool get _showProgressBar {
+    if (isCompleted) return false;
+    final pos = positionSeconds;
+    return pos != null && pos > 0;
+  }
+
+  /// `true` se deve mostrar o ícone ✓ (completo).
+  bool get _showCompletedIcon => isCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -243,6 +284,18 @@ class PauloflixEpisodeCard extends StatelessWidget {
                 ],
               ],
             ),
+
+            // Fase 3: barra de progresso (em andamento) OU ícone ✓ (completo)
+            if (_showProgressBar || _showCompletedIcon) ...[
+              const SizedBox(height: 6),
+              if (_showProgressBar)
+                _ProgressBar(
+                  ratio: _progressRatio,
+                  isTV: isTV,
+                )
+              else
+                _CompletedIndicator(isTV: isTV),
+            ],
           ],
         ),
       ),
@@ -250,6 +303,32 @@ class PauloflixEpisodeCard extends StatelessWidget {
   }
 
   Widget _buildPlayButton() {
+    // Se completo, mostra ✓ verde no lugar do play vermelho.
+    if (_showCompletedIcon) {
+      return Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: Container(
+          width: isTV ? 48 : 40,
+          height: isTV ? 48 : 40,
+          decoration: BoxDecoration(
+            color: Colors.green,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.green.withValues(alpha: 0.3),
+                blurRadius: 8,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.check_circle,
+            color: Colors.white,
+            size: isTV ? 28 : 24,
+          ),
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: Container(
@@ -272,6 +351,59 @@ class PauloflixEpisodeCard extends StatelessWidget {
           size: isTV ? 28 : 24,
         ),
       ),
+    );
+  }
+}
+
+/// Barra de progresso horizontal usada pelo `PauloflixEpisodeCard` quando
+/// o episódio está em andamento.
+///
+/// Renderiza um `LinearProgressIndicator` (Material) com a cor primária
+/// do app. Width 100% do parent.
+class _ProgressBar extends StatelessWidget {
+  final double ratio;
+  final bool isTV;
+
+  const _ProgressBar({required this.ratio, required this.isTV});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 4,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: LinearProgressIndicator(
+          value: ratio,
+          minHeight: 4,
+          backgroundColor: Colors.white.withValues(alpha: 0.1),
+          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+        ),
+      ),
+    );
+  }
+}
+
+/// Indicador "✓ Completo" usado pelo `PauloflixEpisodeCard` quando
+/// `isCompleted = true`. Exibe um pequeno texto ao lado do ícone.
+class _CompletedIndicator extends StatelessWidget {
+  final bool isTV;
+  const _CompletedIndicator({required this.isTV});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(Icons.check_circle, color: Colors.green, size: 12),
+        const SizedBox(width: 4),
+        Text(
+          'Completo',
+          style: TextStyle(
+            color: Colors.green,
+            fontSize: isTV ? 12 : 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }
