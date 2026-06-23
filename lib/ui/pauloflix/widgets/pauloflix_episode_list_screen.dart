@@ -61,15 +61,37 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      // AppBar dedicada (NÃO `SliverAppBar` colapsável) para que o
+      // botão back fique sempre presente e o foco não dependa do
+      // estado de scroll.
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        title: Text(
+          vm.content.displayName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
       body: CustomScrollView(
         slivers: [
-          // Hero Banner
-          _HeroBanner(content: vm.content),
+          // Hero Banner — SliverToBoxAdapter com altura fixa.
+          // Substitui a antiga SliverAppBar colapsável que sumia com
+          // o foco ao rolar (FlexibleSpaceBar.enlarge não estava
+          // expondo nenhum nó focável depois do colapso).
+          SliverToBoxAdapter(
+            child: _HeroBanner(content: vm.content),
+          ),
 
           // Info Panel
           SliverToBoxAdapter(child: _InfoPanel(content: vm.content)),
 
-          // Season Selector
+          // Season Selector — SEM `FocusTraversalGroup`. O traversal
+          // default do Flutter + a `ListView` horizontal do widget já
+          // dão a navegação esperada: ←/→ entre pills, ↑/↓ saem do
+          // widget normalmente (sobe para o hero/Assistir, ou desce
+          // para a lista de episódios). Envolver em um grupo próprio
+          // com política custom prende o foco (bug da iteração
+          // anterior: usuário não conseguia sair do selector com ↑/↓).
           if (!vm.isLoading && vm.hasSeasons)
             SliverToBoxAdapter(
               child: Padding(
@@ -91,7 +113,15 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
           else if (vm.errorMessage != null)
             SliverFillRemaining(child: _ErrorState(errorMessage: vm.errorMessage!))
           else
-            _EpisodesList(isTV: isTV),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: _EpisodesList(isTV: isTV),
+            ),
+
+          // Padding final para garantir que o último episódio não fica
+          // colado no fim da tela (e que o traversal para baixo do
+          // último card tem "respiro" antes do SliverFillRemaining).
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
     );
@@ -109,119 +139,119 @@ class _HeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final vm = context.watch<PauloFlixEpisodeProgressViewModel>();
     final isTV = MediaQuery.of(context).size.width > 1200;
+    final heroHeight = isTV ? 350.0 : 280.0;
 
-    return SliverAppBar(
-      expandedHeight: isTV ? 350 : 280,
-      pinned: true,
-      backgroundColor: AppColors.background,
-      flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          content.displayName,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Banner Image
-            if (content.bannerUrl != null)
-              Image.network(
-                content.bannerUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => _buildFallback(),
-              )
-            else
-              _buildFallback(),
+    // Container de altura fixa (NÃO `SliverAppBar` colapsável). O
+    // título do anime já é mostrado na `AppBar` da Scaffold pai, então
+    // aqui exibimos apenas a arte + gradientes + botão "Assistir".
+    // O `_HeroBanner` agora é um widget comum (sem `SliverAppBar`), e
+    // o `SliverToBoxAdapter` que o contém garante que ele é renderizado
+    // como um bloco normal do `CustomScrollView` — o foco do botão
+    // "Assistir" não depende mais do estado de scroll.
+    return SizedBox(
+      height: heroHeight,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Banner Image
+          if (content.bannerUrl != null)
+            Image.network(
+              content.bannerUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _buildFallback(),
+            )
+          else
+            _buildFallback(),
 
-            // Gradient Top
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 100,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.6),
-                      Colors.transparent,
-                    ],
-                  ),
+          // Gradient Top
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 100,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.6),
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
+          ),
 
-            // Gradient Bottom
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 150,
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, AppColors.background],
-                  ),
+          // Gradient Bottom
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 150,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, AppColors.background],
                 ),
               ),
             ),
+          ),
 
-            // Play Button
-            if (vm.hasSeasons)
-              Positioned(
-                bottom: 60,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: FocusableWidget(
-                    onSelect: () {
-                      final episodes = vm.episodes;
-                      if (episodes.isNotEmpty) {
-                        _playEpisode(context, episodes.first, 0);
-                      }
-                    },
-                    borderRadius: 30,
-                    focusPadding: EdgeInsets.zero,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.4),
-                            blurRadius: 12,
-                            spreadRadius: 2,
+          // Play Button
+          if (vm.hasSeasons)
+            Positioned(
+              bottom: 24,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: FocusableWidget(
+                  onSelect: () {
+                    final episodes = vm.episodes;
+                    if (episodes.isNotEmpty) {
+                      _playEpisode(context, episodes.first, 0);
+                    }
+                  },
+                  borderRadius: 30,
+                  focusPadding: EdgeInsets.zero,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.4),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                        SizedBox(width: 8),
+                        Text(
+                          'Assistir',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-                          SizedBox(width: 8),
-                          Text(
-                            'Assistir',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -469,31 +499,56 @@ class _EpisodesList extends StatelessWidget {
       );
     }
 
-    // Episodes
+    // Episodes — envelopados em `FocusTraversalGroup` com
+    // `_VerticalClampedTraversalPolicy` para clamp vertical:
+    // ↑ no primeiro card = no-op (mantém foco ali), ↓ no último
+    // card = no-op. Horizontal delega ao default.
+    //
+    // Por que `SliverToBoxAdapter` + `Column` em vez de `SliverList`:
+    // o Flutter NÃO fornece `SliverFocusTraversalGroup` na API
+    // pública (apenas `FocusTraversalGroup` para árvore de widgets
+    // comuns). `SliverMainAxisGroup` aceita outros slivers mas não
+    // envelopa com `FocusTraversalGroup`. Para aplicar a política
+    // de traversal à lista inteira, precisamos que os `FocusNode`s
+    // dos cards sejam descendentes diretos de um `FocusTraversalGroup`
+    // na árvore de widgets — não dá para "saltar" o `SliverList` que
+    // virtualiza filhos. A `Column` dentro de um `SliverToBoxAdapter`
+    // garante que todos os cards estão materializados (sem
+    // virtualização). Para listas de episódios (tipicamente < 50
+    // itens) o custo é aceitável e a previsibilidade de foco é o
+    // requisito de TV mais crítico.
+    //
+    // Por que resolve o bug original: sem o grupo, ao pressionar ↑
+    // no primeiro card o traversal default saía do `SliverList` e
+    // ia procurar descendentes focáveis na vertical acima. Como a
+    // antiga `SliverAppBar` colapsável (e a atual `AppBar`) não têm
+    // nó focável vizinho, o foco caía no botão back do route. Com o
+    // clamp, ↑ no 1º card = fica no 1º card.
     final season = vm.selectedSeason;
     final records = vm.episodes;
     final scrapings = vm.scrapingEpisodesForSelected;
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final record = records[index];
-            final scraping = scrapings[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: PauloflixEpisodeCard(
-                episode: scraping,
-                seasonNumber: season?.seasonNumber ?? 1,
-                positionSeconds: record.positionSeconds,
-                durationSeconds: record.durationSeconds,
-                isCompleted: record.isCompleted,
-                isTV: isTV,
-                onTap: () => _playEpisode(context, record, index),
+    return SliverToBoxAdapter(
+      child: FocusTraversalGroup(
+        policy: _VerticalClampedTraversalPolicy(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var index = 0; index < records.length; index++)
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == records.length - 1 ? 0 : 8,
+                ),
+                child: PauloflixEpisodeCard(
+                  episode: scrapings[index],
+                  seasonNumber: season?.seasonNumber ?? 1,
+                  positionSeconds: records[index].positionSeconds,
+                  durationSeconds: records[index].durationSeconds,
+                  isCompleted: records[index].isCompleted,
+                  isTV: isTV,
+                  onTap: () => _playEpisode(context, records[index], index),
+                ),
               ),
-            );
-          },
-          childCount: records.length,
+          ],
         ),
       ),
     );
@@ -540,3 +595,91 @@ class _EpisodesList extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Focus traversal policies
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Política de travessia usada pela lista vertical de episódios.
+///
+/// **Objetivo:** controlar APENAS a borda INFERIOR do grupo. A
+/// borda SUPERIOR é deixada aberta (delega ao `super.inDirection`),
+/// para que ↑ no primeiro card suba normalmente para o widget
+/// acima (season selector → hero/Assistir → AppBar).
+///
+/// **Comportamento:**
+/// - ↑/↓ DENTRO do grupo → navega para o próximo/anterior card.
+/// - ↓ no ÚLTIMO card → clamp (mantém foco no último). É a única
+///   direção que prendemos, porque abaixo da lista não há nenhum
+///   widget focável (o `SliverFillRemaining` não tem nó focável) e
+///   o traversal default pularia para o botão back do `Navigator`.
+/// - ↑ no PRIMEIRO card → `super.inDirection` (delega, sai do grupo).
+///   Isso permite que o usuário suba para o season selector com ↑.
+/// - ←/→ → `super.inDirection` (não prendemos horizontal).
+///
+/// **Como identificamos o "primeiro" e "último":** pela posição
+/// `rect.center.dy` dos descendentes focáveis do scope (cards
+/// empilhados na `Column` têm `dy` crescentes de cima para baixo).
+class _VerticalClampedTraversalPolicy extends WidgetOrderTraversalPolicy {
+  @override
+  bool inDirection(FocusNode currentNode, TraversalDirection direction) {
+    if (direction == TraversalDirection.down) {
+      return _handleDown(currentNode);
+    }
+    // ↑, ←, → → delega ao default (sobe do 1º card, navega lateral).
+    return super.inDirection(currentNode, direction);
+  }
+
+  bool _handleDown(FocusNode currentNode) {
+    final scope = currentNode.nearestScope!;
+    final FocusNode? focusedChild = scope.focusedChild;
+    if (focusedChild == null) return false;
+
+    // Filtra descendentes focáveis que compartilham overlap horizontal
+    // com o nó focado (heurística para selecionar os cards da mesma
+    // coluna).
+    final List<FocusNode> columnNodes = scope.traversalDescendants
+        .where(
+          (FocusNode n) =>
+              n.canRequestFocus &&
+              !n.skipTraversal &&
+              n.context != null &&
+              _sameColumn(n, focusedChild),
+        )
+        .toList();
+
+    if (columnNodes.isEmpty) return false;
+
+    // Ordena por posição vertical (cima para baixo).
+    columnNodes.sort((a, b) => a.rect.center.dy.compareTo(b.rect.center.dy));
+
+    final int idx = columnNodes.indexOf(focusedChild);
+    if (idx < 0) return false;
+
+    if (idx < columnNodes.length - 1) {
+      // Não é o último — segue para o próximo.
+      _requestFocusInDirection(columnNodes[idx + 1]);
+    } else {
+      // Clamp: mantém foco no último card (no-op).
+      _requestFocusInDirection(focusedChild);
+    }
+    return true;
+  }
+
+  /// Verifica se [node] está na mesma "coluna" vertical que
+  /// [focusedChild] via overlap horizontal.
+  bool _sameColumn(FocusNode node, FocusNode focusedChild) {
+    final a = node.rect;
+    final b = focusedChild.rect;
+    return a.left < b.right && a.right > b.left;
+  }
+
+  void _requestFocusInDirection(FocusNode target) {
+    requestFocusCallback(
+      target,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+    );
+  }
+}
+
+
