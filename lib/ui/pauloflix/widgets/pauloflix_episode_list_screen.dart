@@ -8,15 +8,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../data/services/paulo_flix_episode_sync_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/pauloflix_content.dart';
+import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/pauloflix_badge.dart';
-import '../view_models/pauloflix_episode_list_viewmodel.dart';
+import '../view_models/paulo_flix_episode_progress_viewmodel.dart';
 import 'pauloflix_episode_card.dart';
 import 'pauloflix_season_selector.dart';
 
@@ -28,8 +30,11 @@ class PauloFlixEpisodeListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => PauloFlixEpisodeListViewModel(content: content)
-        ..loadSeasons(),
+      create: (_) => PauloFlixEpisodeProgressViewModel(
+        content: content,
+        repository: context.read<PauloFlixEpisodeProgressRepository>(),
+        syncService: context.read<PauloFlixEpisodeSyncService>(),
+      )..loadSeasons(),
       child: const _PauloFlixEpisodeListView(),
     );
   }
@@ -40,7 +45,7 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<PauloFlixEpisodeListViewModel>();
+    final vm = context.watch<PauloFlixEpisodeProgressViewModel>();
     final isTV = MediaQuery.of(context).size.width > 1200;
 
     return Scaffold(
@@ -59,9 +64,10 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: PauloflixSeasonSelector(
-                  seasons: vm.seasons,
+                  seasons: vm.scrapingSeasons,
                   selectedIndex: vm.selectedSeasonIndex,
                   onSeasonSelected: (index) => vm.selectSeason(index),
+                  isCompletedByIndex: vm.isCompletedByIndex,
                 ),
               ),
             ),
@@ -90,7 +96,7 @@ class _HeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<PauloFlixEpisodeListViewModel>();
+    final vm = context.watch<PauloFlixEpisodeProgressViewModel>();
     final isTV = MediaQuery.of(context).size.width > 1200;
 
     return SliverAppBar(
@@ -225,16 +231,24 @@ class _HeroBanner extends StatelessWidget {
   }
 
   void _playEpisode(BuildContext context, dynamic episode, int index) {
-    final vm = context.read<PauloFlixEpisodeListViewModel>();
-    final episodes = vm.episodes
-        .map(
-          (e) => Episode(
-            number: e.number.toString(),
-            url: e.url,
-            title: e.title,
-          ),
-        )
-        .toList();
+    final vm = context.read<PauloFlixEpisodeProgressViewModel>();
+    // Mapeia `PauloFlixEpisodeRecord` (banco) → `Episode` (player).
+    // Os campos `positionSeconds`/`isCompleted` ficam no record
+    // (acessíveis por `vm.episodes[index]`), mas o player consome
+    // só o `Episode` legacy — o service do player lê do banco via
+    // `seasonId`+`episodeNumber`.
+    final selectedSeason = vm.selectedSeason;
+    final seasonId = selectedSeason?.id;
+    final records = vm.episodes;
+    final scrapings = vm.scrapingEpisodesForSelected;
+    final episodes = <Episode>[
+      for (var i = 0; i < records.length; i++)
+        Episode(
+          number: scrapings[i].number.toString(),
+          url: scrapings[i].url,
+          title: records[i].title,
+        ),
+    ];
 
     context.pushNamed(
       'player',
@@ -250,6 +264,9 @@ class _HeroBanner extends StatelessWidget {
         isMovie: false,
         episodeList: episodes,
         episodeIndex: index,
+        contentId: vm.content.id,
+        seasonId: seasonId,
+        episodeNumber: records[index].episodeNumber.toString(),
       ),
     );
   }
@@ -264,7 +281,7 @@ class _InfoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<PauloFlixEpisodeListViewModel>();
+    final vm = context.watch<PauloFlixEpisodeProgressViewModel>();
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -375,7 +392,7 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final vm = context.read<PauloFlixEpisodeListViewModel>();
+    final vm = context.read<PauloFlixEpisodeProgressViewModel>();
 
     return Center(
       child: Padding(
@@ -421,48 +438,11 @@ class _EpisodesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<PauloFlixEpisodeListViewModel>();
+    final vm = context.watch<PauloFlixEpisodeProgressViewModel>();
 
-    // Loading
-    if (vm.isLoadingEpisodes) {
-      return const SliverFillRemaining(
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // Error
-    if (vm.episodeError != null) {
-      return SliverFillRemaining(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 40),
-                const SizedBox(height: 12),
-                Text(
-                  vm.episodeError!,
-                  style: const TextStyle(color: Colors.white70),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                FocusableWidget(
-                  onSelect: () => vm.loadEpisodes(vm.selectedSeasonIndex),
-                  borderRadius: 8,
-                  child: TextButton(
-                    onPressed: () => vm.loadEpisodes(vm.selectedSeasonIndex),
-                    child: const Text('Tentar novamente'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Empty
+    // Empty (episodes são reativos via watch stream — sem loading/error
+    // explícitos; o VM carrega via `loadSeasons` que tem seu próprio
+    // estado de loading).
     if (vm.episodes.isEmpty) {
       return const SliverFillRemaining(
         child: Center(
@@ -480,39 +460,53 @@ class _EpisodesList extends StatelessWidget {
 
     // Episodes
     final season = vm.selectedSeason;
+    final records = vm.episodes;
+    final scrapings = vm.scrapingEpisodesForSelected;
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
-            final episode = vm.episodes[index];
+            final record = records[index];
+            final scraping = scrapings[index];
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: PauloflixEpisodeCard(
-                episode: episode,
-                seasonNumber: season?.number ?? 1,
+                episode: scraping,
+                seasonNumber: season?.seasonNumber ?? 1,
+                positionSeconds: record.positionSeconds,
+                durationSeconds: record.durationSeconds,
+                isCompleted: record.isCompleted,
                 isTV: isTV,
-                onTap: () => _playEpisode(context, episode, index),
+                onTap: () => _playEpisode(context, record, index),
               ),
             );
           },
-          childCount: vm.episodes.length,
+          childCount: records.length,
         ),
       ),
     );
   }
 
   void _playEpisode(BuildContext context, dynamic episode, int index) {
-    final vm = context.read<PauloFlixEpisodeListViewModel>();
-    final episodes = vm.episodes
-        .map(
-          (e) => Episode(
-            number: e.number.toString(),
-            url: e.url,
-            title: e.title,
-          ),
-        )
-        .toList();
+    final vm = context.read<PauloFlixEpisodeProgressViewModel>();
+    // Mapeia `PauloFlixEpisodeRecord` (banco) → `Episode` (player).
+    // Os campos `positionSeconds`/`isCompleted` ficam no record
+    // (acessíveis por `vm.episodes[index]`), mas o player consome
+    // só o `Episode` legacy — o service do player lê do banco via
+    // `seasonId`+`episodeNumber`.
+    final selectedSeason = vm.selectedSeason;
+    final seasonId = selectedSeason?.id;
+    final records = vm.episodes;
+    final scrapings = vm.scrapingEpisodesForSelected;
+    final episodes = <Episode>[
+      for (var i = 0; i < records.length; i++)
+        Episode(
+          number: scrapings[i].number.toString(),
+          url: scrapings[i].url,
+          title: records[i].title,
+        ),
+    ];
 
     context.pushNamed(
       'player',
@@ -528,6 +522,9 @@ class _EpisodesList extends StatelessWidget {
         isMovie: false,
         episodeList: episodes,
         episodeIndex: index,
+        contentId: vm.content.id,
+        seasonId: seasonId,
+        episodeNumber: records[index].episodeNumber.toString(),
       ),
     );
   }

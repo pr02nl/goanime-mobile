@@ -31,9 +31,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../data/services/paulo_flix_episode_sync_service.dart';
+import '../../../domain/models/pauloflix_content.dart';
+import '../../../domain/models/pauloflix_models.dart' as scraping;
 import '../../../domain/models/paulo_flix_episode_record.dart';
 import '../../../domain/models/paulo_flix_season_record.dart';
-import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 
 /// Estados possíveis do ViewModel. Mantido do VM legacy para
@@ -101,6 +102,48 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
   bool get isSelectedSeasonCompleted {
     final s = selectedSeason;
     return s?.isCompleted ?? false;
+  }
+
+  /// Seasons convertidas para o modelo de **scraping** (`PauloFlixSeason`).
+  ///
+  /// **Por que essa conversão:** o `PauloflixSeasonSelector` foi
+  /// escrito ANTES do plano de progresso e consome o modelo de
+  /// scraping. Para evitar refatorar o widget inteiro (que é estável),
+  /// expomos seasons no formato que ele espera.
+  ///
+  /// Mapeamento: `PauloFlixSeasonRecord → PauloFlixSeason` (3 campos:
+  /// name, url, number). `url` é reconstruído a partir do
+  /// `contentServerUrl` + `folderName` (sincronizado pelo
+  /// `PauloFlixEpisodeSyncService`).
+  List<scraping.PauloFlixSeason> get scrapingSeasons {
+    return _seasons
+        .map(
+          (s) => scraping.PauloFlixSeason(
+            name: s.displayName,
+            url: '${content.serverUrl}${s.folderName}/',
+            number: s.seasonNumber,
+          ),
+        )
+        .toList();
+  }
+
+  /// Episodes da season selecionada convertidos para o modelo de
+  /// **scraping** (`PauloFlixEpisode`).
+  ///
+  /// Mapeamento: `PauloFlixEpisodeRecord → PauloFlixEpisode` (4 campos:
+  /// number, title, url, fileSize). `fileSize` fica `null` (não é
+  /// persistido — só exibido em scraping mode).
+  List<scraping.PauloFlixEpisode> get scrapingEpisodesForSelected {
+    return episodes
+        .map(
+          (e) => scraping.PauloFlixEpisode(
+            number: e.episodeNumber,
+            title: e.title,
+            url: e.videoUrl,
+            fileSize: null,
+          ),
+        )
+        .toList();
   }
 
   /// Mapa `seasonIndex → isCompleted` para o `PauloflixSeasonSelector`.

@@ -181,7 +181,6 @@ void main() {
     late PauloFlixEpisodeProgressRepository repo;
     late int contentId;
     late int s1;
-    late int s2;
     late PauloFlixEpisodeProgressViewModel vm;
 
     setUp(() async {
@@ -197,14 +196,14 @@ void main() {
         seasonNumber: 1,
       );
       s1 = s1Result.seasonId;
-      // Season 2: 1 episode
-      final s2Result = await seed(
+      // Season 2: 1 episode (criada para teste de "season 2 ainda não
+      // tem episodes completos" no getter `isCompletedByIndex`).
+      await seed(
         db,
         contentId: contentId,
         episodeCount: 1,
         seasonNumber: 2,
       );
-      s2 = s2Result.seasonId;
 
       vm = PauloFlixEpisodeProgressViewModel(
         content: PauloFlixContent(

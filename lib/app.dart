@@ -5,13 +5,16 @@ import 'package:provider/provider.dart';
 import 'core/database/app_database.dart';
 import 'data/repositories/downloads_repository_impl.dart';
 import 'data/repositories/home_repository_impl.dart';
+import 'data/repositories/paulo_flix_episode_progress_repository_impl.dart';
 import 'data/repositories/pauloflix_movies_repository_impl.dart';
 import 'data/repositories/pauloflix_repository_impl.dart';
 import 'data/repositories/watchlist_repository_impl.dart';
 import 'data/services/download_service.dart';
+import 'data/services/paulo_flix_episode_sync_service.dart';
 import 'data/services/tmdb_service.dart';
 import 'domain/repositories/downloads_repository.dart';
 import 'domain/repositories/home_repository.dart';
+import 'domain/repositories/paulo_flix_episode_progress_repository.dart';
 import 'domain/repositories/pauloflix_movies_repository.dart';
 import 'domain/repositories/pauloflix_repository.dart';
 import 'domain/repositories/watchlist_repository.dart';
@@ -68,6 +71,21 @@ class PauloFlixApp extends StatelessWidget {
         ),
         Provider<DownloadsRepository>(
           create: (_) => DownloadsRepositoryImpl(appDatabase),
+        ),
+        // Fase 4 — providers do plano de progresso PauloFlix.
+        Provider<PauloFlixEpisodeProgressRepository>(
+          create: (_) => PauloFlixEpisodeProgressRepositoryImpl(appDatabase),
+        ),
+        // O `PauloFlixEpisodeSyncService` é usado em 2 lugares:
+        // 1. `PauloFlixEpisodeProgressViewModel` (sync on-demand ao
+        //    abrir a tela de episodes).
+        // 2. `ModernVideoPlayerScreen` (não precisa — o player lê do
+        //    banco via repo, não faz sync).
+        // Injetado via `http.Client()` real (não mockado em produção).
+        Provider<PauloFlixEpisodeSyncService>(
+          create: (_) => PauloFlixEpisodeSyncService(
+            context.read<PauloFlixEpisodeProgressRepository>(),
+          ),
         ),
         // Services e viewmodels legados.
         ChangeNotifierProvider.value(value: themeViewModel),
