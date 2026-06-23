@@ -11,6 +11,19 @@ class PlayerRouteData {
   final List<Episode>? episodeList;
   final int? episodeIndex;
 
+  /// FK para `paulo_flix_content.id` (Fase 5 do plano de progresso —
+  /// usado pelo carrossel "Continue assistindo" para refresh após o
+  /// player fechar).
+  final int? contentId;
+
+  /// FK para `paulo_flix_seasons.id` (Fase 2 do plano de progresso).
+  /// `null` para fluxos não-PauloFlix (filmes, AnimeFire).
+  final int? seasonId;
+
+  /// Número do episódio (string para casar com `Episode.number`).
+  /// `null` para fluxos não-PauloFlix.
+  final String? episodeNumber;
+
   const PlayerRouteData({
     required this.episode,
     required this.animeTitle,
@@ -18,6 +31,9 @@ class PlayerRouteData {
     this.isMovie = false,
     this.episodeList,
     this.episodeIndex,
+    this.contentId,
+    this.seasonId,
+    this.episodeNumber,
   });
 }
 

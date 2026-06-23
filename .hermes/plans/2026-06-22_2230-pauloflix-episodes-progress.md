@@ -760,7 +760,7 @@ class PauloFlixEpisodeListViewModel extends ChangeNotifier {
 **Task 2.2: Integrar no `ModernVideoPlayerScreen`**
 - Files: `lib/ui/player/widgets/video_player_screen.dart` (modificar), `lib/routing/route_data.dart` (modificar)
 - Mudanças:
-  - `PlayerRouteData` ganha `seasonId: int?` e `episodeNumber: String?` (nullable — outros fluxos que não sejam PauloFlix passam null)
+  - `PlayerRouteData` ganha `contentId: int?` (Fase 5), `seasonId: int?` e `episodeNumber: String?` (nullable — outros fluxos que não sejam PauloFlix passam null). **Apenas IDs primitivos** — o player lê o `PauloFlixEpisodeProgressRepository` do `Provider` via `context.read` no `initState` (não recebe service/repo via route data, que é anti-pattern MVVM)
   - Instanciar `EpisodeProgressService` no `_initializeVideoPlayer` SE for PauloFlix (i.e., `widget.anime?.source == AnimeSource.pauloFlix && seasonId != null`)
   - **ANTES do `Media.open`:** ler `positionSeconds`/`durationSeconds`/`isCompleted` do banco, chamar `_progressService.prepareResumeOrReset(...)`. Se reset → abrir do zero. Se retomar → abrir normal e, **após `Media.open` completar**, fazer `await _player!.seek(Duration(seconds: positionSeconds))` (libmpv exige seek pós-open).
   - **APÓS `Media.open` bem-sucedido**: chamar `_progressService.start(getPos: getPos, getDur: getDur)` para iniciar o timer de 5s.
@@ -817,7 +817,7 @@ class PauloFlixEpisodeListViewModel extends ChangeNotifier {
   - Passar `contentId` (do `PauloFlixContent.id`) para o VM
   - Usar o `_playEpisode` existente mas incluir `seasonId` e `episodeNumber` no `PlayerRouteData`
 - Modificar `lib/routing/route_data.dart`:
-  - Adicionar `seasonId: int?` e `episodeNumber: String?` em `PlayerRouteData`
+  - Adicionar `contentId: int?`, `seasonId: int?` e `episodeNumber: String?` em `PlayerRouteData` (apenas IDs primitivos — sem service/repo injetado)
 
 ### Fase 5 — UI Home + See All: "Continue assistindo" (3 patches TDD)
 

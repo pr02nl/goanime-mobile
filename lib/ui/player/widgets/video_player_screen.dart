@@ -6,12 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../data/services/anime_service.dart';
+import '../../../data/services/episode_progress_service.dart';
 import '../../../data/services/google_video_proxy.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
+import '../../../domain/models/paulo_flix_episode_record.dart';
+import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/episode_utils.dart';
@@ -32,6 +36,14 @@ class ModernVideoPlayerScreen extends StatefulWidget {
   final List<Episode>? episodeList;
   final int? episodeIndex;
 
+  /// FK para `paulo_flix_seasons.id` (Fase 2 do plano de progresso).
+  /// Quando `null`, o player NÃO cria o `EpisodeProgressService`
+  /// (fluxos não-PauloFlix: filmes, AnimeFire).
+  final int? seasonId;
+
+  /// Número do episódio. `null` para fluxos não-PauloFlix.
+  final String? episodeNumber;
+
   const ModernVideoPlayerScreen({
     super.key,
     required this.episode,
@@ -40,6 +52,8 @@ class ModernVideoPlayerScreen extends StatefulWidget {
     this.isMovie = false,
     this.episodeList,
     this.episodeIndex,
+    this.seasonId,
+    this.episodeNumber,
   });
 
   @override
@@ -75,6 +89,19 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   StreamSubscription? _playingSub;
   StreamSubscription? _completedSub;
   StreamSubscription<Tracks>? _tracksSub;
+
+  // Progresso PauloFlix (Fase 2). `null` para fluxos não-PauloFlix
+  // (filmes, AnimeFire).
+  EpisodeProgressService? _progressService;
+
+  /// Repository injetado via `PlayerRouteData` (PauloFlix). Usado pelo
+  /// service para gravar progresso e pelo player para ler o estado
+  /// salvo.
+  PauloFlixEpisodeProgressRepository? _progressRepo;
+
+  int? _savedPositionSeconds;
+  int? _savedDurationSeconds;
+  bool _savedIsCompleted = false;
 
   // Handler global de hardware keyboard. Usamos HardwareKeyboard em vez de
   // Focus/CallbackShortcuts para interceptar teclas SEM competir pelo foco
@@ -150,6 +177,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     super.initState();
     _currentEpisodeIndex = widget.episodeIndex;
     _currentEpisode = widget.episode;
+    // Fase 2: lê o repo PauloFlix do Provider (Fase 4 do plano vai
+    // registrar no `MultiProvider` em `app.dart`). Para fluxos
+    // não-PauloFlix (sem `seasonId`/`episodeNumber`), fica `null` →
+    // sem persistência de progresso.
+    _progressRepo = widget.seasonId != null && widget.episodeNumber != null
+        ? context.read<PauloFlixEpisodeProgressRepository?>()
+        : null;
     // Entra em fullscreen imediatamente (síncrono) antes de qualquer await
     _enterFullscreen();
     _initializeVideoPlayer();
@@ -314,6 +348,16 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       _errorMessage = null;
       _currentEpisode = newEpisode;
     });
+    // Fase 2: flush do progresso do episódio atual ANTES de trocar
+    // (garante último save no banco).
+    // Fire-and-forget: o `flush` é rápido (1 save), não bloqueia a UI.
+    // Se falhar, perdemos só este último save — aceitável.
+    unawaited(
+      _flushProgressService(
+        getPos: _getCurrentPosition,
+        getDur: _getCurrentDuration,
+      ),
+    );
     cleanupAniSkip();
     skipButtonActiveSegment = null;
     skipButtonDismissed = false;
@@ -323,6 +367,122 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     skipButtonLabel = '';
     _initializeVideoPlayer();
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Fase 2: Progresso de episódio (PauloFlix)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Lê o progresso salvo do banco e popula `_savedPositionSeconds`,
+  /// `_savedDurationSeconds`, `_savedIsCompleted`. Cria o
+  /// `EpisodeProgressService` se PauloFlix.
+  ///
+  /// Chamado no início de `_initializeVideoPlayer` (antes do setState
+  /// de loading).
+  Future<void> _loadSavedProgress() async {
+    final repo = _progressRepo;
+    final seasonId = widget.seasonId;
+    final episodeNumberStr = widget.episodeNumber;
+    if (repo == null || seasonId == null || episodeNumberStr == null) {
+      // Não-PauloFlix ou sem IDs: sem persistência.
+      _progressService = null;
+      _savedPositionSeconds = null;
+      _savedDurationSeconds = null;
+      _savedIsCompleted = false;
+      return;
+    }
+
+    final episodeNumber = int.tryParse(episodeNumberStr);
+    if (episodeNumber == null) {
+      _progressService = null;
+      return;
+    }
+
+    // Cria o service (idempotente em caso de re-init).
+    _progressService = EpisodeProgressService(
+      repo: repo,
+      seasonId: seasonId,
+      episodeNumber: episodeNumber,
+    );
+
+    // Lê o progresso salvo do banco.
+    try {
+      final episodes = await repo.getEpisodesForSeason(seasonId);
+      // Se o episode ainda não foi sincronizado para o banco
+      // (primeira abertura antes do sync), `firstWhere` retorna o
+      // record vazio (positionSeconds=0, isCompleted=false).
+      final saved = episodes.firstWhere(
+        (e) => e.episodeNumber == episodeNumber,
+        orElse: () => PauloFlixEpisodeRecord(
+          seasonId: seasonId,
+          episodeNumber: episodeNumber,
+          title: '',
+          videoUrl: '',
+          lastSynced: DateTime.now(),
+        ),
+      );
+      _savedPositionSeconds = saved.positionSeconds;
+      _savedDurationSeconds = saved.durationSeconds;
+      _savedIsCompleted = saved.isCompleted;
+      debugPrint(
+        '[VideoPlayer] Saved progress: '
+        'pos=${saved.positionSeconds}s '
+        'dur=${saved.durationSeconds}s '
+        'completed=${saved.isCompleted}',
+      );
+    } catch (e) {
+      debugPrint('[VideoPlayer] Failed to load saved progress: $e');
+      _savedPositionSeconds = null;
+      _savedDurationSeconds = null;
+      _savedIsCompleted = false;
+    }
+  }
+
+  /// Aplica a heurística de reset vs retomar (Decisão 6) ANTES do
+  /// `Media.open`. Retorna `true` se o player deve abrir do zero.
+  Future<bool> _maybeResetBeforeOpen() async {
+    final service = _progressService;
+    if (service == null) return false; // não-PauloFlix: comportamento padrão
+    final pos = _savedPositionSeconds ?? 0;
+    final dur = _savedDurationSeconds ?? 0;
+    return service.prepareResumeOrReset(
+      isCompleted: _savedIsCompleted,
+      positionSeconds: pos,
+      durationSeconds: dur,
+    );
+  }
+
+  /// Inicia o timer de 5s para gravar progresso. Chamado APÓS
+  /// `Media.open` bem-sucedido.
+  void _startProgressService() {
+    final service = _progressService;
+    if (service == null) return;
+    service.start(
+      getCurrentPosition: _getCurrentPosition,
+      getDuration: _getCurrentDuration,
+    );
+    debugPrint('[VideoPlayer] Progress service started (timer 5s)');
+  }
+
+  /// Flush do progresso (último save + cancela timer). Chamado em
+  /// `_replaceEpisode` e em `dispose`.
+  Future<void> _flushProgressService({
+    required Duration Function() getPos,
+    required Duration Function() getDur,
+  }) async {
+    final service = _progressService;
+    if (service == null) return;
+    await service.flush(
+      getCurrentPosition: getPos,
+      getDuration: getDur,
+    );
+  }
+
+  /// Closures para o player. `_player` pode ser null durante cleanup.
+  Duration _getCurrentPosition() =>
+      _player?.state.position ?? Duration.zero;
+
+  Duration _getCurrentDuration() =>
+      _player?.state.duration ?? Duration.zero;
 
   /// Espera o `Player.stream.tracks` emitir um snapshot com pelo menos
   /// uma faixa de legenda (embutida) ou atingir o timeout. Substitui o
@@ -400,6 +560,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       showSkipButton = false;
       skipButtonLabel = '';
     });
+
+    // Fase 2: lê progresso salvo do banco (PauloFlix) ANTES do setState
+    // para já ter a decisão de reset/seek pronta quando o Media abrir.
+    await _loadSavedProgress();
 
     try {
       await _cleanupControllers();
@@ -578,6 +742,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       final mergedHeaders = {...defaultHeaders, ...controllerHeaders};
       debugPrint('[VideoPlayer] Headers: $mergedHeaders');
 
+      // Fase 2: aplica heurística de reset vs retomar (PauloFlix) ANTES
+      // do Media.open. Se reset: zera progresso no banco + abre do zero.
+      // Se retomar: abre do zero e depois faz seek pós-open.
+      // `prepareResumeOrReset` é no-op se `_progressService == null`
+      // (fluxos não-PauloFlix).
+      final shouldReset = await _maybeResetBeforeOpen();
+
       try {
         final media = Media(resolvedVideoUrl, httpHeaders: mergedHeaders);
         await _player!.open(media, play: false);
@@ -591,6 +762,21 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         await _player!.open(media, play: false);
         debugPrint('[VideoPlayer] Media opened (no headers fallback, paused)');
       }
+
+      // Fase 2: se não resetou, faz seek para a posição salva.
+      // libmpv exige seek APÓS Media.open — antes é no-op.
+      if (!shouldReset &&
+          _savedPositionSeconds != null &&
+          _savedPositionSeconds! > 0) {
+        await _player!.seek(Duration(seconds: _savedPositionSeconds!));
+        debugPrint(
+          '[VideoPlayer] Resuming at ${_savedPositionSeconds}s '
+          '(of ${_savedDurationSeconds ?? "?"}s)',
+        );
+      }
+
+      // Fase 2: inicia o timer de 5s para gravar progresso.
+      _startProgressService();
 
       // Espera o media_kit parsear o contêiner e popular as tracks
       // embutidas. O `state.tracks` é populado de forma assíncrona após
@@ -874,6 +1060,16 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     _overlayControlsTimer?.cancel();
     _uninstallHardwareKeyboardHandler();
     SystemChrome.setSystemUIChangeCallback(null);
+
+    // Fase 2: flush do progresso PauloFlix (último save + cancela timer).
+    // Fire-and-forget — `dispose` não aceita async; o flush roda em
+    // background. Se falhar, perdemos só este último save (aceitável).
+    unawaited(
+      _flushProgressService(
+        getPos: _getCurrentPosition,
+        getDur: _getCurrentDuration,
+      ),
+    );
 
     // Cleanup síncrono: para o player antes do State ser desmontado
     _player?.stop();
