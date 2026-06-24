@@ -92,6 +92,14 @@ dependencies:
   cryptography_plus: ^3.0.0
   # UUID v4 para device_id (gerado no primeiro launch, salvo em SharedPreferences)
   uuid: ^4.5.0
+  # `file` package: usado pelo AuthenticatedCacheManager (wrapper de
+  # cached_network_image que injeta Authorization: Bearer). Vem
+  # transitivo do flutter_cache_manager mas declarado aqui explicitamente
+  # para evitar warning `depend_on_referenced_packages`.
+  file: ^7.0.1
+  # `flutter_cache_manager`: API do cache manager que o
+  # `cached_network_image` usa internamente. Mesmo rationale do `file`.
+  flutter_cache_manager: ^3.4.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

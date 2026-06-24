@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
@@ -10,6 +11,7 @@ import 'data/repositories/paulo_flix_episode_progress_repository_impl.dart';
 import 'data/repositories/pauloflix_movies_repository_impl.dart';
 import 'data/repositories/pauloflix_repository_impl.dart';
 import 'data/repositories/watchlist_repository_impl.dart';
+import 'data/services/auth/authenticated_cache_manager.dart';
 import 'data/services/auth/authenticated_http_client.dart';
 import 'data/services/auth/jwt_token_manager.dart';
 import 'data/services/download_service.dart';
@@ -60,6 +62,19 @@ class PauloFlixApp extends StatelessWidget {
     TmdbService()
       ..setDatabase(appDatabase)
       ..setLocaleViewModel(localeViewModel);
+
+    // Configura o cache manager global do `cached_network_image` para
+    // injetar `Authorization: Bearer` em TODA request de imagem.
+    // O servidor PauloFlix exige token em todos os endpoints
+    // (mesmo os de imagem) desde a migração Tailscale → HTTPS+token.
+    // Sem isto, ~80 call sites de `CachedNetworkImage` mostravam
+    // placeholder cinza (401 Unauthorized).
+    //
+    // Por que `defaultCacheManager` e não `httpHeaders` em cada
+    // widget: 1 linha cobre todos os usos atuais E futuros
+    // (qualquer widget novo herda o auth automaticamente).
+    CachedNetworkImageProvider.defaultCacheManager =
+        AuthenticatedCacheManager(jwtManager);
 
     return MultiProvider(
       providers: [
