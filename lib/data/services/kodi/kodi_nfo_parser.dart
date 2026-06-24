@@ -75,6 +75,36 @@ class KodiNfoParser {
     );
   }
 
+  /// Faz parse de um `season.nfo` (root `<season>`).
+  ///
+  /// Campos parseados:
+  /// - `seasonNumber` (de `<seasonnumber>`)
+  /// - `plot` (de `<plot>`)
+  /// - `posterThumb` (de `<thumb aspect="season">` ou `<thumb>`
+  ///   sem aspect como fallback)
+  ///
+  /// **Preferência de thumb:** Kodi season NFO pode ter
+  /// `<thumb>` (sem aspect, genérico) OU `<thumb aspect="season">`
+  /// OU `<thumb aspect="poster">`. Preferência nesta ordem:
+  /// 1. `<thumb aspect="season">` (mais específico)
+  /// 2. `<thumb>` sem aspect (fallback genérico)
+  /// 3. `<thumb aspect="poster">` (último recurso)
+  ///
+  /// Retorna `null` em qualquer falha (XML inválido, root mismatch).
+  static KodiSeasonNfo? parseSeasonNfo(String xmlBody) {
+    return _parseRooted<KodiSeasonNfo>(
+      xmlBody,
+      expectedRoot: 'season',
+      builder: (root) {
+        return KodiSeasonNfo(
+          seasonNumber: _parseInt(_firstText(root, 'seasonnumber')),
+          plot: _firstText(root, 'plot'),
+          posterThumb: _seasonPosterThumb(root),
+        );
+      },
+    );
+  }
+
   // ============================================================
   // Internals
   // ============================================================
@@ -159,6 +189,41 @@ class KodiNfoParser {
       final thumbAspect = thumb.getAttribute('aspect');
       if (thumbAspect == aspect) {
         return thumb.innerText.trim();
+      }
+    }
+    return null;
+  }
+
+  /// Resolve o `posterThumb` de uma season NFO, considerando os 3
+  /// formatos comuns do Kodi:
+  /// 1. `<thumb aspect="season">season01.jpg</thumb>` (preferência)
+  /// 2. `<thumb>season01.jpg</thumb>` (genérico, sem aspect)
+  /// 3. `<thumb aspect="poster">poster.jpg</thumb>` (último recurso)
+  ///
+  /// Retorna `null` se nenhum `<thumb>` for encontrado.
+  static String? _seasonPosterThumb(XmlElement parent) {
+    final thumbs = parent.findElements('thumb').toList();
+    if (thumbs.isEmpty) return null;
+
+    // 1. aspect="season"
+    for (final thumb in thumbs) {
+      if (thumb.getAttribute('aspect') == 'season') {
+        final text = thumb.innerText.trim();
+        if (text.isNotEmpty) return text;
+      }
+    }
+    // 2. sem aspect (genérico) — primeiro que tiver texto não vazio
+    for (final thumb in thumbs) {
+      if (thumb.getAttribute('aspect') == null) {
+        final text = thumb.innerText.trim();
+        if (text.isNotEmpty) return text;
+      }
+    }
+    // 3. aspect="poster"
+    for (final thumb in thumbs) {
+      if (thumb.getAttribute('aspect') == 'poster') {
+        final text = thumb.innerText.trim();
+        if (text.isNotEmpty) return text;
       }
     }
     return null;

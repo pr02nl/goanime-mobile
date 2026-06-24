@@ -3,6 +3,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/url_codec.dart';
 import '../../domain/models/pauloflix_content.dart';
 import '../../domain/models/pauloflix_models.dart';
 import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
@@ -49,7 +50,7 @@ class PauloFlixService {
         }
         if (!href.endsWith('/')) continue;
         final rawName = href.substring(0, href.length - 1);
-        final decodedName = Uri.decodeComponent(rawName);
+        final decodedName = safeDecodeComponent(rawName);
         final absoluteUrl = '$baseUrl$href';
         shows.add(PauloFlixShow(name: decodedName, url: absoluteUrl));
       }
@@ -84,7 +85,7 @@ class PauloFlixService {
         }
         if (!href.endsWith('/')) continue;
         final rawName = href.substring(0, href.length - 1);
-        final decodedName = Uri.decodeComponent(rawName);
+        final decodedName = safeDecodeComponent(rawName);
         final seasonNumber = _extractSeasonNumber(decodedName);
         if (seasonNumber == null) continue;
         final absoluteUrl = '$showUrl$href';

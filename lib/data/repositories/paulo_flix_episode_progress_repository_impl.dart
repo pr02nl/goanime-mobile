@@ -219,7 +219,19 @@ class PauloFlixEpisodeProgressRepositoryImpl
     required int seasonNumber,
     required String displayName,
     required String folderName,
+    String? seasonDescription,
   }) async {
+    // Para o Companion, seasonDescription == null → `Value.absent()`
+    // (NÃO mexe na coluna, preserva valor anterior). seasonDescription
+    // != null → `Value(seasonDescription)` (sobrescreve com a plot
+    // nova). Mesma semântica do `thumbnailUrl` (Fase 5) e `description`
+    // (Fase 10) — o enricher pode retornar mapa vazio (sem NFO) e
+    // nunca produz `seasonDescription != null`, o que cai no
+    // `Value.absent()`. Resultado: rows antigos com description NÃO
+    // são sobrescritos com null em re-syncs.
+    final descValue = seasonDescription == null
+        ? const Value<String?>.absent()
+        : Value<String?>(seasonDescription);
     final existing = await (_db.select(_db.pauloFlixSeasons)
           ..where((t) =>
               t.contentId.equals(contentId) &
@@ -233,6 +245,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
           .write(PauloFlixSeasonsCompanion(
         displayName: Value(displayName),
         folderName: Value(folderName),
+        description: descValue,
         lastSynced: Value(DateTime.now()),
       ));
       return existing.id;
@@ -243,6 +256,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
             seasonNumber: seasonNumber,
             displayName: displayName,
             folderName: folderName,
+            description: descValue,
             lastSynced: DateTime.now(),
           ),
         );
@@ -255,6 +269,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
     required String title,
     required String videoUrl,
     String? thumbnailUrl,
+    String? description,
   }) async {
     // Para o Companion, thumbnailUrl == null → `Value.absent()` (NÃO
     // mexe na coluna, preserva valor anterior). thumbnailUrl != null →
@@ -267,6 +282,17 @@ class PauloFlixEpisodeProgressRepositoryImpl
     final thumbValue = thumbnailUrl == null
         ? const Value<String?>.absent()
         : Value<String?>(thumbnailUrl);
+    // Mesma semântica do thumbnailUrl aplicada à description (Fase 10):
+    // description == null → Value.absent() (preserva valor anterior);
+    // description != null → Value(description) (sobrescreve com a
+    // plot nova do NFO). O enricher `fetchEpisodeNfos` retorna mapa
+    // com TODOS os episode numbers (mesmo os sem NFO, plot = null);
+    // o caller (syncSeasonEpisodes) propaga `null` e cai no
+    // `Value.absent()` → row antigo com description NÃO é sobrescrito
+    // com null em re-syncs.
+    final descValue = description == null
+        ? const Value<String?>.absent()
+        : Value<String?>(description);
     final existing = await (_db.select(_db.pauloFlixEpisodes)
           ..where((t) =>
               t.seasonId.equals(seasonId) &
@@ -282,6 +308,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
         title: Value(title),
         videoUrl: Value(videoUrl),
         thumbnailUrl: thumbValue,
+        description: descValue,
         lastSynced: Value(DateTime.now()),
       ));
     } else {
@@ -292,6 +319,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
               title: title,
               videoUrl: videoUrl,
               thumbnailUrl: thumbValue,
+              description: descValue,
               lastSynced: DateTime.now(),
             ),
           );
@@ -442,6 +470,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
       seasonNumber: row.seasonNumber,
       displayName: row.displayName,
       folderName: row.folderName,
+      description: row.description,
       episodeCount: row.episodeCount,
       isCompleted: row.isCompleted,
       lastSynced: row.lastSynced,
@@ -455,6 +484,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
       episodeNumber: row.episodeNumber,
       title: row.title,
       videoUrl: row.videoUrl,
+      description: row.description,
       thumbnailUrl: row.thumbnailUrl,
       durationSeconds: row.durationSeconds,
       positionSeconds: row.positionSeconds,

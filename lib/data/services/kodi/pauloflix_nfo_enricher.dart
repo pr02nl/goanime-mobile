@@ -24,8 +24,8 @@ import 'package:flutter/foundation.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
-import 'package:xml/xml.dart';
 
+import 'package:goanime/core/utils/url_codec.dart' as url_codec;
 import 'kodi_nfo_models.dart';
 import 'kodi_nfo_parser.dart';
 
@@ -75,8 +75,12 @@ class PauloFlixNfoEnricher {
           .get(Uri.parse('${showUrl}tvshow.nfo'))
           .timeout(_kRequestTimeout);
       if (res.statusCode != 200) return null;
-      if (res.body.isEmpty) return null;
-      return KodiNfoParser.parseShow(res.body);
+      final body = url_codec.decodeResponseBody(
+        res.bodyBytes,
+        responseHeaders: res.headers,
+      );
+      if (body.isEmpty) return null;
+      return KodiNfoParser.parseShow(body);
     } catch (e) {
       debugPrint('[PauloFlixNfo] fetchShowNfo failed: $e');
       return null;
@@ -92,8 +96,12 @@ class PauloFlixNfoEnricher {
           .get(Uri.parse('${folderUrl}movie.nfo'))
           .timeout(_kRequestTimeout);
       if (res.statusCode != 200) return null;
-      if (res.body.isEmpty) return null;
-      return KodiNfoParser.parseMovie(res.body);
+      final body = url_codec.decodeResponseBody(
+        res.bodyBytes,
+        responseHeaders: res.headers,
+      );
+      if (body.isEmpty) return null;
+      return KodiNfoParser.parseMovie(body);
     } catch (e) {
       debugPrint('[PauloFlixNfo] fetchMovieNfo failed: $e');
       return null;
@@ -109,12 +117,99 @@ class PauloFlixNfoEnricher {
           .get(Uri.parse('${seasonUrl}season.nfo'))
           .timeout(_kRequestTimeout);
       if (res.statusCode != 200) return null;
-      if (res.body.isEmpty) return null;
-      return _parseSeasonNfo(res.body);
+      final body = url_codec.decodeResponseBody(
+        res.bodyBytes,
+        responseHeaders: res.headers,
+      );
+      if (body.isEmpty) return null;
+      return KodiNfoParser.parseSeasonNfo(body);
     } catch (e) {
       debugPrint('[PauloFlixNfo] fetchSeasonNfo failed: $e');
       return null;
     }
+  }
+
+  /// GET `{seasonUrl}S01E{nnn}.nfo` → parse → record Dart 3.
+  ///
+  /// **Fase 10 do plano NFO enrichment V2**: parse do NFO por
+  /// episode (padrão Kodi `S01E001.nfo` na pasta da season) para
+  /// popular a coluna `description` (plot) do episode. O nome do
+  /// arquivo usa 3 dígitos (zero-padded) — `S01E001.nfo`,
+  /// `S01E010.nfo`, `S01E100.nfo`.
+  ///
+  /// Exemplo: `fetchEpisodeNfo('http://server/tvshows/X/Season 01/', 1)`
+  /// faz GET `http://server/tvshows/X/Season 01/S01E001.nfo`.
+  ///
+  /// Retorna `null` em qualquer falha (404, 500, timeout, parse fail).
+  Future<({int? season, int? episode, String? title, String? plot})?>
+      fetchEpisodeNfo(String seasonUrl, int episodeNumber) async {
+    try {
+      final filename = 'S01E${episodeNumber.toString().padLeft(3, '0')}.nfo';
+      final base = seasonUrl.endsWith('/') ? seasonUrl : '$seasonUrl/';
+      final url = '$base$filename';
+      final res = await _client
+          .get(Uri.parse(url))
+          .timeout(_kRequestTimeout);
+      if (res.statusCode != 200) return null;
+      if (res.body.isEmpty) return null;
+      return KodiNfoParser.parseEpisode(res.body);
+    } catch (e) {
+      debugPrint('[PauloFlixNfo] fetchEpisodeNfo failed: $e');
+      return null;
+    }
+  }
+
+  /// GET do listing da season + N GETs paralelos de `S01E{nnn}.nfo`.
+  ///
+  /// **Otimização** (Fase 10 do plano NFO enrichment V2): em vez de
+  /// 1 GET por episode (N+1 problem), reutiliza
+  /// [fetchEpisodeThumbs] para descobrir os episode numbers via
+  /// listing HTML (1 GET) e dispara N GETs paralelos de NFO via
+  /// [fetchEpisodeNfo].
+  ///
+  /// Retorna `Map<int, ({int? season, int? episode, String? title, String? plot})>`
+  /// indexado por episodeNumber. Map vazio em qualquer falha
+  /// (404 no listing, zero episodes detectados).
+  ///
+  /// **Atenção:** a função é best-effort — episodes sem NFO resultam
+  /// em um entry com `plot = null` (não ausenta o entry). Isso
+  /// preserva a informação "episódio existe mas não tem NFO" e
+  /// permite que o caller decida se quer ou não popular o campo
+  /// `description` no banco.
+  Future<Map<int, ({int? season, int? episode, String? title, String? plot})>>
+      fetchEpisodeNfos(String seasonUrl) async {
+    // 1. Descobre os episode numbers via listing (mesma lógica do
+    //    `fetchEpisodeThumbs`, mas só queremos os KEYS).
+    final thumbs = await fetchEpisodeThumbs(seasonUrl);
+    final episodeNumbers = thumbs.keys.toList();
+    if (episodeNumbers.isEmpty) {
+      return <int,
+          ({
+            int? season,
+            int? episode,
+            String? title,
+            String? plot
+          })>{};
+    }
+
+    // 2. GET paralelo de cada NFO. `Future.wait` dispara todos os
+    //    requests simultaneamente; tempo total ≈ 1 RTT (não N).
+    final results = await Future.wait(
+      episodeNumbers.map((n) async {
+        final nfo = await fetchEpisodeNfo(seasonUrl, n);
+        return MapEntry(
+          n,
+          nfo ??
+              (
+                season: null,
+                episode: n,
+                title: null,
+                plot: null
+              ),
+        );
+      }),
+    );
+    return Map.fromEntries(results);
   }
 
   // ============================================================
@@ -171,34 +266,6 @@ class PauloFlixNfoEnricher {
   // Internals
   // ============================================================
 
-  /// Faz parse mínimo de `season.nfo` (root `<season>`).
-  ///
-  /// O `KodiNfoParser` (Fase 1) expõe `parseShow`/`parseMovie`/
-  /// `parseEpisode` mas não `parseSeason` (escopo mínimo da Fase 1).
-  /// Implementamos aqui um parser simples, mas com a mesma garantia de
-  /// robustez (try/catch + root mismatch → null).
-  static KodiSeasonNfo? _parseSeasonNfo(String xmlBody) {
-    try {
-      final document = XmlDocument.parse(xmlBody);
-      final root = document.rootElement;
-      if (root.name.local != 'season') return null;
-
-      final seasonText = _firstText(root, 'season');
-      final plotText = _firstText(root, 'plot');
-      final thumbText = _firstText(root, 'thumb');
-
-      return KodiSeasonNfo(
-        seasonNumber: seasonText == null ? null : int.tryParse(seasonText),
-        plot: plotText,
-        posterThumb: thumbText,
-      );
-    } on XmlException {
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// Faz parse do listing HTML e extrai os thumbs de episodes.
   ///
   /// Usa o pacote `html` (já no projeto) com `document.querySelectorAll`.
@@ -237,11 +304,10 @@ class PauloFlixNfoEnricher {
 
   /// Retorna o `innerText` (trimmed) do primeiro elemento [tag] filho
   /// de [parent], ou `null` se não existir.
-  static String? _firstText(XmlElement parent, String tag) {
-    for (final el in parent.findElements(tag)) {
-      final text = el.innerText.trim();
-      if (text.isNotEmpty) return text;
-    }
-    return null;
-  }
+  ///
+  /// **Fase 10 do plano NFO enrichment V2:** este helper ficou
+  /// descontinuado após o `_parseSeasonNfo` delegar para
+  /// `KodiNfoParser.parseSeasonNfo` (que tem seu próprio helper).
+  /// Removido nesta Fase 10 — se outros parsers precisarem,
+  /// re-adicionar ou importar de `KodiNfoParser`.
 }

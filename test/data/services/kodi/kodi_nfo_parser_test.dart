@@ -12,6 +12,7 @@
 // Ver plano `.hermes/plans/2026-06-23_224213-pauloflix-nfo-enrichment.md`.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/data/services/kodi/kodi_nfo_models.dart';
 import 'package:goanime/data/services/kodi/kodi_nfo_parser.dart';
 
 void main() {
@@ -255,6 +256,191 @@ Line 3]]></plot>
       expect(result.episode, isNull);
       expect(result.title, 'Untitled');
       expect(result.plot, isNull);
+    });
+  });
+
+  // ============================================================
+  // KodiNfoParser.parseSeasonNfo (root <season>) — Fase 9
+  // ============================================================
+  group('KodiNfoParser.parseSeasonNfo', () {
+    test('parses valid complete season.nfo with all fields populated', () {
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<season>
+  <seasonnumber>1</seasonnumber>
+  <title>Season 1</title>
+  <plot>The story begins here.</plot>
+  <thumb aspect="season">season01.jpg</thumb>
+</season>''';
+
+      final nfo = KodiNfoParser.parseSeasonNfo(xml);
+
+      expect(nfo, isNotNull);
+      expect(nfo, isA<KodiSeasonNfo>());
+      expect(nfo!.seasonNumber, 1);
+      expect(nfo.plot, 'The story begins here.');
+      expect(nfo.posterThumb, 'season01.jpg');
+    });
+
+    test('returns null on invalid XML', () {
+      const xml = '<season><seasonnumber>broken</plot></season>';
+
+      expect(KodiNfoParser.parseSeasonNfo(xml), isNull);
+    });
+
+    test('returns null when root is not <season> (root mismatch)', () {
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<tvshow>
+  <title>Test</title>
+</tvshow>''';
+
+      expect(KodiNfoParser.parseSeasonNfo(xml), isNull);
+    });
+
+    test('returns KodiSeasonNfo with nulls when only seasonnumber is present',
+        () {
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<season>
+  <seasonnumber>2</seasonnumber>
+</season>''';
+
+      final nfo = KodiNfoParser.parseSeasonNfo(xml);
+
+      expect(nfo, isNotNull);
+      expect(nfo!.seasonNumber, 2);
+      expect(nfo.plot, isNull);
+      expect(nfo.posterThumb, isNull);
+    });
+
+    test(
+        'prefers <thumb aspect="season"> over <thumb> without aspect (and over poster)',
+        () {
+      // Aspect season tem prioridade sobre o sem aspect e sobre poster.
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<season>
+  <seasonnumber>1</seasonnumber>
+  <thumb>plain.jpg</thumb>
+  <thumb aspect="poster">poster.jpg</thumb>
+  <thumb aspect="season">season01.jpg</thumb>
+</season>''';
+
+      final nfo = KodiNfoParser.parseSeasonNfo(xml);
+
+      expect(nfo, isNotNull);
+      expect(nfo!.posterThumb, 'season01.jpg');
+    });
+
+    test('falls back to <thumb> without aspect when aspect="season" absent',
+        () {
+      // Sem aspect="season": usa o <thumb> genérico.
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<season>
+  <seasonnumber>1</seasonnumber>
+  <thumb aspect="poster">poster.jpg</thumb>
+  <thumb>plain.jpg</thumb>
+</season>''';
+
+      final nfo = KodiNfoParser.parseSeasonNfo(xml);
+
+      expect(nfo, isNotNull);
+      expect(nfo!.posterThumb, 'plain.jpg');
+    });
+
+    test('falls back to <thumb aspect="poster"> when no other thumb present',
+        () {
+      // Só tem aspect="poster" → usa ele como último recurso.
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<season>
+  <seasonnumber>1</seasonnumber>
+  <thumb aspect="poster">poster.jpg</thumb>
+</season>''';
+
+      final nfo = KodiNfoParser.parseSeasonNfo(xml);
+
+      expect(nfo, isNotNull);
+      expect(nfo!.posterThumb, 'poster.jpg');
+    });
+  });
+
+  // ============================================================
+  // KodiNfoParser.parseEpisode enrichments (plot) — Fase 9
+  // ============================================================
+  group('KodiNfoParser.parseEpisode - plot enrichments', () {
+    test('parses episode.nfo with multiline plot (CDATA preserved)', () {
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<episodedetails>
+  <season>1</season>
+  <episode>5</episode>
+  <title>Pilot</title>
+  <plot><![CDATA[Line 1
+Line 2
+Line 3]]></plot>
+</episodedetails>''';
+
+      final nfo = KodiNfoParser.parseEpisode(xml);
+
+      expect(nfo, isNotNull);
+      expect(nfo!.plot, isNotNull);
+      expect(nfo.plot, contains('Line 1'));
+      expect(nfo.plot, contains('Line 2'));
+      expect(nfo.plot, contains('Line 3'));
+      // CDATA deve preservar as quebras de linha.
+      expect(nfo.plot!.contains('\n'), isTrue);
+    });
+
+    test('returns null plot when episode.nfo has no <plot>', () {
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<episodedetails>
+  <season>1</season>
+  <episode>1</episode>
+  <title>Test</title>
+</episodedetails>''';
+
+      final nfo = KodiNfoParser.parseEpisode(xml);
+
+      expect(nfo, isNotNull);
+      expect(nfo!.plot, isNull);
+      // Garantir que season/episode/title ainda funcionam.
+      expect(nfo.season, 1);
+      expect(nfo.episode, 1);
+      expect(nfo.title, 'Test');
+    });
+
+    test('handles non-numeric season/episode gracefully (returns null ints)',
+        () {
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<episodedetails>
+  <season>abc</season>
+  <episode>xyz</episode>
+  <title>Test</title>
+  <plot>Some plot.</plot>
+</episodedetails>''';
+
+      final nfo = KodiNfoParser.parseEpisode(xml);
+
+      expect(nfo, isNotNull);
+      expect(nfo!.season, isNull);
+      expect(nfo.episode, isNull);
+      // Title e plot continuam parseando normalmente.
+      expect(nfo.title, 'Test');
+      expect(nfo.plot, 'Some plot.');
+    });
+
+    test('parses Portuguese plot with accents (UTF-8 encoded)', () {
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<episodedetails>
+  <season>1</season>
+  <episode>1</episode>
+  <title>Ação e Mistério</title>
+  <plot>João encontra a Érica na floresta. Próximo episódio: revelação.</plot>
+</episodedetails>''';
+
+      final nfo = KodiNfoParser.parseEpisode(xml);
+
+      expect(nfo, isNotNull);
+      expect(nfo!.title, 'Ação e Mistério');
+      expect(nfo.plot, contains('João'));
+      expect(nfo.plot, contains('Érica'));
+      expect(nfo.plot, contains('Próximo'));
     });
   });
 

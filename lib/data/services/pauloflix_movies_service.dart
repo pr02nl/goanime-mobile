@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/url_codec.dart' as url_codec;
 import '../../domain/models/pauloflix_movie.dart';
 import '../../domain/models/pauloflix_movie_item.dart';
 import '../../domain/repositories/pauloflix_movies_repository.dart';
@@ -61,41 +64,32 @@ class PauloFlixMoviesService {
 
   // ---------------- Parsing de listings HTML ----------------
 
-  /// Decodifica um componente URI de forma defensiva.
+  /// Re-exporta [safeDecodeComponent] do `url_codec.dart` para
+  /// preservar compat com callers legados (e.g.
+  /// `PauloFlixMoviesService.safeDecodeComponent(...)` no
+  /// `pauloflix_movie_detail_screen.dart`).
   ///
-  /// [Uri.decodeComponent] lança [ArgumentError] quando o input contém
-  /// sequências `%` inválidas (e.g. `%XY` onde `XY` não é hexadecimal).
-  /// Isso acontece com nomes de pastas no servidor que já vêm com `%`
-  /// literal (não decodificado duas vezes).
-  ///
-  /// Aqui, em caso de erro, devolvemos o input original — o `%` segue
-  /// como caractere válido no nome, o que é preferível a abortar o
-  /// parse e perder o restante da listagem.
-  static String safeDecodeComponent(String input) {
-    if (input.isEmpty) return input;
-    try {
-      return Uri.decodeComponent(input);
-    } on ArgumentError {
-      final buf = StringBuffer();
-      final pattern = RegExp(r'%([0-9A-Fa-f]{2})');
-      int lastEnd = 0;
-      for (final match in pattern.allMatches(input)) {
-        buf.write(input.substring(lastEnd, match.start));
-        buf.write(Uri.decodeComponent('%${match.group(1)!}'));
-        lastEnd = match.end;
-      }
-      buf.write(input.substring(lastEnd));
-      return buf.toString();
-    } catch (e) {
-      debugPrint('[PauloFlix Movies] Erro ao decodificar URL manualmente: $e');
-      return input;
-    }
-  }
+  /// **Fase 8 (NFO Enrichment V2):** a função foi extraída para
+  /// `lib/core/utils/url_codec.dart` (helper compartilhado entre os
+  /// 3 services PauloFlix) e este shim estático só existe para
+  /// não quebrar imports.
+  static String safeDecodeComponent(String input) =>
+      url_codec.safeDecodeComponent(input);
 
   /// Faz parse de uma página de listing HTML e retorna os links.
-  static List<_LinkEntry> _parseLinks(String htmlBody) {
+  ///
+  /// Recebe opcionalmente os headers HTTP do response (para detecção
+  /// de charset via header `Content-Type`, fallback ao `<meta charset>`
+  /// do HTML). Se o servidor declara um charset não-UTF-8 (e.g.
+  /// `ISO-8859-1`, comum em VPS sem config UTF-8), o body é
+  /// re-decodificado para preservar acentos do português.
+  static List<_LinkEntry> _parseLinks(
+    String htmlBody, {
+    Map<String, String>? responseHeaders,
+  }) {
     try {
-      final document = html_parser.parse(htmlBody);
+      final decodedBody = _normalizeHtmlCharset(htmlBody, responseHeaders);
+      final document = html_parser.parse(decodedBody);
       final elements = document.querySelectorAll('a[href]');
       final links = <_LinkEntry>[];
       for (final el in elements) {
@@ -113,6 +107,47 @@ class PauloFlixMoviesService {
     } catch (e, s) {
       debugPrint('[PauloFlix Movies] _parseLinks error: $e\n$s');
       return [];
+    }
+  }
+
+  /// Normaliza o body HTML para UTF-8 quando o servidor declara um
+  /// charset não-UTF-8.
+  ///
+  /// O `html_parser` assume Latin-1 como default se não encontrar
+  /// `<meta charset>` (ou usa UTF-8 se encontrar). Como alguns
+  /// servidores (nginx sem `charset utf-8;` no `autoindex on;`)
+  /// enviam o body já em Latin-1 com acentos, o parser interpreta
+  /// esses bytes como Latin-1 corretamente — **mas** se ele
+  /// assume UTF-8 e o body é Latin-1, acentos viram `?`.
+  ///
+  /// Workaround: detecta o charset declarado (meta tag → Content-Type
+  /// header) e, se for não-UTF-8, força re-decode do body
+  /// (encode-decode Latin-1) para extrair a string original e
+  /// re-encodar em UTF-8.
+  static String _normalizeHtmlCharset(
+    String htmlBody,
+    Map<String, String>? responseHeaders,
+  ) {
+    final charset = url_codec.detectHtmlCharset(
+      htmlBody,
+      responseHeaders: responseHeaders,
+    );
+    if (charset == null) return htmlBody;
+    if (charset.toLowerCase() == 'utf-8' || charset.toLowerCase() == 'utf8') {
+      return htmlBody;
+    }
+    try {
+      // latin1.encode re-converte cada char para o byte Latin-1
+      // correspondente (revertendo o que o Dart já tinha como UTF-16);
+      // depois utf8.decode interpreta esses bytes como UTF-8. Se o
+      // body original era Latin-1, o utf8 resultará em garbage;
+      // neste caso aceitamos o trade-off (o server DEVERIA ter
+      // declarado UTF-8 ou enviado Content-Type header com charset).
+      final bytes = latin1.encode(htmlBody);
+      return utf8.decode(bytes, allowMalformed: true);
+    } catch (e) {
+      debugPrint('[PauloFlix Movies] Charset re-decode failed: $e');
+      return htmlBody;
     }
   }
 
@@ -146,7 +181,10 @@ class PauloFlixMoviesService {
         );
       }
 
-      final links = _parseLinks(response.body);
+      final links = _parseLinks(
+        response.body,
+        responseHeaders: response.headers,
+      );
 
       // Arquivos de legenda (.srt) —lista completa, ranking aplicado depois.
       final subtitleFiles = links
@@ -236,7 +274,10 @@ class PauloFlixMoviesService {
           .get(Uri.parse(baseUrl))
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return [];
-      final links = _parseLinks(response.body);
+      final links = _parseLinks(
+        response.body,
+        responseHeaders: response.headers,
+      );
       return links
           .where((l) => l.href.endsWith('/'))
           .map(

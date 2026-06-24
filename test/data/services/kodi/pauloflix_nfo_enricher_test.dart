@@ -48,9 +48,14 @@ const _validMovieNfo = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?
 ''';
 
 /// XML de season.nfo válido.
+///
+/// **Fase 10 do plano NFO enrichment V2:** o tag correto do Kodi
+/// para o número da season é `<seasonnumber>` (NÃO `<season>`).
+/// Era `<season>` no parser inline antigo (Fase 1), corrigido na
+/// Fase 9 quando o parser foi refatorado para suportar plot/poster.
 const _validSeasonNfo = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <season>
-  <season>1</season>
+  <seasonnumber>1</seasonnumber>
   <plot>Primeira season de Mushoku Tensei.</plot>
 </season>
 ''';

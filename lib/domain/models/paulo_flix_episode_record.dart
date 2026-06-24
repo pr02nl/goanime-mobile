@@ -36,6 +36,13 @@ class PauloFlixEpisodeRecord {
   /// URL absoluta do vídeo no file server PauloFlix.
   final String videoUrl;
 
+  /// Descrição / plot do episode. Vem de `S01E{nnn}.nfo` (Fase 10 do
+  /// plano NFO enrichment V2). Nullable porque:
+  /// 1. Nem todo episode tem NFO individual (cair em fallback TMDB/Jikan).
+  /// 2. Migração v6→v7 adicionou a coluna, mas rows antigos ficam
+  ///    com `null` (não re-raspamos retroativamente).
+  final String? description;
+
   /// URL absoluta do thumbnail do episode (servidor PauloFlix).
   /// Populada pelo `PauloFlixNfoEnricher` durante o sync, lendo o
   /// padrão Kodi `S01E001-thumb.jpg` na pasta da season.
@@ -78,6 +85,7 @@ class PauloFlixEpisodeRecord {
     required this.episodeNumber,
     required this.title,
     required this.videoUrl,
+    this.description,
     this.thumbnailUrl,
     this.durationSeconds,
     this.positionSeconds = 0,

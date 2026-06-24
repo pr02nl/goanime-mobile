@@ -1,10 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
 import '../../core/database/app_database.dart' hide PauloFlixSeason, PauloFlixEpisode;
-import '../../core/utils/episode_utils.dart';
+import '../../core/utils/url_codec.dart';
 import '../../data/repositories/paulo_flix_episode_progress_repository_impl.dart';
 import '../../domain/models/pauloflix_models.dart';
 import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
@@ -88,24 +90,31 @@ class PauloFlixEpisodeSyncService {
   ///
   /// [contentId] é o ID do `PauloFlixContent` (banco local).
   /// [contentServerUrl] é a URL do show no file server PauloFlix.
-  /// [enricher] é o injetor opcional de `PauloFlixNfoEnricher` (Fase 5
-  /// do plano NFO enrichment). Quando fornecido, o sync busca
-  /// thumbnails de episode no padrão Kodi `S01E001-thumb.jpg` e os
-  /// persiste na coluna `thumbnailUrl` da tabela
-  /// `paulo_flix_episodes`. Quando `null` (default), o sync
-  /// preserva o comportamento legado — sem chamada extra de HTTP
-  /// para thumbs (back-compat com testes e callers que não injetam
-  /// enricher).
+  /// [enricher] é o injetor opcional de `PauloFlixNfoEnricher`. Quando
+  /// fornecido, o sync busca:
+  /// 1. `season.nfo` (Fase 10) → popula `description` da season.
+  /// 2. `S01E{nnn}.nfo` em batch (Fase 10) → popula `description` do
+  ///    episode.
+  /// 3. `S\d+E\d+-thumb.{ext}` do listing (Fase 5) → popula
+  ///    `thumbnailUrl` do episode.
+  ///
+  /// Quando `null` (default), o sync preserva o comportamento legado —
+  /// sem chamada extra de HTTP (back-compat com testes e callers que
+  /// não injetam enricher).
   ///
   /// **Comportamento:**
   /// 1. Fetch + parse seasons (HTTP).
-  /// 2. Para cada season scrapeada: upsert (preserva `isCompleted`).
-  /// 3. (Opcional) Fetch episode thumbs via enricher.
-  /// 4. Fetch + parse episodes da season (HTTP).
-  /// 5. Upsert cada episode com `thumbnailUrl` (preserva progresso do
-  ///    user: `positionSeconds`/`isCompleted`/`lastWatched`/
-  ///    `durationSeconds`).
-  /// 6. Atualiza `episodeCount` + `lastSynced` da season.
+  /// 2. Para cada season scrapeada:
+  ///    a. (Fase 10) GET `season.nfo` → `seasonDescription` (se enricher).
+  ///    b. Upsert season (preserva `isCompleted`).
+  ///    c. (Fase 10) GET listing + N NFOs paralelos → `episodeDescriptions`
+  ///       (se enricher).
+  ///    d. (Fase 5) Fetch episode thumbs via enricher.
+  ///    e. Fetch + parse episodes da season (HTTP).
+  ///    f. Upsert cada episode com `thumbnailUrl` + `description`
+  ///       (preserva progresso do user: `positionSeconds`/
+  ///       `isCompleted`/`lastWatched`/`durationSeconds`).
+  ///    g. Atualiza `episodeCount` + `lastSynced` da season.
   ///
   /// **NÃO** faz reconciliação (deleção de seasons/episodes órfãos do
   /// servidor) — use [reconcileSeasonEpisodes] para isso.
@@ -118,27 +127,49 @@ class PauloFlixEpisodeSyncService {
     final seasons = await _fetchSeasons(contentServerUrl);
 
     for (final s in seasons) {
-      // 2. Upsert season (preserva `isCompleted` se já existir).
+      // 2a. (Fase 10) Busca `season.nfo` (se enricher disponível).
+      //     `null` = sem NFO / erro → fica null no banco. Caller pode
+      //     usar TMDB/Jikan como fallback.
+      String? seasonDescription;
+      if (enricher != null) {
+        try {
+          final seasonNfo = await enricher.fetchSeasonNfo(s.url);
+          seasonDescription = seasonNfo?.plot;
+        } catch (e) {
+          debugPrint('[PauloFlixSync] fetchSeasonNfo failed: $e');
+        }
+      }
+
+      // 2b. Upsert season (preserva `isCompleted` se já existir).
       final seasonId = await _repo.upsertSeason(
         contentId: contentId,
         seasonNumber: s.number,
         displayName: s.name,
         folderName: s.name,
+        seasonDescription: seasonDescription,
       );
 
-      // 3. (Fase 5) Busca os thumbs NFO (se enricher disponível).
-      // Mapa: episodeNumber → thumbUrl. Vazio = sem thumb (ou
-      // enricher ausente) → repo preserva coluna `thumbnailUrl`
-      // anterior (não grava null em re-syncs).
+      // 2c. (Fase 10) Busca NFO de cada episode em batch (se enricher).
+      //     Retorna `Map<int, String?>` episodeNumber → plot. Episodes
+      //     sem NFO ficam com `plot = null` no map (não ausentados).
+      final Map<int, String?> episodeDescriptions = enricher != null
+          ? (await enricher.fetchEpisodeNfos(s.url))
+              .map((k, v) => MapEntry(k, v.plot))
+          : <int, String?>{};
+
+      // 2d. (Fase 5) Busca os thumbs NFO (se enricher disponível).
+      //     Mapa: episodeNumber → thumbUrl. Vazio = sem thumb (ou
+      //     enricher ausente) → repo preserva coluna `thumbnailUrl`
+      //     anterior (não grava null em re-syncs).
       final Map<int, String> thumbs = enricher != null
           ? await enricher.fetchEpisodeThumbs(s.url)
           : <int, String>{};
 
-      // 4. Fetch + parse episodes desta season.
+      // 2e. Fetch + parse episodes desta season.
       final episodes = await _fetchEpisodes(s.url);
 
-      // 5. Upsert cada episode (preserva `positionSeconds`/
-      // `isCompleted`/`lastWatched`/`durationSeconds`).
+      // 2f. Upsert cada episode (preserva `positionSeconds`/
+      //     `isCompleted`/`lastWatched`/`durationSeconds`).
       for (final e in episodes) {
         await _repo.upsertEpisode(
           seasonId: seasonId,
@@ -146,18 +177,22 @@ class PauloFlixEpisodeSyncService {
           title: e.title,
           videoUrl: e.url,
           thumbnailUrl: thumbs[e.number],
+          description: episodeDescriptions[e.number],
         );
       }
 
-      // 6. Atualiza `episodeCount` e `lastSynced` da season. **NÃO** é
-      // feito pelo `upsertSeason` (que só atualiza displayName/folderName
-      // se já existir) — o count é derivado do total scrapeado.
+      // 2g. Atualiza `episodeCount` e `lastSynced` da season. **NÃO**
+      //     é feito pelo `upsertSeason` (que só atualiza
+      //     displayName/folderName/description se já existir) — o
+      //     count é derivado do total scrapeado.
       await _updateSeasonCount(seasonId, episodes.length);
 
       debugPrint(
         '[PauloFlixSync] Content $contentId: '
         'season ${s.number} (${episodes.length} episodes, '
-        '${thumbs.length} thumbs) sincronizada',
+        '${thumbs.length} thumbs, '
+        '${episodeDescriptions.values.where((p) => p != null).length} '
+        'episode descriptions) sincronizada',
       );
     }
   }
@@ -281,7 +316,8 @@ class PauloFlixEpisodeSyncService {
         'PauloFlixSync: GET $showUrl falhou (status ${response.statusCode})',
       );
     }
-    final document = html_parser.parse(response.body);
+    final body = _normalizeHtmlCharset(response.body, response.headers);
+    final document = html_parser.parse(body);
     final linkElements = document.querySelectorAll('a[href]');
     final seasons = <PauloFlixSeason>[];
     for (final element in linkElements) {
@@ -318,7 +354,8 @@ class PauloFlixEpisodeSyncService {
         'PauloFlixSync: GET $seasonUrl falhou (status ${response.statusCode})',
       );
     }
-    final document = html_parser.parse(response.body);
+    final body = _normalizeHtmlCharset(response.body, response.headers);
+    final document = html_parser.parse(body);
     final linkElements = document.querySelectorAll('a[href]');
     final episodes = <PauloFlixEpisode>[];
     for (final element in linkElements) {
@@ -346,6 +383,35 @@ class PauloFlixEpisodeSyncService {
     }
     episodes.sort((a, b) => a.number.compareTo(b.number));
     return episodes;
+  }
+
+  /// Normaliza o body HTML para UTF-8 quando o servidor declara
+  /// charset não-UTF-8 (e.g. ISO-8859-1).
+  ///
+  /// Mesma estratégia do `PauloFlixMoviesService._normalizeHtmlCharset`:
+  /// usa [detectHtmlCharset] (meta tag → Content-Type header) e,
+  /// se o charset não for UTF-8, força re-decode via
+  /// `latin1.encode` → `utf8.decode(allowMalformed: true)`. Falha
+  /// silenciosa (retorna body original).
+  static String _normalizeHtmlCharset(
+    String htmlBody,
+    Map<String, String> responseHeaders,
+  ) {
+    final charset = detectHtmlCharset(
+      htmlBody,
+      responseHeaders: responseHeaders,
+    );
+    if (charset == null) return htmlBody;
+    if (charset.toLowerCase() == 'utf-8' || charset.toLowerCase() == 'utf8') {
+      return htmlBody;
+    }
+    try {
+      final bytes = latin1.encode(htmlBody);
+      return utf8.decode(bytes, allowMalformed: true);
+    } catch (e) {
+      debugPrint('[PauloFlixSync] Charset re-decode failed: $e');
+      return htmlBody;
+    }
   }
 
   // ─── Parsing (cópia do PauloFlixService) ─────────────────────────────

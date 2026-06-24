@@ -43,6 +43,13 @@ class PauloFlixSeasons extends Table {
   /// Preserva o identificador único da season no file server.
   TextColumn get folderName => text()();
 
+  /// Descrição/plot da season (do `season.nfo`).
+  ///
+  /// Fase 10 do plano `.hermes/plans/2026-06-23_225500-pauloflix-nfo-enrichment-v2.md`.
+  /// Nullable porque nem toda season tem NFO — quando ausente, o
+  /// caller cai no fallback TMDB/Jikan (status quo).
+  TextColumn get description => text().nullable()();
+
   /// Cache de `COUNT(episodes)` — evita JOIN ao listar seasons.
   IntColumn get episodeCount =>
       integer().withDefault(const Constant(0))();

@@ -54,6 +54,13 @@ class PauloFlixEpisodes extends Table {
   ///    a coluna mas rows antigos ficam com null).
   TextColumn get thumbnailUrl => text().nullable()();
 
+  /// Descrição/plot do episode (do `S01E001.nfo`).
+  ///
+  /// Fase 10 do plano `.hermes/plans/2026-06-23_225500-pauloflix-nfo-enrichment-v2.md`.
+  /// Nullable porque nem todo episode tem NFO — quando ausente, o
+  /// caller cai no fallback TMDB/Jikan (status quo).
+  TextColumn get description => text().nullable()();
+
   /// Duração total do vídeo em segundos. Populada pelo player em runtime
   /// (vem do `Player.state.duration`). Nullable porque a primeira sync
   /// HTTP não tem essa info (vem do scraping HTML, sem metadata).

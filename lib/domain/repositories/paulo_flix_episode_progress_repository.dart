@@ -100,7 +100,13 @@ abstract class PauloFlixEpisodeProgressRepository {
 
   /// Insere ou atualiza uma season. Se já existir (mesmo
   /// `contentId+seasonNumber`), atualiza `displayName`/`folderName`/
-  /// `lastSynced` mas **preserva** `isCompleted` e `episodeCount`.
+  /// `description`/`lastSynced` mas **preserva** `isCompleted` e
+  /// `episodeCount`.
+  ///
+  /// [seasonDescription] é o plot lido de `season.nfo` (Fase 10 do
+  /// plano NFO enrichment V2). Quando `null`, o campo `description`
+  /// no banco NÃO é tocado (preserva valor anterior). Para sobrescrever
+  /// com null explícito, ver [PauloFlixEpisodeProgressRepositoryImpl].
   ///
   /// Chamado por `PauloFlixEpisodeSyncService` durante o sync on-demand.
   Future<int> upsertSeason({
@@ -108,12 +114,14 @@ abstract class PauloFlixEpisodeProgressRepository {
     required int seasonNumber,
     required String displayName,
     required String folderName,
+    String? seasonDescription,
   });
 
   /// Insere ou atualiza um episode. Se já existir (mesmo
   /// `seasonId+episodeNumber`), atualiza `title`/`videoUrl`/
-  /// `thumbnailUrl` (quando fornecido)/`lastSynced` mas **preserva**
-  /// `positionSeconds`/`isCompleted`/`lastWatched`/`durationSeconds`.
+  /// `thumbnailUrl` (quando fornecido)/`description` (quando
+  /// fornecido)/`lastSynced` mas **preserva** `positionSeconds`/
+  /// `isCompleted`/`lastWatched`/`durationSeconds`.
   ///
   /// **Semântica de [thumbnailUrl]:**
   /// - `null` (default) = NÃO atualiza a coluna (preserva valor
@@ -123,6 +131,15 @@ abstract class PauloFlixEpisodeProgressRepository {
   ///   Se o server tinha thumb e foi removido, o enricher reportará
   ///   a ausência via mapa vazio e o repo não tocará na coluna.
   ///
+  /// **Semântica de [description] (Fase 10 do NFO enrichment V2):**
+  /// - `null` (default) = NÃO atualiza a coluna (preserva valor
+  ///   anterior). Use este valor quando o enricher não tem info de
+  ///   NFO (HTTP 404, parser fail, enricher não injetado).
+  /// - Valor não-nulo = sobrescreve a coluna com a plot informada.
+  ///   Se o server tinha NFO e foi removido, o enricher reportará
+  ///   a ausência via mapa com `plot = null` e o repo não tocará
+  ///   na coluna.
+  ///
   /// Chamado por `PauloFlixEpisodeSyncService` durante o sync on-demand.
   Future<void> upsertEpisode({
     required int seasonId,
@@ -130,6 +147,7 @@ abstract class PauloFlixEpisodeProgressRepository {
     required String title,
     required String videoUrl,
     String? thumbnailUrl,
+    String? description,
   });
 
   /// Atualiza `episodeCount` e `lastSynced` da season.

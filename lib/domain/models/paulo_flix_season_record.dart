@@ -35,6 +35,13 @@ class PauloFlixSeasonRecord {
   /// da season no file server (raw, sem decode HTML).
   final String folderName;
 
+  /// Descrição / plot da season. Vem de `season.nfo` (Fase 10 do
+  /// plano NFO enrichment V2). Nullable porque:
+  /// 1. Nem toda season tem `season.nfo` (cair em fallback TMDB/Jikan).
+  /// 2. Migração v6→v7 adicionou a coluna, mas rows antigos ficam
+  ///    com `null` (não re-raspamos retroativamente).
+  final String? description;
+
   /// Cache de `COUNT(episodes)` — atualizado pelo
   /// `syncSeasonEpisodes` após o upsert dos episodes.
   /// Default 0 (season recém-inserida ainda sem episodes).
@@ -55,6 +62,7 @@ class PauloFlixSeasonRecord {
     required this.seasonNumber,
     required this.displayName,
     required this.folderName,
+    this.description,
     this.episodeCount = 0,
     this.isCompleted = false,
     required this.lastSynced,

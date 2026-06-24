@@ -56,8 +56,12 @@ class AppDatabase extends _$AppDatabase {
   ///   `paulo_flix_episodes` para suportar o padrão Kodi de thumb de
   ///   episode. Ver plano
   ///   `.hermes/plans/2026-06-23_224213-pauloflix-nfo-enrichment.md`.
+  /// * v7 (2026-06-23): adiciona coluna `description` em
+  ///   `paulo_flix_seasons` e `paulo_flix_episodes` para popular
+  ///   plot/description de `season.nfo` e `S01E001.nfo`. Ver plano
+  ///   `.hermes/plans/2026-06-23_225500-pauloflix-nfo-enrichment-v2.md`.
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -95,6 +99,26 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(
               db.pauloFlixEpisodes,
               db.pauloFlixEpisodes.thumbnailUrl,
+            );
+          }
+          // v6 → v7: adiciona coluna `description` em paulo_flix_seasons
+          // e paulo_flix_episodes (Fase 10 do plano NFO enrichment V2).
+          // Sem migration data — o sync vai popular em background nas
+          // próximas horas (lê de season.nfo e S01E{nnn}.nfo).
+          //
+          // NOTA: usamos `customStatement` (raw SQL) em vez de
+          // `m.addColumn(db.pauloFlixSeasons, db.pauloFlixSeasons.description)`
+          // porque o getter `description` ainda não está gerado em
+          // `app_database.g.dart` (Fase 11 é owner do .g.dart e
+          // adiciona o getter em paralelo). O raw SQL tem o mesmo
+          // efeito (ALTER TABLE ADD COLUMN) e não depende do codegen.
+          if (from < 7) {
+            final db = m.database as AppDatabase;
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_seasons ADD COLUMN description TEXT',
+            );
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_episodes ADD COLUMN description TEXT',
             );
           }
         },
