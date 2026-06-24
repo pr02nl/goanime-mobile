@@ -116,36 +116,43 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
   }
 
   /// URL absoluta do hero da season selecionada, priorizando:
-  /// 1. `content.bannerUrl` (imagem principal do anime na raiz).
-  /// 2. `fanart.jpg` da pasta da season selecionada (fallback por season).
+  /// 1. `fanart.jpg` da pasta da season selecionada (capa por season).
+  /// 2. `content.bannerUrl` (imagem principal do anime na raiz —
+  ///    fallback quando a season não tem fanart próprio).
   ///
-  /// **Por que esse fallback:** o `content.bannerUrl` é a capa
-  /// principal do anime (vem do `tvshow.nfo` ou Jikan). Algumas
-  /// seasons têm seu próprio `fanart.jpg` específico na pasta
-  /// `Season 01/` que pode ser mais representativo (capa da temporada
-  /// em vez do anime inteiro). Quando o user troca de season, o
-  /// hero atualiza para o fanart correspondente.
+  /// **Por que priorizar a season:** o user troca de season no
+  /// `PauloflixSeasonSelector` esperando ver a capa correspondente.
+  /// Se o hero sempre mostrasse o `content.bannerUrl` (a capa do
+  /// anime inteiro), a interação de trocar de season perderia o
+  /// feedback visual. O fanart por season (quando existe) é mais
+  /// representativo da temporada específica.
+  ///
+  /// Quando o user troca de season, o hero atualiza para o fanart
+  /// correspondente (ou para o banner do anime se a nova season
+  /// não tem fanart próprio).
   ///
   /// Retorna `null` se nenhum disponível → caller renderiza fallback.
   String? get selectedSeasonHeroUrl {
+    // 1. Tenta o fanart da season selecionada primeiro.
+    final s = selectedSeason;
+    if (s != null &&
+        s.fanartFileName != null &&
+        s.fanartFileName!.isNotEmpty) {
+      // O `folderName` sozinho não é a URL completa — usamos o
+      // scraping model `scrapingSeasons` que tem o `url` correto.
+      final scrapingSeason = _findScrapingSeasonFor(s);
+      if (scrapingSeason != null) {
+        return s.fanartUrlWith(scrapingSeason.url);
+      }
+      // Fallback se não achar o scraping (improvável, mas defensivo).
+      return s.fanartUrl;
+    }
+    // 2. Cai no `content.bannerUrl` (capa do anime) se a season
+    //    não tem fanart próprio.
     if (content.bannerUrl != null && content.bannerUrl!.isNotEmpty) {
       return content.bannerUrl;
     }
-    final s = selectedSeason;
-    if (s == null) return null;
-    if (s.fanartFileName == null || s.fanartFileName!.isEmpty) {
-      return null;
-    }
-    // O `folderName` sozinho não é a URL completa — usamos o scraping
-    // model `scrapingSeasons` que tem o `url` correto. Retorna
-    // o fanart URL construído a partir do folderUrl da scraping.
-    final scrapingSeason = _findScrapingSeasonFor(s);
-    if (scrapingSeason == null) {
-      // Fallback final: usa o folderName (pode não ser URL completa,
-      // mas é melhor que nada).
-      return s.fanartUrl;
-    }
-    return s.fanartUrlWith(scrapingSeason.url);
+    return null;
   }
 
   /// Poster URL da season selecionada (para cards/badges de season
