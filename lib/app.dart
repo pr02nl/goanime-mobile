@@ -96,8 +96,19 @@ class PauloFlixApp extends StatelessWidget {
         // `ProviderNotFoundException` em runtime. Use o ctor
         // `fromDatabase(appDatabase)` que constrói o repo internamente.
         // O `appDatabase` está disponível como field da `PauloFlixApp`.
+        // IMPORTANTE: ordem importa — `PauloFlixEpisodeSyncService` precisa
+        // do `jwtManager` (criado em main.dart), então construímos o
+        // `AuthenticatedHttpClient` inline no `create:` em vez de via
+        // Provider separado (gotcha #9: dependência circular em
+        // MultiProvider).
         Provider<PauloFlixEpisodeSyncService>(
-          create: (_) => PauloFlixEpisodeSyncService.fromDatabase(appDatabase),
+          create: (_) => PauloFlixEpisodeSyncService.fromDatabase(
+            appDatabase,
+            httpClient: AuthenticatedHttpClient(
+              tokenManager: jwtManager,
+              inner: http.Client(),
+            ),
+          ),
         ),
         // Auth: JwtTokenManager (gera/renova tokens) + AuthenticatedHttpClient
         // (wrapper que injeta Authorization em toda request).
@@ -105,12 +116,13 @@ class PauloFlixApp extends StatelessWidget {
         // expomos via Provider para que outros lugares (player, sync) possam
         // recriar o client autenticado se necessário.
         Provider<JwtTokenManager>.value(value: jwtManager),
-        Provider<AuthenticatedHttpClient>(
-          create: (_) => AuthenticatedHttpClient(
-            tokenManager: jwtManager,
-            inner: http.Client(),
-          ),
-        ),
+        // NOTA: AuthenticatedHttpClient JÁ foi criado acima (no
+        // PauloFlixEpisodeSyncService) e no NfoEnricherProvider abaixo.
+        // Não criamos um Provider<AuthenticatedHttpClient> aqui para
+        // evitar múltiplas instâncias — cada service que precisa de
+        // auth cria o seu via construtor. Se quiser um único compartilhado,
+        // seria preciso reordenar os providers pra colocar o auth
+        // primeiro (gotcha #9).
         // NFO Enricher (Fase 3 do plano NFO enrichment) — orquestrador
         // HTTP que faz GET de `tvshow.nfo` / `movie.nfo` / `episode thumbs`
         // do servidor PauloFlix. Usa o `AuthenticatedHttpClient` injetado

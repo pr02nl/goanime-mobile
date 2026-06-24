@@ -18,6 +18,16 @@ import 'package:http/http.dart' as http;
 
 import 'jwt_token_manager.dart';
 
+/// Regex case-insensitive que casa os hosts do PauloFlix.
+///
+/// Exposto como constant top-level (não dentro da classe) pra que
+/// outros lugares (ex: o player) possam usar sem precisar instanciar
+/// um `AuthenticatedHttpClient`.
+final RegExp kPauloFlixHostPattern = RegExp(
+  r'^(?:.+\.)?media\.oliveira\.braga\.nom\.br$',
+  caseSensitive: false,
+);
+
 /// `http.Client` que adiciona `Authorization: Bearer *** automaticamente
 /// a cada request, e regenera o token + retry 1x em caso de 401.
 ///

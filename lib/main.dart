@@ -53,6 +53,35 @@ void main() async {
     startupError ??= 'TMDB: $e';
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // JWT manager — DEVE ser inicializado ANTES dos services que vão usá-lo
+  // (DownloadService, PauloFlixEpisodeSyncService). Em produção, o
+  // base64 da chave privada está embutido no APK; em dev com placeholder,
+  // o initialize() falha e os services caem no fallback http.Client()
+  // (sem auth) — PauloFlix retorna 401 mas o app continua funcionando
+  // com outros sources.
+  // ═══════════════════════════════════════════════════════════════════════
+  final jwtManager = JwtTokenManager();
+  // ignore: avoid_print
+  print('[PauloFlixAuth] ▶ Inicializando JWT manager...');
+  http.Client? authClient;
+  try {
+    await jwtManager.initialize();
+    // ignore: avoid_print
+    print(
+      '[PauloFlixAuth] ✓ JWT manager OK. device_id=${jwtManager.deviceId}',
+    );
+    authClient = AuthenticatedHttpClient(
+      tokenManager: jwtManager,
+      inner: http.Client(),
+    );
+  } catch (e) {
+    // Se falhar (placeholder), os services usam http.Client() default
+    // e os requests vão dar 401. Loga mas não bloqueia o app.
+    // ignore: avoid_print
+    print('[PauloFlixAuth] ✗ Falha ao inicializar: $e');
+  }
+
   // FASE 3 — Drift AppDatabase:
   // 1. Resolve o path do banco unificado (pauloflix.db).
   // 2. Renomeia o banco legado (se existir) para liberar o path.
@@ -67,47 +96,31 @@ void main() async {
     appDatabase = AppDatabase();
     // Garante que as tabelas Drift foram criadas antes de migrar.
     await appDatabase.customSelect('SELECT 1').get();
-    // Cria o DownloadService com o repository (Fase 3) e inicializa.
+    // Cria o DownloadService COM o client autenticado injetado
+    // (juntei as duas etapas: criar service + injetar auth numa só,
+    // porque o _httpClient é final e não pode ser mudado depois).
     final downloadsRepo = DownloadsRepositoryImpl(appDatabase);
-    realDownloadService = DownloadService.withRepository(downloadsRepo);
+    realDownloadService = DownloadService.withRepository(
+      downloadsRepo,
+      httpClient: authClient, // null se JWT manager falhou
+    );
     await realDownloadService.initialize();
   } catch (e) {
     startupError ??= 'AppDatabase: $e';
     rethrow;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // Migração Tailscale → HTTPS+token: inicializa o JWT manager e
-  // configura o AuthenticatedHttpClient nos services PauloFlix.
-  // O initialize() pode falhar se a chave privada ainda for placeholder
-  // (proteção contra build acidental). Em produção real, o base64
-  // já está embutido no APK.
-  // ═══════════════════════════════════════════════════════════════════════
-  final jwtManager = JwtTokenManager();
-  // ignore: avoid_print
-  print('[PauloFlixAuth] ▶ Inicializando JWT manager...');
-  try {
-    await jwtManager.initialize();
-    // ignore: avoid_print
-    print(
-      '[PauloFlixAuth] ✓ JWT manager OK. device_id=${jwtManager.deviceId}',
-    );
-    final authClient = AuthenticatedHttpClient(
-      tokenManager: jwtManager,
-      inner: http.Client(),
-    );
-    // Injeta o client nos services estáticos PauloFlix.
-    // Nota: o PauloFlixEpisodeSyncService já aceita client via ctor
-    // (criado em app.dart) e não precisa de configure.
+  // Injeta o client nos services estáticos PauloFlix.
+  // O PauloFlixEpisodeSyncService já aceita client via ctor (criado
+  // em app.dart) e não precisa de configure.
+  if (authClient != null) {
     PauloFlixService.configure(authClient);
     PauloFlixMoviesService.configure(authClient);
     // ignore: avoid_print
-    print('[PauloFlixAuth] ✓ Auth client configurado nos services PauloFlix.');
-  } catch (e) {
-    // Se falhar (placeholder), os services usam http.Client() default
-    // e os requests vão dar 401. Loga mas não bloqueia o app.
+    print('[PauloFlixAuth] ✓ Auth client configurado em PauloFlix, Movies e DownloadService.');
+  } else {
     // ignore: avoid_print
-    print('[PauloFlixAuth] ✗ Falha ao inicializar: $e');
+    print('[PauloFlixAuth] ⚠ Sem authClient — services vão usar http.Client() default.');
   }
 
   runApp(

@@ -10,6 +10,8 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../data/services/anime_service.dart';
+import '../../../data/services/auth/authenticated_http_client.dart';
+import '../../../data/services/auth/jwt_token_manager.dart';
 import '../../../data/services/episode_progress_service.dart';
 import '../../../data/services/google_video_proxy.dart';
 import '../../../domain/models/anime.dart';
@@ -471,18 +473,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   }) async {
     final service = _progressService;
     if (service == null) return;
-    await service.flush(
-      getCurrentPosition: getPos,
-      getDuration: getDur,
-    );
+    await service.flush(getCurrentPosition: getPos, getDuration: getDur);
   }
 
   /// Closures para o player. `_player` pode ser null durante cleanup.
-  Duration _getCurrentPosition() =>
-      _player?.state.position ?? Duration.zero;
+  Duration _getCurrentPosition() => _player?.state.position ?? Duration.zero;
 
-  Duration _getCurrentDuration() =>
-      _player?.state.duration ?? Duration.zero;
+  Duration _getCurrentDuration() => _player?.state.duration ?? Duration.zero;
 
   /// Espera o `Player.stream.tracks` emitir um snapshot com pelo menos
   /// uma faixa de legenda (embutida) ou atingir o timeout. Substitui o
@@ -745,6 +742,29 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       // Merge: controller headers take priority over defaults
       final mergedHeaders = {...defaultHeaders, ...controllerHeaders};
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // Migração Tailscale → HTTPS+token: se a URL for do PauloFlix, injeta
+      // o JWT Authorization no `httpHeaders` do Media.open() (libmpv envia
+      // esses headers em CADA range request subsequente).
+      // O JwtTokenManager está disponível via Provider (configurado no
+      // app.dart). Lê via context.read<>() — safe em initState porque o
+      // Provider está registrado no MultiProvider do PauloFlixApp.
+      // ═══════════════════════════════════════════════════════════════════════
+      if (kPauloFlixHostPattern.hasMatch(uri.host)) {
+        try {
+          final token = await context.read<JwtTokenManager>().getValidToken();
+          mergedHeaders['Authorization'] = 'Bearer $token';
+          debugPrint(
+            '[VideoPlayer] ✓ JWT injetado no header do player (PauloFlix)',
+          );
+        } catch (e) {
+          debugPrint('[VideoPlayer] ⚠ Falha ao injetar JWT (placeholder?): $e');
+          // Sem auth, range requests vão dar 401. Mas o player ainda
+          // funciona (vai mostrar erro de playback, não crash).
+        }
+      }
+
       debugPrint('[VideoPlayer] Headers: $mergedHeaders');
 
       // Fase 2: aplica heurística de reset vs retomar (PauloFlix) ANTES

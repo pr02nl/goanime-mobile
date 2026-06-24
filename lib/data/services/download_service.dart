@@ -139,13 +139,26 @@ class DownloadItem {
 class DownloadService extends ChangeNotifier {
   static final DownloadService _instance = DownloadService._internal();
   factory DownloadService() => _instance;
-  DownloadService._internal() : _repository = null;
+  DownloadService._internal() : _repository = null, _httpClient = null;
 
   /// Ctor de produção com repository injetado (Fase 3). Use este no
   /// boot do app em vez do `DownloadService()` singleton.
-  DownloadService.withRepository(this._repository)
-      : _database = null,
-        assert(_repository != null);
+  ///
+  /// [httpClient] é injetado em produção com o `AuthenticatedHttpClient`
+  /// para que downloads de arquivos PauloFlix (que exigem JWT) passem
+  /// pela auth. Em testes, pode-se injetar um `MockClient` ou omitir
+  /// (cai no `http.Client()` default, sem auth).
+  DownloadService.withRepository(
+    this._repository, {
+    http.Client? httpClient,
+  })  : _database = null,
+       _httpClient = httpClient,
+       assert(_repository != null);
+
+  /// HTTP client usado pelos downloads. Injetado via
+  /// [withRepository] em produção (com auth). Null no ctor legado
+  /// (cai no `http.Client()` puro, sem auth — usado em testes).
+  final http.Client? _httpClient;
 
   /// Repository Drift (Fase 3). Null no ctor legado (sqlite3 FFI direto).
   final DownloadsRepository? _repository;
@@ -512,8 +525,8 @@ class DownloadService extends ChangeNotifier {
     await _saveDownload(_downloads[id]!);
     notifyListeners();
 
-    // Create HTTP client
-    final client = http.Client();
+    // Create HTTP client (injetado em produção com AuthenticatedHttpClient)
+    final client = _httpClient ?? http.Client();
     _downloadClients[id] = client;
 
     try {
