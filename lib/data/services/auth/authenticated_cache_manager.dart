@@ -46,7 +46,17 @@ import 'jwt_token_manager.dart';
 /// **Importante:** este wrapper **delega** para um [CacheManager]
 /// interno (default do `cached_network_image`). Não duplica
 /// lógica de cache — só adiciona o header de auth.
-class AuthenticatedCacheManager implements BaseCacheManager {
+///
+/// **Por que `implements ImageCacheManager`:** o `CachedNetworkImage`
+/// valida (via `assert` em debug) que quando `maxWidthDiskCache` ou
+/// `maxHeightDiskCache` são passados (ex: `NetflixCard` define-os
+/// quando `width`/`height` são finitos), o `cacheManager` DEVE
+/// implementar `ImageCacheManager` (mixin) OU os max* são null.
+/// Sem isto, o `NetflixCard` (cards de seção) lança `AssertionError`
+/// que vira `errorWidget` cinza — mas o `NetflixHeroCard` (hero,
+/// `width: double.infinity`) e `PaginatedLetterGrid` (grid, `width:
+/// double.infinity`) funcionam porque não passam max*.
+class AuthenticatedCacheManager implements BaseCacheManager, ImageCacheManager {
   AuthenticatedCacheManager(this._tokenManager, {BaseCacheManager? inner})
     : _inner = inner ?? CacheManager(Config(_kCacheKey));
 
@@ -189,4 +199,57 @@ class AuthenticatedCacheManager implements BaseCacheManager {
 
   @override
   Future<void> dispose() => _inner.dispose();
+
+  /// Implementação do `ImageCacheManager` (mixin). Delega para o
+  /// `getImageFile` do inner se ele também implementar (que é o
+  /// caso do `CacheManager` default do `cached_network_image`).
+  ///
+  /// Por que este override existe: o `ImageCacheManager` é um mixin
+  /// `on BaseCacheManager` que define `getImageFile` como método
+  /// abstrato. Como `AuthenticatedCacheManager` faz `implements
+  /// ImageCacheManager`, precisa fornecer uma implementação
+  /// concreta.
+  ///
+  /// **Por que delegar diretamente ao `_inner.getImageFile`:** o
+  /// `CacheManager` default do `flutter_cache_manager` JÁ implementa
+  /// `ImageCacheManager` (via mixin). O `getImageFile` interno já
+  /// cuida do resize, cache de versões redimensionadas, e reusa
+  /// `getFileStream` internamente. Não precisamos reimplementar
+  /// essa lógica — só propagar o header de auth.
+  @override
+  Stream<FileResponse> getImageFile(
+    String url, {
+    String? key,
+    Map<String, String>? headers,
+    bool withProgress = false,
+    int? maxHeight,
+    int? maxWidth,
+  }) async* {
+    final h = await _injectAuth(headers);
+    final imageCache = _inner is ImageCacheManager ? _inner : null;
+    if (imageCache != null) {
+      await for (final result in imageCache.getImageFile(
+        url,
+        key: key,
+        headers: h,
+        withProgress: withProgress,
+        maxHeight: maxHeight,
+        maxWidth: maxWidth,
+      )) {
+        yield result;
+      }
+    } else {
+      // Fallback: inner não é ImageCacheManager (não deveria acontecer
+      // em produção, mas defensivo). Usa getFileStream e ignora
+      // o resize (pode ficar pixelado se for chamado com max*).
+      await for (final result in _inner.getFileStream(
+        url,
+        key: key,
+        headers: h,
+        withProgress: withProgress,
+      )) {
+        yield result;
+      }
+    }
+  }
 }
