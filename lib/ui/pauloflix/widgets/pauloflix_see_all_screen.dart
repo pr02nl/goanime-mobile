@@ -37,6 +37,7 @@ import '../../core/widgets/paginated_letter_grid.dart';
 import '../../core/widgets/pauloflix_badge.dart';
 import '../view_models/paulo_flix_continue_watching_viewmodel.dart';
 import '../view_models/pauloflix_provider.dart';
+import '_anime_hero_banner.dart';
 import 'paulo_flix_continue_watching_section.dart';
 
 class PauloFlixSeeAllScreen extends StatefulWidget {
@@ -203,7 +204,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     if (_featured != null) {
       slivers.add(
         SliverToBoxAdapter(
-          child: _AnimeHeroBanner(
+          child: AnimeHeroBanner(
             content: _featured!,
             isTV: _isTV,
           ),
@@ -442,156 +443,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   void _onContinueWatchingTap(PauloFlixContent content) {
     context.pushNamed(
       'pauloflix-episode-list',
-      extra: content,
-    );
-  }
-}
-
-// ─── Hero Banner ────────────────────────────────────────────────────
-
-class _AnimeHeroBanner extends StatelessWidget {
-  final PauloFlixContent content;
-  final bool isTV;
-
-  const _AnimeHeroBanner({required this.content, required this.isTV});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 420,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Backdrop com gradiente escuro
-          Container(
-            decoration: const BoxDecoration(color: AppColors.background),
-            child: content.imageUrl != null && content.imageUrl!.isNotEmpty
-                ? Image.network(
-                    content.imageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        const ColoredBox(color: Color(0xFF1A1A2E)),
-                  )
-                : const ColoredBox(color: Color(0xFF1A1A2E)),
-          ),
-          // Gradiente escuro
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.5),
-                  Colors.black.withValues(alpha: 0.9),
-                ],
-                stops: const [0.0, 0.5, 1.0],
-              ),
-            ),
-          ),
-          // Conteúdo (título + botão)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const PauloFlixBadge(),
-                  const SizedBox(height: 12),
-                  Text(
-                    content.displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black,
-                          offset: Offset(0, 2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (content.score != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.star,
-                          color: Color(0xFFFBBF24),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          content.score!.toStringAsFixed(1),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  FocusableWidget(
-                    onSelect: () => _openEpisodeList(context),
-                    borderRadius: 8,
-                    focusPadding: EdgeInsets.zero,
-                    focusScale: 1.05,
-                    child: Material(
-                      color: const Color(0xFF6366F1),
-                      borderRadius: BorderRadius.circular(8),
-                      child: InkWell(
-                        onTap: () => _openEpisodeList(context),
-                        borderRadius: BorderRadius.circular(8),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.play_arrow,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Assistir',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _openEpisodeList(BuildContext context) {
-    context.pushNamed(
-      'pauloflix-episodes',
       extra: content,
     );
   }

@@ -379,6 +379,7 @@ class AppLocalizations {
   String get sectionAllAnimes =>
       locale.languageCode == 'pt' ? 'Todos os Animes' : 'All Animes';
   String get playNow => locale.languageCode == 'pt' ? 'Assistir' : 'Play';
+  String get myList => locale.languageCode == 'pt' ? 'Minha Lista' : 'My List';
   String pageIndicator(int current, int total) => locale.languageCode == 'pt'
       ? 'Pág. $current de $total'
       : 'Page $current of $total';

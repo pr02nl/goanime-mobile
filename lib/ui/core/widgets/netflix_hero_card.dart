@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../themes/app_colors.dart';
 import '../themes/netflix_theme.dart';
 
@@ -12,12 +13,21 @@ import '../themes/netflix_theme.dart';
 /// shell `MainNavigationScreen`). O shell gerencia o foco inicial via
 /// `_lastContentFocusNode` + `_restoreContentFocus`; autofocus declarativo
 /// aqui causa race condition com ModalRoute por cima.
+///
+/// **Props opcionais:**
+/// * [badge] — overlay no canto superior esquerdo (ex: `PauloFlixBadge`).
+///   Renderizado apenas se fornecido.
+/// * [score] — quando não-nulo, exibe estrela + valor formatado
+///   `9.0` ao lado do título. Usado para animes Jikan-score.
+///   Quando `null`, não renderiza nada (movies não têm score).
 class NetflixHeroCard extends StatelessWidget {
   final String imageUrl;
   final String title;
   final String? description;
   final VoidCallback? onPlay;
   final VoidCallback? onMyList;
+  final Widget? badge;
+  final double? score;
   final double height;
   final bool isTV;
 
@@ -28,12 +38,15 @@ class NetflixHeroCard extends StatelessWidget {
     this.description,
     this.onPlay,
     this.onMyList,
+    this.badge,
+    this.score,
     this.height = 400,
     this.isTV = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return FocusTraversalGroup(
       child: Container(
         height: height,
@@ -81,6 +94,13 @@ class NetflixHeroCard extends StatelessWidget {
                 ),
               ),
             ),
+            // Badge (canto superior esquerdo) — opcional
+            if (badge != null)
+              Positioned(
+                left: NetflixTheme.horizontalPadding(context),
+                top: NetflixTheme.lg,
+                child: badge!,
+              ),
             // Content
             Positioned(
               left: 0,
@@ -117,6 +137,27 @@ class NetflixHeroCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (score != null) ...[
+                      const SizedBox(height: NetflixTheme.sm),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            color: Color(0xFFFBBF24),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            score!.toStringAsFixed(1),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     if (description != null) ...[
                       const SizedBox(height: NetflixTheme.md),
                       Text(
@@ -139,7 +180,7 @@ class NetflixHeroCard extends StatelessWidget {
                           _HeroActionButton(
                             onPressed: onPlay!,
                             icon: Icons.play_arrow,
-                            label: 'Play',
+                            label: l10n.playNow,
                             filled: true,
                           ),
                         if (onMyList != null) ...[
@@ -147,7 +188,7 @@ class NetflixHeroCard extends StatelessWidget {
                           _HeroActionButton(
                             onPressed: onMyList!,
                             icon: Icons.add,
-                            label: 'My List',
+                            label: l10n.myList,
                             filled: false,
                           ),
                         ],
