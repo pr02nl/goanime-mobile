@@ -131,12 +131,27 @@ class PauloFlixEpisodeSyncService {
       //     `null` = sem NFO / erro → fica null no banco. Caller pode
       //     usar TMDB/Jikan como fallback.
       String? seasonDescription;
+      // 2a.1 (Fase 12) Busca poster/fanart da pasta da season via
+      // listing. Análogo ao que `PauloFlixMoviesService._detectImageFiles`
+      // faz para filmes, mas para seasons. Retorna nomes de arquivo
+      // (não URLs) que serão resolvidos pelo repo via `posterUrlWith`.
+      // Como `fetchEpisodeThumbs` já faz GET do listing da season
+      // para detectar thumbs, poderíamos reusar aqui, mas a
+      // separação é mais clara e o custo extra é 1 GET por season
+      // (aceitável).
+      DetectedSeasonImages seasonImages =
+          const DetectedSeasonImages();
       if (enricher != null) {
         try {
           final seasonNfo = await enricher.fetchSeasonNfo(s.url);
           seasonDescription = seasonNfo?.plot;
         } catch (e) {
           debugPrint('[PauloFlixSync] fetchSeasonNfo failed: $e');
+        }
+        try {
+          seasonImages = await enricher.fetchSeasonImages(s.url);
+        } catch (e) {
+          debugPrint('[PauloFlixSync] fetchSeasonImages failed: $e');
         }
       }
 
@@ -147,6 +162,8 @@ class PauloFlixEpisodeSyncService {
         displayName: s.name,
         folderName: s.name,
         seasonDescription: seasonDescription,
+        posterFileName: seasonImages.poster,
+        fanartFileName: seasonImages.fanart,
       );
 
       // 2c. (Fase 10) Busca NFO de cada episode em batch (se enricher).

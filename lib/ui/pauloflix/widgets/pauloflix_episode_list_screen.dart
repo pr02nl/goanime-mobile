@@ -148,15 +148,20 @@ class _HeroBanner extends StatelessWidget {
     // o `SliverToBoxAdapter` que o contém garante que ele é renderizado
     // como um bloco normal do `CustomScrollView` — o foco do botão
     // "Assistir" não depende mais do estado de scroll.
+    //
+    // Imagem: prioriza `content.bannerUrl` (capa do anime), com
+    // fallback para `season.fanart.jpg` (capa por season). Quando o
+    // user troca de season, o hero atualiza (Provider notifica).
+    final heroUrl = vm.selectedSeasonHeroUrl;
     return SizedBox(
       height: heroHeight,
       child: Stack(
         fit: StackFit.expand,
         children: [
           // Banner Image
-          if (content.bannerUrl != null)
+          if (heroUrl != null)
             Image.network(
-              content.bannerUrl!,
+              heroUrl,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => _buildFallback(),
             )

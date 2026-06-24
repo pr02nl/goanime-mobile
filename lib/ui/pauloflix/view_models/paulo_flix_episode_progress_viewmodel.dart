@@ -104,6 +104,63 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
     return s?.isCompleted ?? false;
   }
 
+  /// URL absoluta do hero da season selecionada, priorizando:
+  /// 1. `content.bannerUrl` (imagem principal do anime na raiz).
+  /// 2. `fanart.jpg` da pasta da season selecionada (fallback por season).
+  ///
+  /// **Por que esse fallback:** o `content.bannerUrl` é a capa
+  /// principal do anime (vem do `tvshow.nfo` ou Jikan). Algumas
+  /// seasons têm seu próprio `fanart.jpg` específico na pasta
+  /// `Season 01/` que pode ser mais representativo (capa da temporada
+  /// em vez do anime inteiro). Quando o user troca de season, o
+  /// hero atualiza para o fanart correspondente.
+  ///
+  /// Retorna `null` se nenhum disponível → caller renderiza fallback.
+  String? get selectedSeasonHeroUrl {
+    if (content.bannerUrl != null && content.bannerUrl!.isNotEmpty) {
+      return content.bannerUrl;
+    }
+    final s = selectedSeason;
+    if (s == null) return null;
+    if (s.fanartFileName == null || s.fanartFileName!.isEmpty) {
+      return null;
+    }
+    // O `folderName` sozinho não é a URL completa — usamos o scraping
+    // model `scrapingSeasons` que tem o `url` correto. Retorna
+    // o fanart URL construído a partir do folderUrl da scraping.
+    final scrapingSeason = _findScrapingSeasonFor(s);
+    if (scrapingSeason == null) {
+      // Fallback final: usa o folderName (pode não ser URL completa,
+      // mas é melhor que nada).
+      return s.fanartUrl;
+    }
+    return s.fanartUrlWith(scrapingSeason.url);
+  }
+
+  /// Poster URL da season selecionada (para cards/badges de season
+  /// específicos). Retorna `null` se sem poster.
+  String? get selectedSeasonPosterUrl {
+    final s = selectedSeason;
+    if (s == null) return null;
+    if (s.posterFileName == null || s.posterFileName!.isEmpty) {
+      return null;
+    }
+    final scrapingSeason = _findScrapingSeasonFor(s);
+    if (scrapingSeason == null) return s.posterUrl;
+    return s.posterUrlWith(scrapingSeason.url);
+  }
+
+  /// Helper: encontra a `PauloFlixSeason` (scraping model) que
+  /// corresponde a um `PauloFlixSeasonRecord` (banco) pelo número
+  /// da season. Retorna `null` se não achar.
+  scraping.PauloFlixSeason? _findScrapingSeasonFor(
+      PauloFlixSeasonRecord record) {
+    for (final scraping in scrapingSeasons) {
+      if (scraping.number == record.seasonNumber) return scraping;
+    }
+    return null;
+  }
+
   /// Seasons convertidas para o modelo de **scraping** (`PauloFlixSeason`).
   ///
   /// **Por que essa conversão:** o `PauloflixSeasonSelector` foi

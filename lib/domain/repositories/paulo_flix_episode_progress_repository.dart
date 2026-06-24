@@ -115,6 +115,14 @@ abstract class PauloFlixEpisodeProgressRepository {
     required String displayName,
     required String folderName,
     String? seasonDescription,
+    /// Nome do arquivo `poster.jpg` (ou similar) na pasta da
+    /// season. Nullable = sem NFO/JPG detectado. Usado como fallback
+    /// no `PauloFlixContent.bannerUrl` quando o `season.nfo` não
+    /// tem `<thumb>`.
+    String? posterFileName,
+    /// Nome do arquivo `fanart.jpg` (ou `banner.jpg`) na pasta.
+    /// Mesmo rationale do [posterFileName].
+    String? fanartFileName,
   });
 
   /// Insere ou atualiza um episode. Se já existir (mesmo

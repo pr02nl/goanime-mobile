@@ -43,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   /// `NativeDatabase.memory()`).
   AppDatabase.forTesting(super.executor);
 
-  /// Schema começa em **5**:
+  /// Schema começa em **8**:
   /// * v1-v3: cobre todas as instalações 1.x e 2.x (versões que tinham
   ///   bancos legados separados).
   /// * v4 (2026-06-22): adiciona tabela `tmdb_genres` para cache do
@@ -52,16 +52,19 @@ class AppDatabase extends _$AppDatabase {
   ///   `paulo_flix_episodes` para persistir seasons, episódios assistidos,
   ///   tempo assistido e flag de temporada completa. Ver plano
   ///   `.hermes/plans/2026-06-22_2230-pauloflix-episodes-progress.md`.
-  /// * v6 (2026-06-23): adiciona coluna `thumbnailUrl` em
-  ///   `paulo_flix_episodes` para suportar o padrão Kodi de thumb de
-  ///   episode. Ver plano
+  /// * v6 (2026-06-23): adiciona `thumbnailUrl` em `paulo_flix_episodes`
+  ///   (Fase 0 do plano NFO enrichment V1). Ver plano
   ///   `.hermes/plans/2026-06-23_224213-pauloflix-nfo-enrichment.md`.
-  /// * v7 (2026-06-23): adiciona coluna `description` em
+  /// * v7 (2026-06-23): adiciona `description` em
   ///   `paulo_flix_seasons` e `paulo_flix_episodes` para popular
-  ///   plot/description de `season.nfo` e `S01E001.nfo`. Ver plano
+  ///   plot/description de `season.nfo` e `S01E{nnn}.nfo`. Ver plano
   ///   `.hermes/plans/2026-06-23_225500-pauloflix-nfo-enrichment-v2.md`.
+  /// * v8 (2026-06-23): adiciona `posterFileName`/`fanartFileName` em
+  ///   `paulo_flix_seasons` para popular imagens de season via
+  ///   fallback em `poster.jpg`/`fanart.jpg` (análogo ao que
+  ///   `PauloFlixMovieRaw` faz para filmes).
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -119,6 +122,23 @@ class AppDatabase extends _$AppDatabase {
             );
             await db.customStatement(
               'ALTER TABLE paulo_flix_episodes ADD COLUMN description TEXT',
+            );
+          }
+          // v7 → v8: adiciona posterFileName/fanartFileName em
+          // paulo_flix_seasons para popular imagens de season via
+          // fallback em `poster.jpg`/`fanart.jpg` (análogo ao que
+          // `PauloFlixMovieRaw` faz para filmes). Mesma técnica
+          // raw-SQL do v6→v7 (customStatement) para não depender
+          // do codegen — o .g.dart é patcheado em paralelo.
+          if (from < 8) {
+            final db = m.database as AppDatabase;
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_seasons '
+              'ADD COLUMN poster_file_name TEXT',
+            );
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_seasons '
+              'ADD COLUMN fanart_file_name TEXT',
             );
           }
         },

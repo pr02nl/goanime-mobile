@@ -30,10 +30,10 @@ import 'pauloflix_content.dart';
 class PauloFlixSeasons extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get contentId => integer().references(
-        PauloFlixContent,
-        #id,
-        onDelete: KeyAction.cascade,
-      )();
+    PauloFlixContent,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
   IntColumn get seasonNumber => integer()();
 
   /// Nome legível (ex.: "Season 01", "S01", "Temporada 1").
@@ -51,18 +51,29 @@ class PauloFlixSeasons extends Table {
   TextColumn get description => text().nullable()();
 
   /// Cache de `COUNT(episodes)` — evita JOIN ao listar seasons.
-  IntColumn get episodeCount =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get episodeCount => integer().withDefault(const Constant(0))();
+
+  /// Nome do arquivo `poster.jpg` (ou similar) na pasta da season,
+  /// se existir. Usado como fallback quando o `season.nfo` não tem
+  /// `<thumb aspect="poster">` apontando para a imagem.
+  ///
+  /// A URL absoluta é construída on-the-fly pelo
+  /// `PauloFlixSeasonRecord.posterUrl` (getter que combina com
+  /// `folderUrl`). Só persistimos o **nome** do arquivo.
+  TextColumn get posterFileName => text().nullable()();
+
+  /// Nome do arquivo `fanart.jpg` (ou `banner.jpg`) na pasta da
+  /// season, se existir. Mesmo rationale do [posterFileName].
+  TextColumn get fanartFileName => text().nullable()();
 
   /// Flag derivada: true quando TODOS os episodes desta season
   /// têm `isCompleted = true`. Mantida por `_recomputeSeasonCompleted`.
-  BoolColumn get isCompleted =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
 
   DateTimeColumn get lastSynced => dateTime()();
 
   @override
   List<Set<Column>> get uniqueKeys => [
-        {contentId, seasonNumber},
-      ];
+    {contentId, seasonNumber},
+  ];
 }
