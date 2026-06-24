@@ -14,10 +14,22 @@ class PauloFlixService {
   static const String baseUrl = ApiConstants.animePauloFlix;
   static const Duration reEnrichThreshold = Duration(days: 7);
 
+  /// HTTP client usado pelas chamadas estáticas.
+  /// Inicializado por [configure] no startup do app com o
+  /// `AuthenticatedHttpClient` (que injeta `Authorization: Bearer *** JWT).
+  /// Default: `http.Client()` (sem auth) — usado em testes e como fallback.
+  static http.Client _httpClient = http.Client();
+
+  /// Injeta o HTTP client. Chamar UMA vez no `app.dart` antes do primeiro
+  /// sync. Em testes, pode injetar um `MockClient`.
+  static void configure(http.Client client) {
+    _httpClient = client;
+  }
+
   static Future<List<PauloFlixShow>> fetchAllShows() async {
     try {
       debugPrint('[PauloFlix] Fetching all shows from $baseUrl');
-      final response = await http
+      final response = await _httpClient
           .get(Uri.parse(baseUrl))
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {

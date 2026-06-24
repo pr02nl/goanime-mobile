@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import 'core/database/app_database.dart';
@@ -9,6 +10,8 @@ import 'data/repositories/paulo_flix_episode_progress_repository_impl.dart';
 import 'data/repositories/pauloflix_movies_repository_impl.dart';
 import 'data/repositories/pauloflix_repository_impl.dart';
 import 'data/repositories/watchlist_repository_impl.dart';
+import 'data/services/auth/authenticated_http_client.dart';
+import 'data/services/auth/jwt_token_manager.dart';
 import 'data/services/download_service.dart';
 import 'data/services/paulo_flix_episode_sync_service.dart';
 import 'data/services/tmdb_service.dart';
@@ -33,6 +36,7 @@ class PauloFlixApp extends StatelessWidget {
   final LocaleViewModel localeViewModel;
   final DownloadService downloadService;
   final AppDatabase appDatabase;
+  final JwtTokenManager jwtManager;
   final String? startupError;
 
   const PauloFlixApp({
@@ -41,6 +45,7 @@ class PauloFlixApp extends StatelessWidget {
     required this.localeViewModel,
     required this.downloadService,
     required this.appDatabase,
+    required this.jwtManager,
     this.startupError,
   });
 
@@ -92,6 +97,18 @@ class PauloFlixApp extends StatelessWidget {
         // O `appDatabase` está disponível como field da `PauloFlixApp`.
         Provider<PauloFlixEpisodeSyncService>(
           create: (_) => PauloFlixEpisodeSyncService.fromDatabase(appDatabase),
+        ),
+        // Auth: JwtTokenManager (gera/renova tokens) + AuthenticatedHttpClient
+        // (wrapper que injeta Authorization em toda request).
+        // O JwtTokenManager foi inicializado em main.dart; aqui só o
+        // expomos via Provider para que outros lugares (player, sync) possam
+        // recriar o client autenticado se necessário.
+        Provider<JwtTokenManager>.value(value: jwtManager),
+        Provider<AuthenticatedHttpClient>(
+          create: (_) => AuthenticatedHttpClient(
+            tokenManager: jwtManager,
+            inner: http.Client(),
+          ),
         ),
         // Services e viewmodels legados.
         ChangeNotifierProvider.value(value: themeViewModel),

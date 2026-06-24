@@ -7,7 +7,10 @@ class ApiConstants {
   static const String tmdbBaseUrl = 'https://api.themoviedb.org/3';
   static const String tmdbImageBase = 'https://image.tmdb.org/t/p';
   static const String animeFireBaseUrl = 'https://animefire.plus';
-  static const String animePauloFlix = 'http://100.95.105.113:8300/tvshows/';
-  static const String moviePauloFlix = 'http://100.95.105.113:8300/movies/';
+  // PauloFlix migrou de Tailscale (relay DERP, 2.1 Mbps) para HTTPS
+  // direto via domínio próprio. Auth via JWT Ed25519 — toda request
+  // injeta `Authorization: Bearer *** (ver AuthenticatedHttpClient).
+  static const String animePauloFlix = 'https://media.oliveira.braga.nom.br/tvshows/';
+  static const String moviePauloFlix = 'https://media.oliveira.braga.nom.br/movies/';
   static const String kitsuBaseUrl = 'https://kitsu.io/api/edge';
 }

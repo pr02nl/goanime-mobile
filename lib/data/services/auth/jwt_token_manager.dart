@@ -54,7 +54,7 @@ class JwtTokenManager {
   /// **PLACEHOLDER** — substituir pelo output real de
   /// `tools/generate_jwt_keypair.sh` na VPS antes de buildar release.
   static const String _kPrivateKeyB64 =
-      'REPLACE_WITH_OUTPUT_OF_generate_jwt_keypair.sh_BASE64';
+      '6xTZbO1u1tZp27eEMKPntloU3Aw889evKi8KHCTWSdk=';
 
   // SharedPreferences keys
   static const String _kTokenKey = 'pauloflix_jwt_token';
