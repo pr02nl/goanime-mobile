@@ -62,7 +62,7 @@ class PauloFlixService {
   static Future<List<PauloFlixSeason>> fetchShowSeasons(String showUrl) async {
     try {
       debugPrint('[PauloFlix] Fetching seasons from $showUrl');
-      final response = await http
+      final response = await _httpClient
           .get(Uri.parse(showUrl))
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
@@ -120,7 +120,7 @@ class PauloFlixService {
   ) async {
     try {
       debugPrint('[PauloFlix] Fetching episodes from $seasonUrl');
-      final response = await http
+      final response = await _httpClient
           .get(Uri.parse(seasonUrl))
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {

@@ -230,7 +230,7 @@ class PauloFlixMoviesService {
   static Future<List<PauloFlixMovieSubfolder>> fetchRootFolders() async {
     try {
       debugPrint('[PauloFlix Movies] Fetching root: $baseUrl');
-      final response = await http
+      final response = await _httpClient
           .get(Uri.parse(baseUrl))
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return [];
