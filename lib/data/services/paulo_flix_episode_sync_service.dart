@@ -8,6 +8,7 @@ import '../../core/utils/episode_utils.dart';
 import '../../data/repositories/paulo_flix_episode_progress_repository_impl.dart';
 import '../../domain/models/pauloflix_models.dart';
 import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
+import 'kodi/pauloflix_nfo_enricher.dart';
 
 /// Service de sincronização on-demand de seasons + episodes PauloFlix.
 ///
@@ -83,24 +84,35 @@ class PauloFlixEpisodeSyncService {
     '.wmv',
     '.m4v',
   };
-
   /// Sincroniza seasons + episodes do servidor para o banco.
   ///
   /// [contentId] é o ID do `PauloFlixContent` (banco local).
   /// [contentServerUrl] é a URL do show no file server PauloFlix.
+  /// [enricher] é o injetor opcional de `PauloFlixNfoEnricher` (Fase 5
+  /// do plano NFO enrichment). Quando fornecido, o sync busca
+  /// thumbnails de episode no padrão Kodi `S01E001-thumb.jpg` e os
+  /// persiste na coluna `thumbnailUrl` da tabela
+  /// `paulo_flix_episodes`. Quando `null` (default), o sync
+  /// preserva o comportamento legado — sem chamada extra de HTTP
+  /// para thumbs (back-compat com testes e callers que não injetam
+  /// enricher).
   ///
   /// **Comportamento:**
   /// 1. Fetch + parse seasons (HTTP).
   /// 2. Para cada season scrapeada: upsert (preserva `isCompleted`).
-  /// 3. Fetch + parse episodes da season (HTTP).
-  /// 4. Upsert cada episode (preserva progresso do user).
-  /// 5. Atualiza `episodeCount` + `lastSynced` da season.
+  /// 3. (Opcional) Fetch episode thumbs via enricher.
+  /// 4. Fetch + parse episodes da season (HTTP).
+  /// 5. Upsert cada episode com `thumbnailUrl` (preserva progresso do
+  ///    user: `positionSeconds`/`isCompleted`/`lastWatched`/
+  ///    `durationSeconds`).
+  /// 6. Atualiza `episodeCount` + `lastSynced` da season.
   ///
   /// **NÃO** faz reconciliação (deleção de seasons/episodes órfãos do
   /// servidor) — use [reconcileSeasonEpisodes] para isso.
   Future<void> syncSeasonEpisodes({
     required int contentId,
     required String contentServerUrl,
+    PauloFlixNfoEnricher? enricher,
   }) async {
     // 1. Fetch + parse seasons.
     final seasons = await _fetchSeasons(contentServerUrl);
@@ -114,10 +126,18 @@ class PauloFlixEpisodeSyncService {
         folderName: s.name,
       );
 
-      // 3. Fetch + parse episodes desta season.
+      // 3. (Fase 5) Busca os thumbs NFO (se enricher disponível).
+      // Mapa: episodeNumber → thumbUrl. Vazio = sem thumb (ou
+      // enricher ausente) → repo preserva coluna `thumbnailUrl`
+      // anterior (não grava null em re-syncs).
+      final Map<int, String> thumbs = enricher != null
+          ? await enricher.fetchEpisodeThumbs(s.url)
+          : <int, String>{};
+
+      // 4. Fetch + parse episodes desta season.
       final episodes = await _fetchEpisodes(s.url);
 
-      // 4. Upsert cada episode (preserva `positionSeconds`/
+      // 5. Upsert cada episode (preserva `positionSeconds`/
       // `isCompleted`/`lastWatched`/`durationSeconds`).
       for (final e in episodes) {
         await _repo.upsertEpisode(
@@ -125,17 +145,19 @@ class PauloFlixEpisodeSyncService {
           episodeNumber: e.number,
           title: e.title,
           videoUrl: e.url,
+          thumbnailUrl: thumbs[e.number],
         );
       }
 
-      // 5. Atualiza `episodeCount` e `lastSynced` da season. **NÃO** é
+      // 6. Atualiza `episodeCount` e `lastSynced` da season. **NÃO** é
       // feito pelo `upsertSeason` (que só atualiza displayName/folderName
       // se já existir) — o count é derivado do total scrapeado.
       await _updateSeasonCount(seasonId, episodes.length);
 
       debugPrint(
         '[PauloFlixSync] Content $contentId: '
-        'season ${s.number} (${episodes.length} episodes) sincronizada',
+        'season ${s.number} (${episodes.length} episodes, '
+        '${thumbs.length} thumbs) sincronizada',
       );
     }
   }
@@ -144,6 +166,12 @@ class PauloFlixEpisodeSyncService {
   ///
   /// Combina [syncSeasonEpisodes] (upsert) com a deleção de
   /// seasons/episodes que sumiram do servidor.
+  ///
+  /// [enricher] é o injetor opcional de `PauloFlixNfoEnricher` (Fase
+  /// 5). Quando fornecido, é propagado para `syncSeasonEpisodes`
+  /// para que os thumbnails de episode sejam descobertos durante o
+  /// sync. Quando `null` (default), a reconciliação não descobre
+  /// thumbs.
   ///
   /// **Política de segurança:** seasons/episodes com progresso do
   /// usuário NUNCA são deletados (mesmo se ausentes do servidor) —
@@ -157,6 +185,7 @@ class PauloFlixEpisodeSyncService {
   Future<SeasonEpisodesReconciliationStats> reconcileSeasonEpisodes({
     required int contentId,
     required String contentServerUrl,
+    PauloFlixNfoEnricher? enricher,
   }) async {
     // 1. Snapshot do banco ANTES do sync — para detectar o que vai
     //    sumir.
@@ -169,10 +198,12 @@ class PauloFlixEpisodeSyncService {
           await _repo.getEpisodeNumbersForSeason(s.id!);
     }
 
-    // 2. Sync básico (upsert).
+    // 2. Sync básico (upsert) — propaga o enricher para a Fase 5
+    //    descobrir thumbs de episode durante o sync.
     await syncSeasonEpisodes(
       contentId: contentId,
       contentServerUrl: contentServerUrl,
+      enricher: enricher,
     );
 
     // 3. Diff de seasons: o que está no banco mas NÃO foi scrapeado?

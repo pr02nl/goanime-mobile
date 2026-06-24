@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../data/services/kodi/pauloflix_nfo_enricher.dart';
 import '../../../data/services/paulo_flix_episode_sync_service.dart';
 import '../../../data/services/pauloflix_service.dart';
 import '../../../domain/models/pauloflix_content.dart';
@@ -28,15 +29,24 @@ class PauloFlixProvider extends ChangeNotifier {
   /// reconciliação de seasons/episodes.
   final PauloFlixEpisodeSyncService? _episodeSyncService;
 
+  /// Enricher NFO (Fase 3 do plano NFO enrichment) — opcional.
+  /// Quando `null` (legacy/tests), `syncContent` usa só Jikan para
+  /// enriquecer shows. Quando fornecido (`app.dart` injeta),
+  /// `syncContent` tenta NFO primeiro (`tvshow.nfo`) e cai no Jikan
+  /// só se NFO ausente/inválido.
+  final PauloFlixNfoEnricher? _nfoEnricher;
+
   /// Ctor padrão — provider sem dependência (cria PauloFlixService
   /// internamente para o sync; usado em testes/legado).
   PauloFlixProvider()
       : _repository = _NullPauloFlixRepository(),
-        _episodeSyncService = null;
+        _episodeSyncService = null,
+        _nfoEnricher = null;
 
   /// Ctor com repository (Fase 3) — usado pelo Provider do app.
   PauloFlixProvider.withRepository(this._repository)
-      : _episodeSyncService = null;
+      : _episodeSyncService = null,
+        _nfoEnricher = null;
 
   /// Ctor completo (Fase 2) — injeta o sync service para que
   /// `syncContent` faça o sync completo (shows + seasons + episodes)
@@ -44,8 +54,10 @@ class PauloFlixProvider extends ChangeNotifier {
   PauloFlixProvider.withRepositories({
     required PauloFlixRepository repository,
     required PauloFlixEpisodeSyncService episodeSyncService,
+    PauloFlixNfoEnricher? nfoEnricher,
   })  : _repository = repository,
-        _episodeSyncService = episodeSyncService;
+        _episodeSyncService = episodeSyncService,
+        _nfoEnricher = nfoEnricher;
 
   PauloFlixStatus _status = PauloFlixStatus.initial;
   List<PauloFlixContent> _contents = [];
@@ -105,6 +117,13 @@ class PauloFlixProvider extends ChangeNotifier {
           _status = PauloFlixStatus.error;
           notifyListeners();
         },
+        // Fase 3 (NFO enrichment) — se o enricher foi injetado via
+        // `withRepositories`, ele é tentado **antes** do Jikan. Se
+        // o servidor PauloFlix tem `tvshow.nfo` na pasta do show,
+        // o `PauloFlixContent` é construído a partir do NFO.
+        // Quando `null` (legacy/tests), comportamento idêntico ao
+        // pré-Fase 3: só Jikan.
+        enricher: _nfoEnricher,
         // Fase 2: callback que dispara o sync de seasons/episodes
         // para cada show recém-salvo. Só ativo se o service de
         // episode sync foi injetado (via withRepositories).

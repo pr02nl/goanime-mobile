@@ -1,4 +1,6 @@
 import '../../data/models/tmdb_models.dart';
+import '../../data/services/kodi/kodi_nfo_models.dart';
+import '../../data/services/kodi/pauloflix_nfo_enricher.dart';
 import '../../core/utils/genre_codec.dart';
 
 /// Conteúdo mapeado do PauloFlix Movies com metadados do TMDB.
@@ -88,6 +90,48 @@ class PauloFlixMovie {
       runtime: tmdb.runtime,
       year: tmdb.year,
       tmdbId: tmdb.id,
+      isCollection: false,
+      availableMovieCount: 1,
+    );
+  }
+
+  /// Cria a partir de um `KodiShowNfo` parseado de `movie.nfo` (Fase 4 do
+  /// plano NFO enrichment). É a fonte **primária** de metadados quando o
+  /// servidor PauloFlix tem `movie.nfo` na pasta do filme — nesse caso,
+  /// o fallback TMDB **não** é chamado.
+  ///
+  /// **Campos não disponíveis no NFO:** `releaseDate` (NFO de movie tem
+  /// `<premiered>` mas não estamos parseando nesta versão), `runtime`,
+  /// `tmdbId` (vínculo com TMDB não está no NFO). Esses campos ficam
+  /// `null` — se o caller quiser, pode enriquecer com TMDB depois.
+  ///
+  /// **Resolução de URLs de imagem:** [nfo] pode conter URLs absolutas
+  /// (`http://...`) ou paths relativos (`poster.jpg`). O
+  /// `PauloFlixNfoEnricher.resolveThumbUrl` cuida de juntar com
+  /// [serverUrl] (e aplicar URL-encoding nos paths relativos).
+  factory PauloFlixMovie.fromNfo({
+    required String folderName,
+    required String serverUrl,
+    required KodiShowNfo nfo,
+  }) {
+    return PauloFlixMovie(
+      folderName: folderName,
+      displayName: nfo.title ?? folderName,
+      serverUrl: serverUrl,
+      imageUrl: nfo.posterThumb != null
+          ? PauloFlixNfoEnricher.resolveThumbUrl(serverUrl, nfo.posterThumb!)
+          : null,
+      bannerUrl: nfo.fanartThumb != null
+          ? PauloFlixNfoEnricher.resolveThumbUrl(serverUrl, nfo.fanartThumb!)
+          : null,
+      description: nfo.plot,
+      score: nfo.rating,
+      genres: nfo.genres,
+      // Campos que NFO não cobre nesta versão — ficam null.
+      releaseDate: null,
+      runtime: null,
+      year: nfo.year,
+      tmdbId: null,
       isCollection: false,
       availableMovieCount: 1,
     );

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../data/services/api_key_settings_service.dart';
+import '../../../data/services/kodi/pauloflix_nfo_enricher.dart';
 import '../../../data/services/pauloflix_movies_service.dart';
 import '../../../data/services/tmdb_service.dart';
 import '../../../domain/models/pauloflix_movie.dart';
@@ -23,20 +24,34 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   final TmdbService _tmdb;
   final ApiKeySettingsService _settings;
 
+  /// Enricher NFO (Fase 4 do plano NFO enrichment) — opcional. Quando
+  /// `null` (legacy/tests), `syncContent` usa só TMDB para enriquecer
+  /// filmes. Quando fornecido (`app.dart` injeta via `withServices`),
+  /// `syncContent` tenta NFO primeiro (`movie.nfo`) e cai no TMDB
+  /// só se NFO ausente/inválido.
+  final PauloFlixNfoEnricher? _nfoEnricher;
+
   /// Ctor padrão (compat) — usa um no-op repository.
   PauloFlixMoviesProvider()
       : _repository = _NullPauloFlixMoviesRepository(),
         _tmdb = TmdbService(),
-        _settings = ApiKeySettingsService();
+        _settings = ApiKeySettingsService(),
+        _nfoEnricher = null;
 
   /// Ctor com repository + services opcionais (testes).
+  ///
+  /// **Fase 4 (NFO enrichment):** [nfoEnricher] é passado pro
+  /// `PauloFlixMoviesService.syncContent` para que tente NFO
+  /// (`movie.nfo`) antes do TMDB.
   PauloFlixMoviesProvider.withServices({
     required PauloFlixMoviesRepository repository,
     TmdbService? tmdbService,
     ApiKeySettingsService? settingsService,
+    PauloFlixNfoEnricher? nfoEnricher,
   })  : _repository = repository,
         _tmdb = tmdbService ?? TmdbService(),
-        _settings = settingsService ?? ApiKeySettingsService();
+        _settings = settingsService ?? ApiKeySettingsService(),
+        _nfoEnricher = nfoEnricher;
 
   PauloFlixMoviesStatus _status = PauloFlixMoviesStatus.initial;
   List<PauloFlixMovie> _contents = [];
@@ -91,6 +106,13 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
           _errorMessage = err;
           notifyListeners();
         },
+        // Fase 4 (NFO enrichment) — se o enricher foi injetado via
+        // `withServices`, ele é tentado **antes** do TMDB. Se o
+        // servidor PauloFlix tem `movie.nfo` na pasta do filme, o
+        // `PauloFlixMovie` é construído a partir do NFO. Quando
+        // `null` (legacy/tests), comportamento idêntico ao
+        // pré-Fase 4: só TMDB.
+        enricher: _nfoEnricher,
       );
       if (success) {
         await loadContents();

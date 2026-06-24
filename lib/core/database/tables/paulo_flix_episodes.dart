@@ -44,6 +44,16 @@ class PauloFlixEpisodes extends Table {
   TextColumn get title => text()();
   TextColumn get videoUrl => text()();
 
+  /// URL absoluta do thumbnail do episode (servidor PauloFlix).
+  /// Populada pelo `PauloFlixNfoEnricher` durante o sync, lendo o
+  /// padrão Kodi `S01E001-thumb.jpg` na pasta da season.
+  ///
+  /// Nullable porque:
+  /// 1. Pasta de season pode não ter thumb (mostra placeholder).
+  /// 2. Sync antigo não populou este campo (migração v5→v6 adicionou
+  ///    a coluna mas rows antigos ficam com null).
+  TextColumn get thumbnailUrl => text().nullable()();
+
   /// Duração total do vídeo em segundos. Populada pelo player em runtime
   /// (vem do `Player.state.duration`). Nullable porque a primeira sync
   /// HTTP não tem essa info (vem do scraping HTML, sem metadata).

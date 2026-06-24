@@ -50,6 +50,49 @@ class EpisodeGridCard extends StatelessWidget {
           ),
           child: Stack(
             children: [
+              // Thumbnail background (Fase 6 — PauloFlix NFO
+              // enrichment). Renderizado PRIMEIRO para ficar atrás do
+              // gradient overlay e do número do episódio. Quando
+              // `thumbnailUrl` é `null` ou o `Image.network` falha
+              // (404, timeout), o `errorBuilder` retorna
+              // `SizedBox.shrink()` e o gradient do `Container`
+              // pai vira o fundo visível (sem crash).
+              if (episode.thumbnailUrl != null)
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      episode.thumbnailUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+
+              // Gradient overlay (preto 60% no bottom) para garantir
+              // legibilidade do número/badge do episódio quando a
+              // thumb é clara. Cobre toda a área do card com um
+              // fade vertical: transparente no topo, preto translúcido
+              // embaixo. Não muda o gradient base do `Container` —
+              // apenas adiciona uma camada de legibilidade.
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.6),
+                      ],
+                      stops: const [0.4, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+
               Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,

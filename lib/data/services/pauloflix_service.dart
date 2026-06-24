@@ -9,6 +9,8 @@ import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../domain/repositories/pauloflix_repository.dart';
 import '../models/jikan_models.dart';
 import 'jikan_service.dart';
+import 'kodi/kodi_nfo_models.dart';
+import 'kodi/pauloflix_nfo_enricher.dart';
 
 class PauloFlixService {
   static const String baseUrl = ApiConstants.animePauloFlix;
@@ -232,6 +234,15 @@ class PauloFlixService {
     /// Usado pelo `PauloFlixProvider.syncContent` que tem o
     /// `PauloFlixEpisodeSyncService` injetado.
     PauloFlixEpisodeProgressRepository? episodeRepository,
+
+    /// Opcional (Fase 3 do plano NFO enrichment) — quando fornecido, o
+    /// enricher é tentado **antes** do Jikan. Se o servidor PauloFlix
+    /// tem `tvshow.nfo` válido na pasta do show, o `PauloFlixContent`
+    /// é construído a partir do NFO (`PauloFlixContent.fromNfo`).
+    /// Caso contrário (404, parse fail, sem `<title>`, etc.), o
+    /// fallback Jikan roda normalmente — comportamento idêntico ao
+    /// legado quando [enricher] é `null`.
+    PauloFlixNfoEnricher? enricher,
   }) async {
     try {
       onProgress?.call('Buscando shows do PauloFlix...');
@@ -261,6 +272,7 @@ class PauloFlixService {
       final contents = await _enrichShowsWithJikan(
         result.showsToProcess,
         onProgress,
+        enricher: enricher,
       );
 
       onProgress?.call(
@@ -372,8 +384,9 @@ class PauloFlixService {
 
   static Future<List<PauloFlixContent>> _enrichShowsWithJikan(
     List<PauloFlixShow> shows,
-    void Function(String progress)? onProgress,
-  ) async {
+    void Function(String progress)? onProgress, {
+    PauloFlixNfoEnricher? enricher,
+  }) async {
     final total = shows.length;
     final jikanService = JikanService();
     final List<PauloFlixContent> contents = [];
@@ -388,7 +401,13 @@ class PauloFlixService {
       );
 
       final batchResults = await Future.wait(
-        batch.map((show) => _enrichSingleShow(show, jikanService)),
+        batch.map(
+          (show) => _enrichSingleShow(
+            show,
+            jikanService,
+            enricher: enricher,
+          ),
+        ),
       );
 
       contents.addAll(batchResults);
@@ -401,7 +420,60 @@ class PauloFlixService {
     return contents;
   }
 
+  /// Enriquece um único show com a estratégia NFO-first → Jikan → placeholder.
+  ///
+  /// **Pipeline (Fase 3):**
+  /// 1. Se [enricher] for fornecido, tenta `fetchShowNfo(showUrl)`. Em
+  ///    caso de sucesso, monta o `PauloFlixContent.fromNfo(...)` e
+  ///    retorna. NFO é fonte primária de metadados.
+  /// 2. Caso o enricher esteja ausente, retorne null, ou o NFO não
+  ///    tenha `<title>` (show sem metadado útil), cai no
+  ///    `_enrichSingleShowJikan` (comportamento legado).
+  /// 3. Se ambos falharem, retorna um `PauloFlixContent` placeholder
+  ///    com só `folderName`/`displayName`/`serverUrl` preenchidos —
+  ///    idêntico ao legado.
+  ///
+  /// **Sequência:** NFO e Jikan rodam **sequencialmente** (await), não
+  /// em paralelo. Se o NFO é hit (resposta rápida do servidor local),
+  /// economizamos a chamada Jikan. Se NFO é miss (404 ou timeout de
+  /// 10s), o Jikan é chamado como fallback — comportamento idêntico
+  /// ao legado. O batching no caller (`_enrichShowsWithJikan`) ainda
+  /// paraleliza entre shows diferentes (batchSize 3), só não entre
+  /// NFO e Jikan do mesmo show.
   static Future<PauloFlixContent> _enrichSingleShow(
+    PauloFlixShow show,
+    JikanService jikanService, {
+    PauloFlixNfoEnricher? enricher,
+  }) async {
+    // 1) Tenta NFO primeiro.
+    if (enricher != null) {
+      try {
+        final KodiShowNfo? nfo = await enricher.fetchShowNfo(show.url);
+        if (nfo != null) {
+          debugPrint('[PauloFlix] NFO hit for ${show.name}');
+          return PauloFlixContent.fromNfo(
+            folderName: show.name,
+            serverUrl: show.url,
+            nfo: nfo,
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          '[PauloFlix] NFO enrich failed for ${show.name} '
+          '(falling back to Jikan): $e',
+        );
+        // Cai no Jikan abaixo.
+      }
+    }
+
+    // 2) Fallback Jikan (comportamento legado).
+    return _enrichSingleShowJikan(show, jikanService);
+  }
+
+  /// Comportamento legado (pré-Fase 3): enriquecimento via Jikan.
+  /// Mantido como função privada separada para preservar
+  /// `git blame` claro da refatoração NFO-first.
+  static Future<PauloFlixContent> _enrichSingleShowJikan(
     PauloFlixShow show,
     JikanService jikanService,
   ) async {

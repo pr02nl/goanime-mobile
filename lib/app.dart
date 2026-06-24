@@ -13,6 +13,7 @@ import 'data/repositories/watchlist_repository_impl.dart';
 import 'data/services/auth/authenticated_http_client.dart';
 import 'data/services/auth/jwt_token_manager.dart';
 import 'data/services/download_service.dart';
+import 'data/services/kodi/pauloflix_nfo_enricher.dart';
 import 'data/services/paulo_flix_episode_sync_service.dart';
 import 'data/services/tmdb_service.dart';
 import 'domain/repositories/downloads_repository.dart';
@@ -110,6 +111,28 @@ class PauloFlixApp extends StatelessWidget {
             inner: http.Client(),
           ),
         ),
+        // NFO Enricher (Fase 3 do plano NFO enrichment) — orquestrador
+        // HTTP que faz GET de `tvshow.nfo` / `movie.nfo` / `episode thumbs`
+        // do servidor PauloFlix. Usa o `AuthenticatedHttpClient` injetado
+        // para reaproveitar o JWT manager.
+        //
+        // IMPORTANTE (pitfall #9 do flutter-reactivity-gotchas):
+        // `ProviderNotFoundException` em `create:` callback de
+        // `MultiProvider` se este provider for declarado **depois** de
+        // quem fizer `ctx.read<PauloFlixNfoEnricher>()` no `create:`.
+        // Deve estar **antes** de qualquer consumer (atualmente o
+        // `PauloFlixService` em `PauloFlixProvider.withRepositories`).
+        // Também é seguro injetar `dispose` para fechar o `inner`
+        // `http.Client` (gotcha: BaseClient sem dispose vaza socket).
+        Provider<PauloFlixNfoEnricher>(
+          create: (_) => PauloFlixNfoEnricher(
+            client: AuthenticatedHttpClient(
+              tokenManager: jwtManager,
+              inner: http.Client(),
+            ),
+          ),
+          dispose: (_, enricher) => enricher.dispose(),
+        ),
         // Services e viewmodels legados.
         ChangeNotifierProvider.value(value: themeViewModel),
         ChangeNotifierProvider.value(value: localeViewModel),
@@ -118,11 +141,22 @@ class PauloFlixApp extends StatelessWidget {
           create: (ctx) => PauloFlixProvider.withRepositories(
             repository: ctx.read<PauloFlixRepository>(),
             episodeSyncService: ctx.read<PauloFlixEpisodeSyncService>(),
+            // Fase 3 (NFO enrichment) — injeta o enricher. Provider
+            // declarado **antes** deste na lista (acima), portanto
+            // `ctx.read<PauloFlixNfoEnricher>()` está disponível sem
+            // `ProviderNotFoundException` (pitfall #9).
+            nfoEnricher: ctx.read<PauloFlixNfoEnricher>(),
           ),
         ),
         ChangeNotifierProvider(
           create: (ctx) => PauloFlixMoviesProvider.withServices(
             repository: ctx.read<PauloFlixMoviesRepository>(),
+            // Fase 4 (NFO enrichment) — injeta o enricher. Provider
+            // declarado **antes** deste na lista (acima), portanto
+            // `ctx.read<PauloFlixNfoEnricher>()` está disponível sem
+            // `ProviderNotFoundException` (mesmo pitfall #9 do
+            // `PauloFlixProvider`).
+            nfoEnricher: ctx.read<PauloFlixNfoEnricher>(),
           ),
         ),
         Provider<HomeRepository>(create: (_) => HomeRepositoryImpl()),

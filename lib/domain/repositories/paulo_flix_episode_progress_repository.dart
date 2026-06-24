@@ -112,8 +112,16 @@ abstract class PauloFlixEpisodeProgressRepository {
 
   /// Insere ou atualiza um episode. Se já existir (mesmo
   /// `seasonId+episodeNumber`), atualiza `title`/`videoUrl`/
-  /// `lastSynced` mas **preserva** `positionSeconds`/`isCompleted`/
-  /// `lastWatched`/`durationSeconds`.
+  /// `thumbnailUrl` (quando fornecido)/`lastSynced` mas **preserva**
+  /// `positionSeconds`/`isCompleted`/`lastWatched`/`durationSeconds`.
+  ///
+  /// **Semântica de [thumbnailUrl]:**
+  /// - `null` (default) = NÃO atualiza a coluna (preserva valor
+  ///   anterior). Use este valor quando o enricher não tem info de
+  ///   thumb (HTTP 404, listing vazio, enricher não injetado).
+  /// - Valor não-nulo = sobrescreve a coluna com a URL informada.
+  ///   Se o server tinha thumb e foi removido, o enricher reportará
+  ///   a ausência via mapa vazio e o repo não tocará na coluna.
   ///
   /// Chamado por `PauloFlixEpisodeSyncService` durante o sync on-demand.
   Future<void> upsertEpisode({
@@ -121,6 +129,7 @@ abstract class PauloFlixEpisodeProgressRepository {
     required int episodeNumber,
     required String title,
     required String videoUrl,
+    String? thumbnailUrl,
   });
 
   /// Atualiza `episodeCount` e `lastSynced` da season.

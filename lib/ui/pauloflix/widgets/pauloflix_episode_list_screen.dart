@@ -288,6 +288,7 @@ class _HeroBanner extends StatelessWidget {
           number: scrapings[i].number.toString(),
           url: scrapings[i].url,
           title: records[i].title,
+          thumbnailUrl: scrapings[i].thumbnailUrl,
         ),
     ];
 
@@ -571,6 +572,7 @@ class _EpisodesList extends StatelessWidget {
           number: scrapings[i].number.toString(),
           url: scrapings[i].url,
           title: records[i].title,
+          thumbnailUrl: scrapings[i].thumbnailUrl,
         ),
     ];
 

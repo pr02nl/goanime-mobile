@@ -52,8 +52,12 @@ class AppDatabase extends _$AppDatabase {
   ///   `paulo_flix_episodes` para persistir seasons, episódios assistidos,
   ///   tempo assistido e flag de temporada completa. Ver plano
   ///   `.hermes/plans/2026-06-22_2230-pauloflix-episodes-progress.md`.
+  /// * v6 (2026-06-23): adiciona coluna `thumbnailUrl` em
+  ///   `paulo_flix_episodes` para suportar o padrão Kodi de thumb de
+  ///   episode. Ver plano
+  ///   `.hermes/plans/2026-06-23_224213-pauloflix-nfo-enrichment.md`.
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -79,6 +83,19 @@ class AppDatabase extends _$AppDatabase {
             final db = m.database as AppDatabase;
             await m.createTable(db.pauloFlixSeasons);
             await m.createTable(db.pauloFlixEpisodes);
+          }
+          // v5 → v6: adiciona coluna thumbnailUrl em paulo_flix_episodes
+          // (Fase 0 do plano NFO enrichment). Sem migration data — o
+          // sync vai popular em background nas próximas horas.
+          if (from < 6) {
+            // Cast necessário: `Migrator.database` é tipado como
+            // `GeneratedDatabase` (base), mas em runtime é a nossa
+            // `AppDatabase`. Mesmo padrão usado em v3→v4 e v4→v5 acima.
+            final db = m.database as AppDatabase;
+            await m.addColumn(
+              db.pauloFlixEpisodes,
+              db.pauloFlixEpisodes.thumbnailUrl,
+            );
           }
         },
         // CRÍTICO: configurar `busy_timeout` ANTES de qualquer operação

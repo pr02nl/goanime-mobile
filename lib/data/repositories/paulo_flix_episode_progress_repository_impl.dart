@@ -254,7 +254,19 @@ class PauloFlixEpisodeProgressRepositoryImpl
     required int episodeNumber,
     required String title,
     required String videoUrl,
+    String? thumbnailUrl,
   }) async {
+    // Para o Companion, thumbnailUrl == null → `Value.absent()` (NÃO
+    // mexe na coluna, preserva valor anterior). thumbnailUrl != null →
+    // `Value(thumbnailUrl)` (sobrescreve com a URL nova). Essa
+    // semântica é a correta para a Fase 5: o enricher retorna mapa
+    // vazio quando não encontra thumb, e mapa vazio nunca produz
+    // `thumbs[e.number]`, que é `null`, que cai no `Value.absent()`.
+    // Resultado: rows antigos com thumb NÃO são sobrescritos com
+    // null em re-syncs.
+    final thumbValue = thumbnailUrl == null
+        ? const Value<String?>.absent()
+        : Value<String?>(thumbnailUrl);
     final existing = await (_db.select(_db.pauloFlixEpisodes)
           ..where((t) =>
               t.seasonId.equals(seasonId) &
@@ -269,6 +281,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
           .write(PauloFlixEpisodesCompanion(
         title: Value(title),
         videoUrl: Value(videoUrl),
+        thumbnailUrl: thumbValue,
         lastSynced: Value(DateTime.now()),
       ));
     } else {
@@ -278,6 +291,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
               episodeNumber: episodeNumber,
               title: title,
               videoUrl: videoUrl,
+              thumbnailUrl: thumbValue,
               lastSynced: DateTime.now(),
             ),
           );
@@ -441,6 +455,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
       episodeNumber: row.episodeNumber,
       title: row.title,
       videoUrl: row.videoUrl,
+      thumbnailUrl: row.thumbnailUrl,
       durationSeconds: row.durationSeconds,
       positionSeconds: row.positionSeconds,
       isCompleted: row.isCompleted,

@@ -2,6 +2,15 @@ class Episode {
   final String number;
   final String url;
   final String? thumbnail;
+
+  /// URL absoluta do thumb de episódio (servidor PauloFlix NFO,
+  /// `S01E001-thumb.jpg`), exposto para o `EpisodeGridCard`.
+  ///
+  /// **Fase 6 (PauloFlix NFO enrichment):** preenchido a partir do
+  /// `PauloFlixEpisode.thumbnailUrl` em
+  /// `PauloFlixEpisodeListScreen._playEpisode`. Quando `null`, o
+  /// `EpisodeGridCard` exibe o gradient de fallback (sem imagem).
+  final String? thumbnailUrl;
   final String? title;
   final String? description;
 
@@ -30,6 +39,7 @@ class Episode {
     required this.number,
     required this.url,
     this.thumbnail,
+    this.thumbnailUrl,
     this.title,
     this.description,
     this.subtitleTracks = const [],

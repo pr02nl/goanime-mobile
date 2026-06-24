@@ -33,8 +33,18 @@ class PauloFlixEpisodeRecord {
   /// Título do episódio (exibido na UI).
   final String title;
 
-  /// URL absoluta do arquivo de vídeo no file server PauloFlix.
+  /// URL absoluta do vídeo no file server PauloFlix.
   final String videoUrl;
+
+  /// URL absoluta do thumbnail do episode (servidor PauloFlix).
+  /// Populada pelo `PauloFlixNfoEnricher` durante o sync, lendo o
+  /// padrão Kodi `S01E001-thumb.jpg` na pasta da season.
+  ///
+  /// **Nullable** porque:
+  /// 1. Pasta de season pode não ter thumb (mostra placeholder na UI).
+  /// 2. Migração v5→v6 adicionou a coluna, mas rows antigos ficam
+  ///    com `null` (não re-raspamos retroativamente).
+  final String? thumbnailUrl;
 
   /// Duração total do vídeo em segundos. **Nullable** porque a primeira
   /// sync HTTP não tem essa info (vem do scraping HTML, sem metadata).
@@ -68,6 +78,7 @@ class PauloFlixEpisodeRecord {
     required this.episodeNumber,
     required this.title,
     required this.videoUrl,
+    this.thumbnailUrl,
     this.durationSeconds,
     this.positionSeconds = 0,
     this.isCompleted = false,

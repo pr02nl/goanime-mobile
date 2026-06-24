@@ -60,11 +60,26 @@ class PauloFlixEpisode {
   final String url;
   final int? fileSize;
 
+  /// URL absoluta do thumbnail do episode (servidor PauloFlix).
+  /// **Fase 5 do plano NFO enrichment** — populada pelo
+  /// `PauloFlixNfoEnricher.fetchEpisodeThumbs` durante o sync,
+  /// lendo o padrão Kodi `S01E001-thumb.jpg` na pasta da season.
+  ///
+  /// Nullable porque:
+  /// 1. Pasta de season pode não ter thumb (mostra placeholder na UI).
+  /// 2. Migração v5→v6 adicionou a coluna, mas rows antigos ficam
+  ///    com `null` (não re-raspamos retroativamente).
+  ///
+  /// O `PauloFlixEpisodeProgressViewModel.scrapingEpisodesForSelected`
+  /// propaga este campo a partir do `PauloFlixEpisodeRecord`.
+  final String? thumbnailUrl;
+
   const PauloFlixEpisode({
     required this.number,
     required this.title,
     required this.url,
     this.fileSize,
+    this.thumbnailUrl,
   });
 
   @override

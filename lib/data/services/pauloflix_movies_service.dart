@@ -6,6 +6,8 @@ import '../../core/constants/api_constants.dart';
 import '../../domain/models/pauloflix_movie.dart';
 import '../../domain/models/pauloflix_movie_item.dart';
 import '../../domain/repositories/pauloflix_movies_repository.dart';
+import 'kodi/kodi_nfo_models.dart';
+import 'kodi/pauloflix_nfo_enricher.dart';
 import 'tmdb_service.dart';
 
 /// Lê diretórios HTML do PauloFlix Movies e enriquece com metadados do TMDB.
@@ -457,10 +459,29 @@ class PauloFlixMoviesService {
   /// Sincroniza todo o conteúdo:
   /// - Marca como indisponível o que não está mais em /movies/
   /// - Enriquece com metadados TMDB apenas o que é novo OU está sem imagem
+  ///
+  /// **Fase 4 (NFO enrichment):** quando [enricher] é fornecido, o
+  /// `movie.nfo` é tentado **antes** do TMDB. Se o servidor PauloFlix
+  /// tem `movie.nfo` válido na pasta do filme, o `PauloFlixMovie` é
+  /// construído a partir do NFO (`PauloFlixMovie.fromNfo`) e o TMDB
+  /// é pulado. Caso contrário (404, parse fail, sem `<title>`, ou
+  /// pasta de coleção), o fluxo TMDB roda normalmente.
+  ///
+  /// Quando [enricher] é `null` (legacy/tests), o comportamento é
+  /// idêntico ao pré-Fase 4: só TMDB.
   static Future<bool> syncContent({
     required PauloFlixMoviesRepository repository,
     void Function(String progress)? onProgress,
     void Function(String error)? onError,
+
+    /// Opcional (Fase 4 do plano NFO enrichment) — quando fornecido, o
+    /// enricher é tentado **antes** do TMDB. Se o servidor PauloFlix
+    /// tem `movie.nfo` válido na pasta do filme, o `PauloFlixMovie` é
+    /// construído a partir do NFO (`PauloFlixMovie.fromNfo`). Caso
+    /// contrário (404, parse fail, sem `<title>`, pasta de coleção),
+    /// o fallback TMDB roda normalmente — comportamento idêntico ao
+    /// legado quando [enricher] é `null`.
+    PauloFlixNfoEnricher? enricher,
   }) async {
     try {
       final tmdb = TmdbService();
@@ -554,6 +575,38 @@ class PauloFlixMoviesService {
           final raw = await inspectFolder(folder.name, folder.url);
           switch (raw.type) {
             case MovieFolderType.single:
+              // Fase 4 (NFO enrichment): tenta `movie.nfo` ANTES do
+              // TMDB. Se o servidor PauloFlix tem `movie.nfo` válido
+              // na pasta do filme, o `PauloFlixMovie` é construído a
+              // partir do NFO e o caminho TMDB é pulado inteiro
+              // (economiza request de search/match).
+              //
+              // Se o enricher for `null`, ou o NFO não existir (404),
+              // ou o parse falhar, cai no fluxo TMDB legado (abaixo).
+              if (enricher != null) {
+                try {
+                  final KodiShowNfo? nfo =
+                      await enricher.fetchMovieNfo(folder.url);
+                  if (nfo != null) {
+                    debugPrint('[PauloFlix Movies] NFO hit for ${folder.name}');
+                    contents.add(
+                      PauloFlixMovie.fromNfo(
+                        folderName: folder.name,
+                        serverUrl: folder.url,
+                        nfo: nfo,
+                      ),
+                    );
+                    break;
+                  }
+                } catch (e) {
+                  debugPrint(
+                    '[PauloFlix Movies] NFO enrich failed for ${folder.name} '
+                    '(falling back to TMDB): $e',
+                  );
+                  // Cai no TMDB abaixo.
+                }
+              }
+
               final video = raw.videoFile!;
               final searchResults = await tmdb.searchMovies(
                 video.cleanedName,

@@ -131,8 +131,11 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
   /// **scraping** (`PauloFlixEpisode`).
   ///
   /// Mapeamento: `PauloFlixEpisodeRecord → PauloFlixEpisode` (4 campos:
-  /// number, title, url, fileSize). `fileSize` fica `null` (não é
-  /// persistido — só exibido em scraping mode).
+  /// number, title, url, fileSize + **thumbnailUrl** adicionado na
+  /// Fase 5). `fileSize` fica `null` (não é persistido — só exibido
+  /// em scraping mode). `thumbnailUrl` vem do registro persistido
+  /// (populado pelo `PauloFlixNfoEnricher.fetchEpisodeThumbs` durante
+  /// o sync — ver `PauloFlixEpisodeSyncService.syncSeasonEpisodes`).
   List<scraping.PauloFlixEpisode> get scrapingEpisodesForSelected {
     return episodes
         .map(
@@ -141,6 +144,7 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
             title: e.title,
             url: e.videoUrl,
             fileSize: null,
+            thumbnailUrl: e.thumbnailUrl,
           ),
         )
         .toList();

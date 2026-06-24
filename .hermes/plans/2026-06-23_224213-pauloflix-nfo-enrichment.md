@@ -66,7 +66,13 @@
 
 ---
 
-## Algoritmos críticos
+## Algoritmos críticos (referência viva)
+
+**A skill `file-server-name-cleaner` (em `~/.hermes/profiles/developer_flutter/skills/file-server-name-cleaner/`) já documenta o pipeline completo de Kodi NFO parsing** com código pronto. Antes de implementar, SEMPRE ler:
+
+- `references/kodi-nfo-parsing.md` — parser XML completo (`KodiNfoParser` com `parseShow`/`parseMovie`/`parseEpisode`), enricher com `MockClient`, regex do thumb de episode, integração no sync, integração no `app.dart` Provider, 9 pitfalls.
+
+Os snippets abaixo são **referência** (não código fonte a copiar literalmente) — o subagent deve ler a reference, entender a abordagem, e implementar limpo dentro do projeto.
 
 ### 1. Parse de `tvshow.nfo` (Kodi)
 

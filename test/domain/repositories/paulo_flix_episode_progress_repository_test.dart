@@ -329,6 +329,7 @@ class _ContractStub implements PauloFlixEpisodeProgressRepository {
     required int episodeNumber,
     required String title,
     required String videoUrl,
+    String? thumbnailUrl, // Fase 5 do NFO enrichment
   }) async {
     final existing = await (_db.select(_db.pauloFlixEpisodes)
           ..where((t) =>
