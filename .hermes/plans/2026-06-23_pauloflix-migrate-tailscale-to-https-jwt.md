@@ -23,7 +23,7 @@
 
 ✅ **Decisão 1:** JWT Ed25519 (chave privada no app, pública no nginx). Se nginx for comprometido, atacante não forja tokens.
 
-✅ **Decisão 2:** Token payload `{device_id, iat, exp}` com `exp = iat + 365 dias`. App renova automaticamente 7 dias antes de expirar.
+✅ **Decisão 2:** Token payload `{device_id, iat, exp, jti}` com `exp = iat + 365 dias`. App renova automaticamente 7 dias antes de expirar. `jti` (JWT ID) garante unicidade mesmo se iat/exp forem idênticos (dois tokens no mesmo segundo).
 
 ✅ **Decisão 3:** `device_id` = UUID v4 aleatório, gerado no primeiro launch, salvo em SharedPreferences. Sem hardware binding (mais simples, sem dependência de `device_info_plus`).
 
@@ -33,9 +33,11 @@
 
 ✅ **Decisão 6:** Manter Tailscale ativo paralelo por 7 dias, depois desliga.
 
-✅ **Decisão 7:** **SEM Cloudflare proxy**. IP da VPS fica público (aceitável: certificado TLS + token = barreira principal). Adicionar Cloudflare depois se quiser DDoS protection.
+✅ **Decisão 7:** **SEM Cloudflare proxy**. IP da VPS fica público (aceitável com token + rate limit). Adicionar Cloudflare depois se quiser DDoS protection.
 
 ✅ **Decisão 8:** Path `/tvshows/*` e `/movies/*` (mesma estrutura de hoje). Apenas troca scheme (http→https) e host.
+
+✅ **Decisão 9 (estratégia de auth):** **Chave privada hardcoded no APK** (Fase 0). Justificativa: projeto pessoal/MVP, objetivo é eliminar stutter, não construir auth enterprise. Cada instalação gera `device_id` único → base para revogação futura via allowlist no servidor. Rotação = regenerar par + rebuildar APK (10 min). Evoluir para Play Integrity / DeviceCheck só se virar produto comercial sério.
 
 ---
 
