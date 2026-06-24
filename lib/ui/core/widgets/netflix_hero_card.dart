@@ -20,6 +20,10 @@ import '../themes/netflix_theme.dart';
 /// * [score] — quando não-nulo, exibe estrela + valor formatado
 ///   `9.0` ao lado do título. Usado para animes Jikan-score.
 ///   Quando `null`, não renderiza nada (movies não têm score).
+/// * [showTitle] — quando `false`, esconde o `Text` do título. Usado
+///   em screens onde o título já está na `AppBar` (ex: lista de
+///   episódios — ver `PauloFlixEpisodeListScreen._HeroBanner`).
+///   Default `true` (consistência com hero do see-all).
 class NetflixHeroCard extends StatelessWidget {
   final String imageUrl;
   final String title;
@@ -28,6 +32,7 @@ class NetflixHeroCard extends StatelessWidget {
   final VoidCallback? onMyList;
   final Widget? badge;
   final double? score;
+  final bool showTitle;
   final double height;
   final bool isTV;
 
@@ -40,6 +45,7 @@ class NetflixHeroCard extends StatelessWidget {
     this.onMyList,
     this.badge,
     this.score,
+    this.showTitle = true,
     this.height = 400,
     this.isTV = false,
   });
@@ -122,21 +128,22 @@ class NetflixHeroCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: NetflixTheme.textPrimary,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black,
-                            offset: Offset(0, 2),
-                            blurRadius: 4,
-                          ),
-                        ],
+                    if (showTitle)
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: NetflixTheme.textPrimary,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black,
+                              offset: Offset(0, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                     if (score != null) ...[
                       const SizedBox(height: NetflixTheme.sm),
                       Row(

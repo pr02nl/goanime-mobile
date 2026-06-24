@@ -18,6 +18,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
+import '../../core/widgets/netflix_hero_card.dart';
 import '../../core/widgets/pauloflix_badge.dart';
 import '../view_models/paulo_flix_episode_progress_viewmodel.dart';
 import 'pauloflix_episode_card.dart';
@@ -153,6 +154,33 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
 
 // --- Hero Banner ---
 
+/// Hero banner do topo da lista de episódios.
+///
+/// **Refatoração (Fase N+4):** antes desta versão, este widget tinha
+/// ~150 linhas de código próprio (`Image.network` + `FocusableWidget`
+/// custom + 2 gradients empilhados + `_buildFallback`). Foi
+/// substituído por um wrapper fino em torno de [NetflixHeroCard] para:
+/// 1. **Autenticação correta:** `Image.network` ignorava o JWT do
+///    PauloFlix (servidor PauloFlix exige `Authorization: Bearer ***`).
+///    `NetflixHeroCard` usa `CachedNetworkImage` que vai pelo
+///    `AuthenticatedCacheManager` (injetado em `app.dart:77`).
+/// 2. **Cache local:** `CachedNetworkImage` cacheia em disco;
+///    `Image.network` rebuscava a cada rebuild.
+/// 3. **Consistência visual** com o hero do see-all e o hero de movies.
+///
+/// **Trade-offs aceitos:**
+/// * Sem gradient top de 100px (overlay de UI control) — o
+///   `NetflixHeroCard` tem 1 gradient full-coverage, suficiente.
+/// * Botão sem `borderRadius: 30` e sem sombra custom — usa o
+///   `_HeroActionButton` padrão (`AppColors.primary` + border padrão).
+/// * Fallback sem gradient + icon de filme — usa o `errorWidget`
+///   do `CachedNetworkImage` (icon simples).
+///
+/// **Props diferentes do hero do see-all:**
+/// * `showTitle: false` — o título JÁ está na `AppBar` pai, não
+///   queremos duplicar.
+/// * `imageUrl: vm.selectedSeasonHeroUrl` — REATIVO, muda quando o
+///   user troca de season (banner do show → fanart da season).
 class _HeroBanner extends StatelessWidget {
   final PauloFlixContent content;
 
@@ -164,137 +192,24 @@ class _HeroBanner extends StatelessWidget {
     final isTV = MediaQuery.of(context).size.width > 1200;
     final heroHeight = isTV ? 350.0 : 280.0;
 
-    // Container de altura fixa (NÃO `SliverAppBar` colapsável). O
-    // título do anime já é mostrado na `AppBar` da Scaffold pai, então
-    // aqui exibimos apenas a arte + gradientes + botão "Assistir".
-    // O `_HeroBanner` agora é um widget comum (sem `SliverAppBar`), e
-    // o `SliverToBoxAdapter` que o contém garante que ele é renderizado
-    // como um bloco normal do `CustomScrollView` — o foco do botão
-    // "Assistir" não depende mais do estado de scroll.
-    //
-    // Imagem: prioriza `content.bannerUrl` (capa do anime), com
-    // fallback para `season.fanart.jpg` (capa por season). Quando o
-    // user troca de season, o hero atualiza (Provider notifica).
-    final heroUrl = vm.selectedSeasonHeroUrl;
     return SizedBox(
       height: heroHeight,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Banner Image
-          if (heroUrl != null)
-            Image.network(
-              heroUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => _buildFallback(),
-            )
-          else
-            _buildFallback(),
-
-          // Gradient Top
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 100,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.6),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Gradient Bottom
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 150,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, AppColors.background],
-                ),
-              ),
-            ),
-          ),
-
-          // Play Button
-          if (vm.hasSeasons)
-            Positioned(
-              bottom: 24,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: FocusableWidget(
-                  onSelect: () {
-                    final episodes = vm.episodes;
-                    if (episodes.isNotEmpty) {
-                      _playEpisode(context, episodes.first, 0);
-                    }
-                  },
-                  borderRadius: 30,
-                  focusPadding: EdgeInsets.zero,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-                        SizedBox(width: 8),
-                        Text(
-                          'Assistir',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFallback() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
-        ),
-      ),
-      child: const Center(
-        child: Icon(Icons.movie_outlined, color: Colors.white12, size: 80),
+      child: NetflixHeroCard(
+        // Imagem reativa: muda com a season selecionada. Quando o
+        // Provider notifica (vm.selectedSeasonHeroUrl muda), o
+        // `build` roda de novo com o novo `imageUrl` e o
+        // `CachedNetworkImage` rebusca/se cacheia conforme o caso.
+        imageUrl: vm.selectedSeasonHeroUrl ?? '',
+        title: content.displayName,
+        showTitle: false,
+        height: heroHeight,
+        isTV: isTV,
+        onPlay: () {
+          final episodes = vm.episodes;
+          if (episodes.isNotEmpty) {
+            _playEpisode(context, episodes.first, 0);
+          }
+        },
       ),
     );
   }

@@ -37,7 +37,8 @@ class AnimeHeroBanner extends StatelessWidget {
     // `bannerUrl` (wide 16:9) tem prioridade sobre `imageUrl`
     // (poster 2:3) para o hero. Mesma heurística do
     // `MovieHeroBanner` (banner > poster para área wide).
-    final hasBanner = content.bannerUrl != null && content.bannerUrl!.isNotEmpty;
+    final hasBanner =
+        content.bannerUrl != null && content.bannerUrl!.isNotEmpty;
     final imageUrl = hasBanner ? content.bannerUrl! : (content.imageUrl ?? '');
 
     return SizedBox(
@@ -59,9 +60,6 @@ class AnimeHeroBanner extends StatelessWidget {
   }
 
   void _openEpisodeList(BuildContext context) {
-    context.pushNamed(
-      'pauloflix-episodes',
-      extra: content,
-    );
+    context.pushNamed('pauloflix-episodes', extra: content);
   }
 }
