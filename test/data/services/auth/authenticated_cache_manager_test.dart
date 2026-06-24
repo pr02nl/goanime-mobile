@@ -8,6 +8,7 @@
 /// em downloads de imagem. Isso requer mockar `HttpFileService` (que
 /// é `WebHelper` em web, não-trivial de mockar). A validação real é
 /// visual (smoke test em device).
+library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:goanime/data/services/auth/authenticated_cache_manager.dart';

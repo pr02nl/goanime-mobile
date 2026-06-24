@@ -35,10 +35,7 @@ class MovieSection extends StatelessWidget {
     return NetflixCarousel(
       title: '$title (${movies.length})',
       isTV: isTV,
-      items: [
-        for (final m in movies)
-          _buildCard(context, m),
-      ],
+      items: [for (final m in movies) _buildCard(context, m)],
     );
   }
 
@@ -56,10 +53,7 @@ class MovieSection extends StatelessWidget {
           ? CollectionBadge(fontSize: movie.availableMovieCount > 9 ? 10 : 9)
           : const PauloFlixMoviesBadge(fontSize: 10),
       onTap: () {
-        context.pushNamed(
-          'pauloflix-movie-detail',
-          extra: movie,
-        );
+        context.pushNamed('pauloflix-movie-detail', extra: movie);
       },
     );
   }
