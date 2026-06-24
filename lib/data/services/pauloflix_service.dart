@@ -51,11 +51,15 @@ class PauloFlixService {
         allLinks.add(_ShowLinkEntry(href: href, name: text));
       }
 
-      // Detecta poster/fanart físicos na pasta raiz do /tvshows/.
-      // Esses JPGs ficam AO LADO das pastas de shows (não dentro de
-      // cada show). Servem como fallback para shows que não têm
-      // `tvshow.nfo` ou cujo NFO não tem `<thumb>`.
-      final imageFiles = _detectAnimeImageFiles(allLinks);
+      // **Não** detecta imagens na raiz para atribuir aos shows —
+      // isso é BUG: todos os shows receberiam o mesmo `poster.jpg`/
+      // `fanart.jpg` (se existir) ou nenhum. As imagens reais ficam
+      // **dentro de cada pasta de show** (`/tvshows/HxH/poster.jpg`).
+      //
+      // A detecção correta acontece em `_enrichSingleShow` via
+      // `PauloFlixNfoEnricher.fetchShowNfoWithImages` (Fase N+1).
+      // O `_detectAnimeImageFiles` foi removido nesta fase — a
+      // detecção raiz não é usada em nenhum lugar.
 
       final List<PauloFlixShow> shows = [];
       for (final entry in allLinks) {
@@ -67,8 +71,8 @@ class PauloFlixService {
           PauloFlixShow(
             name: decodedName,
             url: absoluteUrl,
-            posterFileName: imageFiles.poster,
-            fanartFileName: imageFiles.fanart,
+            // posterFileName/fanartFileName intencionalmente null —
+            // a detecção por show acontece em `_enrichSingleShow`.
           ),
         );
       }
@@ -464,21 +468,47 @@ class PauloFlixService {
     JikanService jikanService, {
     PauloFlixNfoEnricher? enricher,
   }) async {
-    // 1) Tenta NFO primeiro.
+    // 1) Tenta NFO + listing HTML da pasta do show (paralelo).
+    //
+    // **Por que `fetchShowNfoWithImages`:** o NFO pode ter
+    // `<thumb aspect="poster">poster.jpg</thumb>` apontando para o
+    // arquivo, mas o JPG pode estar ausente na pasta. Por isso
+    // detectamos o listing da pasta do show **na mesma passada**
+    // (2 GETs paralelos via `Future.wait` — mesmo RTT que 1 GET
+    // sequencial) e passamos as URLs detectadas como fallback
+    // quando o NFO não tem `<thumb>`.
+    //
+    // Antes desta correção (Fase N+1), o `fetchAllShows` lia os JPGs
+    // físicos da pasta **raiz** `/tvshows/` e atribuía o mesmo
+    // `poster.jpg`/`fanart.jpg` (ou nenhum) a TODOS os shows — bug
+    // clássico: todos os cards mostravam a mesma imagem (ou nenhum).
     if (enricher != null) {
       try {
-        final KodiShowNfo? nfo = await enricher.fetchShowNfo(show.url);
+        final result = await enricher.fetchShowNfoWithImages(show.url);
+        final KodiShowNfo? nfo = result.nfo;
+        final images = result.images;
         if (nfo != null) {
           debugPrint('[PauloFlix] NFO hit for ${show.name}');
+          // Fallback em cascata: 1) JPG físico na pasta do show
+          // (images.poster) → 2) URL absoluta via `resolveThumbUrl`
+          // se for path relativo. Mesmo padrão do season.nfo
+          // (SeasonEpisodesReconcileService).
+          final fallbackPosterUrl = images.poster != null
+              ? PauloFlixNfoEnricher.resolveThumbUrl(show.url, images.poster!)
+              : null;
+          final fallbackFanartUrl = images.fanart != null
+              ? PauloFlixNfoEnricher.resolveThumbUrl(show.url, images.fanart!)
+              : null;
           return PauloFlixContent.fromNfo(
             folderName: show.name,
             serverUrl: show.url,
             nfo: nfo,
             // Fallback: se o NFO não tem `<thumb>` apontando para
-            // poster/fanart, usa o JPG físico detectado no listing
-            // da pasta raiz.
-            fallbackPosterUrl: show.posterUrl,
-            fallbackFanartUrl: show.fanartUrl,
+            // poster/fanart, usa o JPG físico detectado na pasta do
+            // show. Antes desta correção, vinha do listing raiz
+            // (compartilhado por todos os shows).
+            fallbackPosterUrl: fallbackPosterUrl,
+            fallbackFanartUrl: fallbackFanartUrl,
           );
         }
       } catch (e) {
@@ -567,71 +597,7 @@ class _ShowLinkEntry {
   const _ShowLinkEntry({required this.href, required this.name});
 }
 
-/// Resultado de [PauloFlixService._detectAnimeImageFiles].
-class _AnimeImageFiles {
-  final String? poster;
-  final String? fanart;
-  const _AnimeImageFiles({this.poster, this.fanart});
-}
-
-/// Extensões de imagem reconhecidas para poster/fanart (Kodi standard).
-const Set<String> _animeImageExtensions = {
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-};
-
-/// Nomes canônicos (Kodi) para poster e fanart.
-const Set<String> _animePosterNames = {'poster', 'cover', 'folder'};
-const Set<String> _animeFanartNames = {'fanart', 'backdrop', 'banner'};
-
-/// Detecta `poster.jpg` / `fanart.jpg` no listing HTML da pasta.
-///
-/// Estratégia:
-/// 1. Match canônico (`poster.jpg`, `fanart.jpg`).
-/// 2. Match fuzzy (nome contém keyword).
-/// 3. Fallback: primeiro .jpg como poster.
-_AnimeImageFiles _detectAnimeImageFiles(List<_ShowLinkEntry> links) {
-  String? poster;
-  String? fanart;
-  String? firstImage;
-
-  for (final link in links) {
-    final name = link.name.toLowerCase();
-    final base = name.contains('.')
-        ? name.substring(0, name.lastIndexOf('.'))
-        : name;
-    final ext = name.contains('.')
-        ? name.substring(name.lastIndexOf('.'))
-        : '';
-    if (!_animeImageExtensions.contains(ext)) continue;
-
-    firstImage ??= link.name;
-
-    if (poster == null && _animePosterNames.contains(base)) {
-      poster = link.name;
-      continue;
-    }
-    if (fanart == null && _animeFanartNames.contains(base)) {
-      fanart = link.name;
-      continue;
-    }
-
-    if (poster == null && _animePosterNames.any((n) => base.contains(n))) {
-      poster = link.name;
-      continue;
-    }
-    if (fanart == null && _animeFanartNames.any((n) => base.contains(n))) {
-      fanart = link.name;
-      continue;
-    }
-  }
-
-  poster ??= firstImage;
-  return _AnimeImageFiles(poster: poster, fanart: fanart);
-}
-
+/// Resultado de [PauloFlixService._computeShowsToProcess].
 class _ComputeResult {
   final List<PauloFlixShow> showsToProcess;
   final List<String> removedFolderNames;

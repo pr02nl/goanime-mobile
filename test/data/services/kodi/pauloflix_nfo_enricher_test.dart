@@ -377,4 +377,149 @@ void main() {
       expect(url, equals('http://server/my%20poster.jpg'));
     });
   });
+
+  // ============================================================
+  // PauloFlixNfoEnricher.fetchShowImages
+  // ============================================================
+  //
+  // **Fase N+1 — bug fix:** antes desta correção, o `fetchAllShows`
+  // lia os JPGs físicos da pasta **raiz** `/tvshows/` e atribuía o
+  // mesmo `poster.jpg`/`fanart.jpg` a TODOS os shows. As imagens
+  // reais ficam **dentro de cada pasta de show**; este método cobre
+  // a detecção por show.
+  group('PauloFlixNfoEnricher.fetchShowImages', () {
+    /// HTML de listing com poster.jpg/fanart.jpg explícitos.
+    const listingWithJpgFiles = '''<html><body>
+<a href="../">../</a>
+<a href="poster.jpg">poster.jpg</a>
+<a href="fanart.jpg">fanart.jpg</a>
+<a href="Season 01/">Season 01/</a>
+<a href="S01E01.mkv">S01E01.mkv</a>
+</body></html>''';
+
+    /// HTML de listing sem JPGs (só pastas e episódios).
+    const listingWithoutJpgFiles = '''<html><body>
+<a href="../">../</a>
+<a href="Season 01/">Season 01/</a>
+<a href="S01E01.mkv">S01E01.mkv</a>
+</body></html>''';
+
+    test('detects poster.jpg and fanart.jpg in show folder listing',
+        () async {
+      final client = MockClient((request) async {
+        // Não terminamos com .nfo — é o listing HTML da pasta.
+        expect(request.url.path, endsWith('HxH/'));
+        return http.Response(listingWithJpgFiles, 200);
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final images = await enricher.fetchShowImages('http://server/HxH/');
+
+      expect(images.poster, equals('poster.jpg'));
+      expect(images.fanart, equals('fanart.jpg'));
+    });
+
+    test('returns empty DetectedShowImages on HTTP 404', () async {
+      final client = MockClient((request) async {
+        return http.Response('Not Found', 404);
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final images = await enricher.fetchShowImages('http://server/HxH/');
+
+      expect(images.poster, isNull);
+      expect(images.fanart, isNull);
+    });
+
+    test('returns empty when listing has no JPG files', () async {
+      final client = MockClient((request) async {
+        return http.Response(listingWithoutJpgFiles, 200);
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final images = await enricher.fetchShowImages('http://server/HxH/');
+
+      expect(images.poster, isNull);
+      expect(images.fanart, isNull);
+    });
+  });
+
+  // ============================================================
+  // PauloFlixNfoEnricher.fetchShowNfoWithImages
+  // ============================================================
+  //
+  // Compõe `fetchShowNfo` + `fetchShowImages` em paralelo (1 RTT
+  // total) para o caller ter ambos os dados com 1 chamada.
+  group('PauloFlixNfoEnricher.fetchShowNfoWithImages', () {
+    test('returns NFO + detected images on HTTP 200 (both endpoints)',
+        () async {
+      const listingHtml = '''<html><body>
+<a href="../">../</a>
+<a href="poster.jpg">poster.jpg</a>
+<a href="fanart.jpg">fanart.jpg</a>
+</body></html>''';
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('tvshow.nfo')) {
+          return http.Response(_validTvshowNfo, 200,
+              headers: {'content-type': 'application/xml'});
+        }
+        // listing HTML da pasta
+        return http.Response(listingHtml, 200);
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final result = await enricher.fetchShowNfoWithImages('http://server/anime/');
+
+      expect(result.nfo, isNotNull);
+      expect(result.nfo!.title, equals('Mushoku Tensei'));
+      // NFO tem thumb aspect=poster, então o fromNfo vai usar isso
+      // (não o JPG físico). Mas aqui só checamos que o JPG foi
+      // detectado — o caller decide a prioridade.
+      expect(result.images.poster, equals('poster.jpg'));
+      expect(result.images.fanart, equals('fanart.jpg'));
+    });
+
+    test('returns nfo=null + empty images when both endpoints 404',
+        () async {
+      final client = MockClient((request) async {
+        return http.Response('Not Found', 404);
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final result = await enricher.fetchShowNfoWithImages('http://server/anime/');
+
+      expect(result.nfo, isNull);
+      expect(result.images.poster, isNull);
+      expect(result.images.fanart, isNull);
+    });
+
+    test('returns nfo + images detected from listing (no NFO thumb)',
+        () async {
+      // NFO sem `<thumb>` — força o caller a usar o JPG físico
+      // detectado no listing.
+      const nfoWithoutThumb = '''<?xml version="1.0"?>
+<tvshow>
+  <title>Mushoku Tensei</title>
+  <plot>Plot.</plot>
+</tvshow>''';
+      const listingHtml = '''<html><body>
+<a href="poster.jpg">poster.jpg</a>
+</body></html>''';
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('tvshow.nfo')) {
+          return http.Response(nfoWithoutThumb, 200,
+              headers: {'content-type': 'application/xml'});
+        }
+        return http.Response(listingHtml, 200);
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final result = await enricher.fetchShowNfoWithImages('http://server/anime/');
+
+      expect(result.nfo, isNotNull);
+      expect(result.nfo!.posterThumb, isNull); // NFO sem thumb
+      expect(result.images.poster, equals('poster.jpg'));
+      // O caller pode usar result.images.poster como fallback.
+    });
+  });
 }

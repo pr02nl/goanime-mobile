@@ -159,10 +159,115 @@ class PauloFlixNfoEnricher {
     }
   }
 
-  /// GET do listing da season + N GETs paralelos de `S01E{nnn}.nfo`.
+  // Lifecycle
+  // ============================================================
+
+  /// Fecha o `http.Client` interno. Deve ser chamado no `dispose` do
+  /// provider para evitar socket leak.
+  void dispose() => _client.close();
+
+  // ============================================================
+  // Season images (poster/fanart via poster.jpg/fanart.jpg)
+  // ============================================================
+
+  /// Resultado de [PauloFlixNfoEnricher.fetchSeasonImages] — `poster`
+  /// e `fanart` são os **nomes de arquivo** (não URLs) encontrados na
+  /// pasta da season, ou null se ausentes.
+  static const Set<String> _seasonImageExtensions = {
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.webp',
+  };
+
+  /// Nomes canônicos (Kodi) para poster e fanart de season.
+  static const Set<String> _seasonPosterNames = {
+    'poster', 'cover', 'folder', 'season-poster',
+  };
+  static const Set<String> _seasonFanartNames = {
+    'fanart', 'backdrop', 'banner', 'season-banner',
+  };
+
+  static const DetectedSeasonImages _kEmptyImages = DetectedSeasonImages();
+
+  /// GET do listing HTML da pasta da season + parse dos JPGs
+  /// de poster/fanart. Retorna nomes de arquivo detectados.
   ///
-  /// **Otimização** (Fase 10 do plano NFO enrichment V2): em vez de
-  /// 1 GET por episode (N+1 problem), reutiliza
+  /// **Por que existe:** o `season.nfo` pode ter `<thumb>` apontando
+  /// para um path, mas algumas seasons não têm NFO — ou o NFO
+  /// não tem tag de imagem. Este método cobre o caso de fallback
+  /// (análogo ao `PauloFlixMoviesService._detectImageFiles` para
+  /// filmes), lendo direto do listing da pasta.
+  ///
+  /// **Estratégia:**
+  /// 1. Match canônico (`poster.jpg`, `fanart.jpg`).
+  /// 2. Match fuzzy (nome contém "poster"/"fanart"/"cover"/"banner").
+  /// 3. Fallback: primeiro .jpg como poster (heurística fraca).
+  ///
+  /// **NÃO** chama `season.nfo` — esse é responsabilidade do
+  /// `fetchSeasonNfo`. O caller decide qual usar (ou combina).
+  Future<DetectedSeasonImages> fetchSeasonImages(String seasonUrl) async {
+    try {
+      final res = await _client
+          .get(Uri.parse(seasonUrl))
+          .timeout(_kRequestTimeout);
+      if (res.statusCode != 200) {
+        return _kEmptyImages;
+      }
+      if (res.body.isEmpty) return _kEmptyImages;
+      return _parseSeasonImagesFromHtml(res.body);
+    } catch (e) {
+      debugPrint('[PauloFlixNfo] fetchSeasonImages failed: $e');
+      return _kEmptyImages;
+    }
+  }
+
+  /// Faz parse do listing HTML e detecta `poster.jpg`/`fanart.jpg`/
+  /// `banner.jpg` na pasta. Nomes são preservados como decoded (sem
+  /// URL-encoding) — o caller resolve para URL absoluta via
+  /// `resolveThumbUrl`.
+  static DetectedSeasonImages _parseSeasonImagesFromHtml(String htmlBody) {
+    String? poster;
+    String? fanart;
+    String? firstImage;
+
+    final document = html_parser.parse(htmlBody);
+    for (final anchor in _findAnchors(document)) {
+      final href = anchor.attributes['href'];
+      if (href == null) continue;
+      final name = href.toLowerCase();
+      final base = name.contains('.')
+          ? name.substring(0, name.lastIndexOf('.'))
+          : name;
+      final ext = name.contains('.')
+          ? name.substring(name.lastIndexOf('.'))
+          : '';
+      if (!_seasonImageExtensions.contains(ext)) continue;
+
+      firstImage ??= href;
+
+      if (poster == null && _seasonPosterNames.contains(base)) {
+        poster = href;
+        continue;
+      }
+      if (fanart == null && _seasonFanartNames.contains(base)) {
+        fanart = href;
+        continue;
+      }
+      if (poster == null && _seasonPosterNames.any((n) => base.contains(n))) {
+        poster = href;
+        continue;
+      }
+      if (fanart == null && _seasonFanartNames.any((n) => base.contains(n))) {
+        fanart = href;
+        continue;
+      }
+    }
+
+    poster ??= firstImage;
+    return DetectedSeasonImages(poster: poster, fanart: fanart);
+  }
+
   /// [fetchEpisodeThumbs] para descobrir os episode numbers via
   /// listing HTML (1 GET) e dispara N GETs paralelos de NFO via
   /// [fetchEpisodeNfo].
@@ -213,6 +318,140 @@ class PauloFlixNfoEnricher {
   }
 
   // ============================================================
+  // Show images (poster/fanart via poster.jpg/fanart.jpg)
+  // ============================================================
+
+  /// Resultado de [PauloFlixNfoEnricher.fetchShowImages] — `poster` e
+  /// `fanart` são os **nomes de arquivo** (não URLs) encontrados na
+  /// pasta do show, ou null se ausentes.
+  static const Set<String> _showImageExtensions = {
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.webp',
+  };
+
+  /// Nomes canônicos (Kodi) para poster e fanart de show.
+  static const Set<String> _showPosterNames = {
+    'poster', 'cover', 'folder', 'tvshow-poster',
+  };
+  static const Set<String> _showFanartNames = {
+    'fanart', 'backdrop', 'banner', 'tvshow-banner',
+  };
+
+  static const DetectedShowImages _kEmptyShowImages = DetectedShowImages();
+
+  /// GET do listing HTML da pasta do show + parse dos JPGs
+  /// de poster/fanart. Retorna nomes de arquivo detectados.
+  ///
+  /// **Por que existe:** o `tvshow.nfo` pode ter `<thumb>` apontando
+  /// para um path, mas alguns shows não têm NFO — ou o NFO
+  /// não tem tag de imagem. Este método cobre o caso de fallback
+  /// (espelha `fetchSeasonImages` para seasons), lendo direto
+  /// do listing da pasta.
+  ///
+  /// **Estratégia:**
+  /// 1. Match canônico (`poster.jpg`, `fanart.jpg`).
+  /// 2. Match fuzzy (nome contém "poster"/"fanart"/"cover"/"banner").
+  /// 3. Fallback: primeiro .jpg como poster (heurística fraca).
+  ///
+  /// **NÃO** chama `tvshow.nfo` — esse é responsabilidade do
+  /// `fetchShowNfo`. O caller decide qual usar (ou combina).
+  Future<DetectedShowImages> fetchShowImages(String showUrl) async {
+    try {
+      final res = await _client
+          .get(Uri.parse(showUrl))
+          .timeout(_kRequestTimeout);
+      if (res.statusCode != 200) {
+        return _kEmptyShowImages;
+      }
+      if (res.body.isEmpty) return _kEmptyShowImages;
+      return _parseShowImagesFromHtml(res.body);
+    } catch (e) {
+      debugPrint('[PauloFlixNfo] fetchShowImages failed: $e');
+      return _kEmptyShowImages;
+    }
+  }
+
+  /// Faz parse do listing HTML e detecta `poster.jpg`/`fanart.jpg`/
+  /// `banner.jpg` na pasta do show. Nomes são preservados como
+  /// decoded (sem URL-encoding) — o caller resolve para URL absoluta
+  /// via `resolveThumbUrl`.
+  static DetectedShowImages _parseShowImagesFromHtml(String htmlBody) {
+    String? poster;
+    String? fanart;
+    String? firstImage;
+
+    final document = html_parser.parse(htmlBody);
+    for (final anchor in _findAnchors(document)) {
+      final href = anchor.attributes['href'];
+      if (href == null) continue;
+      final name = href.toLowerCase();
+      final base = name.contains('.')
+          ? name.substring(0, name.lastIndexOf('.'))
+          : name;
+      final ext = name.contains('.')
+          ? name.substring(name.lastIndexOf('.'))
+          : '';
+      if (!_showImageExtensions.contains(ext)) continue;
+
+      firstImage ??= href;
+
+      if (poster == null && _showPosterNames.contains(base)) {
+        poster = href;
+        continue;
+      }
+      if (fanart == null && _showFanartNames.contains(base)) {
+        fanart = href;
+        continue;
+      }
+      if (poster == null && _showPosterNames.any((n) => base.contains(n))) {
+        poster = href;
+        continue;
+      }
+      if (fanart == null && _showFanartNames.any((n) => base.contains(n))) {
+        fanart = href;
+        continue;
+      }
+    }
+
+    poster ??= firstImage;
+    return DetectedShowImages(poster: poster, fanart: fanart);
+  }
+
+  /// GET `{showUrl}tvshow.nfo` + GET listing HTML em paralelo.
+  ///
+  /// Retorna um record com o NFO parseado (ou null em falha) e os
+  /// JPGs físicos detectados na pasta (poster/fanart via
+  /// `poster.jpg`/`fanart.jpg`).
+  ///
+  /// **Por que um record e não só `KodiShowNfo?`:** o NFO pode ter
+  /// `<thumb aspect="poster">poster.jpg</thumb>` mas o arquivo físico
+  /// pode estar ausente (ou vice-versa). Expor os 2 ao caller permite
+  /// fallback em cascata:
+  /// 1. URL absoluta do NFO `<thumb>` (se existir).
+  /// 2. URL do JPG físico (se existir).
+  /// 3. Jikan (camada externa).
+  ///
+  /// **Custo:** 2 GETs paralelos por show (mesmo RTT que 1 GET sequencial
+  /// graças ao `Future.wait`).
+  ///
+  /// **Compat:** este método é **adicional** ao `fetchShowNfo` (que
+  /// continua existindo para callers que só querem o NFO, ex. testes
+  /// unitários antigos). Não quebra API existente.
+  Future<({KodiShowNfo? nfo, DetectedShowImages images})>
+      fetchShowNfoWithImages(String showUrl) async {
+    final results = await Future.wait<Object?>([
+      fetchShowNfo(showUrl),
+      fetchShowImages(showUrl),
+    ]);
+    return (
+      nfo: results[0] as KodiShowNfo?,
+      images: results[1] as DetectedShowImages,
+    );
+  }
+
+  // ============================================================
   // Episode thumb scraper
   // ============================================================
 
@@ -253,14 +492,6 @@ class PauloFlixNfoEnricher {
     final base = serverUrl.endsWith('/') ? serverUrl : '$serverUrl/';
     return '$base${Uri.encodeComponent(thumb)}';
   }
-
-  // ============================================================
-  // Lifecycle
-  // ============================================================
-
-  /// Fecha o `http.Client` interno. Deve ser chamado no `dispose` do
-  /// provider para evitar socket leak.
-  void dispose() => _client.close();
 
   // ============================================================
   // Internals
@@ -310,4 +541,25 @@ class PauloFlixNfoEnricher {
   /// `KodiNfoParser.parseSeasonNfo` (que tem seu próprio helper).
   /// Removido nesta Fase 10 — se outros parsers precisarem,
   /// re-adicionar ou importar de `KodiNfoParser`.
+}
+
+  /// Resultado de [PauloFlixNfoEnricher.fetchSeasonImages] — `poster`
+  /// e `fanart` são os **nomes de arquivo** (não URLs) encontrados na
+  /// pasta da season, ou null se ausentes.
+class DetectedSeasonImages {
+  final String? poster;
+  final String? fanart;
+  const DetectedSeasonImages({this.poster, this.fanart});
+}
+
+/// Resultado de [PauloFlixNfoEnricher.fetchShowImages] — `poster` e
+/// `fanart` são os **nomes de arquivo** (não URLs) encontrados na
+/// pasta do show, ou null se ausentes.
+///
+/// Espelha [DetectedSeasonImages] (mesma forma), mas usado para
+/// shows (`/tvshows/HxH/`) em vez de seasons (`/tvshows/HxH/Season 01/`).
+class DetectedShowImages {
+  final String? poster;
+  final String? fanart;
+  const DetectedShowImages({this.poster, this.fanart});
 }
