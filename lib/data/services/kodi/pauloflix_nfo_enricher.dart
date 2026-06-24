@@ -129,22 +129,36 @@ class PauloFlixNfoEnricher {
     }
   }
 
-  /// GET `{seasonUrl}S01E{nnn}.nfo` → parse → record Dart 3.
+  /// GET `{seasonUrl}S{ss}E{nnn}.nfo` → parse → record Dart 3.
   ///
   /// **Fase 10 do plano NFO enrichment V2**: parse do NFO por
   /// episode (padrão Kodi `S01E001.nfo` na pasta da season) para
   /// popular a coluna `description` (plot) do episode. O nome do
-  /// arquivo usa 3 dígitos (zero-padded) — `S01E001.nfo`,
-  /// `S01E010.nfo`, `S01E100.nfo`.
+  /// arquivo usa 2 dígitos para season + 3 dígitos para episode
+  /// (zero-padded) — `S01E001.nfo`, `S02E010.nfo`, `S10E100.nfo`.
   ///
-  /// Exemplo: `fetchEpisodeNfo('http://server/tvshows/X/Season 01/', 1)`
-  /// faz GET `http://server/tvshows/X/Season 01/S01E001.nfo`.
+  /// Exemplo: `fetchEpisodeNfo('http://server/tvshows/X/Season 02/', 2, 1)`
+  /// faz GET `http://server/tvshows/X/Season 02/S02E001.nfo`.
+  ///
+  /// **Por que `seasonNumber` é obrigatório:** antes desta correção
+  /// (Fase N+5) o método hardcodava `S01` no filename — só
+  /// funcionava para season 1. Para season 2+, gerava `S01E001.nfo`
+  /// (404) em vez do correto `S02E001.nfo`. O caller SEMPRE tem o
+  /// season number disponível (vem do `PauloFlixSeason.number`
+  /// da scraping), então exigir o param força o caller a passar
+  /// e elimina o bug.
   ///
   /// Retorna `null` em qualquer falha (404, 500, timeout, parse fail).
   Future<({int? season, int? episode, String? title, String? plot})?>
-      fetchEpisodeNfo(String seasonUrl, int episodeNumber) async {
+      fetchEpisodeNfo(
+    String seasonUrl,
+    int seasonNumber,
+    int episodeNumber,
+  ) async {
     try {
-      final filename = 'S01E${episodeNumber.toString().padLeft(3, '0')}.nfo';
+      final seasonStr = seasonNumber.toString().padLeft(2, '0');
+      final episodeStr = episodeNumber.toString().padLeft(3, '0');
+      final filename = 'S${seasonStr}E$episodeStr.nfo';
       final base = seasonUrl.endsWith('/') ? seasonUrl : '$seasonUrl/';
       final url = '$base$filename';
       final res = await _client
@@ -268,7 +282,7 @@ class PauloFlixNfoEnricher {
     return DetectedSeasonImages(poster: poster, fanart: fanart);
   }
 
-  /// [fetchEpisodeThumbs] para descobrir os episode numbers via
+  /// [fetchEpisodeNfo] para descobrir os episode numbers via
   /// listing HTML (1 GET) e dispara N GETs paralelos de NFO via
   /// [fetchEpisodeNfo].
   ///
@@ -282,7 +296,7 @@ class PauloFlixNfoEnricher {
   /// permite que o caller decida se quer ou não popular o campo
   /// `description` no banco.
   Future<Map<int, ({int? season, int? episode, String? title, String? plot})>>
-      fetchEpisodeNfos(String seasonUrl) async {
+      fetchEpisodeNfos(String seasonUrl, int seasonNumber) async {
     // 1. Descobre os episode numbers via listing (mesma lógica do
     //    `fetchEpisodeThumbs`, mas só queremos os KEYS).
     final thumbs = await fetchEpisodeThumbs(seasonUrl);
@@ -301,7 +315,7 @@ class PauloFlixNfoEnricher {
     //    requests simultaneamente; tempo total ≈ 1 RTT (não N).
     final results = await Future.wait(
       episodeNumbers.map((n) async {
-        final nfo = await fetchEpisodeNfo(seasonUrl, n);
+        final nfo = await fetchEpisodeNfo(seasonUrl, seasonNumber, n);
         return MapEntry(
           n,
           nfo ??

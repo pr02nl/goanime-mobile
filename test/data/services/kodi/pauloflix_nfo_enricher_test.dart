@@ -300,6 +300,88 @@ void main() {
   });
 
   // ============================================================
+  // PauloFlixNfoEnricher.fetchEpisodeNfo
+  // ============================================================
+  //
+  // **Fase N+5 — bug fix:** o método antes hardcodava `S01` no
+  // filename, então season 2+ batia em 404 (`S01E001.nfo` em vez
+  // do correto `S02E001.nfo`). Estes testes garantem que o
+  // season number é respeitado.
+  group('PauloFlixNfoEnricher.fetchEpisodeNfo', () {
+    /// XML de episodedetails.nfo mínimo para o parser aceitar.
+    const _validEpisodeNfo = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<episodedetails>
+  <title>Episode Title</title>
+  <plot>Episode plot.</plot>
+  <season>2</season>
+  <episode>1</episode>
+</episodedetails>''';
+
+    test('builds filename S02E001.nfo for season=2 (not S01 hardcoded)',
+        () async {
+      final client = MockClient((request) async {
+        // **O teste-chave:** valida que o filename é S02E001.nfo
+        // (com S02), NÃO S01E001.nfo (bug pré-fix). Se o método
+        // voltar a hardcodar S01, este teste falha.
+        expect(
+          request.url.path,
+          endsWith('S02E001.nfo'),
+          reason:
+              'fetchEpisodeNfo deve usar o seasonNumber passado pelo '
+              'caller no filename, não hardcodar S01. Got: '
+              '${request.url.path}',
+        );
+        return http.Response(_validEpisodeNfo, 200,
+            headers: {'content-type': 'application/xml'});
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final nfo = await enricher.fetchEpisodeNfo(
+        'http://server/anime/Season%2002/',
+        2,
+        1,
+      );
+
+      expect(nfo, isNotNull);
+      expect(nfo!.plot, equals('Episode plot.'));
+    });
+
+    test('zero-pads season 10 to S10E001.nfo (2 digits)', () async {
+      final client = MockClient((request) async {
+        expect(request.url.path, endsWith('S10E001.nfo'));
+        return http.Response(_validEpisodeNfo, 200,
+            headers: {'content-type': 'application/xml'});
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final nfo = await enricher.fetchEpisodeNfo(
+        'http://server/anime/Season%2010/',
+        10,
+        1,
+      );
+
+      expect(nfo, isNotNull);
+    });
+
+    test('zero-pads episode 100 to S01E100.nfo (3 digits)', () async {
+      final client = MockClient((request) async {
+        expect(request.url.path, endsWith('S01E100.nfo'));
+        return http.Response(_validEpisodeNfo, 200,
+            headers: {'content-type': 'application/xml'});
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final nfo = await enricher.fetchEpisodeNfo(
+        'http://server/anime/Season%2001/',
+        1,
+        100,
+      );
+
+      expect(nfo, isNotNull);
+    });
+  });
+
+  // ============================================================
   // PauloFlixNfoEnricher.fetchSeasonNfo
   // ============================================================
   group('PauloFlixNfoEnricher.fetchSeasonNfo', () {

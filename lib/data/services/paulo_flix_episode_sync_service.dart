@@ -169,8 +169,14 @@ class PauloFlixEpisodeSyncService {
       // 2c. (Fase 10) Busca NFO de cada episode em batch (se enricher).
       //     Retorna `Map<int, String?>` episodeNumber → plot. Episodes
       //     sem NFO ficam com `plot = null` no map (não ausentados).
+      //
+      //     `seasonNumber` (de `s.number`) é OBRIGATÓRIO: antes da
+      //     Fase N+5 o enricher hardcodava `S01` no filename do NFO
+      //     do episode, então só funcionava para season 1. Para
+      //     season 2+ o GET batia em 404 (`S01E001.nfo` em vez do
+      //     correto `S02E001.nfo`) → plot nunca era populado.
       final Map<int, String?> episodeDescriptions = enricher != null
-          ? (await enricher.fetchEpisodeNfos(s.url))
+          ? (await enricher.fetchEpisodeNfos(s.url, s.number))
               .map((k, v) => MapEntry(k, v.plot))
           : <int, String?>{};
 
