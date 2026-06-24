@@ -30,6 +30,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../data/services/kodi/pauloflix_nfo_enricher.dart';
 import '../../../data/services/paulo_flix_episode_sync_service.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/models/pauloflix_models.dart' as scraping;
@@ -50,12 +51,22 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
   /// `loadSeasons` nesse caso apenas lê do banco.
   final PauloFlixEpisodeSyncService? _syncService;
 
+  /// Enricher NFO injetado opcionalmente. Quando `null`, o `loadSeasons`
+  /// faz sync aditivo sem descobrir thumbs de episode / NFO de
+  /// season / poster+fanart da season. Quando fornecido
+  /// (`PauloFlixEpisodeListScreen` lê do `Provider`), o lazy sync
+  /// passa o enricher para `syncSeasonEpisodes` — comportamento
+  /// equivalente ao sync geral via `PauloFlixProvider.syncContent`.
+  final PauloFlixNfoEnricher? _nfoEnricher;
+
   PauloFlixEpisodeProgressViewModel({
     required this.content,
     required PauloFlixEpisodeProgressRepository repository,
     PauloFlixEpisodeSyncService? syncService,
+    PauloFlixNfoEnricher? nfoEnricher,
   }) : _repository = repository,
-       _syncService = syncService;
+       _syncService = syncService,
+       _nfoEnricher = nfoEnricher;
 
   // ─── Estado ────────────────────────────────────────────────────────
 
@@ -261,10 +272,20 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
       // 2. Fallback lazy: banco vazio + syncService disponível.
       //    Sincroniza pontualmente ESTE anime (sync aditivo, sem
       //    reconciliação).
+      //
+      // **Por que propagar o enricher:** sem isto, o lazy sync
+      // perderia o enriquecimento NFO que o sync geral já faz —
+      // thumbs de episode, `season.nfo` plot, e `poster.jpg`/
+      // `fanart.jpg` da pasta da season NUNCA seriam descobertos
+      // para o caso "user entra num anime novo sem ter feito o
+      // sync geral antes". Sintoma: cards sem thumb, sem plot, sem
+      // banner, até a próxima vez que o user apertar o botão
+      // "Sincronizar" da See All.
       if (existing.isEmpty && _syncService != null && content.id != null) {
         await _syncService.syncSeasonEpisodes(
           contentId: content.id!,
           contentServerUrl: content.serverUrl,
+          enricher: _nfoEnricher,
         );
       }
 

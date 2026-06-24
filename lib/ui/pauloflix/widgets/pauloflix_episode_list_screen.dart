@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../data/services/kodi/pauloflix_nfo_enricher.dart';
 import '../../../data/services/paulo_flix_episode_sync_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
@@ -27,6 +28,19 @@ class PauloFlixEpisodeListScreen extends StatelessWidget {
 
   const PauloFlixEpisodeListScreen({super.key, required this.content});
 
+  /// Tenta ler o `PauloFlixNfoEnricher` do `Provider` graph. Retorna
+  /// `null` se o provider não estiver declarado (legado, testes, ou
+  /// alguma app config que omite o enricher). O `ctx.read<...>()`
+  /// lança `ProviderNotFoundException` quando o provider não está
+  /// no escopo — capturamos aqui para degradação graciosa.
+  static PauloFlixNfoEnricher? _tryReadNfoEnricher(BuildContext ctx) {
+    try {
+      return ctx.read<PauloFlixNfoEnricher>();
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -34,17 +48,26 @@ class PauloFlixEpisodeListScreen extends StatelessWidget {
       // `MultiProvider` global, NÃO do `PauloFlixEpisodeListScreen`.
       // O `create:` callback recebe um `BuildContext` ancorado no
       // widget acima deste `ChangeNotifierProvider` — esse `context`
-      // tem acesso ao `PauloFlixEpisodeProgressRepository` e
-      // `PauloFlixEpisodeSyncService` declarados em `app.dart`.
+      // tem acesso ao `PauloFlixEpisodeProgressRepository`,
+      // `PauloFlixEpisodeSyncService` e `PauloFlixNfoEnricher`
+      // declarados em `app.dart`.
       //
       // Se movêssemos o `context.read<...>()` para FORA do callback
       // (no `build` direto), o Flutter lançaria `ProviderNotFoundException`
       // porque esse `context` é ancestral do provider que estamos
       // criando (ver doc do package:provider).
+      //
+      // **Importante:** o `nfoEnricher` é **opcional** — o
+      // `ctx.read<PauloFlixNfoEnricher>()` pode lançar se o provider
+      // não foi declarado (legado/testes). Envolvemos em try/catch
+      // para que a UI funcione mesmo sem o enricher (degrada gracioso
+      // — sync lazy sem NFO/thumbs/imagens, comportamento idêntico ao
+      // pré-Fase N+2).
       create: (ctx) => PauloFlixEpisodeProgressViewModel(
         content: content,
         repository: ctx.read<PauloFlixEpisodeProgressRepository>(),
         syncService: ctx.read<PauloFlixEpisodeSyncService>(),
+        nfoEnricher: _tryReadNfoEnricher(ctx),
       )..loadSeasons(),
       child: const _PauloFlixEpisodeListView(),
     );

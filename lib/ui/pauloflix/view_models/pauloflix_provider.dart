@@ -133,9 +133,18 @@ class PauloFlixProvider extends ChangeNotifier {
                 final id = content.id;
                 if (id == null) return;
                 try {
+                  // **Fase N+2 — bug fix:** propagar `_nfoEnricher`
+                  // para que `reconcileSeasonEpisodes` (e, por
+                  // cascata, `syncSeasonEpisodes`) descubram thumbs
+                  // de episode, plot de `season.nfo`, e
+                  // `poster.jpg`/`fanart.jpg` da pasta da season.
+                  // Sem isto, o sync geral via botão "Sincronizar"
+                  // da See All passava `enricher: null` → caía no
+                  // caminho legado sem NFO enrichment.
                   await _episodeSyncService.reconcileSeasonEpisodes(
                     contentId: id,
                     contentServerUrl: content.serverUrl,
+                    enricher: _nfoEnricher,
                   );
                 } catch (e) {
                   // Erros em shows individuais são logados mas não
