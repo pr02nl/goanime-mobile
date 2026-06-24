@@ -219,6 +219,13 @@ class PauloFlixMoviesService {
       if (videoFiles.isNotEmpty) {
         final first = videoFiles.first;
         final videoUrl = '$folderUrl${Uri.encodeComponent(first.name)}';
+
+        // Detecta poster/fanart físicos na pasta. Esses arquivos
+        // são fonte de verdade se o `movie.nfo` não tiver `<thumb>`
+        // ou se o path do `<thumb>` for relativo. Padrão Kodi:
+        // `poster.jpg` (capa) e `fanart.jpg` (banner 16:9). Aceita
+        // também `banner.jpg` como alias de fanart.
+        final imageFiles = _detectImageFiles(links);
         return PauloFlixMovieRaw.single(
           folderName: folderName,
           folderUrl: folderUrl,
@@ -231,6 +238,8 @@ class PauloFlixMoviesService {
             year: folderYear,
             subtitles: rankedSubtitles,
           ),
+          posterFileName: imageFiles.poster,
+          fanartFileName: imageFiles.fanart,
         );
       }
 
@@ -457,6 +466,77 @@ class PauloFlixMoviesService {
     return last;
   }
 
+  /// Extensões de imagem reconhecidas para poster/fanart/banner.
+  static const Set<String> _imageExtensions = {
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.webp',
+  };
+
+  /// Nomes canônicos (Kodi) que identificam poster, fanart, banner.
+  /// Match case-insensitive, com ou sem extensão.
+  static const _posterNames = {'poster', 'cover', 'folder', 'movie-poster'};
+  static const _fanartNames = {'fanart', 'backdrop', 'banner', 'movie-banner'};
+
+  /// Varre os [links] do listing HTML e detecta arquivos de imagem
+  /// que servem como poster e fanart do filme.
+  ///
+  /// **Estratégia:**
+  /// 1. Procura nomes canônicos primeiro (`poster.jpg`, `fanart.jpg`).
+  /// 2. Se não encontrar, aceita qualquer `.jpg`/`.png`/etc cujo
+  ///    nome contenha "poster"/"fanart"/"cover"/"banner" (case-insensitive).
+  /// 3. Se ainda não encontrar, usa o primeiro `.jpg`/`.png` como poster
+  ///    fallback (heurística fraca — só usada em último caso).
+  ///
+  /// **Por que dedupe:** se a pasta tem `poster.jpg` E `folder.jpg`,
+  /// `poster.jpg` vence (canônico). O primeiro `fanart` válido vence.
+  static _DetectedImages _detectImageFiles(List<_LinkEntry> links) {
+    String? poster;
+    String? fanart;
+    String? firstImage;
+
+    for (final link in links) {
+      final name = link.name.toLowerCase();
+      final base = name.contains('.')
+          ? name.substring(0, name.lastIndexOf('.'))
+          : name;
+      final ext = name.contains('.')
+          ? name.substring(name.lastIndexOf('.'))
+          : '';
+      if (!_imageExtensions.contains(ext)) continue;
+
+      // Guarda primeiro .jpg/.png como fallback.
+      firstImage ??= link.name;
+
+      // Match canônico (sem extensão).
+      if (poster == null && _posterNames.contains(base)) {
+        poster = link.name;
+        continue;
+      }
+      if (fanart == null && _fanartNames.contains(base)) {
+        fanart = link.name;
+        continue;
+      }
+
+      // Match fuzzy: nome contém keyword.
+      if (poster == null && _posterNames.any((n) => base.contains(n))) {
+        poster = link.name;
+        continue;
+      }
+      if (fanart == null && _fanartNames.any((n) => base.contains(n))) {
+        fanart = link.name;
+        continue;
+      }
+    }
+
+    // Fallback final: usa primeiro .jpg como poster se nada casou.
+    // Não tenta fallback de fanart (sem fanart é aceitável).
+    poster ??= firstImage;
+
+    return _DetectedImages(poster: poster, fanart: fanart);
+  }
+
   /// Limpa o nome da pasta para produzir um título buscável no TMDB.
   ///
   /// Regras:
@@ -592,11 +672,7 @@ class PauloFlixMoviesService {
         }
         // Mesmo sem novas pastas, tenta re-popular gêneros de filmes
         // salvos anteriormente com `genres` vazio.
-        await _repopulateMissingGenres(
-          repository,
-          genreIdToName,
-          onProgress,
-        );
+        await _repopulateMissingGenres(repository, genreIdToName, onProgress);
         // removeStaleContent não tem equivalente exato no repository.
         return true;
       }
@@ -626,8 +702,9 @@ class PauloFlixMoviesService {
               // ou o parse falhar, cai no fluxo TMDB legado (abaixo).
               if (enricher != null) {
                 try {
-                  final KodiShowNfo? nfo =
-                      await enricher.fetchMovieNfo(folder.url);
+                  final KodiShowNfo? nfo = await enricher.fetchMovieNfo(
+                    folder.url,
+                  );
                   if (nfo != null) {
                     debugPrint('[PauloFlix Movies] NFO hit for ${folder.name}');
                     contents.add(
@@ -635,6 +712,11 @@ class PauloFlixMoviesService {
                         folderName: folder.name,
                         serverUrl: folder.url,
                         nfo: nfo,
+                        // Fallback: se o NFO não tem `<thumb>` apontando
+                        // para poster/fanart, usa o JPG físico
+                        // detectado no listing da pasta.
+                        fallbackPosterUrl: raw.posterUrl,
+                        fallbackFanartUrl: raw.fanartUrl,
                       ),
                     );
                     break;
@@ -677,6 +759,10 @@ class PauloFlixMoviesService {
                     serverUrl: folder.url,
                     tmdb: match,
                     genreIdToName: currentGenreMap,
+                    // Fallback: se o TMDB não tem poster/backdrop,
+                    // usa o JPG físico detectado no listing da pasta.
+                    fallbackPosterUrl: raw.posterUrl,
+                    fallbackFanartUrl: raw.fanartUrl,
                   ),
                 );
               } else {
@@ -767,10 +853,7 @@ class PauloFlixMoviesService {
   ) async {
     final all = await repository.getAll();
     final needFix = all
-        .where(
-          (m) =>
-              m.tmdbId != null && !m.isCollection && m.genres.isEmpty,
-        )
+        .where((m) => m.tmdbId != null && !m.isCollection && m.genres.isEmpty)
         .toList();
     if (needFix.isEmpty) {
       debugPrint(
@@ -779,9 +862,7 @@ class PauloFlixMoviesService {
       return;
     }
 
-    onProgress?.call(
-      'Atualizando gêneros de ${needFix.length} filmes...',
-    );
+    onProgress?.call('Atualizando gêneros de ${needFix.length} filmes...');
     final tmdb = TmdbService();
     int fixed = 0;
     for (final m in needFix) {
@@ -790,11 +871,10 @@ class PauloFlixMoviesService {
         if (details != null && details.genres.isNotEmpty) {
           // Detalhes tem `genres: List<TmdbGenre>` populado, sem precisar
           // do cache. Esse é o caminho mais confiável.
-          final newGenres =
-              details.genres.map((g) => g.name).toList(growable: false);
-          await repository.saveContent(
-            m.copyWith(genres: newGenres),
-          );
+          final newGenres = details.genres
+              .map((g) => g.name)
+              .toList(growable: false);
+          await repository.saveContent(m.copyWith(genres: newGenres));
           fixed++;
         } else if (genreIdToName.isNotEmpty && m.tmdbId != null) {
           // Fallback: usar o cache de genre_id → nome. Mas o filme já
@@ -833,6 +913,15 @@ class PauloFlixMoviesService {
     }
     return null;
   }
+}
+
+/// Resultado de [PauloFlixMoviesService._detectImageFiles] —
+/// `poster` e `fanart` são os **nomes de arquivo** (não URLs)
+/// encontrados na pasta, ou null se ausentes.
+class _DetectedImages {
+  final String? poster;
+  final String? fanart;
+  const _DetectedImages({this.poster, this.fanart});
 }
 
 class _LinkEntry {

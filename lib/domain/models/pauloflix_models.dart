@@ -7,9 +7,35 @@ class PauloFlixShow {
   final String name;
   final String url;
 
+  /// Nome do arquivo `poster.jpg` (ou similar) na pasta do show,
+  /// se existir. O `PauloFlixService` detecta isso durante
+  /// `fetchAllShows` e o usa como fallback no `fromNfo` quando
+  /// o `tvshow.nfo` não tem `<thumb aspect="poster">`.
+  final String? posterFileName;
+
+  /// Nome do arquivo `fanart.jpg` (ou `banner.jpg`) na pasta do
+  /// show, se existir. Mesmo rationale do [posterFileName].
+  final String? fanartFileName;
+
+  /// URL absoluta do poster resolvida, ou `null` se não existir.
+  String? get posterUrl {
+    if (posterFileName == null) return null;
+    final base = url.endsWith('/') ? url : '$url/';
+    return '$base${Uri.encodeComponent(posterFileName!)}';
+  }
+
+  /// URL absoluta do fanart resolvida, ou `null` se não existir.
+  String? get fanartUrl {
+    if (fanartFileName == null) return null;
+    final base = url.endsWith('/') ? url : '$url/';
+    return '$base${Uri.encodeComponent(fanartFileName!)}';
+  }
+
   const PauloFlixShow({
     required this.name,
     required this.url,
+    this.posterFileName,
+    this.fanartFileName,
   });
 
   @override

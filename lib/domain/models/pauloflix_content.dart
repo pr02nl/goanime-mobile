@@ -82,6 +82,8 @@ class PauloFlixContent {
     required String folderName,
     required String serverUrl,
     required KodiShowNfo nfo,
+    String? fallbackPosterUrl,
+    String? fallbackFanartUrl,
   }) {
     return PauloFlixContent(
       folderName: folderName,
@@ -89,10 +91,10 @@ class PauloFlixContent {
       serverUrl: serverUrl,
       imageUrl: nfo.posterThumb != null
           ? PauloFlixNfoEnricher.resolveThumbUrl(serverUrl, nfo.posterThumb!)
-          : null,
+          : fallbackPosterUrl,
       bannerUrl: nfo.fanartThumb != null
           ? PauloFlixNfoEnricher.resolveThumbUrl(serverUrl, nfo.fanartThumb!)
-          : null,
+          : fallbackFanartUrl,
       description: nfo.plot,
       score: nfo.rating,
       genres: nfo.genres,

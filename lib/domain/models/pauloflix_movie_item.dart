@@ -93,24 +93,56 @@ class PauloFlixMovieRaw {
   final PauloFlixMovieFile? videoFile;
   final List<PauloFlixMovieSubfolder> subfolders;
 
+  /// Nome do arquivo `poster.jpg` (ou similar) na pasta, se existir.
+  /// Pode ser diferente de `movie.nfo`'s `<thumb aspect="poster">` —
+  /// esta é a versão **física** (arquivo de verdade no disco).
+  ///
+  /// **Por que ambos?** O `movie.nfo` pode ter `<thumb>` apontando para
+  /// um path (relativo ou absoluto) ou omitir o thumb. Independente do
+  /// NFO, o `poster.jpg` ao lado do `.mp4` é fonte de verdade.
+  ///
+  /// O `PauloFlixMovie.fromNfo` (e o TMDB fallback) usa isso como
+  /// **fallback** quando o NFO não tem `imageUrl` populado.
+  final String? posterFileName;
+
+  /// Nome do arquivo `fanart.jpg` (ou `banner.jpg`) na pasta, se existir.
+  /// Mesmo rationale do [posterFileName].
+  final String? fanartFileName;
+
+  /// URL absoluta do `poster.jpg` resolvida. `null` se não existir.
+  String? get posterUrl => posterFileName == null
+      ? null
+      : '${folderUrl.endsWith('/') ? folderUrl : '$folderUrl/'}${Uri.encodeComponent(posterFileName!)}';
+
+  /// URL absoluta do `fanart.jpg`/`banner.jpg` resolvida. `null` se não existir.
+  String? get fanartUrl => fanartFileName == null
+      ? null
+      : '${folderUrl.endsWith('/') ? folderUrl : '$folderUrl/'}${Uri.encodeComponent(fanartFileName!)}';
+
   const PauloFlixMovieRaw({
     required this.folderName,
     required this.folderUrl,
     required this.type,
     this.videoFile,
     this.subfolders = const [],
+    this.posterFileName,
+    this.fanartFileName,
   });
 
   factory PauloFlixMovieRaw.single({
     required String folderName,
     required String folderUrl,
     required PauloFlixMovieFile videoFile,
+    String? posterFileName,
+    String? fanartFileName,
   }) {
     return PauloFlixMovieRaw(
       folderName: folderName,
       folderUrl: folderUrl,
       type: MovieFolderType.single,
       videoFile: videoFile,
+      posterFileName: posterFileName,
+      fanartFileName: fanartFileName,
     );
   }
 

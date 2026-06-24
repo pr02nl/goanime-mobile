@@ -41,18 +41,36 @@ class PauloFlixService {
       }
       final document = html_parser.parse(response.body);
       final linkElements = document.querySelectorAll('a[href]');
-      final List<PauloFlixShow> shows = [];
+      final List<_ShowLinkEntry> allLinks = [];
       for (final element in linkElements) {
         final href = element.attributes['href'] ?? '';
         final text = element.text.trim();
         if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {
           continue;
         }
-        if (!href.endsWith('/')) continue;
-        final rawName = href.substring(0, href.length - 1);
+        allLinks.add(_ShowLinkEntry(href: href, name: text));
+      }
+
+      // Detecta poster/fanart físicos na pasta raiz do /tvshows/.
+      // Esses JPGs ficam AO LADO das pastas de shows (não dentro de
+      // cada show). Servem como fallback para shows que não têm
+      // `tvshow.nfo` ou cujo NFO não tem `<thumb>`.
+      final imageFiles = _detectAnimeImageFiles(allLinks);
+
+      final List<PauloFlixShow> shows = [];
+      for (final entry in allLinks) {
+        if (!entry.href.endsWith('/')) continue;
+        final rawName = entry.href.substring(0, entry.href.length - 1);
         final decodedName = safeDecodeComponent(rawName);
-        final absoluteUrl = '$baseUrl$href';
-        shows.add(PauloFlixShow(name: decodedName, url: absoluteUrl));
+        final absoluteUrl = '$baseUrl${entry.href}';
+        shows.add(
+          PauloFlixShow(
+            name: decodedName,
+            url: absoluteUrl,
+            posterFileName: imageFiles.poster,
+            fanartFileName: imageFiles.fanart,
+          ),
+        );
       }
       debugPrint('[PauloFlix] Found ${shows.length} shows');
       return shows;
@@ -146,7 +164,7 @@ class PauloFlixService {
           (ext) => lowerHref.endsWith(ext),
         );
         if (!hasVideoExtension) continue;
-        final decodedName = Uri.decodeComponent(href);
+        final decodedName = safeDecodeComponent(href);
         final episodeInfo = _extractEpisodeInfo(decodedName);
         if (episodeInfo == null) continue;
         final absoluteUrl = '$seasonUrl$href';
@@ -456,6 +474,11 @@ class PauloFlixService {
             folderName: show.name,
             serverUrl: show.url,
             nfo: nfo,
+            // Fallback: se o NFO não tem `<thumb>` apontando para
+            // poster/fanart, usa o JPG físico detectado no listing
+            // da pasta raiz.
+            fallbackPosterUrl: show.posterUrl,
+            fallbackFanartUrl: show.fanartUrl,
           );
         }
       } catch (e) {
@@ -535,6 +558,78 @@ class _EpisodeInfo {
   final int number;
   final String title;
   const _EpisodeInfo({required this.number, required this.title});
+}
+
+/// Link parseado do HTML listing de uma pasta do /tvshows/.
+class _ShowLinkEntry {
+  final String href;
+  final String name;
+  const _ShowLinkEntry({required this.href, required this.name});
+}
+
+/// Resultado de [PauloFlixService._detectAnimeImageFiles].
+class _AnimeImageFiles {
+  final String? poster;
+  final String? fanart;
+  const _AnimeImageFiles({this.poster, this.fanart});
+}
+
+/// Extensões de imagem reconhecidas para poster/fanart (Kodi standard).
+const Set<String> _animeImageExtensions = {
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+};
+
+/// Nomes canônicos (Kodi) para poster e fanart.
+const Set<String> _animePosterNames = {'poster', 'cover', 'folder'};
+const Set<String> _animeFanartNames = {'fanart', 'backdrop', 'banner'};
+
+/// Detecta `poster.jpg` / `fanart.jpg` no listing HTML da pasta.
+///
+/// Estratégia:
+/// 1. Match canônico (`poster.jpg`, `fanart.jpg`).
+/// 2. Match fuzzy (nome contém keyword).
+/// 3. Fallback: primeiro .jpg como poster.
+_AnimeImageFiles _detectAnimeImageFiles(List<_ShowLinkEntry> links) {
+  String? poster;
+  String? fanart;
+  String? firstImage;
+
+  for (final link in links) {
+    final name = link.name.toLowerCase();
+    final base = name.contains('.')
+        ? name.substring(0, name.lastIndexOf('.'))
+        : name;
+    final ext = name.contains('.')
+        ? name.substring(name.lastIndexOf('.'))
+        : '';
+    if (!_animeImageExtensions.contains(ext)) continue;
+
+    firstImage ??= link.name;
+
+    if (poster == null && _animePosterNames.contains(base)) {
+      poster = link.name;
+      continue;
+    }
+    if (fanart == null && _animeFanartNames.contains(base)) {
+      fanart = link.name;
+      continue;
+    }
+
+    if (poster == null && _animePosterNames.any((n) => base.contains(n))) {
+      poster = link.name;
+      continue;
+    }
+    if (fanart == null && _animeFanartNames.any((n) => base.contains(n))) {
+      fanart = link.name;
+      continue;
+    }
+  }
+
+  poster ??= firstImage;
+  return _AnimeImageFiles(poster: poster, fanart: fanart);
 }
 
 class _ComputeResult {

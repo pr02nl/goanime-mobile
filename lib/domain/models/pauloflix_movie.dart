@@ -64,6 +64,8 @@ class PauloFlixMovie {
     required String serverUrl,
     required TmdbMovie tmdb,
     Map<int, String>? genreIdToName,
+    String? fallbackPosterUrl,
+    String? fallbackFanartUrl,
   }) {
     final List<String> resolvedGenres;
     if (tmdb.genres.isNotEmpty) {
@@ -81,8 +83,12 @@ class PauloFlixMovie {
       folderName: folderName,
       displayName: tmdb.title,
       serverUrl: serverUrl,
-      imageUrl: tmdb.getFullPosterUrl(),
-      bannerUrl: tmdb.getFullBackdropUrl(),
+      imageUrl: tmdb.getFullPosterUrl().isNotEmpty
+          ? tmdb.getFullPosterUrl()
+          : fallbackPosterUrl,
+      bannerUrl: tmdb.getFullBackdropUrl().isNotEmpty
+          ? tmdb.getFullBackdropUrl()
+          : fallbackFanartUrl,
       description: tmdb.overview,
       score: tmdb.voteAverage,
       genres: resolvedGenres,
@@ -113,6 +119,8 @@ class PauloFlixMovie {
     required String folderName,
     required String serverUrl,
     required KodiShowNfo nfo,
+    String? fallbackPosterUrl,
+    String? fallbackFanartUrl,
   }) {
     return PauloFlixMovie(
       folderName: folderName,
@@ -120,10 +128,10 @@ class PauloFlixMovie {
       serverUrl: serverUrl,
       imageUrl: nfo.posterThumb != null
           ? PauloFlixNfoEnricher.resolveThumbUrl(serverUrl, nfo.posterThumb!)
-          : null,
+          : fallbackPosterUrl,
       bannerUrl: nfo.fanartThumb != null
           ? PauloFlixNfoEnricher.resolveThumbUrl(serverUrl, nfo.fanartThumb!)
-          : null,
+          : fallbackFanartUrl,
       description: nfo.plot,
       score: nfo.rating,
       genres: nfo.genres,
