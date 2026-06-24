@@ -82,6 +82,12 @@ dependencies:
   animated_item: ^0.0.2
   # QR Code generation for TV API key setup
   qr_flutter: ^4.1.0
+  # Ed25519 signing for PauloFlix JWT auth (migração Tailscale → HTTPS+token).
+  # cryptography_plus é o sucessor mantido pelo dart-lang (cryptography
+  # original foi transferido para um mantenedor terceiro).
+  cryptography_plus: ^3.0.0
+  # UUID v4 para device_id (gerado no primeiro launch, salvo em SharedPreferences)
+  uuid: ^4.5.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
