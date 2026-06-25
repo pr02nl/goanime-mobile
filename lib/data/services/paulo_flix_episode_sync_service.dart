@@ -10,6 +10,7 @@ import '../../core/utils/url_codec.dart';
 import '../../data/repositories/paulo_flix_episode_progress_repository_impl.dart';
 import '../../domain/models/pauloflix_models.dart';
 import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
+import 'kodi/kodi_nfo_models.dart';
 import 'kodi/pauloflix_nfo_enricher.dart';
 
 /// Service de sincronização on-demand de seasons + episodes PauloFlix.
@@ -185,19 +186,28 @@ class PauloFlixEpisodeSyncService {
       //     `_episodeNfoPattern` (sinal primário de "episódio
       //     existe") e o `thumbUrl` vem no record. Caller NÃO chama
       //     mais `fetchEpisodeThumbs` separado.
-      final Map<int, ({String? plot, String? thumbUrl})> episodeNfoData =
+      final Map<int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>
+          episodeNfoData =
           enricher != null
           ? (await enricher.fetchEpisodeNfos(s.url, s.number))
-              .map(
-                (k, v) => MapEntry(k, (plot: v.plot, thumbUrl: v.thumbUrl)),
-              )
-          : <int, ({String? plot, String? thumbUrl})>{};
+          : <int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>{};
 
       // 2e. Fetch + parse episodes desta season.
       final episodes = await _fetchEpisodes(s.url);
 
       // 2f. Upsert cada episode (preserva `positionSeconds`/
       //     `isCompleted`/`lastWatched`/`durationSeconds`).
+      //
+      //     **Fase N+7:** o `episodeNfoData` agora carrega o
+      //     `KodiEpisodeNfo` completo (V2: +originalTitle, outline,
+      //     aired, rating, runtime) via `nfo:` field. Por enquanto
+      //     só persistimos `plot` (description) e `thumbUrl` —
+      //     os outros campos V2 serão propagados em tasks
+      //     separadas (requerem migration v8→v9 da tabela episodes).
+      //     A migração é trabalho separado e grande — não cabe
+      //     aqui. O bug "nada foi salvo" que o user reportou é
+      //     sobre a description, que já funciona. Esta task foca
+      //     em aumentar o schema NFO parseado.
       for (final e in episodes) {
         final nfoData = episodeNfoData[e.number];
         await _repo.upsertEpisode(
@@ -206,7 +216,7 @@ class PauloFlixEpisodeSyncService {
           title: e.title,
           videoUrl: e.url,
           thumbnailUrl: nfoData?.thumbUrl,
-          description: nfoData?.plot,
+          description: nfoData?.nfo?.plot,
         );
       }
 
@@ -221,7 +231,7 @@ class PauloFlixEpisodeSyncService {
         'season ${s.number} (${episodes.length} episodes, '
         '${episodeNfoData.values.where((d) => d.thumbUrl != null).length} '
         'thumbs, '
-        '${episodeNfoData.values.where((d) => d.plot != null).length} '
+        '${episodeNfoData.values.where((d) => d.nfo?.plot != null).length} '
         'episode descriptions) sincronizada',
       );
     }

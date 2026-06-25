@@ -89,6 +89,11 @@ class KodiSeasonNfo {
 ///
 /// Root: `<episodedetails>` (Kodi standard).
 /// Usado para enricher de episode-level metadata.
+///
+/// **Schema suportado:**
+/// - **V1 (legado):** `season`, `episode`, `title`, `plot`, `thumb`.
+/// - **V2 (Fase N+7):** V1 + `originalTitle`, `outline`, `aired`,
+///   `rating`, `runtime`. Todos opcionais (NFO pode ter só subset).
 class KodiEpisodeNfo {
   /// Número da season. Vem de `<season>`.
   final int? seasonNumber;
@@ -96,22 +101,52 @@ class KodiEpisodeNfo {
   /// Número do episode. Vem de `<episode>`.
   final int? episodeNumber;
 
-  /// Título do episode. Vem de `<title>`.
+  /// Título do episode (pode ser localizado). Vem de `<title>`.
   final String? title;
 
+  /// Título original (idioma da produção original). Vem de
+  /// `<originaltitle>`. Útil para animes dublados — o `title`
+  /// pode ser a versão PT-BR e o `originalTitle` o japonês.
+  final String? originalTitle;
+
   /// Sinopse / overview do episode. Vem de `<plot>`.
+  /// Pode ser longa (1-3 parágrafos).
   final String? plot;
+
+  /// Resumo curto do episode (1-2 frases). Vem de `<outline>`.
+  /// Usado em cards/listas quando `plot` é longo demais.
+  final String? outline;
+
+  /// Data de estreia do episode. Vem de `<aired>` (formato
+  /// `YYYY-MM-DD`). Nullable porque NFOs antigos não têm
+  /// (e séries em produção podem não ter data final).
+  final DateTime? aired;
+
+  /// Rating / nota do episode. Vem de `<rating>` (ex: `7.3`).
+  /// Diferente do `KodiShowNfo.rating` (que é da série inteira) —
+  /// este é a nota do episode específico.
+  final double? rating;
+
+  /// Duração do episode em **minutos** (NFO usa minutos, não
+  /// segundos). Vem de `<runtime>` (ex: `47` = 47 min).
+  /// Nullable porque NFOs antigos não têm.
+  final int? runtime;
 
   /// URL absoluta ou path relativo do thumb do episode.
   /// Vem de `<thumb>` (primeiro thumb disponível).
   final String? thumb;
 
-  /// Construtor imutável.
+  /// Construtor imutável. Use `const` quando possível.
   const KodiEpisodeNfo({
     this.seasonNumber,
     this.episodeNumber,
     this.title,
+    this.originalTitle,
     this.plot,
+    this.outline,
+    this.aired,
+    this.rating,
+    this.runtime,
     this.thumb,
   });
 }

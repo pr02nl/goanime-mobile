@@ -171,7 +171,7 @@ class PauloFlixNfoEnricher {
   /// e elimina o bug.
   ///
   /// Retorna `null` em qualquer falha (404, 500, timeout, parse fail).
-  Future<({int? season, int? episode, String? title, String? plot})?>
+  Future<KodiEpisodeNfo?>
   fetchEpisodeNfo(String seasonUrl, int seasonNumber, int episodeNumber) async {
     try {
       final seasonStr = seasonNumber.toString().padLeft(2, '0');
@@ -309,13 +309,17 @@ class PauloFlixNfoEnricher {
   /// via [fetchEpisodeNfo] + inclui a `thumbUrl` do
   /// [fetchEpisodeThumbs] (quando existir) no record.
   ///
-  /// Retorna `Map<int, ({int? season, int? episode, String? title,
-  /// String? plot, String? thumbUrl})>` indexado por episodeNumber.
-  /// Map vazio em qualquer falha (404 no listing, zero episodes
-  /// detectados).
+  /// Retorna `Map<int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>`
+  /// indexado por episodeNumber. **Fase N+7:** o record interno
+  /// mudou de inline (`({int? season, int? episode, String? title,
+  /// String? plot, String? thumbUrl})`) para carregar o
+  /// `KodiEpisodeNfo` completo (V2: +`originalTitle`, `outline`,
+  /// `aired`, `rating`, `runtime`). Caller pega o que precisa via
+  /// `nfo?.plot` etc. Map vazio em qualquer falha (404 no listing,
+  /// zero episodes detectados).
   ///
   /// **Atenção:** a função é best-effort — episodes sem NFO resultam
-  /// em um entry com `plot = null` (não ausenta o entry). Isso
+  /// em um entry com `nfo: null` (não ausenta o entry). Isso
   /// preserva a informação "episódio existe mas não tem NFO" e
   /// permite que o caller decida se quer ou não popular o campo
   /// `description` no banco.
@@ -333,19 +337,8 @@ class PauloFlixNfoEnricher {
   /// thumbs via `Future.wait` — mesmo RTT que 1 GET sequencial).
   /// Caller NÃO precisa mais chamar `fetchEpisodeThumbs` separado
   /// — o `thumbUrl` vem no record.
-  Future<
-    Map<
-      int,
-      ({
-        int? season,
-        int? episode,
-        String? title,
-        String? plot,
-        String? thumbUrl,
-      })
-    >
-  >
-  fetchEpisodeNfos(String seasonUrl, int seasonNumber) async {
+  Future<Map<int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>>
+      fetchEpisodeNfos(String seasonUrl, int seasonNumber) async {
     // 1. Descobre os episode numbers via listing NFO + busca as
     //    thumb URLs em paralelo. 2 GETs, ~1 RTT total.
     final results = await Future.wait<Object?>([
@@ -355,16 +348,7 @@ class PauloFlixNfoEnricher {
     final episodeNumbers = results[0] as List<int>;
     final thumbs = results[1] as Map<int, String>;
     if (episodeNumbers.isEmpty) {
-      return <
-        int,
-        ({
-          int? season,
-          int? episode,
-          String? title,
-          String? plot,
-          String? thumbUrl,
-        })
-      >{};
+      return <int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>{};
     }
 
     // 2. GET paralelo de cada NFO. `Future.wait` dispara todos os
@@ -372,24 +356,13 @@ class PauloFlixNfoEnricher {
     final nfoResults = await Future.wait(
       episodeNumbers.map((n) async {
         final nfo = await fetchEpisodeNfo(seasonUrl, seasonNumber, n);
-        return MapEntry(
+        return MapEntry<int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>(
           n,
-          nfo ?? (season: null, episode: n, title: null, plot: null),
+          (nfo: nfo, thumbUrl: thumbs[n]),
         );
       }),
     );
-    // 3. Combina NFO + thumbUrl no record final.
-    return Map.fromEntries(
-      nfoResults.map(
-        (entry) => MapEntry(entry.key, (
-          season: entry.value.season,
-          episode: entry.value.episode,
-          title: entry.value.title,
-          plot: entry.value.plot,
-          thumbUrl: thumbs[entry.key],
-        )),
-      ),
-    );
+    return Map.fromEntries(nfoResults);
   }
 
   /// GET do listing HTML da season + parse dos NFOs de episode

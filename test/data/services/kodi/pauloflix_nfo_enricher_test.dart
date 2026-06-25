@@ -435,7 +435,9 @@ void main() {
 
       // 2 episodes descobertos (NFO pattern), mesmo sem thumb.
       expect(result.keys, containsAll(<int>[1, 2]));
-      expect(result[1]?.plot, isNotNull);
+      // **Fase N+7:** o record agora carrega o KodiEpisodeNfo completo
+      // (V2: +originalTitle, outline, aired, rating, runtime).
+      expect(result[1]?.nfo?.plot, isNotNull);
     });
 
     test('returns thumbUrl in record when season has thumbs', () async {

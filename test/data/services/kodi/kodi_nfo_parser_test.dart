@@ -198,7 +198,7 @@ Line 3]]></plot>
   // KodiNfoParser.parseEpisode (root <episodedetails>)
   // ============================================================
   group('KodiNfoParser.parseEpisode', () {
-    test('parses valid complete episodedetails.nfo', () {
+    test('parses valid complete episodedetails.nfo (V1 schema)', () {
       const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <episodedetails>
   <season>1</season>
@@ -211,10 +211,38 @@ Line 3]]></plot>
       final result = KodiNfoParser.parseEpisode(xml);
 
       expect(result, isNotNull);
-      expect(result!.season, 1);
-      expect(result.episode, 5);
+      expect(result!.seasonNumber, 1);
+      expect(result.episodeNumber, 5);
       expect(result.title, 'The First Mission');
       expect(result.plot, contains('first mission'));
+    });
+
+    test('parses V2 schema with originalTitle, outline, aired, rating, runtime',
+        () {
+      // **Fase N+7扩e:** valida os 5 novos campos do schema V2.
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<episodedetails>
+  <title>Hashira Tengen Uzui, o Pilar do Som</title>
+  <originaltitle>音柱・宇髄天元</originaltitle>
+  <season>3</season>
+  <episode>1</episode>
+  <plot>Após o incidente do trem de Mugen...</plot>
+  <outline>Akaza visita Muzan. Tanjiro vai à residência Rengoku.</outline>
+  <aired>2021-12-05</aired>
+  <rating>7.3</rating>
+  <runtime>47</runtime>
+</episodedetails>''';
+
+      final result = KodiNfoParser.parseEpisode(xml);
+
+      expect(result, isNotNull);
+      expect(result!.title, contains('Hashira'));
+      expect(result.originalTitle, contains('宇髄天元'));
+      expect(result.plot, contains('Mugen'));
+      expect(result.outline, contains('Muzan'));
+      expect(result.aired, DateTime(2021, 12, 5));
+      expect(result.rating, closeTo(7.3, 0.01));
+      expect(result.runtime, 47);
     });
 
     test('returns null on invalid XML', () {
@@ -237,8 +265,8 @@ Line 3]]></plot>
       final result = KodiNfoParser.parseEpisode(xml);
 
       expect(result, isNotNull);
-      expect(result!.season, 1);
-      expect(result.episode, 5);
+      expect(result!.seasonNumber, 1);
+      expect(result.episodeNumber, 5);
       expect(result.title, 'Episode 5 Title');
       expect(result.plot, 'Plot for episode 5.');
     });
@@ -252,10 +280,37 @@ Line 3]]></plot>
       final result = KodiNfoParser.parseEpisode(xml);
 
       expect(result, isNotNull);
-      expect(result!.season, isNull);
-      expect(result.episode, isNull);
+      expect(result!.seasonNumber, isNull);
+      expect(result.episodeNumber, isNull);
       expect(result.title, 'Untitled');
       expect(result.plot, isNull);
+      // V2 fields também null quando ausentes.
+      expect(result.originalTitle, isNull);
+      expect(result.outline, isNull);
+      expect(result.aired, isNull);
+      expect(result.rating, isNull);
+      expect(result.runtime, isNull);
+    });
+
+    test('parses V2 with partial fields (some present, some absent)', () {
+      // NFO do mundo real: alguns campos V2 presentes, outros não.
+      const xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<episodedetails>
+  <title>Episode Title</title>
+  <aired>2022-01-15</aired>
+  <rating>8.0</rating>
+</episodedetails>''';
+
+      final result = KodiNfoParser.parseEpisode(xml);
+
+      expect(result, isNotNull);
+      expect(result!.title, 'Episode Title');
+      expect(result.aired, DateTime(2022, 1, 15));
+      expect(result.rating, 8.0);
+      // Não quebrou: campos ausentes = null.
+      expect(result.originalTitle, isNull);
+      expect(result.outline, isNull);
+      expect(result.runtime, isNull);
     });
   });
 
@@ -400,8 +455,8 @@ Line 3]]></plot>
       expect(nfo, isNotNull);
       expect(nfo!.plot, isNull);
       // Garantir que season/episode/title ainda funcionam.
-      expect(nfo.season, 1);
-      expect(nfo.episode, 1);
+      expect(nfo.seasonNumber, 1);
+      expect(nfo.episodeNumber, 1);
       expect(nfo.title, 'Test');
     });
 
@@ -418,8 +473,8 @@ Line 3]]></plot>
       final nfo = KodiNfoParser.parseEpisode(xml);
 
       expect(nfo, isNotNull);
-      expect(nfo!.season, isNull);
-      expect(nfo.episode, isNull);
+      expect(nfo!.seasonNumber, isNull);
+      expect(nfo.episodeNumber, isNull);
       // Title e plot continuam parseando normalmente.
       expect(nfo.title, 'Test');
       expect(nfo.plot, 'Some plot.');
@@ -492,8 +547,8 @@ Line 3]]></plot>
       final result = KodiNfoParser.parseEpisode(xml);
 
       expect(result, isNotNull);
-      expect(result!.season, 1);
-      expect(result.episode, 5);
+      expect(result!.seasonNumber, 1);
+      expect(result.episodeNumber, 5);
       expect(result.title, 'First Steps');
       expect(result.plot, 'The hero takes their first steps.');
     });
@@ -508,8 +563,8 @@ Line 3]]></plot>
       final result = KodiNfoParser.parseEpisode(xml);
 
       expect(result, isNotNull);
-      expect(result!.season, isNull);
-      expect(result.episode, isNull);
+      expect(result!.seasonNumber, isNull);
+      expect(result.episodeNumber, isNull);
       expect(result.title, isNull);
       expect(result.plot, contains('no season or episode'));
     });

@@ -20,12 +20,13 @@ import 'kodi_nfo_models.dart';
 
 /// Record Dart 3 para o retorno de `parseEpisode`.
 ///
-/// Campos:
-/// - `season`: número da season (vem de `<season>`).
-/// - `episode`: número do episode (vem de `<episode>`).
-/// - `title`: título do episode (vem de `<title>`).
-/// - `plot`: sinopse (vem de `<plot>`).
-typedef EpisodeNfo = ({int? season, int? episode, String? title, String? plot});
+/// **Fase N+7扩e:** agora alias de `KodiEpisodeNfo` (que tem os 5
+/// novos campos V2: `originalTitle`, `outline`, `aired`, `rating`,
+/// `runtime`). Era um record inline com só 4 campos (season,
+/// episode, title, plot) — incompatível com o schema V2 do NFO.
+/// Manter como `typedef` evita quebrar callers que importam
+/// `EpisodeNfo` diretamente.
+typedef EpisodeNfo = KodiEpisodeNfo;
 
 /// Parser estático de NFOs Kodi.
 class KodiNfoParser {
@@ -58,18 +59,29 @@ class KodiNfoParser {
 
   /// Faz parse de um `episodedetails.nfo` (root `<episodedetails>`).
   ///
-  /// Retorna um record Dart 3 `EpisodeNfo` populado, ou `null` em
-  /// qualquer erro.
-  static EpisodeNfo? parseEpisode(String xmlBody) {
-    return _parseRooted<EpisodeNfo>(
+  /// Retorna um `KodiEpisodeNfo` (typedef `EpisodeNfo` é alias) com
+  /// schema V2 completo: V1 (`season`, `episode`, `title`, `plot`,
+  /// `thumb`) + V2 (`originalTitle`, `outline`, `aired`, `rating`,
+  /// `runtime`). Todos opcionais — NFO pode ter só subset.
+  ///
+  /// Retorna `null` em qualquer erro (XML inválido, root mismatch).
+  static KodiEpisodeNfo? parseEpisode(String xmlBody) {
+    return _parseRooted<KodiEpisodeNfo>(
       xmlBody,
       expectedRoot: 'episodedetails',
       builder: (root) {
-        return (
-          season: _parseInt(_firstText(root, 'season')),
-          episode: _parseInt(_firstText(root, 'episode')),
+        return KodiEpisodeNfo(
+          seasonNumber: _parseInt(_firstText(root, 'season')),
+          episodeNumber: _parseInt(_firstText(root, 'episode')),
           title: _firstText(root, 'title'),
+          originalTitle: _firstText(root, 'originaltitle'),
           plot: _firstText(root, 'plot'),
+          outline: _firstText(root, 'outline'),
+          aired: _parseDateTime(_firstText(root, 'aired')),
+          rating: _parseDouble(_firstText(root, 'rating')),
+          runtime: _parseInt(_firstText(root, 'runtime')),
+          // thumb: episode NFO não usa thumb (o thumb vem de
+          // S01E001-thumb.jpg no listing da season, separado).
         );
       },
     );
@@ -241,5 +253,17 @@ class KodiNfoParser {
   static double? _parseDouble(String? value) {
     if (value == null || value.isEmpty) return null;
     return double.tryParse(value);
+  }
+
+  /// Tenta parsear [value] como `DateTime` no formato `YYYY-MM-DD`
+  /// (Kodi `<aired>` standard).
+  ///
+  /// Retorna `null` se for `null`, vazio, ou formato inválido.
+  /// **NÃO** faz fuzzy parsing (ex: `5-12-2021` ou timestamps
+  /// completos) — só aceita o formato ISO `YYYY-MM-DD`. Valores
+  /// fora do formato viram `null` (defensivo — não propagam erro).
+  static DateTime? _parseDateTime(String? value) {
+    if (value == null || value.isEmpty) return null;
+    return DateTime.tryParse(value);
   }
 }
