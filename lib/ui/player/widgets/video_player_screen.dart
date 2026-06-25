@@ -67,8 +67,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   String? _errorMessage;
   Map<String, String>? _currentVideoHeaders;
 
-  // Fullscreen related variables
-  bool _isFullscreen = false;
   bool? _isTVDevice;
 
   // Overlay controls auto-hide
@@ -177,8 +175,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     _progressRepo = widget.seasonId != null && widget.episodeNumber != null
         ? context.read<PauloFlixEpisodeProgressRepository?>()
         : null;
-    // Entra em fullscreen imediatamente (síncrono) antes de qualquer await
-    _enterFullscreen();
     _initializeVideoPlayer();
     _detectDeviceAndEnterFullscreen();
     _installHardwareKeyboardHandler();
@@ -207,8 +203,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     // MaterialDesktopVideoControls já trata Esc internamente (chama
     // exitFullscreen do package), mas NÃO atualiza nosso `_isFullscreen`
     // nem limpa SystemUiMode no desktop. Fazemos aqui.
-    if (event.logicalKey == LogicalKeyboardKey.escape && _isFullscreen) {
-      _exitFullscreen();
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
       return true; // consome o evento
     }
 
@@ -228,67 +223,42 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     if (!mounted) return;
 
     if (!Platform.isAndroid) {
-      _setupFullscreenListener();
       return;
     }
 
     // Detectar se é TV
-    final isTV = await TVDetector.isTV;
+    _isTVDevice = await TVDetector.isTV;
     if (!mounted) return;
-    _isTVDevice = isTV;
 
-    if (isTV) {
+    if (_isTVDevice == true) {
       // TV: fullscreen + landscape only
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
     }
-
-    // Garantir fullscreen (pode ter sido perdido durante o await)
-    _enterFullscreen();
-
-    // Configurar listener para detectar saída do fullscreen
-    _setupFullscreenListener();
-  }
-
-  /// Entra em modo fullscreen (immersive)
-  void _enterFullscreen() {
-    setState(() {
-      _isFullscreen = true;
-    });
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    _startOverlayControlsHideTimer();
-  }
-
-  /// Sai do modo fullscreen
-  void _exitFullscreen() {
-    setState(() {
-      _isFullscreen = false;
-    });
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   /// Configura listener para detectar mudanças no sistema UI (fullscreen exit)
-  void _setupFullscreenListener() {
-    SystemChrome.setSystemUIChangeCallback((systemOverlaysAreVisible) async {
-      // systemOverlaysAreVisible = true quando saiu do fullscreen
-      if (systemOverlaysAreVisible && _isFullscreen) {
-        setState(() {
-          _isFullscreen = false;
-        });
+  // void _setupFullscreenListener() {
+  //   SystemChrome.setSystemUIChangeCallback((systemOverlaysAreVisible) async {
+  //     // systemOverlaysAreVisible = true quando saiu do fullscreen
+  //     if (systemOverlaysAreVisible && _isFullscreen) {
+  //       setState(() {
+  //         _isFullscreen = false;
+  //       });
 
-        if (_isTVDevice == true) {
-          // Na TV: fechar o player quando sair do fullscreen
-          debugPrint('[VideoPlayer] TV: Fechando player ao sair do fullscreen');
-          if (mounted && Navigator.canPop(context)) {
-            Navigator.pop(context);
-          }
-        }
-        // No smartphone: apenas sai do fullscreen sem fechar (comportamento padrão)
-      }
-    });
-  }
+  //       if (_isTVDevice == true) {
+  //         // Na TV: fechar o player quando sair do fullscreen
+  //         debugPrint('[VideoPlayer] TV: Fechando player ao sair do fullscreen');
+  //         if (mounted && Navigator.canPop(context)) {
+  //           Navigator.pop(context);
+  //         }
+  //       }
+  //       // No smartphone: apenas sai do fullscreen sem fechar (comportamento padrão)
+  //     }
+  //   });
+  // }
 
   @override
   void didUpdateWidget(covariant ModernVideoPlayerScreen oldWidget) {
@@ -867,17 +837,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     }
   }
 
-  double _calculateAspectRatio() {
-    if (_player != null) {
-      final width = _player?.state.width;
-      final height = _player?.state.height;
-      if (width != null && height != null && width > 0 && height > 0) {
-        return width / height;
-      }
-    }
-    return 16 / 9;
-  }
-
   Future<void> _cleanupControllers() async {
     positionTimer?.cancel();
     skipButtonAutoHideTimer?.cancel();
@@ -1046,83 +1005,22 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_isFullscreen) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        extendBody: true,
-        extendBodyBehindAppBar: true,
-        // O Video widget DEVE estar sempre na árvore para que o
-        // AndroidVideoController crie a Surface antes de player.open().
-        // Estados de loading/erro são sobrepostos via Stack.
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Video sempre presente para garantir Surface inicializada
-            _buildFullscreenContent(),
-            // Loading overlay
-            if (_isLoading) _buildLoadingState(),
-            // Error overlay
-            if (!_isLoading && _errorMessage != null) _buildErrorState(),
-          ],
-        ),
-      );
-    }
-
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          // App Bar moderno
-          SliverAppBar(
-            expandedHeight: 80,
-            pinned: true,
-            backgroundColor: AppColors.background,
-            elevation: 0,
-            leading: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.arrow_back, color: Colors.white),
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.animeTitle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  _displayLabel,
-                  style: TextStyle(
-                    color: AppColors.primary.withValues(alpha: 0.9),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Conteúdo
-          SliverToBoxAdapter(
-            child: _isLoading
-                ? _buildLoadingState()
-                : _errorMessage != null
-                ? _buildErrorState()
-                : _buildLoadedContent(),
-          ),
+      backgroundColor: Colors.black,
+      extendBody: true,
+      extendBodyBehindAppBar: true,
+      // O Video widget DEVE estar sempre na árvore para que o
+      // AndroidVideoController crie a Surface antes de player.open().
+      // Estados de loading/erro são sobrepostos via Stack.
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Video sempre presente para garantir Surface inicializada
+          _buildFullscreenContent(),
+          // Loading overlay
+          if (_isLoading) _buildLoadingState(),
+          // Error overlay
+          if (!_isLoading && _errorMessage != null) _buildErrorState(),
         ],
       ),
     );
@@ -1257,7 +1155,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                       child: Row(
                         children: [
                           FocusableWidget(
-                            onSelect: _exitFullscreen,
+                            onSelect: () {
+                              Navigator.pop(context);
+                            },
                             borderRadius: 24,
                             focusPadding: EdgeInsets.zero,
                             focusScale: 1.05,
@@ -1315,10 +1215,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   }
 
   Widget _buildLoadingState() {
-    final isFullscreen = _isFullscreen;
     final inner = Container(
-      height: isFullscreen ? null : MediaQuery.of(context).size.height - 200,
-      color: isFullscreen ? Colors.black : null,
+      color: Colors.black,
       padding: const EdgeInsets.all(24),
       child: Center(
         child: Column(
@@ -1370,14 +1268,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         ),
       ),
     );
-    return isFullscreen ? SizedBox.expand(child: inner) : inner;
+    return SizedBox.expand(child: inner);
   }
 
   Widget _buildErrorState() {
-    final isFullscreen = _isFullscreen;
     final inner = Container(
-      height: isFullscreen ? null : MediaQuery.of(context).size.height - 200,
-      color: isFullscreen ? Colors.black : null,
+      color: Colors.black,
       padding: const EdgeInsets.all(24),
       child: Center(
         child: _buildErrorWidget(
@@ -1385,133 +1281,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         ),
       ),
     );
-    return isFullscreen ? SizedBox.expand(child: inner) : inner;
-  }
-
-  Widget _buildLoadedContent() {
-    if (_isTVDevice == true) {
-      return _buildTVPlayerLayout();
-    }
-
-    return Column(children: [_buildVideoPlayerCard()]);
-  }
-
-  Widget _buildTVPlayerLayout() {
-    final hasEpisodes = !widget.isMovie && widget.episodeList != null;
-
-    return Stack(
-      children: [
-        SizedBox.expand(
-          child: _videoController != null
-              ? MaterialDesktopVideoControlsTheme(
-                  normal: MaterialDesktopVideoControlsThemeData(
-                    visibleOnMount: true,
-                    playAndPauseOnTap: true,
-                    bottomButtonBar: [
-                      if (hasEpisodes && _hasPreviousEpisode)
-                        EpisodeSkipPreviousButton(
-                          onPressed: _goToPreviousEpisode,
-                        ),
-                      const MaterialDesktopPlayOrPauseButton(),
-                      if (hasEpisodes && _hasNextEpisode)
-                        EpisodeSkipNextButton(onPressed: _goToNextEpisode),
-                      const MaterialDesktopVolumeButton(),
-                      const MaterialDesktopPositionIndicator(),
-                      const Spacer(),
-                      const MaterialDesktopFullscreenButton(),
-                    ],
-                  ),
-                  fullscreen: MaterialDesktopVideoControlsThemeData(
-                    visibleOnMount: true,
-                    playAndPauseOnTap: true,
-                    bottomButtonBar: [
-                      if (hasEpisodes && _hasPreviousEpisode)
-                        EpisodeSkipPreviousButton(
-                          onPressed: _goToPreviousEpisode,
-                        ),
-                      const MaterialDesktopPlayOrPauseButton(),
-                      if (hasEpisodes && _hasNextEpisode)
-                        EpisodeSkipNextButton(onPressed: _goToNextEpisode),
-                      const MaterialDesktopVolumeButton(),
-                      const MaterialDesktopPositionIndicator(),
-                      const Spacer(),
-                      const MaterialDesktopFullscreenButton(),
-                    ],
-                  ),
-                  child: Video(
-                    controller: _videoController!,
-                    fit: BoxFit.cover,
-                    controls: MaterialDesktopVideoControls,
-                  ),
-                )
-              : Container(color: Colors.black),
-        ),
-        Positioned(
-          bottom: 40,
-          right: 40,
-          child: IgnorePointer(
-            ignoring: !showSkipButton,
-            child: SkipButton(
-              onSkip: skipIntroOutro,
-              label: skipButtonLabel,
-              show: showSkipButton,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVideoPlayerCard() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      child: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: AspectRatio(
-                aspectRatio: _calculateAspectRatio(),
-                child: _videoController != null
-                    ? Video(
-                        controller: _videoController!,
-                        fit: BoxFit.contain,
-                        controls: MaterialVideoControls,
-                      )
-                    : Container(color: Colors.black),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: IgnorePointer(
-              ignoring: !showSkipButton,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 24, right: 16),
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: SkipButton(
-                      onSkip: skipIntroOutro,
-                      label: skipButtonLabel,
-                      show: showSkipButton,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return SizedBox.expand(child: inner);
   }
 }
