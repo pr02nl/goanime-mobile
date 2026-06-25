@@ -201,12 +201,25 @@ class PauloFlixNfoEnricher {
         final url = '$base$filename';
         final res =
             await _client.get(Uri.parse(url)).timeout(_kRequestTimeout);
-        if (res.statusCode == 200 && res.body.isNotEmpty) {
-          return KodiNfoParser.parseEpisode(res.body);
+        if (res.statusCode == 200) {
+          // Mesma estratégia de decoding dos outros fetchers NFO
+          // (`fetchShowNfo`, `fetchMovieNfo`, `fetchSeasonNfo`): usa
+          // `res.bodyBytes` + `decodeResponseBody` para honrar
+          // BOM, declaration XML `<?xml encoding="..."?>` e
+          // `Content-Type: charset=...`. Sem isso, o `package:http`
+          // decodifica o body como Latin-1 e NFOs salvos em UTF-8
+          // (padrão Kodi) sem header charset ficam com acentos
+          // errados antes mesmo de chegar no parser.
+          final body = url_codec.decodeResponseBody(
+            res.bodyBytes,
+            responseHeaders: res.headers,
+          );
+          if (body.isNotEmpty) {
+            return KodiNfoParser.parseEpisode(body);
+          }
         }
-        // 404 (ou qualquer outro status != 200) → tenta a próxima
-        // variante. Se 200 mas body vazio, também tenta a próxima
-        // (defensivo — não deveria acontecer).
+        // Status != 200, ou 200 com body vazio → tenta a próxima
+        // variante. (Defensivo — não deveria acontecer.)
       }
       return null;
     } catch (e) {

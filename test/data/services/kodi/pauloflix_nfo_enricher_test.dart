@@ -16,6 +16,8 @@
 //
 // Ver plano `.hermes/plans/2026-06-23_224213-pauloflix-nfo-enrichment.md`.
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:goanime/data/services/kodi/pauloflix_nfo_enricher.dart';
 import 'package:http/http.dart' as http;
@@ -472,6 +474,69 @@ void main() {
         );
 
         expect(nfo, isNull);
+      },
+    );
+
+    test(
+      'NFO Latin-1 sem Content-Type charset: acentos do PT-BR são '
+      'decodificados corretamente (paridade com fetchShowNfo / '
+      'fetchMovieNfo / fetchSeasonNfo)',
+      () async {
+        // **Bug fix — paridade com os outros fetchers NFO.** O
+        // `fetchEpisodeNfo` lia `res.body` (que o `package:http`
+        // decodifica como Latin-1 por default), enquanto os outros 3
+        // fetchers NFO usam `res.bodyBytes` + `decodeResponseBody`.
+        // Resultado: NFOs de episodes salvos em UTF-8 (padrão Kodi)
+        // sem header charset no Content-Type chegavam com acentos
+        // errados (mojibake) no parser — a string já entrava
+        // corrompida antes do XML parse.
+        //
+        // Aqui simulamos o cenário real: body em UTF-8, mas o
+        // servidor NÃO envia `Content-Type: charset=utf-8` (caso
+        // comum em Nginx autoindex). O `http.Response.bytes` envia
+        // os bytes UTF-8 brutos via `bodyBytes`; o `res.body` (que
+        // o `package:http` deriva com default Latin-1) viraria
+        // mojibake — mas o fix lê `res.bodyBytes` diretamente,
+        // contornando o bug.
+        const nfoTitle = 'Ação e Reencarnação';
+        const nfoPlot = 'O herói descobre que é uma Ação especial.';
+        const xmlUtf8 = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<episodedetails>
+  <title>$nfoTitle</title>
+  <plot>$nfoPlot</plot>
+  <season>1</season>
+  <episode>1</episode>
+</episodedetails>
+''';
+        final xmlUtf8Bytes = utf8.encode(xmlUtf8);
+        final client = MockClient((request) async {
+          expect(request.url.path, endsWith('S01E001.nfo'));
+          // IMPORTANTE: envia `application/xml` SEM `charset=...`.
+          // É exatamente este header ausente (comum em file servers)
+          // que faz o `package:http` cair no default Latin-1 e
+          // quebrar NFOs UTF-8. O fix honra o `<?xml encoding="UTF-8"?>`
+          // interno e re-decodifica via `decodeResponseBody`.
+          return http.Response.bytes(
+            xmlUtf8Bytes,
+            200,
+            headers: {'content-type': 'application/xml'},
+          );
+        });
+        final enricher = PauloFlixNfoEnricher(client: client);
+
+        final nfo = await enricher.fetchEpisodeNfo(
+          'http://server/anime/Season%2001/',
+          1,
+          1,
+        );
+
+        expect(nfo, isNotNull);
+        expect(nfo!.title, equals(nfoTitle),
+            reason:
+                'acentos devem ser preservados — antes do fix, '
+                'fetchEpisodeNfo usava res.body (Latin-1 default) e '
+                'quebrava UTF-8');
+        expect(nfo.plot, equals(nfoPlot));
       },
     );
   });
