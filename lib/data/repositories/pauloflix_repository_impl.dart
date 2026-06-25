@@ -60,6 +60,16 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
 
   @override
   Future<void> saveContent(PauloFlixContent content) async {
+    // **UPSERT real (Drift `DoUpdate`)** sobre `folderName` (UNIQUE).
+    // NUNCA usar `InsertMode.insertOrReplace` aqui — no SQLite isso
+    // vira `INSERT OR REPLACE` que faz **DELETE + INSERT** (não UPSERT
+    // real). Como `paulo_flix_content.id` é `INTEGER PRIMARY KEY` sem a
+    // keyword `AUTOINCREMENT` estrita, o id é reusado em delete+insert,
+    // e o `ON DELETE CASCADE` da FK em `paulo_flix_seasons.contentId`
+    // apaga as seasons + episodes + progresso do user junto.
+    // Sintoma: cards abertos em memória antes do re-sync passam a
+    // apontar pra id morto → próximo clique causa
+    // `FOREIGN KEY constraint failed` no INSERT de season.
     await _db.into(_db.pauloFlixContent).insert(
           PauloFlixContentCompanion.insert(
             folderName: content.folderName,
@@ -77,12 +87,33 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
             lastSynced: content.lastSynced,
             isAvailable: Value(content.isAvailable),
           ),
-          mode: InsertMode.insertOrReplace,
+          onConflict: DoUpdate(
+            (old) => PauloFlixContentCompanion(
+              displayName: Value(content.displayName),
+              serverUrl: Value(content.serverUrl),
+              imageUrl: Value(content.imageUrl),
+              bannerUrl: Value(content.bannerUrl),
+              description: Value(content.description),
+              score: Value(content.score),
+              genresJson: Value(encodeGenres(content.genres)),
+              status: Value(content.status),
+              episodeCount: Value(content.episodeCount),
+              malId: Value(content.malId),
+              anilistId: Value(content.anilistId),
+              lastSynced: Value(content.lastSynced),
+              isAvailable: Value(content.isAvailable),
+            ),
+            target: [_db.pauloFlixContent.folderName],
+          ),
         );
   }
 
   @override
   Future<void> saveBatch(List<PauloFlixContent> contents) async {
+    // Mesmo rationale de `saveContent`: UPSERT real via `DoUpdate` para
+    // preservar o `id` em re-syncs (a FK cascade de seasons depende
+    // disso). Ver bloco de comentário em `saveContent` para o histórico
+    // completo do bug.
     await _db.batch((batch) {
       for (final content in contents) {
         batch.insert(
@@ -103,7 +134,24 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
             lastSynced: content.lastSynced,
             isAvailable: Value(content.isAvailable),
           ),
-          mode: InsertMode.insertOrReplace,
+          onConflict: DoUpdate(
+            (old) => PauloFlixContentCompanion(
+              displayName: Value(content.displayName),
+              serverUrl: Value(content.serverUrl),
+              imageUrl: Value(content.imageUrl),
+              bannerUrl: Value(content.bannerUrl),
+              description: Value(content.description),
+              score: Value(content.score),
+              genresJson: Value(encodeGenres(content.genres)),
+              status: Value(content.status),
+              episodeCount: Value(content.episodeCount),
+              malId: Value(content.malId),
+              anilistId: Value(content.anilistId),
+              lastSynced: Value(content.lastSynced),
+              isAvailable: Value(content.isAvailable),
+            ),
+            target: [_db.pauloFlixContent.folderName],
+          ),
         );
       }
     });

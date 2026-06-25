@@ -54,6 +54,12 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
 
   @override
   Future<void> saveContent(PauloFlixMovie content) async {
+    // **UPSERT real (Drift `DoUpdate`)** sobre `folderName` (UNIQUE).
+    // Ver `PauloFlixRepositoryImpl.saveContent` para o rationale
+    // completo — `InsertMode.insertOrReplace` faz DELETE+INSERT, troca
+    // o `id` e quebra as FKs em cascade. Aqui não há `paulo_flix_movies`
+    // com FKs cascade saindo no momento, mas a mesma semântica é
+    // correta (evita re-sincronizações "perderem" o id do filme).
     await _db.into(_db.pauloFlixMovies).insert(
           PauloFlixMoviesCompanion.insert(
             folderName: content.folderName,
@@ -73,12 +79,32 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             lastSynced: content.lastSynced,
             isAvailable: Value(content.isAvailable),
           ),
-          mode: InsertMode.insertOrReplace,
+          onConflict: DoUpdate(
+            (old) => PauloFlixMoviesCompanion(
+              displayName: Value(content.displayName),
+              serverUrl: Value(content.serverUrl),
+              imageUrl: Value(content.imageUrl),
+              bannerUrl: Value(content.bannerUrl),
+              description: Value(content.description),
+              score: Value(content.score),
+              genresJson: Value(encodeGenres(content.genres)),
+              releaseDate: Value(content.releaseDate),
+              runtime: Value(content.runtime),
+              year: Value(content.year),
+              tmdbId: Value(content.tmdbId),
+              isCollection: Value(content.isCollection),
+              availableMovieCount: Value(content.availableMovieCount),
+              lastSynced: Value(content.lastSynced),
+              isAvailable: Value(content.isAvailable),
+            ),
+            target: [_db.pauloFlixMovies.folderName],
+          ),
         );
   }
 
   @override
   Future<void> saveBatch(List<PauloFlixMovie> contents) async {
+    // Ver `PauloFlixRepositoryImpl.saveBatch` para o rationale.
     await _db.batch((batch) {
       for (final content in contents) {
         batch.insert(
@@ -101,7 +127,26 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             lastSynced: content.lastSynced,
             isAvailable: Value(content.isAvailable),
           ),
-          mode: InsertMode.insertOrReplace,
+          onConflict: DoUpdate(
+            (old) => PauloFlixMoviesCompanion(
+              displayName: Value(content.displayName),
+              serverUrl: Value(content.serverUrl),
+              imageUrl: Value(content.imageUrl),
+              bannerUrl: Value(content.bannerUrl),
+              description: Value(content.description),
+              score: Value(content.score),
+              genresJson: Value(encodeGenres(content.genres)),
+              releaseDate: Value(content.releaseDate),
+              runtime: Value(content.runtime),
+              year: Value(content.year),
+              tmdbId: Value(content.tmdbId),
+              isCollection: Value(content.isCollection),
+              availableMovieCount: Value(content.availableMovieCount),
+              lastSynced: Value(content.lastSynced),
+              isAvailable: Value(content.isAvailable),
+            ),
+            target: [_db.pauloFlixMovies.folderName],
+          ),
         );
       }
     });

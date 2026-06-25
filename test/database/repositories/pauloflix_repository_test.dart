@@ -122,6 +122,65 @@ void main() {
       expect(all, hasLength(3));
     });
 
+    test(
+      'saveContent em folderName existente PRESERVA o id (UPSERT real)',
+      () async {
+        // Re-sincronização do mesmo content (mesmo folderName) NÃO pode
+        // trocar o id. O bug antigo usava InsertMode.insertOrReplace
+        // que faz DELETE+INSERT, gerando um id novo e quebrando as FKs
+        // de paulo_flix_seasons (cascade apagava as seasons + progresso
+        // do user). Drift deve usar ON CONFLICT DO UPDATE para manter
+        // o id estável.
+        await repo.saveContent(
+          sample(folderName: 'naruto', displayName: 'Naruto v1'),
+        );
+        final firstId = (await repo.getByFolderName('naruto'))!.id;
+
+        // Re-sincroniza o mesmo folderName com metadados novos.
+        await repo.saveContent(
+          sample(
+            folderName: 'naruto',
+            displayName: 'Naruto v2 — Jikan updated score',
+            score: 8.5,
+            imageUrl: 'http://img/naruto.jpg',
+          ),
+        );
+
+        final all = await repo.getAll();
+        expect(all, hasLength(1), reason: 'não pode duplicar');
+        final updated = (await repo.getByFolderName('naruto'))!;
+        expect(updated.id, equals(firstId), reason: 'id deve ser preservado');
+        expect(updated.displayName, 'Naruto v2 — Jikan updated score');
+        expect(updated.score, 8.5);
+        expect(updated.imageUrl, 'http://img/naruto.jpg');
+      },
+    );
+
+    test(
+      'saveBatch em folderNames existentes preserva os ids (UPSERT real)',
+      () async {
+        await repo.saveBatch([
+          sample(folderName: 'a'),
+          sample(folderName: 'b'),
+        ]);
+        final idA = (await repo.getByFolderName('a'))!.id;
+        final idB = (await repo.getByFolderName('b'))!.id;
+
+        // Re-sincroniza com metadados novos.
+        await repo.saveBatch([
+          sample(folderName: 'a', displayName: 'A v2', score: 9.0),
+          sample(folderName: 'b', displayName: 'B v2', score: 9.1),
+        ]);
+
+        final all = await repo.getAll();
+        expect(all, hasLength(2));
+        expect((await repo.getByFolderName('a'))!.id, equals(idA));
+        expect((await repo.getByFolderName('b'))!.id, equals(idB));
+        expect((await repo.getByFolderName('a'))!.displayName, 'A v2');
+        expect((await repo.getByFolderName('b'))!.displayName, 'B v2');
+      },
+    );
+
     test('getStats retorna contagens', () async {
       await repo.saveContent(
         sample(folderName: 'a', imageUrl: 'http://img/a.jpg'),

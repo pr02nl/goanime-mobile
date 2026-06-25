@@ -110,6 +110,34 @@ void main() {
       expect(found!.isAvailable, isFalse);
     });
 
+    test(
+      'saveContent em folderName existente PRESERVA o id (UPSERT real)',
+      () async {
+        // Mesmo rationale do test em pauloflix_repository_test.dart:
+        // `InsertMode.insertOrReplace` antigo fazia DELETE+INSERT,
+        // trocava o id e quebrava FKs cascade. Drift `DoUpdate` mantém
+        // o id estável em re-syncs.
+        await repo.saveContent(sample(folderName: 'inception'));
+        final firstId = (await repo.getByFolderName('inception'))!.id;
+
+        await repo.saveContent(
+          sample(
+            folderName: 'inception',
+            displayName: 'A Origem (2010) — TMDB updated',
+            score: 9.0,
+            imageUrl: 'http://img/inception.jpg',
+          ),
+        );
+
+        final all = await repo.getAll();
+        expect(all, hasLength(1));
+        final updated = (await repo.getByFolderName('inception'))!;
+        expect(updated.id, equals(firstId), reason: 'id deve ser preservado');
+        expect(updated.displayName, 'A Origem (2010) — TMDB updated');
+        expect(updated.score, 9.0);
+      },
+    );
+
     test('saveBatch insere múltiplos', () async {
       await repo.saveBatch([
         sample(folderName: 'a'),
