@@ -21,11 +21,11 @@
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:goanime/core/utils/url_codec.dart' as url_codec;
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
-import 'package:goanime/core/utils/url_codec.dart' as url_codec;
 import 'kodi_nfo_models.dart';
 import 'kodi_nfo_parser.dart';
 
@@ -172,20 +172,14 @@ class PauloFlixNfoEnricher {
   ///
   /// Retorna `null` em qualquer falha (404, 500, timeout, parse fail).
   Future<({int? season, int? episode, String? title, String? plot})?>
-      fetchEpisodeNfo(
-    String seasonUrl,
-    int seasonNumber,
-    int episodeNumber,
-  ) async {
+  fetchEpisodeNfo(String seasonUrl, int seasonNumber, int episodeNumber) async {
     try {
       final seasonStr = seasonNumber.toString().padLeft(2, '0');
       final episodeStr = episodeNumber.toString().padLeft(3, '0');
       final filename = 'S${seasonStr}E$episodeStr.nfo';
       final base = seasonUrl.endsWith('/') ? seasonUrl : '$seasonUrl/';
       final url = '$base$filename';
-      final res = await _client
-          .get(Uri.parse(url))
-          .timeout(_kRequestTimeout);
+      final res = await _client.get(Uri.parse(url)).timeout(_kRequestTimeout);
       if (res.statusCode != 200) return null;
       if (res.body.isEmpty) return null;
       return KodiNfoParser.parseEpisode(res.body);
@@ -218,10 +212,16 @@ class PauloFlixNfoEnricher {
 
   /// Nomes canônicos (Kodi) para poster e fanart de season.
   static const Set<String> _seasonPosterNames = {
-    'poster', 'cover', 'folder', 'season-poster',
+    'poster',
+    'cover',
+    'folder',
+    'season-poster',
   };
   static const Set<String> _seasonFanartNames = {
-    'fanart', 'backdrop', 'banner', 'season-banner',
+    'fanart',
+    'backdrop',
+    'banner',
+    'season-banner',
   };
 
   static const DetectedSeasonImages _kEmptyImages = DetectedSeasonImages();
@@ -334,15 +334,18 @@ class PauloFlixNfoEnricher {
   /// Caller NÃO precisa mais chamar `fetchEpisodeThumbs` separado
   /// — o `thumbUrl` vem no record.
   Future<
-      Map<
-          int,
-          ({
-            int? season,
-            int? episode,
-            String? title,
-            String? plot,
-            String? thumbUrl,
-          })>> fetchEpisodeNfos(String seasonUrl, int seasonNumber) async {
+    Map<
+      int,
+      ({
+        int? season,
+        int? episode,
+        String? title,
+        String? plot,
+        String? thumbUrl,
+      })
+    >
+  >
+  fetchEpisodeNfos(String seasonUrl, int seasonNumber) async {
     // 1. Descobre os episode numbers via listing NFO + busca as
     //    thumb URLs em paralelo. 2 GETs, ~1 RTT total.
     final results = await Future.wait<Object?>([
@@ -352,14 +355,16 @@ class PauloFlixNfoEnricher {
     final episodeNumbers = results[0] as List<int>;
     final thumbs = results[1] as Map<int, String>;
     if (episodeNumbers.isEmpty) {
-      return <int,
-          ({
-            int? season,
-            int? episode,
-            String? title,
-            String? plot,
-            String? thumbUrl,
-          })>{};
+      return <
+        int,
+        ({
+          int? season,
+          int? episode,
+          String? title,
+          String? plot,
+          String? thumbUrl,
+        })
+      >{};
     }
 
     // 2. GET paralelo de cada NFO. `Future.wait` dispara todos os
@@ -369,29 +374,20 @@ class PauloFlixNfoEnricher {
         final nfo = await fetchEpisodeNfo(seasonUrl, seasonNumber, n);
         return MapEntry(
           n,
-          nfo ??
-              (
-                season: null,
-                episode: n,
-                title: null,
-                plot: null
-              ),
+          nfo ?? (season: null, episode: n, title: null, plot: null),
         );
       }),
     );
     // 3. Combina NFO + thumbUrl no record final.
     return Map.fromEntries(
       nfoResults.map(
-        (entry) => MapEntry(
-          entry.key,
-          (
-            season: entry.value.season,
-            episode: entry.value.episode,
-            title: entry.value.title,
-            plot: entry.value.plot,
-            thumbUrl: thumbs[entry.key],
-          ),
-        ),
+        (entry) => MapEntry(entry.key, (
+          season: entry.value.season,
+          episode: entry.value.episode,
+          title: entry.value.title,
+          plot: entry.value.plot,
+          thumbUrl: thumbs[entry.key],
+        )),
       ),
     );
   }
@@ -407,9 +403,7 @@ class PauloFlixNfoEnricher {
   ///
   /// Retorna lista vazia em qualquer falha (404, 500, timeout,
   /// parse fail, listing vazio).
-  Future<List<int>> _fetchEpisodeNumbersFromNfoListing(
-    String seasonUrl,
-  ) async {
+  Future<List<int>> _fetchEpisodeNumbersFromNfoListing(String seasonUrl) async {
     try {
       final res = await _client
           .get(Uri.parse(seasonUrl))
@@ -462,10 +456,16 @@ class PauloFlixNfoEnricher {
 
   /// Nomes canônicos (Kodi) para poster e fanart de show.
   static const Set<String> _showPosterNames = {
-    'poster', 'cover', 'folder', 'tvshow-poster',
+    'poster',
+    'cover',
+    'folder',
+    'tvshow-poster',
   };
   static const Set<String> _showFanartNames = {
-    'fanart', 'backdrop', 'banner', 'tvshow-banner',
+    'fanart',
+    'backdrop',
+    'banner',
+    'tvshow-banner',
   };
 
   static const DetectedShowImages _kEmptyShowImages = DetectedShowImages();
@@ -569,7 +569,7 @@ class PauloFlixNfoEnricher {
   /// continua existindo para callers que só querem o NFO, ex. testes
   /// unitários antigos). Não quebra API existente.
   Future<({KodiShowNfo? nfo, DetectedShowImages images})>
-      fetchShowNfoWithImages(String showUrl) async {
+  fetchShowNfoWithImages(String showUrl) async {
     final results = await Future.wait<Object?>([
       fetchShowNfo(showUrl),
       fetchShowImages(showUrl),
@@ -630,7 +630,9 @@ class PauloFlixNfoEnricher {
   ///
   /// Usa o pacote `html` (já no projeto) com `document.querySelectorAll`.
   static Map<int, String> _parseEpisodeThumbsFromHtml(
-      String htmlBody, String seasonUrl) {
+    String htmlBody,
+    String seasonUrl,
+  ) {
     final result = <int, String>{};
     final document = html_parser.parse(htmlBody);
 
@@ -672,9 +674,9 @@ class PauloFlixNfoEnricher {
   /// re-adicionar ou importar de `KodiNfoParser`.
 }
 
-  /// Resultado de [PauloFlixNfoEnricher.fetchSeasonImages] — `poster`
-  /// e `fanart` são os **nomes de arquivo** (não URLs) encontrados na
-  /// pasta da season, ou null se ausentes.
+/// Resultado de [PauloFlixNfoEnricher.fetchSeasonImages] — `poster`
+/// e `fanart` são os **nomes de arquivo** (não URLs) encontrados na
+/// pasta da season, ou null se ausentes.
 class DetectedSeasonImages {
   final String? poster;
   final String? fanart;
