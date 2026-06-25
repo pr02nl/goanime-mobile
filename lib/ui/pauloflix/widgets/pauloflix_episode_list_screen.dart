@@ -102,9 +102,7 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
           // Substitui a antiga SliverAppBar colapsável que sumia com
           // o foco ao rolar (FlexibleSpaceBar.enlarge não estava
           // expondo nenhum nó focável depois do colapso).
-          SliverToBoxAdapter(
-            child: _HeroBanner(content: vm.content),
-          ),
+          SliverToBoxAdapter(child: _HeroBanner(content: vm.content)),
 
           // Info Panel
           SliverToBoxAdapter(child: _InfoPanel(content: vm.content)),
@@ -135,7 +133,9 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (vm.errorMessage != null)
-            SliverFillRemaining(child: _ErrorState(errorMessage: vm.errorMessage!))
+            SliverFillRemaining(
+              child: _ErrorState(errorMessage: vm.errorMessage!),
+            )
           else
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -280,7 +280,10 @@ class _InfoPanel extends StatelessWidget {
               if (content.score != null) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.amber.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -305,7 +308,10 @@ class _InfoPanel extends StatelessWidget {
               if (vm.hasSeasons) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
@@ -344,7 +350,10 @@ class _InfoPanel extends StatelessWidget {
                   .take(5)
                   .map(
                     (genre) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
@@ -354,7 +363,10 @@ class _InfoPanel extends StatelessWidget {
                       ),
                       child: Text(
                         genre,
-                        style: const TextStyle(color: AppColors.primary, fontSize: 11),
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   )
@@ -403,7 +415,10 @@ class _ErrorState extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ),
@@ -434,9 +449,16 @@ class _EpisodesList extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.video_library_outlined, size: 48, color: Colors.white24),
+              Icon(
+                Icons.video_library_outlined,
+                size: 48,
+                color: Colors.white24,
+              ),
               SizedBox(height: 12),
-              Text('Nenhum episódio encontrado', style: TextStyle(color: Colors.white54)),
+              Text(
+                'Nenhum episódio encontrado',
+                style: TextStyle(color: Colors.white54),
+              ),
             ],
           ),
         ),
@@ -490,6 +512,7 @@ class _EpisodesList extends StatelessWidget {
                   isCompleted: records[index].isCompleted,
                   // **Fase N+7:** propaga os 5 campos NFO V2 do
                   // record (PauloFlixEpisodeRecord) para o card.
+                  thumbnailUrl: records[index].thumbnailUrl,
                   originalTitle: records[index].originalTitle,
                   outline: records[index].outline,
                   aired: records[index].aired,
@@ -633,5 +656,3 @@ class _VerticalClampedTraversalPolicy extends WidgetOrderTraversalPolicy {
     );
   }
 }
-
-
