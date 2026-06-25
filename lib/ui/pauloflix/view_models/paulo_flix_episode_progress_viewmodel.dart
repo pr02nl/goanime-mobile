@@ -27,15 +27,16 @@
 library;
 
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
 
 import '../../../data/services/kodi/pauloflix_nfo_enricher.dart';
 import '../../../data/services/paulo_flix_episode_sync_service.dart';
-import '../../../domain/models/pauloflix_content.dart';
-import '../../../domain/models/pauloflix_models.dart' as scraping;
 import '../../../domain/models/paulo_flix_episode_record.dart';
 import '../../../domain/models/paulo_flix_season_record.dart';
+import '../../../domain/models/pauloflix_content.dart';
+import '../../../domain/models/pauloflix_models.dart' as scraping;
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 
 /// Estados possíveis do ViewModel. Mantido do VM legacy para
@@ -135,9 +136,7 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
   String? get selectedSeasonHeroUrl {
     // 1. Tenta o fanart da season selecionada primeiro.
     final s = selectedSeason;
-    if (s != null &&
-        s.fanartFileName != null &&
-        s.fanartFileName!.isNotEmpty) {
+    if (s != null && s.fanartFileName != null && s.fanartFileName!.isNotEmpty) {
       // O `folderName` sozinho não é a URL completa — usamos o
       // scraping model `scrapingSeasons` que tem o `url` correto.
       final scrapingSeason = _findScrapingSeasonFor(s);
@@ -172,7 +171,8 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
   /// corresponde a um `PauloFlixSeasonRecord` (banco) pelo número
   /// da season. Retorna `null` se não achar.
   scraping.PauloFlixSeason? _findScrapingSeasonFor(
-      PauloFlixSeasonRecord record) {
+    PauloFlixSeasonRecord record,
+  ) {
     for (final scraping in scrapingSeasons) {
       if (scraping.number == record.seasonNumber) return scraping;
     }
@@ -305,6 +305,11 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
       _status = PauloFlixEpisodeStatus.loaded;
       _safeNotify();
     } catch (e) {
+      log(
+        '[PauloFlixEpisodeProgressViewModel] Erro ao carregar seasons: $e',
+        name: 'PauloFlixEpisodeProgressViewModel',
+        error: e,
+      );
       _errorMessage = 'Erro ao carregar temporadas: $e';
       _status = PauloFlixEpisodeStatus.error;
       _safeNotify();
