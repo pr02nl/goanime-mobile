@@ -156,6 +156,26 @@ abstract class PauloFlixEpisodeProgressRepository {
     required String videoUrl,
     String? thumbnailUrl,
     String? description,
+    /// Título original do episode (idioma da produção).
+    /// Vem de `<originaltitle>` no `S\d+E\d+\.nfo`. Nullable porque
+    /// NFOs antigos não têm. Schema V2 (Fase N+7).
+    String? originalTitle,
+    /// Resumo curto do episode (1-2 frases). Vem de `<outline>` no
+    /// `S\d+E\d+\.nfo`. Nullable porque NFOs antigos não têm.
+    /// Schema V2 (Fase N+7).
+    String? outline,
+    /// Data de estreia do episode. Vem de `<aired>` no
+    /// `S\d+E\d+\.nfo` (formato `YYYY-MM-DD`). Nullable porque
+    /// NFOs antigos não têm. Schema V2 (Fase N+7).
+    DateTime? aired,
+    /// Rating / nota do episode (0.0-10.0). Vem de `<rating>` no
+    /// `S\d+E\d+\.nfo`. Nullable porque NFOs antigos não têm.
+    /// Schema V2 (Fase N+7).
+    double? rating,
+    /// Duração do episode em minutos (NFO usa minutos, não
+    /// segundos). Vem de `<runtime>` no `S\d+E\d+\.nfo`. Nullable
+    /// porque NFOs antigos não têm. Schema V2 (Fase N+7).
+    int? runtime,
   });
 
   /// Atualiza `episodeCount` e `lastSynced` da season.

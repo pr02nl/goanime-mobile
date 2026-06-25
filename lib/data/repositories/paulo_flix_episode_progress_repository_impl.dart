@@ -308,6 +308,12 @@ class PauloFlixEpisodeProgressRepositoryImpl
     required String videoUrl,
     String? thumbnailUrl,
     String? description,
+    // Schema V2 (Fase N+7): 5 campos NFO扩idos.
+    String? originalTitle,
+    String? outline,
+    DateTime? aired,
+    double? rating,
+    int? runtime,
   }) async {
     // Para o Companion, thumbnailUrl == null → `Value.absent()` (NÃO
     // mexe na coluna, preserva valor anterior). thumbnailUrl != null →
@@ -331,6 +337,26 @@ class PauloFlixEpisodeProgressRepositoryImpl
     final descValue = description == null
         ? const Value<String?>.absent()
         : Value<String?>(description);
+    // Schema V2 (Fase N+7): mesma semântica "null = preserva" para
+    // os 5 campos扩idos do NFO. Se o NFO tem `originalTitle`
+    // mas o re-sync não trouxe (enricher falhou, NFO removido do
+    // servidor, etc), o caller propaga `null` → `Value.absent()`
+    // → row antigo com `originalTitle` NÃO é sobrescrito com null.
+    final originalTitleValue = originalTitle == null
+        ? const Value<String?>.absent()
+        : Value<String?>(originalTitle);
+    final outlineValue = outline == null
+        ? const Value<String?>.absent()
+        : Value<String?>(outline);
+    final airedValue = aired == null
+        ? const Value<DateTime?>.absent()
+        : Value<DateTime?>(aired);
+    final ratingValue = rating == null
+        ? const Value<double?>.absent()
+        : Value<double?>(rating);
+    final runtimeValue = runtime == null
+        ? const Value<int?>.absent()
+        : Value<int?>(runtime);
     final existing =
         await (_db.select(_db.pauloFlixEpisodes)
               ..where(
@@ -351,6 +377,11 @@ class PauloFlixEpisodeProgressRepositoryImpl
           videoUrl: Value(videoUrl),
           thumbnailUrl: thumbValue,
           description: descValue,
+          originalTitle: originalTitleValue,
+          outline: outlineValue,
+          aired: airedValue,
+          rating: ratingValue,
+          runtime: runtimeValue,
           lastSynced: Value(DateTime.now()),
         ),
       );
@@ -365,6 +396,11 @@ class PauloFlixEpisodeProgressRepositoryImpl
               videoUrl: videoUrl,
               thumbnailUrl: thumbValue,
               description: descValue,
+              originalTitle: originalTitleValue,
+              outline: outlineValue,
+              aired: airedValue,
+              rating: ratingValue,
+              runtime: runtimeValue,
               lastSynced: DateTime.now(),
             ),
           );
@@ -547,6 +583,12 @@ class PauloFlixEpisodeProgressRepositoryImpl
       isCompleted: row.isCompleted,
       lastWatched: row.lastWatched,
       lastSynced: row.lastSynced,
+      // Schema V2 (Fase N+7): 5 campos扩idos.
+      originalTitle: row.originalTitle,
+      outline: row.outline,
+      aired: row.aired,
+      rating: row.rating,
+      runtime: row.runtime,
     );
   }
 

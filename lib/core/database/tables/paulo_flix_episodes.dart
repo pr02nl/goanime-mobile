@@ -80,6 +80,60 @@ class PauloFlixEpisodes extends Table {
 
   DateTimeColumn get lastSynced => dateTime()();
 
+  /// Título original do episode (idioma da produção).
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<originaltitle>` no
+  /// `S\d+E\d+\.nfo`. Útil para animes dublados — o `title` pode
+  /// ser a versão PT-BR e o `originalTitle` o japonês.
+  ///
+  /// Migração v8→v9 adicionou a coluna mas rows antigos ficam
+  /// com `null` (não re-raspamos retroativamente).
+  TextColumn get originalTitle => text().nullable()();
+
+  /// Resumo curto do episode (1-2 frases).
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<outline>` no
+  /// `S\d+E\d+\.nfo`. Usado em cards/listas quando `description`
+  /// (plot completo) é longo demais.
+  ///
+  /// Migração v8→v9 adicionou a coluna mas rows antigos ficam
+  /// com `null`.
+  TextColumn get outline => text().nullable()();
+
+  /// Data de estreia do episode.
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<aired>` no
+  /// `S\d+E\d+\.nfo` (formato `YYYY-MM-DD`). Nullable porque
+  /// NFOs antigos não têm e séries em produção podem não ter
+  /// data final. Armazenado como epoch seconds (INTEGER no
+  /// SQLite, conversão automática via Drift).
+  ///
+  /// Migração v8→v9 adicionou a coluna mas rows antigos ficam
+  /// com `null`.
+  DateTimeColumn get aired => dateTime().nullable()();
+
+  /// Rating / nota do episode (0.0-10.0).
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<rating>` no
+  /// `S\d+E\d+\.nfo` (ex: `7.3`). Diferente do `KodiShowNfo.rating`
+  /// (que é da série inteira) — este é a nota do episode
+  /// específico.
+  ///
+  /// Migração v8→v9 adicionou a coluna mas rows antigos ficam
+  /// com `null`.
+  RealColumn get rating => real().nullable()();
+
+  /// Duração do episode em minutos (NFO usa minutos, não segundos).
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<runtime>` no
+  /// `S\d+E\d+\.nfo` (ex: `47` = 47 min). Complementa
+  /// `durationSeconds` (que é populado em runtime pelo player)
+  /// — este é a duração do NFO (sem precisar abrir o vídeo).
+  ///
+  /// Migração v8→v9 adicionou a coluna mas rows antigos ficam
+  /// com `null`.
+  IntColumn get runtime => integer().nullable()();
+
   @override
   List<Set<Column>> get uniqueKeys => [
         {seasonId, episodeNumber},

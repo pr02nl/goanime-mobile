@@ -198,25 +198,27 @@ class PauloFlixEpisodeSyncService {
       // 2f. Upsert cada episode (preserva `positionSeconds`/
       //     `isCompleted`/`lastWatched`/`durationSeconds`).
       //
-      //     **Fase N+7:** o `episodeNfoData` agora carrega o
-      //     `KodiEpisodeNfo` completo (V2: +originalTitle, outline,
-      //     aired, rating, runtime) via `nfo:` field. Por enquanto
-      //     só persistimos `plot` (description) e `thumbUrl` —
-      //     os outros campos V2 serão propagados em tasks
-      //     separadas (requerem migration v8→v9 da tabela episodes).
-      //     A migração é trabalho separado e grande — não cabe
-      //     aqui. O bug "nada foi salvo" que o user reportou é
-      //     sobre a description, que já funciona. Esta task foca
-      //     em aumentar o schema NFO parseado.
+      //     **Fase N+7:** o `episodeNfoData` carrega o `KodiEpisodeNfo`
+      //     completo (V2: +originalTitle, outline, aired, rating,
+      //     runtime) via `nfo:` field. Propaga os 5 campos novos
+      //     para o repositório (que já扩e o `upsertEpisode` com
+      //     esses params na migration v8→v9).
       for (final e in episodes) {
         final nfoData = episodeNfoData[e.number];
+        final nfo = nfoData?.nfo;
         await _repo.upsertEpisode(
           seasonId: seasonId,
           episodeNumber: e.number,
           title: e.title,
           videoUrl: e.url,
           thumbnailUrl: nfoData?.thumbUrl,
-          description: nfoData?.nfo?.plot,
+          description: nfo?.plot,
+          // V2扩e: os 5 campos novos.
+          originalTitle: nfo?.originalTitle,
+          outline: nfo?.outline,
+          aired: nfo?.aired,
+          rating: nfo?.rating,
+          runtime: nfo?.runtime,
         );
       }
 

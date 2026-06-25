@@ -334,6 +334,13 @@ class _ContractStub implements PauloFlixEpisodeProgressRepository {
     required String videoUrl,
     String? thumbnailUrl, // Fase 5 do NFO enrichment
     String? description, // Fase 10 do NFO enrichment V2
+    // Schema V2扩e (Fase N+7): 5 campos NFO扩idos. Aceita os
+    // mesmos valores que o contrato do repositório.
+    String? originalTitle,
+    String? outline,
+    DateTime? aired,
+    double? rating,
+    int? runtime,
   }) async {
     final existing = await (_db.select(_db.pauloFlixEpisodes)
           ..where((t) =>
@@ -348,6 +355,15 @@ class _ContractStub implements PauloFlixEpisodeProgressRepository {
             episodeNumber: episodeNumber,
             title: title,
             videoUrl: videoUrl,
+            originalTitle: originalTitle == null
+                ? const Value.absent()
+                : Value(originalTitle),
+            outline: outline == null
+                ? const Value.absent()
+                : Value(outline),
+            aired: aired == null ? const Value.absent() : Value(aired),
+            rating: rating == null ? const Value.absent() : Value(rating),
+            runtime: runtime == null ? const Value.absent() : Value(runtime),
             lastSynced: DateTime.now(),
           ),
         );

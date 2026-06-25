@@ -79,6 +79,37 @@ class PauloFlixEpisodeRecord {
   /// Timestamp do último sync HTTP (scraping do episode).
   final DateTime lastSynced;
 
+  /// Título original do episode (idioma da produção).
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<originaltitle>` no
+  /// `S\d+E\d+\.nfo`. Nullable porque NFOs antigos não têm.
+  final String? originalTitle;
+
+  /// Resumo curto do episode (1-2 frases).
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<outline>` no
+  /// `S\d+E\d+\.nfo`. Nullable porque NFOs antigos não têm.
+  final String? outline;
+
+  /// Data de estreia do episode.
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<aired>` no
+  /// `S\d+E\d+\.nfo` (formato `YYYY-MM-DD`). Nullable porque
+  /// NFOs antigos não têm.
+  final DateTime? aired;
+
+  /// Rating / nota do episode (0.0-10.0).
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<rating>` no
+  /// `S\d+E\d+\.nfo`. Nullable porque NFOs antigos não têm.
+  final double? rating;
+
+  /// Duração do episode em minutos (NFO usa minutos).
+  ///
+  /// **Fase N+7 —扩e schema NFO V2:** vem de `<runtime>` no
+  /// `S\d+E\d+\.nfo`. Nullable porque NFOs antigos não têm.
+  final int? runtime;
+
   PauloFlixEpisodeRecord({
     this.id,
     required this.seasonId,
@@ -92,6 +123,11 @@ class PauloFlixEpisodeRecord {
     this.isCompleted = false,
     this.lastWatched,
     required this.lastSynced,
+    this.originalTitle,
+    this.outline,
+    this.aired,
+    this.rating,
+    this.runtime,
   });
 
   /// Progresso do episódio como fração 0.0 (nenhum) a 1.0 (completo).

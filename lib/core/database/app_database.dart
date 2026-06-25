@@ -63,8 +63,17 @@ class AppDatabase extends _$AppDatabase {
   ///   `paulo_flix_seasons` para popular imagens de season via
   ///   fallback em `poster.jpg`/`fanart.jpg` (análogo ao que
   ///   `PauloFlixMovieRaw` faz para filmes).
+  /// * v9 (Fase N+7 —扩e schema NFO V2): adiciona 5 colunas em
+  ///   `paulo_flix_episodes` para persistir os campos do NFO V2
+  ///   que o parser扩eiu no commit `d486800`:
+  ///   - `original_title` (TextColumn?) — `<originaltitle>`
+  ///   - `outline` (TextColumn?) — `<outline>`
+  ///   - `aired` (DateTimeColumn?) — `<aired>` (formato YYYY-MM-DD)
+  ///   - `rating` (RealColumn?) — `<rating>`
+  ///   - `runtime` (IntColumn?) — `<runtime>` (em minutos)
+  ///   Sem migration data — o próximo sync repopula em background.
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -139,6 +148,35 @@ class AppDatabase extends _$AppDatabase {
             await db.customStatement(
               'ALTER TABLE paulo_flix_seasons '
               'ADD COLUMN fanart_file_name TEXT',
+            );
+          }
+          // v8 → v9: adiciona 5 colunas V2 (Fase N+7) em
+          // paulo_flix_episodes: original_title, outline, aired,
+          // rating, runtime. Mesma técnica raw-SQL do v6→v7 e v7→v8
+          // (customStatement) para não depender do codegen — o
+          // .g.dart é patcheado em paralelo na mesma task. Sem
+          // migration data — o sync repopula em background.
+          if (from < 9) {
+            final db = m.database as AppDatabase;
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_episodes '
+              'ADD COLUMN original_title TEXT',
+            );
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_episodes '
+              'ADD COLUMN outline TEXT',
+            );
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_episodes '
+              'ADD COLUMN aired INTEGER',
+            );
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_episodes '
+              'ADD COLUMN rating REAL',
+            );
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_episodes '
+              'ADD COLUMN runtime INTEGER',
             );
           }
         },
