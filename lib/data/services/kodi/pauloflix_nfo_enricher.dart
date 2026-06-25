@@ -170,19 +170,45 @@ class PauloFlixNfoEnricher {
   /// da scraping), então exigir o param força o caller a passar
   /// e elimina o bug.
   ///
-  /// Retorna `null` em qualquer falha (404, 500, timeout, parse fail).
+  /// **Fallback de zero-padding do episode (Fase N+8):** o padrão
+  /// Kodi é `S\d+E\d{3}.nfo` (3 dígitos), mas em servidores reais
+  /// a convenção é mista — o ep 13 pode estar salvo como
+  /// `S01E013.nfo` (3-dígitos) ou `S01E13.nfo` (2-dígitos) ou
+  /// `S01E1.nfo` (sem zero). Ver
+  /// `.hermes/plans/2026-06-24-pauloflix-nfo-zero-padding-fallback.md`
+  /// para o caso real (Solo Leveling S01, junho 2026: eps 1-12
+  /// tinham ambos os formatos 2/3-dígitos, eps 13-25 existiam
+  /// APENAS como 2-dígitos → 404 no GET 3-dígitos → NFO nunca
+  /// era salvo). Estratégia atual: tenta 3-dígitos primeiro
+  /// (padrão Kodi, mais comum), depois 2-dígitos, depois
+  /// sem padding. 1 GET por tentativa, máx 3 GETs por ep.
+  ///
+  /// Retorna `null` em qualquer falha (404 em todas as variantes,
+  /// 500, timeout, parse fail).
   Future<KodiEpisodeNfo?>
   fetchEpisodeNfo(String seasonUrl, int seasonNumber, int episodeNumber) async {
+    final seasonStr = seasonNumber.toString().padLeft(2, '0');
+    final base = seasonUrl.endsWith('/') ? seasonUrl : '$seasonUrl/';
+    // Ordem de tentativa: 3-dígitos (Kodi) → 2-dígitos → sem padding.
+    // Cobre todas as convenções vistas em file servers reais.
+    final candidateFilenames = <String>[
+      'S${seasonStr}E${episodeNumber.toString().padLeft(3, '0')}.nfo',
+      'S${seasonStr}E${episodeNumber.toString().padLeft(2, '0')}.nfo',
+      'S${seasonStr}E$episodeNumber.nfo',
+    ];
     try {
-      final seasonStr = seasonNumber.toString().padLeft(2, '0');
-      final episodeStr = episodeNumber.toString().padLeft(3, '0');
-      final filename = 'S${seasonStr}E$episodeStr.nfo';
-      final base = seasonUrl.endsWith('/') ? seasonUrl : '$seasonUrl/';
-      final url = '$base$filename';
-      final res = await _client.get(Uri.parse(url)).timeout(_kRequestTimeout);
-      if (res.statusCode != 200) return null;
-      if (res.body.isEmpty) return null;
-      return KodiNfoParser.parseEpisode(res.body);
+      for (final filename in candidateFilenames) {
+        final url = '$base$filename';
+        final res =
+            await _client.get(Uri.parse(url)).timeout(_kRequestTimeout);
+        if (res.statusCode == 200 && res.body.isNotEmpty) {
+          return KodiNfoParser.parseEpisode(res.body);
+        }
+        // 404 (ou qualquer outro status != 200) → tenta a próxima
+        // variante. Se 200 mas body vazio, também tenta a próxima
+        // (defensivo — não deveria acontecer).
+      }
+      return null;
     } catch (e) {
       debugPrint('[PauloFlixNfo] fetchEpisodeNfo failed: $e');
       return null;

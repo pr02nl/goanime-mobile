@@ -383,6 +383,97 @@ void main() {
 
       expect(nfo, isNotNull);
     });
+
+    test(
+      'episode 13 com NFO no padrão 2-dígitos (S01E13.nfo) é encontrado '
+      '(fallback 2-dígito quando 3-dígitos dá 404)',
+      () async {
+        // **Bug real (Junho 2026 — Solo Leveling S01):** o servidor tem
+        // eps 1-12 com filename Kodi zero-padded 3-dígitos (S01E001.nfo)
+        // + duplicatas 2-dígitos (S01E01.nfo), mas eps 13-25 existem
+        // APENAS como 2-dígitos (S01E13.nfo). O `fetchEpisodeNfo`
+        // tentava S01E013.nfo → 404 → ignorava o NFO. Corrigido pra
+        // tentar 3-dígito primeiro, depois 2-dígitos quando 404.
+        final client = MockClient((request) async {
+          if (request.url.path.endsWith('S01E013.nfo')) {
+            return http.Response('', 404);
+          }
+          if (request.url.path.endsWith('S01E13.nfo')) {
+            return http.Response(
+              validEpisodeNfo,
+              200,
+              headers: {'content-type': 'application/xml'},
+            );
+          }
+          return http.Response('unexpected: ${request.url.path}', 500);
+        });
+        final enricher = PauloFlixNfoEnricher(client: client);
+
+        final nfo = await enricher.fetchEpisodeNfo(
+          'http://server/anime/Season%2001/',
+          1,
+          13,
+        );
+
+        expect(nfo, isNotNull, reason: 'deve cair no fallback 2-dígitos');
+        expect(nfo!.plot, equals('Episode plot.'));
+      },
+    );
+
+    test(
+      'episode 5 prefere 3-dígitos (S01E005.nfo) quando ambos existem',
+      () async {
+        // Caso normal: ep tem 3-dígitos E 2-dígitos no servidor.
+        // O comportamento deve ser determinístico — prefere 3-dígitos
+        // (padrão Kodi), ignora 2-dígitos. Garante que não fazemos
+        // 1 GET extra à toa quando o 3-dígitos está disponível.
+        final client = MockClient((request) async {
+          if (request.url.path.endsWith('S01E005.nfo')) {
+            return http.Response(
+              validEpisodeNfo,
+              200,
+              headers: {'content-type': 'application/xml'},
+            );
+          }
+          // S01E05.nfo NÃO deve ser chamado — 3-dígitos já respondeu.
+          return http.Response(
+            'should not be called: ${request.url.path}',
+            500,
+          );
+        });
+        final enricher = PauloFlixNfoEnricher(client: client);
+
+        final nfo = await enricher.fetchEpisodeNfo(
+          'http://server/anime/Season%2001/',
+          1,
+          5,
+        );
+
+        expect(nfo, isNotNull);
+        expect(nfo!.plot, equals('Episode plot.'));
+      },
+    );
+
+    test(
+      'episode 1 sem nenhum NFO disponível retorna null (sem exception)',
+      () async {
+        // Caso de borda: o listing descobriu o ep (via .mkv), mas não
+        // tem NFO nem thumb. fetchEpisodeNfo deve retornar null
+        // silenciosamente (não propagar exception).
+        final client = MockClient((request) async {
+          return http.Response('', 404);
+        });
+        final enricher = PauloFlixNfoEnricher(client: client);
+
+        final nfo = await enricher.fetchEpisodeNfo(
+          'http://server/anime/Season%2001/',
+          1,
+          1,
+        );
+
+        expect(nfo, isNull);
+      },
+    );
   });
 
   // ============================================================
