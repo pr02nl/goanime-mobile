@@ -13,7 +13,6 @@ import '../../../data/services/anime_service.dart';
 import '../../../data/services/auth/authenticated_http_client.dart';
 import '../../../data/services/auth/jwt_token_manager.dart';
 import '../../../data/services/episode_progress_service.dart';
-import '../../../data/services/google_video_proxy.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_episode_record.dart';
@@ -25,10 +24,7 @@ import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/skip_button.dart';
 import '../video_player_aniskip_mixin.dart';
-import 'blogger_webview_screen.dart';
 import 'video_player_episode_buttons.dart';
-import 'video_player_info_panel.dart';
-import 'video_player_subtitle_sheet.dart';
 
 class ModernVideoPlayerScreen extends StatefulWidget {
   final Episode episode;
@@ -69,12 +65,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   VideoController? _videoController;
   bool _isLoading = true;
   String? _errorMessage;
-  String? _currentVideoUrl;
   Map<String, String>? _currentVideoHeaders;
-  bool _showWebViewOption = false;
-  String? _bloggerVideoUrl;
-  GoogleVideoProxy? _googleVideoProxy;
-  bool _isGoogleStream = false;
 
   // Fullscreen related variables
   bool _isFullscreen = false;
@@ -551,8 +542,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _showWebViewOption = false;
-      _bloggerVideoUrl = null;
       skipTimes = null;
       showSkipButton = false;
       skipButtonLabel = '';
@@ -594,8 +583,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           throw Exception('Video URL not found on page');
         }
 
-        _bloggerVideoUrl = videoSrc;
-
         final actualVideo = await AnimeService.extractActualVideoURL(videoSrc);
         if (actualVideo.url.isEmpty) {
           throw Exception('Video URL could not be extracted from API');
@@ -619,30 +606,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           playbackHeaders.addAll(actualVideo.headers);
         }
 
-        final forwardedHeaders = Map<String, String>.from(playbackHeaders);
         controllerHeaders = Map<String, String>.from(playbackHeaders);
-        _isGoogleStream = actualVideo.isGoogleVideo;
-
-        if (actualVideo.isGoogleVideo) {
-          _googleVideoProxy = GoogleVideoProxy(
-            targetUri: Uri.parse(actualVideo.url),
-            forwardHeaders: forwardedHeaders,
-          );
-          final proxyUri = await _googleVideoProxy!.start();
-
-          if (!isActiveEpisode(episodeKey)) {
-            debugPrint('[VideoPlayer] Proxy start ignored (episode changed).');
-            return;
-          }
-
-          resolvedVideoUrl = proxyUri.toString();
-          controllerHeaders = {};
-          debugPrint('Using local proxy for Google Video: $resolvedVideoUrl');
-          debugPrint('Forwarding remote headers: $forwardedHeaders');
-        }
       }
 
-      _currentVideoUrl = resolvedVideoUrl;
       _currentVideoHeaders = controllerHeaders;
       debugPrint('Using playback headers: $_currentVideoHeaders');
 
@@ -892,9 +858,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       );
     } catch (e) {
       debugPrint('Error initializing video: $e');
-      await _googleVideoProxy?.stop();
-      _googleVideoProxy = null;
-      _isGoogleStream = false;
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -902,22 +865,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         });
       }
     }
-  }
-
-  // bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-
-  void _openWebViewFallback() {
-    final fallbackUrl = _bloggerVideoUrl ?? _currentVideoUrl;
-    if (fallbackUrl == null) return;
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BloggerWebViewScreen(
-          initialUrl: fallbackUrl,
-          title: '${widget.animeTitle} - ${_currentEpisode.number}',
-        ),
-      ),
-    );
   }
 
   double _calculateAspectRatio() {
@@ -950,28 +897,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     _player = null;
     _videoController = null;
     _currentVideoHeaders = null;
-    _currentVideoUrl = null;
-    _isGoogleStream = false;
-
-    if (_googleVideoProxy != null) {
-      await _googleVideoProxy!.stop();
-      _googleVideoProxy = null;
-    }
-  }
-
-  void _copyStreamLink() {
-    if (_currentVideoUrl == null) return;
-    Clipboard.setData(ClipboardData(text: _currentVideoUrl!));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context).linkCopied),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
   }
 
   Widget _buildErrorWidget(String message) {
@@ -1019,25 +944,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
             ),
           ),
           const SizedBox(height: 24),
-          if (_showWebViewOption && _bloggerVideoUrl != null) ...[
-            ElevatedButton.icon(
-              onPressed: _openWebViewFallback,
-              icon: const Icon(Icons.open_in_browser),
-              label: Text(AppLocalizations.of(context).alternativePlayer),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6B35),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
           Wrap(
             spacing: 12,
             children: [
@@ -1115,10 +1021,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     await _player?.dispose();
     _player = null;
     _videoController = null;
-    if (_googleVideoProxy != null) {
-      await _googleVideoProxy!.stop();
-      _googleVideoProxy = null;
-    }
   }
 
   /// Mostra os controles de overlay e reinicia o timer de auto-hide
@@ -1491,7 +1393,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       return _buildTVPlayerLayout();
     }
 
-    return Column(children: [_buildVideoPlayerCard(), _buildInfoPanel()]);
+    return Column(children: [_buildVideoPlayerCard()]);
   }
 
   Widget _buildTVPlayerLayout() {
@@ -1610,31 +1512,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildInfoPanel() {
-    return VideoPlayerInfoPanel(
-      animeTitle: widget.animeTitle,
-      displayLabel: _displayLabel,
-      currentVideoUrl: _currentVideoUrl,
-      isGoogleStream: _isGoogleStream,
-      showWebViewOption: _showWebViewOption,
-      bloggerVideoUrl: _bloggerVideoUrl,
-      isMovie: widget.isMovie,
-      hasNextEpisode: _hasNextEpisode,
-      hasPreviousEpisode: _hasPreviousEpisode,
-      subtitleSelectorTag: SubtitleSelectorTag(
-        player: _player,
-        currentEpisode: _currentEpisode,
-        embeddedSubtitleTracks: _embeddedSubtitleTracks,
-        onSubtitleChanged: () => setState(() {}),
-      ),
-      onRetry: _initializeVideoPlayer,
-      onCopyLink: _copyStreamLink,
-      onWebViewFallback: _openWebViewFallback,
-      onNextEpisode: _goToNextEpisode,
-      onPreviousEpisode: _goToPreviousEpisode,
     );
   }
 }
