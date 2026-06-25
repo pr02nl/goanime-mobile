@@ -35,6 +35,19 @@ const _validTvshowNfo = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"
 </tvshow>
 ''';
 
+/// XML de episodedetails.nfo mínimo para o parser aceitar.
+///
+/// **Top-level** (não dentro de group) para que múltiplos groups
+/// (fetchEpisodeNfo, fetchEpisodeNfos) possam reusar sem duplicar.
+const validEpisodeNfo = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<episodedetails>
+  <title>Episode Title</title>
+  <plot>Episode plot.</plot>
+  <season>2</season>
+  <episode>1</episode>
+</episodedetails>
+''';
+
 /// XML de movie.nfo válido usado em múltiplos testes.
 const _validMovieNfo = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <movie>
@@ -308,15 +321,6 @@ void main() {
   // do correto `S02E001.nfo`). Estes testes garantem que o
   // season number é respeitado.
   group('PauloFlixNfoEnricher.fetchEpisodeNfo', () {
-    /// XML de episodedetails.nfo mínimo para o parser aceitar.
-    const _validEpisodeNfo = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<episodedetails>
-  <title>Episode Title</title>
-  <plot>Episode plot.</plot>
-  <season>2</season>
-  <episode>1</episode>
-</episodedetails>''';
-
     test('builds filename S02E001.nfo for season=2 (not S01 hardcoded)',
         () async {
       final client = MockClient((request) async {
@@ -331,7 +335,7 @@ void main() {
               'caller no filename, não hardcodar S01. Got: '
               '${request.url.path}',
         );
-        return http.Response(_validEpisodeNfo, 200,
+        return http.Response(validEpisodeNfo, 200,
             headers: {'content-type': 'application/xml'});
       });
       final enricher = PauloFlixNfoEnricher(client: client);
@@ -349,7 +353,7 @@ void main() {
     test('zero-pads season 10 to S10E001.nfo (2 digits)', () async {
       final client = MockClient((request) async {
         expect(request.url.path, endsWith('S10E001.nfo'));
-        return http.Response(_validEpisodeNfo, 200,
+        return http.Response(validEpisodeNfo, 200,
             headers: {'content-type': 'application/xml'});
       });
       final enricher = PauloFlixNfoEnricher(client: client);
@@ -366,7 +370,7 @@ void main() {
     test('zero-pads episode 100 to S01E100.nfo (3 digits)', () async {
       final client = MockClient((request) async {
         expect(request.url.path, endsWith('S01E100.nfo'));
-        return http.Response(_validEpisodeNfo, 200,
+        return http.Response(validEpisodeNfo, 200,
             headers: {'content-type': 'application/xml'});
       });
       final enricher = PauloFlixNfoEnricher(client: client);
@@ -378,6 +382,101 @@ void main() {
       );
 
       expect(nfo, isNotNull);
+    });
+  });
+
+  // ============================================================
+  // PauloFlixNfoEnricher.fetchEpisodeNfos
+  // ============================================================
+  //
+  // **Fase N+6 — bug fix:** o método antes (a) descobria episodes
+  // via `fetchEpisodeThumbs` (pulava seasons sem thumb) e (b)
+  // descartava as URLs das thumbs. Agora descobre via NFO e
+  // retorna o `thumbUrl` no record.
+  group('PauloFlixNfoEnricher.fetchEpisodeNfos', () {
+    /// HTML de listing com NFOs de episode (sem thumbs) — testa
+    /// o caso "season com NFO mas sem thumb" (pré-fix era pulado).
+    const listingWithNfoOnly = '''<html><body>
+<a href="../">../</a>
+<a href="S01E001.nfo">S01E001.nfo</a>
+<a href="S01E002.nfo">S01E002.nfo</a>
+<a href="S01E01.mkv">S01E01.mkv</a>
+<a href="S01E02.mkv">S01E02.mkv</a>
+</body></html>''';
+
+    /// HTML de listing com NFOs + thumbs — testa o caso normal
+    /// (season com tudo).
+    const listingWithNfoAndThumb = '''<html><body>
+<a href="../">../</a>
+<a href="S01E001.nfo">S01E001.nfo</a>
+<a href="S01E002.nfo">S01E002.nfo</a>
+<a href="S01E001-thumb.jpg">S01E001-thumb.jpg</a>
+<a href="S01E01.mkv">S01E01.mkv</a>
+</body></html>''';
+
+    test('discovers episodes via NFO pattern (not thumb)', () async {
+      // **O teste-chave do bug:** antes desta correção, a season
+      // com NFOs mas sem thumbs era pulada. Agora é descoberta.
+      final client = MockClient((request) async {
+        // 1ª chamada: listing HTML (episode numbers via NFO).
+        if (!request.url.path.endsWith('.nfo')) {
+          return http.Response(listingWithNfoOnly, 200);
+        }
+        // 2ª chamada: GET de cada NFO. Para episode 1 e 2.
+        return http.Response(validEpisodeNfo, 200,
+            headers: {'content-type': 'application/xml'});
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final result = await enricher.fetchEpisodeNfos(
+        'http://server/anime/Season%2001/',
+        1,
+      );
+
+      // 2 episodes descobertos (NFO pattern), mesmo sem thumb.
+      expect(result.keys, containsAll(<int>[1, 2]));
+      expect(result[1]?.plot, isNotNull);
+    });
+
+    test('returns thumbUrl in record when season has thumbs', () async {
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('S01E001.nfo')) {
+          return http.Response(validEpisodeNfo, 200,
+              headers: {'content-type': 'application/xml'});
+        }
+        // listing HTML
+        return http.Response(listingWithNfoAndThumb, 200);
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final result = await enricher.fetchEpisodeNfos(
+        'http://server/anime/Season%2001/',
+        1,
+      );
+
+      // Episode 1 tem thumb.
+      expect(result[1]?.thumbUrl, isNotNull);
+      expect(result[1]!.thumbUrl, contains('S01E001-thumb.jpg'));
+      // Episode 2 não tem thumb → null.
+      expect(result[2]?.thumbUrl, isNull);
+    });
+
+    test('returns empty map when listing has no NFOs', () async {
+      const listingEmpty = '''<html><body>
+<a href="../">../</a>
+<a href="S01E01.mkv">S01E01.mkv</a>
+</body></html>''';
+      final client = MockClient((request) async {
+        return http.Response(listingEmpty, 200);
+      });
+      final enricher = PauloFlixNfoEnricher(client: client);
+
+      final result = await enricher.fetchEpisodeNfos(
+        'http://server/anime/Season%2001/',
+        1,
+      );
+
+      expect(result, isEmpty);
     });
   });
 

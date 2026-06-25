@@ -166,27 +166,32 @@ class PauloFlixEpisodeSyncService {
         fanartFileName: seasonImages.fanart,
       );
 
-      // 2c. (Fase 10) Busca NFO de cada episode em batch (se enricher).
-      //     Retorna `Map<int, String?>` episodeNumber → plot. Episodes
-      //     sem NFO ficam com `plot = null` no map (não ausentados).
+      // 2c + 2d. (Fase 10 + Fase N+6) Busca NFO + thumbUrl de cada
+      //     episode em batch (se enricher).
+      //     Retorna `Map<int, ({String? plot, String? thumbUrl})>`
+      //     indexado por episodeNumber.
       //
       //     `seasonNumber` (de `s.number`) é OBRIGATÓRIO: antes da
       //     Fase N+5 o enricher hardcodava `S01` no filename do NFO
       //     do episode, então só funcionava para season 1. Para
       //     season 2+ o GET batia em 404 (`S01E001.nfo` em vez do
       //     correto `S02E001.nfo`) → plot nunca era populado.
-      final Map<int, String?> episodeDescriptions = enricher != null
+      //
+      //     Antes da Fase N+6, o `fetchEpisodeNfos` chamava
+      //     `fetchEpisodeThumbs` internamente só pra descobrir os
+      //     episode numbers (e descartava as URLs). Resultado: 1 GET
+      //     desperdiçado por season + seasons sem thumb (só NFO)
+      //     eram puladas. Agora o enricher descobre episodes via
+      //     `_episodeNfoPattern` (sinal primário de "episódio
+      //     existe") e o `thumbUrl` vem no record. Caller NÃO chama
+      //     mais `fetchEpisodeThumbs` separado.
+      final Map<int, ({String? plot, String? thumbUrl})> episodeNfoData =
+          enricher != null
           ? (await enricher.fetchEpisodeNfos(s.url, s.number))
-              .map((k, v) => MapEntry(k, v.plot))
-          : <int, String?>{};
-
-      // 2d. (Fase 5) Busca os thumbs NFO (se enricher disponível).
-      //     Mapa: episodeNumber → thumbUrl. Vazio = sem thumb (ou
-      //     enricher ausente) → repo preserva coluna `thumbnailUrl`
-      //     anterior (não grava null em re-syncs).
-      final Map<int, String> thumbs = enricher != null
-          ? await enricher.fetchEpisodeThumbs(s.url)
-          : <int, String>{};
+              .map(
+                (k, v) => MapEntry(k, (plot: v.plot, thumbUrl: v.thumbUrl)),
+              )
+          : <int, ({String? plot, String? thumbUrl})>{};
 
       // 2e. Fetch + parse episodes desta season.
       final episodes = await _fetchEpisodes(s.url);
@@ -194,13 +199,14 @@ class PauloFlixEpisodeSyncService {
       // 2f. Upsert cada episode (preserva `positionSeconds`/
       //     `isCompleted`/`lastWatched`/`durationSeconds`).
       for (final e in episodes) {
+        final nfoData = episodeNfoData[e.number];
         await _repo.upsertEpisode(
           seasonId: seasonId,
           episodeNumber: e.number,
           title: e.title,
           videoUrl: e.url,
-          thumbnailUrl: thumbs[e.number],
-          description: episodeDescriptions[e.number],
+          thumbnailUrl: nfoData?.thumbUrl,
+          description: nfoData?.plot,
         );
       }
 
@@ -213,8 +219,9 @@ class PauloFlixEpisodeSyncService {
       debugPrint(
         '[PauloFlixSync] Content $contentId: '
         'season ${s.number} (${episodes.length} episodes, '
-        '${thumbs.length} thumbs, '
-        '${episodeDescriptions.values.where((p) => p != null).length} '
+        '${episodeNfoData.values.where((d) => d.thumbUrl != null).length} '
+        'thumbs, '
+        '${episodeNfoData.values.where((d) => d.plot != null).length} '
         'episode descriptions) sincronizada',
       );
     }

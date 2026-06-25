@@ -53,6 +53,28 @@ final RegExp _episodeThumbPattern = RegExp(
   caseSensitive: false,
 );
 
+/// Regex que identifica o NFO de um episode a partir do nome do
+/// arquivo no listing da season.
+///
+/// **Match examples:**
+/// - `S01E001.nfo` → episode 1
+/// - `S02E010.nfo` → episode 10
+///
+/// **Non-match:**
+/// - `S01E001-thumb.jpg` (é thumb, não NFO).
+/// - `tvshow.nfo` (não tem S\d+E\d+).
+///
+/// **Por que existe separado do `_episodeThumbPattern`:** o
+/// `fetchEpisodeNfos` precisa descobrir QUAIS episodes existem na
+/// season. Se usar só o thumb pattern, seasons que têm NFO mas
+/// não têm thumb (caso comum em setups minimalistas do Kodi) são
+/// puladas → plot nunca é populado. Este regex captura os NFOs
+/// diretamente do listing.
+final RegExp _episodeNfoPattern = RegExp(
+  r'S\d+E(\d+)\.nfo$',
+  caseSensitive: false,
+);
+
 /// Enriquece conteúdo PauloFlix (animes / movies / seasons) lendo
 /// arquivos NFO/JPG diretamente do servidor.
 class PauloFlixNfoEnricher {
@@ -282,38 +304,67 @@ class PauloFlixNfoEnricher {
     return DetectedSeasonImages(poster: poster, fanart: fanart);
   }
 
-  /// [fetchEpisodeNfo] para descobrir os episode numbers via
-  /// listing HTML (1 GET) e dispara N GETs paralelos de NFO via
-  /// [fetchEpisodeNfo].
+  /// Faz listing HTML da season + descobre episode numbers via
+  /// padrão NFO (`S\d+E\d+\.nfo`). Dispara N GETs paralelos de NFO
+  /// via [fetchEpisodeNfo] + inclui a `thumbUrl` do
+  /// [fetchEpisodeThumbs] (quando existir) no record.
   ///
-  /// Retorna `Map<int, ({int? season, int? episode, String? title, String? plot})>`
-  /// indexado por episodeNumber. Map vazio em qualquer falha
-  /// (404 no listing, zero episodes detectados).
+  /// Retorna `Map<int, ({int? season, int? episode, String? title,
+  /// String? plot, String? thumbUrl})>` indexado por episodeNumber.
+  /// Map vazio em qualquer falha (404 no listing, zero episodes
+  /// detectados).
   ///
   /// **Atenção:** a função é best-effort — episodes sem NFO resultam
   /// em um entry com `plot = null` (não ausenta o entry). Isso
   /// preserva a informação "episódio existe mas não tem NFO" e
   /// permite que o caller decida se quer ou não popular o campo
   /// `description` no banco.
-  Future<Map<int, ({int? season, int? episode, String? title, String? plot})>>
-      fetchEpisodeNfos(String seasonUrl, int seasonNumber) async {
-    // 1. Descobre os episode numbers via listing (mesma lógica do
-    //    `fetchEpisodeThumbs`, mas só queremos os KEYS).
-    final thumbs = await fetchEpisodeThumbs(seasonUrl);
-    final episodeNumbers = thumbs.keys.toList();
+  ///
+  /// **Por que descobrir episodes via NFO (não via thumb):** antes
+  /// desta correção (Fase N+6) usava `fetchEpisodeThumbs` para
+  /// descobrir os episode numbers. Resultado: seasons que tinham
+  /// `S\d+E\d+\.nfo` mas **não** tinham `S\d+E\d+-thumb.{ext}` (caso
+  /// comum em setups minimalistas do Kodi) eram puladas — o NFO
+  /// nunca era buscado, o plot nunca era populado. Agora o listing
+  /// é parseado procurando o padrão NFO (regex `_episodeNfoPattern`),
+  /// que é o indicador primário de "episódio existe nesta season".
+  ///
+  /// **Custo:** 2 GETs paralelos por season (listing NFO + listing
+  /// thumbs via `Future.wait` — mesmo RTT que 1 GET sequencial).
+  /// Caller NÃO precisa mais chamar `fetchEpisodeThumbs` separado
+  /// — o `thumbUrl` vem no record.
+  Future<
+      Map<
+          int,
+          ({
+            int? season,
+            int? episode,
+            String? title,
+            String? plot,
+            String? thumbUrl,
+          })>> fetchEpisodeNfos(String seasonUrl, int seasonNumber) async {
+    // 1. Descobre os episode numbers via listing NFO + busca as
+    //    thumb URLs em paralelo. 2 GETs, ~1 RTT total.
+    final results = await Future.wait<Object?>([
+      _fetchEpisodeNumbersFromNfoListing(seasonUrl),
+      fetchEpisodeThumbs(seasonUrl),
+    ]);
+    final episodeNumbers = results[0] as List<int>;
+    final thumbs = results[1] as Map<int, String>;
     if (episodeNumbers.isEmpty) {
       return <int,
           ({
             int? season,
             int? episode,
             String? title,
-            String? plot
+            String? plot,
+            String? thumbUrl,
           })>{};
     }
 
     // 2. GET paralelo de cada NFO. `Future.wait` dispara todos os
     //    requests simultaneamente; tempo total ≈ 1 RTT (não N).
-    final results = await Future.wait(
+    final nfoResults = await Future.wait(
       episodeNumbers.map((n) async {
         final nfo = await fetchEpisodeNfo(seasonUrl, seasonNumber, n);
         return MapEntry(
@@ -328,7 +379,71 @@ class PauloFlixNfoEnricher {
         );
       }),
     );
-    return Map.fromEntries(results);
+    // 3. Combina NFO + thumbUrl no record final.
+    return Map.fromEntries(
+      nfoResults.map(
+        (entry) => MapEntry(
+          entry.key,
+          (
+            season: entry.value.season,
+            episode: entry.value.episode,
+            title: entry.value.title,
+            plot: entry.value.plot,
+            thumbUrl: thumbs[entry.key],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// GET do listing HTML da season + parse dos NFOs de episode
+  /// (`S\d+E\d+\.nfo`). Retorna os episode numbers detectados.
+  ///
+  /// **Por que separado de `fetchEpisodeThumbs`:** o padrão do
+  /// thumb (`-thumb.{ext}`) só captura seasons com arte. O
+  /// padrão do NFO (`.nfo`) captura o "episódio existe" — é o
+  /// sinal primário. Mantemos os 2 separados para que cada
+  /// caller use o que precisa sem acoplamento.
+  ///
+  /// Retorna lista vazia em qualquer falha (404, 500, timeout,
+  /// parse fail, listing vazio).
+  Future<List<int>> _fetchEpisodeNumbersFromNfoListing(
+    String seasonUrl,
+  ) async {
+    try {
+      final res = await _client
+          .get(Uri.parse(seasonUrl))
+          .timeout(_kRequestTimeout);
+      if (res.statusCode != 200) return const <int>[];
+      if (res.body.isEmpty) return const <int>[];
+      return _parseEpisodeNumbersFromNfoListing(res.body);
+    } catch (e) {
+      debugPrint(
+        '[PauloFlixNfo] _fetchEpisodeNumbersFromNfoListing failed: $e',
+      );
+      return const <int>[];
+    }
+  }
+
+  /// Faz parse do listing HTML e extrai os episode numbers via
+  /// padrão `_episodeNfoPattern` (`S\d+E\d+\.nfo`).
+  ///
+  /// Dedup: o grupo `(\d+)` normaliza `001` → `1`, então episodes
+  /// duplicados no listing viram 1 entry só (primeiro match vence).
+  static List<int> _parseEpisodeNumbersFromNfoListing(String htmlBody) {
+    final result = <int>{};
+    final document = html_parser.parse(htmlBody);
+    for (final anchor in _findAnchors(document)) {
+      final href = anchor.attributes['href'];
+      if (href == null) continue;
+      final match = _episodeNfoPattern.firstMatch(href);
+      if (match == null) continue;
+      final episodeNumber = int.tryParse(match.group(1)!);
+      if (episodeNumber == null) continue;
+      result.add(episodeNumber);
+    }
+    final sorted = result.toList()..sort();
+    return sorted;
   }
 
   // ============================================================
