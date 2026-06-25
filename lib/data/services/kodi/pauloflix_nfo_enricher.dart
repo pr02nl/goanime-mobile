@@ -359,84 +359,44 @@ class PauloFlixNfoEnricher {
   /// é parseado procurando o padrão NFO (regex `_episodeNfoPattern`),
   /// que é o indicador primário de "episódio existe nesta season".
   ///
-  /// **Custo:** 2 GETs paralelos por season (listing NFO + listing
-  /// thumbs via `Future.wait` — mesmo RTT que 1 GET sequencial).
-  /// Caller NÃO precisa mais chamar `fetchEpisodeThumbs` separado
-  /// — o `thumbUrl` vem no record.
+  /// **Custo (Fase N+9):** ZERO GETs pra descobrir episodes/thumbs
+  /// (info vem do [fetchSeasonListing] que o caller já chamou) + N
+  /// GETs paralelos (um por NFO de episode). Antes da Fase N+9
+  /// eram 2 GETs a mais (listing NFO + listing thumbs) — agora
+  /// eliminados.
+  ///
+  /// Caller DEVE chamar [fetchSeasonListing] antes (Fase N+9) e
+  /// passar os episode numbers + thumb URLs como parâmetro. Esta
+  /// função só faz a parte N-GETs (buscar os NFOs).
+  ///
+  /// **Atenção:** a função é best-effort — episodes sem NFO resultam
+  /// em um entry com `nfo: null` (não ausenta o entry). Isso
+  /// preserva a informação "episódio existe mas não tem NFO" e
+  /// permite que o caller decida se quer ou não popular o campo
+  /// `description` no banco.
   Future<Map<int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>>
-      fetchEpisodeNfos(String seasonUrl, int seasonNumber) async {
-    // 1. Descobre os episode numbers via listing NFO + busca as
-    //    thumb URLs em paralelo. 2 GETs, ~1 RTT total.
-    final results = await Future.wait<Object?>([
-      _fetchEpisodeNumbersFromNfoListing(seasonUrl),
-      fetchEpisodeThumbs(seasonUrl),
-    ]);
-    final episodeNumbers = results[0] as List<int>;
-    final thumbs = results[1] as Map<int, String>;
+      fetchEpisodeNfos({
+    required String seasonUrl,
+    required int seasonNumber,
+    required List<int> episodeNumbers,
+    required Map<int, String> thumbUrlsByEpisode,
+  }) async {
     if (episodeNumbers.isEmpty) {
       return <int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>{};
     }
 
-    // 2. GET paralelo de cada NFO. `Future.wait` dispara todos os
-    //    requests simultaneamente; tempo total ≈ 1 RTT (não N).
+    // N GETs paralelos (um por episode). `Future.wait` dispara todos
+    // simultaneamente; tempo total ≈ 1 RTT (não N).
     final nfoResults = await Future.wait(
       episodeNumbers.map((n) async {
         final nfo = await fetchEpisodeNfo(seasonUrl, seasonNumber, n);
         return MapEntry<int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>(
           n,
-          (nfo: nfo, thumbUrl: thumbs[n]),
+          (nfo: nfo, thumbUrl: thumbUrlsByEpisode[n]),
         );
       }),
     );
     return Map.fromEntries(nfoResults);
-  }
-
-  /// GET do listing HTML da season + parse dos NFOs de episode
-  /// (`S\d+E\d+\.nfo`). Retorna os episode numbers detectados.
-  ///
-  /// **Por que separado de `fetchEpisodeThumbs`:** o padrão do
-  /// thumb (`-thumb.{ext}`) só captura seasons com arte. O
-  /// padrão do NFO (`.nfo`) captura o "episódio existe" — é o
-  /// sinal primário. Mantemos os 2 separados para que cada
-  /// caller use o que precisa sem acoplamento.
-  ///
-  /// Retorna lista vazia em qualquer falha (404, 500, timeout,
-  /// parse fail, listing vazio).
-  Future<List<int>> _fetchEpisodeNumbersFromNfoListing(String seasonUrl) async {
-    try {
-      final res = await _client
-          .get(Uri.parse(seasonUrl))
-          .timeout(_kRequestTimeout);
-      if (res.statusCode != 200) return const <int>[];
-      if (res.body.isEmpty) return const <int>[];
-      return _parseEpisodeNumbersFromNfoListing(res.body);
-    } catch (e) {
-      debugPrint(
-        '[PauloFlixNfo] _fetchEpisodeNumbersFromNfoListing failed: $e',
-      );
-      return const <int>[];
-    }
-  }
-
-  /// Faz parse do listing HTML e extrai os episode numbers via
-  /// padrão `_episodeNfoPattern` (`S\d+E\d+\.nfo`).
-  ///
-  /// Dedup: o grupo `(\d+)` normaliza `001` → `1`, então episodes
-  /// duplicados no listing viram 1 entry só (primeiro match vence).
-  static List<int> _parseEpisodeNumbersFromNfoListing(String htmlBody) {
-    final result = <int>{};
-    final document = html_parser.parse(htmlBody);
-    for (final anchor in _findAnchors(document)) {
-      final href = anchor.attributes['href'];
-      if (href == null) continue;
-      final match = _episodeNfoPattern.firstMatch(href);
-      if (match == null) continue;
-      final episodeNumber = int.tryParse(match.group(1)!);
-      if (episodeNumber == null) continue;
-      result.add(episodeNumber);
-    }
-    final sorted = result.toList()..sort();
-    return sorted;
   }
 
   // ============================================================
@@ -580,6 +540,177 @@ class PauloFlixNfoEnricher {
   }
 
   // ============================================================
+  // Season listing unificado (Fase N+9)
+  // ============================================================
+  //
+  // **Problema:** antes desta fase o sync service fazia 3 GETs
+  // separados pra mesma URL de season:
+  // 1. `fetchEpisodeNfos` (1 GET listing) → episode numbers + thumbs.
+  // 2. `fetchSeasonNfo` (1 GET season.nfo) → plot da season.
+  // 3. `fetchSeasonImages` (1 GET listing — REDUNDANTE com #1) →
+  //    poster.jpg/fanart.jpg.
+  //
+  // 2 dos 3 GETs iam pra MESMA URL — desperdício de RTT e carga no
+  // file server. E o caller (sync service) tinha que orquestrar
+  // 3 awaits pra extrair o que dá pra extrair em 1.
+  //
+  // **Solução:** `fetchSeasonListing` faz 1 GET ao listing e retorna
+  // tudo: episode numbers (do regex NFO), thumb URLs, season images,
+  // flag `hasSeasonNfo`, lista de NFOs individuais encontrados.
+  // Caller decide depois se quer buscar o `season.nfo` (1 GET extra)
+  // e/ou os NFOs individuais (N GETs paralelos).
+  //
+  // **Custo:** 1 GET base (sempre). Acima disso:
+  // - 0 GETs extras se o caller só precisa de episodes + thumbs + images.
+  // - +1 GET se quiser o `season.nfo` plot.
+  // - +N GETs paralelos se quiser os NFOs individuais.
+  //
+  // **Por que `episodeNumbers` vem do regex NFO (não do thumb):** o
+  // `fetchEpisodeNfos` (Fase N+6) já descobriu via NFO porque seasons
+  // minimalistas têm NFO mas não têm thumb. Mantemos a mesma
+  // semântica. Se a season não tiver NFO nenhum, retorna lista vazia
+  // (caller cai no path de scraping de .mkv que já existia).
+
+  /// Resultado de [PauloFlixNfoEnricher.fetchSeasonListing] —
+  /// record Dart 3 com tudo extraído de UM único GET ao listing
+  /// HTML da pasta da season.
+  ///
+  /// Campos:
+  /// - [episodeNumbers]: lista ordenada de episode numbers
+  ///   detectados via regex `S\d+E(\d+)\.nfo` no listing. Vazio se
+  ///   a season não tem NFOs (caller cai no scraping de .mkv).
+  /// - [thumbUrls]: mapa `episodeNumber → thumbUrl absoluta` para
+  ///   `S\d+E\d+-thumb.{ext}` encontrados. Dedup automático (001
+  ///   e 01 normalizam pro mesmo episode number; primeiro vence).
+  /// - [images]: nomes de arquivo de poster/fanart detectados via
+  ///   nomes canônicos (`poster.jpg`, `fanart.jpg`).
+  /// - [hasSeasonNfo]: `true` se o listing contém `season.nfo`.
+  ///   Caller decide se vale a pena 1 GET extra.
+  /// - [episodeNfoFilenames]: lista de filenames `S\d+E\d+\.nfo`
+  ///   (com a grafia original do servidor). Útil pro caller
+  ///   evitar a heurística de zero-padding do `fetchEpisodeNfo`
+  ///   quando já sabe o filename exato.
+  static const _kEmptyListing = (
+    episodeNumbers: <int>[],
+    thumbUrls: <int, String>{},
+    images: DetectedSeasonImages(),
+    hasSeasonNfo: false,
+    episodeNfoFilenames: <String>[],
+  );
+
+  Future<({
+    List<int> episodeNumbers,
+    Map<int, String> thumbUrls,
+    DetectedSeasonImages images,
+    bool hasSeasonNfo,
+    List<String> episodeNfoFilenames,
+  })>
+      fetchSeasonListing(String seasonUrl) async {
+    try {
+      final res = await _client
+          .get(Uri.parse(seasonUrl))
+          .timeout(_kRequestTimeout);
+      if (res.statusCode != 200) return _kEmptyListing;
+      if (res.body.isEmpty) return _kEmptyListing;
+      return _parseSeasonListing(res.body, seasonUrl);
+    } catch (e) {
+      debugPrint('[PauloFlixNfo] fetchSeasonListing failed: $e');
+      return _kEmptyListing;
+    }
+  }
+
+  /// Faz parse do listing HTML e extrai todos os metadados da
+  /// season num único pass. Ver [fetchSeasonListing] pra descrição
+  /// completa do retorno.
+  static ({
+    List<int> episodeNumbers,
+    Map<int, String> thumbUrls,
+    DetectedSeasonImages images,
+    bool hasSeasonNfo,
+    List<String> episodeNfoFilenames,
+  }) _parseSeasonListing(String htmlBody, String seasonUrl) {
+    final episodeNumbers = <int>{};
+    final thumbUrls = <int, String>{};
+    final episodeNfoFilenames = <String>[];
+    var hasSeasonNfo = false;
+
+    String? poster;
+    String? fanart;
+    String? firstImage;
+
+    final document = html_parser.parse(htmlBody);
+    for (final anchor in _findAnchors(document)) {
+      final href = anchor.attributes['href'];
+      if (href == null) continue;
+
+      // 1. Episodes via NFO pattern (sinal primário de "ep existe").
+      final nfoMatch = _episodeNfoPattern.firstMatch(href);
+      if (nfoMatch != null) {
+        final ep = int.tryParse(nfoMatch.group(1)!);
+        if (ep != null) {
+          episodeNumbers.add(ep);
+          episodeNfoFilenames.add(href);
+        }
+        continue; // NFO não é thumb nem imagem
+      }
+
+      // 2. Episode thumbs (S\d+E\d+-thumb.{ext}).
+      final thumbMatch = _episodeThumbPattern.firstMatch(href);
+      if (thumbMatch != null) {
+        final ep = int.tryParse(thumbMatch.group(1)!);
+        if (ep != null && !thumbUrls.containsKey(ep)) {
+          thumbUrls[ep] = resolveThumbUrl(seasonUrl, href);
+        }
+        continue;
+      }
+
+      // 3. season.nfo existence flag.
+      if (href.toLowerCase() == 'season.nfo') {
+        hasSeasonNfo = true;
+        continue;
+      }
+
+      // 4. Season images (poster/fanart canônicos).
+      final name = href.toLowerCase();
+      final base = name.contains('.')
+          ? name.substring(0, name.lastIndexOf('.'))
+          : name;
+      final ext = name.contains('.')
+          ? name.substring(name.lastIndexOf('.'))
+          : '';
+      if (!_seasonImageExtensions.contains(ext)) continue;
+
+      firstImage ??= href;
+      if (poster == null && _seasonPosterNames.contains(base)) {
+        poster = href;
+        continue;
+      }
+      if (fanart == null && _seasonFanartNames.contains(base)) {
+        fanart = href;
+        continue;
+      }
+      if (poster == null && _seasonPosterNames.any((n) => base.contains(n))) {
+        poster = href;
+        continue;
+      }
+      if (fanart == null && _seasonFanartNames.any((n) => base.contains(n))) {
+        fanart = href;
+        continue;
+      }
+    }
+
+    poster ??= firstImage;
+
+    return (
+      episodeNumbers: episodeNumbers.toList()..sort(),
+      thumbUrls: thumbUrls,
+      images: DetectedSeasonImages(poster: poster, fanart: fanart),
+      hasSeasonNfo: hasSeasonNfo,
+      episodeNfoFilenames: episodeNfoFilenames,
+    );
+  }
+
+  // ============================================================
   // Episode thumb scraper
   // ============================================================
 
@@ -590,6 +721,10 @@ class PauloFlixNfoEnricher {
   /// match no listing vence.
   ///
   /// Retorna map vazio em qualquer falha (404, 500, timeout, parse fail).
+  ///
+  /// **DEPRECADO (Fase N+9):** prefira [fetchSeasonListing] — extrai
+  /// thumbs + episodes + images num único GET. Este método continua
+  /// existindo só pra back-compat com testes e callers externos.
   Future<Map<int, String>> fetchEpisodeThumbs(String seasonUrl) async {
     try {
       final res = await _client

@@ -128,31 +128,43 @@ class PauloFlixEpisodeSyncService {
     final seasons = await _fetchSeasons(contentServerUrl);
 
     for (final s in seasons) {
-      // 2a. (Fase 10) Busca `season.nfo` (se enricher disponível).
-      //     `null` = sem NFO / erro → fica null no banco. Caller pode
-      //     usar TMDB/Jikan como fallback.
+      // 2a. (Fase N+9) **UM único GET** ao listing da season descobre
+      //     TUDO de uma vez: episode numbers, thumb URLs, poster/fanart
+      //     da season, e flag `hasSeasonNfo` (que decide se vale a
+      //     pena buscar o `season.nfo` plot). Antes dessa fase eram
+      //     3 GETs separados pra mesma URL (2 deles redundantes —
+      //     `fetchEpisodeNfos` E `fetchSeasonImages` faziam GET do
+      //     mesmo listing). Agora 1 GET resolve os metadados
+      //     estruturais; o `season.nfo` plot é condicional.
+      //
+      //     Fallback lazy: enricher == null → lista vazia (caller
+      //     funciona sem enricher, comportamento idêntico ao
+      //     pré-Fase N+9).
       String? seasonDescription;
-      // 2a.1 (Fase 12) Busca poster/fanart da pasta da season via
-      // listing. Análogo ao que `PauloFlixMoviesService._detectImageFiles`
-      // faz para filmes, mas para seasons. Retorna nomes de arquivo
-      // (não URLs) que serão resolvidos pelo repo via `posterUrlWith`.
-      // Como `fetchEpisodeThumbs` já faz GET do listing da season
-      // para detectar thumbs, poderíamos reusar aqui, mas a
-      // separação é mais clara e o custo extra é 1 GET por season
-      // (aceitável).
-      DetectedSeasonImages seasonImages =
-          const DetectedSeasonImages();
+      DetectedSeasonImages seasonImages = const DetectedSeasonImages();
+      List<int> seasonEpisodeNumbers = const [];
+      Map<int, String> seasonThumbUrls = const {};
+      bool hasSeasonNfo = false;
       if (enricher != null) {
-        try {
-          final seasonNfo = await enricher.fetchSeasonNfo(s.url);
-          seasonDescription = seasonNfo?.plot;
-        } catch (e) {
-          debugPrint('[PauloFlixSync] fetchSeasonNfo failed: $e');
-        }
-        try {
-          seasonImages = await enricher.fetchSeasonImages(s.url);
-        } catch (e) {
-          debugPrint('[PauloFlixSync] fetchSeasonImages failed: $e');
+        final listing = await enricher.fetchSeasonListing(s.url);
+        seasonEpisodeNumbers = listing.episodeNumbers;
+        seasonThumbUrls = listing.thumbUrls;
+        seasonImages = listing.images;
+        hasSeasonNfo = listing.hasSeasonNfo;
+
+        // 2a.1 (Fase 10) Busca `season.nfo` plot (se existir no
+        // listing). `null` = sem NFO / erro → fica null no banco.
+        // Caller pode usar TMDB/Jikan como fallback. Antes da Fase
+        // N+9 essa chamada era incondicional (1 GET desperdiçado
+        // pra seasons sem NFO). Agora é condicional à presença do
+        // arquivo no listing.
+        if (hasSeasonNfo) {
+          try {
+            final seasonNfo = await enricher.fetchSeasonNfo(s.url);
+            seasonDescription = seasonNfo?.plot;
+          } catch (e) {
+            debugPrint('[PauloFlixSync] fetchSeasonNfo failed: $e');
+          }
         }
       }
 
@@ -167,10 +179,13 @@ class PauloFlixEpisodeSyncService {
         fanartFileName: seasonImages.fanart,
       );
 
-      // 2c + 2d. (Fase 10 + Fase N+6) Busca NFO + thumbUrl de cada
-      //     episode em batch (se enricher).
-      //     Retorna `Map<int, ({String? plot, String? thumbUrl})>`
-      //     indexado por episodeNumber.
+      // 2c + 2d. (Fase N+9) **N GETs paralelos** dos NFOs de
+      //     episode — mas SÓ dos que existem no listing. Antes da
+      //     Fase N+9 o `fetchEpisodeNfos` re-descobria episodes
+      //     via listing (mais 1 GET) E fazia 1 GET por episode.
+      //     Agora `seasonEpisodeNumbers` já vem do listing
+      //     unificado — zero GETs extra pra descobrir, N GETs pra
+      //     baixar NFOs.
       //
       //     `seasonNumber` (de `s.number`) é OBRIGATÓRIO: antes da
       //     Fase N+5 o enricher hardcodava `S01` no filename do NFO
@@ -178,18 +193,20 @@ class PauloFlixEpisodeSyncService {
       //     season 2+ o GET batia em 404 (`S01E001.nfo` em vez do
       //     correto `S02E001.nfo`) → plot nunca era populado.
       //
-      //     Antes da Fase N+6, o `fetchEpisodeNfos` chamava
-      //     `fetchEpisodeThumbs` internamente só pra descobrir os
-      //     episode numbers (e descartava as URLs). Resultado: 1 GET
-      //     desperdiçado por season + seasons sem thumb (só NFO)
-      //     eram puladas. Agora o enricher descobre episodes via
-      //     `_episodeNfoPattern` (sinal primário de "episódio
-      //     existe") e o `thumbUrl` vem no record. Caller NÃO chama
-      //     mais `fetchEpisodeThumbs` separado.
+      //     **Fase N+8 fallback de zero-padding** (Fase N+8): o
+      //     `fetchEpisodeNfo` tenta 3-dígitos → 2-dígitos →
+      //     sem padding automaticamente. Cobre file servers com
+      //     convenção mista (caso real Solo Leveling S01: eps 1-12
+      //     com 3-dígitos, eps 13-25 só com 2-dígitos).
       final Map<int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>
           episodeNfoData =
-          enricher != null
-          ? (await enricher.fetchEpisodeNfos(s.url, s.number))
+          (enricher != null && seasonEpisodeNumbers.isNotEmpty)
+          ? (await enricher.fetchEpisodeNfos(
+              seasonUrl: s.url,
+              seasonNumber: s.number,
+              episodeNumbers: seasonEpisodeNumbers,
+              thumbUrlsByEpisode: seasonThumbUrls,
+            ))
           : <int, ({KodiEpisodeNfo? nfo, String? thumbUrl})>{};
 
       // 2e. Fetch + parse episodes desta season.
