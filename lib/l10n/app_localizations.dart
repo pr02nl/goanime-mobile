@@ -51,6 +51,18 @@ class AppLocalizations {
   String get aired => locale.languageCode == 'pt' ? 'Lançado' : 'Aired';
   String get notYetAired =>
       locale.languageCode == 'pt' ? 'Não Lançado' : 'Not Yet Aired';
+
+  /// **Fase N+7 — UI dos campos NFO V2 do episode card:**
+  /// `originalTitle` (idioma original), `outline` (resumo curto),
+  /// `rating` (nota do episode), `runtime` (duração em minutos).
+  String get originalTitleLabel =>
+      locale.languageCode == 'pt' ? 'Título original' : 'Original title';
+  String get outlineLabel =>
+      locale.languageCode == 'pt' ? 'Resumo' : 'Outline';
+  String get episodeRatingLabel =>
+      locale.languageCode == 'pt' ? 'Nota' : 'Rating';
+  String get runtimeMinutesLabel =>
+      locale.languageCode == 'pt' ? 'min' : 'min';
   String get currentlyAiring =>
       locale.languageCode == 'pt' ? 'Em Exibição' : 'Currently Airing';
   String get cancelled =>

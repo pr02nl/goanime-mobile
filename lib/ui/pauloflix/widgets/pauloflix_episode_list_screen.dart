@@ -488,6 +488,13 @@ class _EpisodesList extends StatelessWidget {
                   positionSeconds: records[index].positionSeconds,
                   durationSeconds: records[index].durationSeconds,
                   isCompleted: records[index].isCompleted,
+                  // **Fase N+7:** propaga os 5 campos NFO V2 do
+                  // record (PauloFlixEpisodeRecord) para o card.
+                  originalTitle: records[index].originalTitle,
+                  outline: records[index].outline,
+                  aired: records[index].aired,
+                  rating: records[index].rating,
+                  runtime: records[index].runtime,
                   isTV: isTV,
                   onTap: () => _playEpisode(context, records[index], index),
                 ),
