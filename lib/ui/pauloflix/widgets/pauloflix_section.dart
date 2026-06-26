@@ -5,7 +5,6 @@ import '../../../l10n/app_localizations.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
-import '../../core/widgets/pauloflix_badge.dart';
 import '../../core/widgets/see_all_card.dart';
 
 // Cor identidade PauloFlix animes (índigo)
@@ -46,7 +45,6 @@ class PauloFlixSection extends StatelessWidget {
           height: cardHeight,
           isTV: isTV,
           onTap: () => onItemTap?.call(content),
-          overlayWidget: const PauloFlixBadge(),
         ),
       ),
       if (onSeeAll != null)

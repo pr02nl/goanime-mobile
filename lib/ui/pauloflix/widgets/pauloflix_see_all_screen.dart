@@ -44,8 +44,7 @@ class PauloFlixSeeAllScreen extends StatefulWidget {
   const PauloFlixSeeAllScreen({super.key});
 
   @override
-  State<PauloFlixSeeAllScreen> createState() =>
-      _PauloFlixSeeAllScreenState();
+  State<PauloFlixSeeAllScreen> createState() => _PauloFlixSeeAllScreenState();
 }
 
 class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
@@ -56,10 +55,10 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   List<PauloFlixContent> _allContents = const [];
   PaginationResult<PauloFlixContent> _pagination =
       const PaginationResult<PauloFlixContent>(
-    pages: [],
-    letterToPageIndex: {},
-    availableLetters: [],
-  );
+        pages: [],
+        letterToPageIndex: {},
+        availableLetters: [],
+      );
   List<PauloFlixContent> _topRated = const [];
   Map<String, List<PauloFlixContent>> _byGenre = const {};
   PauloFlixContent? _featured;
@@ -111,7 +110,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   /// Memoiza o snapshot derivado. Recomputa apenas se o conteúdo mudou
   /// (medido por `length + identidade do primeiro/último item`).
   void _ensureSnapshotBuilt(List<PauloFlixContent> contents) {
-    final newHash = contents.length ^
+    final newHash =
+        contents.length ^
         (contents.isNotEmpty ? contents.first.hashCode : 0) ^
         (contents.isNotEmpty ? contents.last.hashCode : 0);
     if (newHash == _snapshotHash) return;
@@ -124,13 +124,14 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     _featured = PauloFlixProvider.pickFeaturedContent(_allContents);
 
     // 2. Top rated (top 12 por score).
-    _topRated = [..._allContents]..sort((a, b) {
-      final scoreCmp = (b.score ?? 0).compareTo(a.score ?? 0);
-      if (scoreCmp != 0) return scoreCmp;
-      return a.displayName
-          .toLowerCase()
-          .compareTo(b.displayName.toLowerCase());
-    });
+    _topRated = [..._allContents]
+      ..sort((a, b) {
+        final scoreCmp = (b.score ?? 0).compareTo(a.score ?? 0);
+        if (scoreCmp != 0) return scoreCmp;
+        return a.displayName.toLowerCase().compareTo(
+          b.displayName.toLowerCase(),
+        );
+      });
     if (_topRated.length > 12) _topRated = _topRated.sublist(0, 12);
 
     // 3. Por gênero (top 4 com ≥3 animes).
@@ -142,10 +143,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     );
 
     // 4. Paginação (24/página).
-    _pagination = PauloFlixProvider.paginateByLetter(
-      _allContents,
-      perPage: 24,
-    );
+    _pagination = PauloFlixProvider.paginateByLetter(_allContents, perPage: 24);
   }
 
   void _syncContent() {
@@ -194,20 +192,13 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
 
     // 0. Continue assistindo (Fase 5.3) — topo da See All.
     // Some automaticamente via `SizedBox.shrink()` quando vazia.
-    slivers.add(
-      SliverToBoxAdapter(
-        child: _buildContinueWatchingSection(),
-      ),
-    );
+    slivers.add(SliverToBoxAdapter(child: _buildContinueWatchingSection()));
 
     // 1. Hero banner.
     if (_featured != null) {
       slivers.add(
         SliverToBoxAdapter(
-          child: AnimeHeroBanner(
-            content: _featured!,
-            isTV: _isTV,
-          ),
+          child: AnimeHeroBanner(content: _featured!, isTV: _isTV),
         ),
       );
       slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
@@ -243,11 +234,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     }
 
     // 4. Grid paginado "Todos os Animes" com índice A–Z.
-    slivers.add(
-      SliverToBoxAdapter(
-        child: _buildAllAnimesSection(l10n),
-      ),
-    );
+    slivers.add(SliverToBoxAdapter(child: _buildAllAnimesSection(l10n)));
 
     return slivers;
   }
@@ -262,11 +249,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                const Icon(
-                  Icons.tv,
-                  size: 22,
-                  color: _accentColor,
-                ),
+                const Icon(Icons.tv, size: 22, color: _accentColor),
                 const SizedBox(width: 8),
                 Text(
                   '${l10n.sectionAllAnimes} (${_allContents.length})',
@@ -351,8 +334,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
           ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        titlePadding:
-            const EdgeInsetsDirectional.only(start: 16, bottom: 14),
+        titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 14),
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -441,10 +423,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   /// Abre a tela de episodes do anime clicado em "Continue assistindo".
   /// Usa o mesmo `pushNamed` do hero banner e dos cards da grid.
   void _onContinueWatchingTap(PauloFlixContent content) {
-    context.pushNamed(
-      'pauloflix-episode-list',
-      extra: content,
-    );
+    context.pushNamed('pauloflix-episode-list', extra: content);
   }
 }
 
@@ -536,12 +515,8 @@ class _AnimeCarouselCard extends StatelessWidget {
       isTV: isTV,
       showTitle: true,
       showRating: content.score != null,
-      overlayWidget: const PauloFlixBadge(fontSize: 9),
       onTap: () {
-        context.pushNamed(
-          'pauloflix-episodes',
-          extra: content,
-        );
+        context.pushNamed('pauloflix-episodes', extra: content);
       },
     );
   }
@@ -566,10 +541,7 @@ class _AnimeGridCard extends StatelessWidget {
       showRating: content.score != null,
       overlayWidget: const PauloFlixBadge(),
       onTap: () {
-        context.pushNamed(
-          'pauloflix-episodes',
-          extra: content,
-        );
+        context.pushNamed('pauloflix-episodes', extra: content);
       },
     );
   }

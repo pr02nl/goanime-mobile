@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/pauloflix_content.dart';
 import '../../core/widgets/netflix_hero_card.dart';
-import '../../core/widgets/pauloflix_badge.dart';
 
 /// Hero banner que destaca um anime/coleção no topo da See All.
 ///
@@ -48,7 +47,7 @@ class AnimeHeroBanner extends StatelessWidget {
         title: content.displayName,
         description: content.description,
         // Badge PauloFlix (azul) — sinaliza origem do file server.
-        badge: const PauloFlixBadge(),
+        // badge: const PauloFlixBadge(),
         // Score Jikan com estrelinha (null se não veio do Jikan).
         score: content.score,
         height: height,

@@ -15,8 +15,11 @@ import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_episode_record.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../core/themes/app_colors.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/utils/tv_detector.dart';
+import '../../core/widgets/focusable_widget.dart';
+import '../view_models/video_player_states.dart';
 import 'modern_video_player_controls.dart';
 
 class ModernVideoPlayerScreen extends StatefulWidget {
@@ -63,8 +66,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       androidAttachSurfaceAfterVideoParameters: true,
     ),
   );
-  bool _isLoading = true;
-  String? _errorMessage;
+  VideoPlayerState state = const VideoPlayerIdle();
   Map<String, String>? _currentVideoHeaders;
 
   // bool? _isTVDevice;
@@ -302,8 +304,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   void _replaceEpisode(Episode newEpisode) {
     if (!mounted) return;
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      state = const VideoPlayerLoading();
       _currentEpisode = newEpisode;
     });
     // Fase 2: flush do progresso do episódio atual ANTES de trocar
@@ -504,8 +505,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     // skipButtonDismissed = false;
     // skipTimesRetryCount = 0;
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      state = const VideoPlayerLoading();
       // skipTimes = null;
       // showSkipButton = false;
       // skipButtonLabel = '';
@@ -554,8 +554,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         debugPrint('[VideoPlayer] Error stream received: $error');
         if (error.toString().isNotEmpty && mounted) {
           setState(() {
-            _errorMessage = 'Player error: $error';
-            _isLoading = false;
+            state = VideoPlayerError(message: 'Player error: $error');
           });
         }
       });
@@ -735,7 +734,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         //   return;
         // }
         setState(() {
-          _isLoading = false;
+          state = const VideoPlayerPlaying();
         });
       }
 
@@ -751,8 +750,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       debugPrint('Error initializing video: $e');
       if (mounted) {
         setState(() {
-          _isLoading = false;
-          _errorMessage = e.toString();
+          state = VideoPlayerError(message: e.toString());
         });
       }
     }
@@ -775,99 +773,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
     _currentVideoHeaders = null;
   }
-
-  // Widget _buildErrorWidget(String message) {
-  //   return Container(
-  //     padding: const EdgeInsets.all(24),
-  //     margin: const EdgeInsets.all(16),
-  //     decoration: BoxDecoration(
-  //       color: const Color(0xFF1A1A2E),
-  //       borderRadius: BorderRadius.circular(20),
-  //       border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-  //     ),
-  //     child: Column(
-  //       mainAxisAlignment: MainAxisAlignment.center,
-  //       mainAxisSize: MainAxisSize.min,
-  //       children: [
-  //         Container(
-  //           padding: const EdgeInsets.all(16),
-  //           decoration: BoxDecoration(
-  //             gradient: LinearGradient(
-  //               colors: [
-  //                 Colors.red.withValues(alpha: 0.2),
-  //                 Colors.red.withValues(alpha: 0.1),
-  //               ],
-  //             ),
-  //             shape: BoxShape.circle,
-  //           ),
-  //           child: const Icon(Icons.error_outline, color: Colors.red, size: 48),
-  //         ),
-  //         const SizedBox(height: 20),
-  //         Text(
-  //           AppLocalizations.of(context).playerError,
-  //           style: const TextStyle(
-  //             color: Colors.white,
-  //             fontSize: 20,
-  //             fontWeight: FontWeight.bold,
-  //           ),
-  //         ),
-  //         const SizedBox(height: 12),
-  //         Text(
-  //           message,
-  //           textAlign: TextAlign.center,
-  //           style: TextStyle(
-  //             color: Colors.white.withValues(alpha: 0.7),
-  //             fontSize: 14,
-  //           ),
-  //         ),
-  //         const SizedBox(height: 24),
-  //         Wrap(
-  //           spacing: 12,
-  //           children: [
-  //             FocusableWidget(
-  //               onSelect: _initializeVideoPlayer,
-  //               child: ElevatedButton.icon(
-  //                 onPressed: _initializeVideoPlayer,
-  //                 icon: const Icon(Icons.refresh),
-  //                 label: Text(AppLocalizations.of(context).retry),
-  //                 style: ElevatedButton.styleFrom(
-  //                   backgroundColor: Colors.orange,
-  //                   foregroundColor: Colors.white,
-  //                   padding: const EdgeInsets.symmetric(
-  //                     horizontal: 24,
-  //                     vertical: 12,
-  //                   ),
-  //                   shape: RoundedRectangleBorder(
-  //                     borderRadius: BorderRadius.circular(12),
-  //                   ),
-  //                 ),
-  //               ),
-  //             ),
-  //             FocusableWidget(
-  //               onSelect: _exitPlayer,
-  //               child: ElevatedButton.icon(
-  //                 onPressed: _exitPlayer,
-  //                 icon: const Icon(Icons.close),
-  //                 label: Text(AppLocalizations.of(context).close),
-  //                 style: ElevatedButton.styleFrom(
-  //                   // backgroundColor: Colors.orange,
-  //                   // foregroundColor: Colors.white,
-  //                   padding: const EdgeInsets.symmetric(
-  //                     horizontal: 24,
-  //                     vertical: 12,
-  //                   ),
-  //                   shape: RoundedRectangleBorder(
-  //                     borderRadius: BorderRadius.circular(12),
-  //                   ),
-  //                 ),
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
 
   @override
   void dispose() {
@@ -917,35 +822,28 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Video(
-        controller: _videoController,
-        // controls: MaterialVideoControls,
-        controls: (state) {
-          return ModernVideoPlayerControls(
-            player: state.widget.controller.player,
-            title: _displayLabel,
-            onBack: _exitPlayer,
-            hasPreviousEpisode: _hasPreviousEpisode,
-            hasNextEpisode: _hasNextEpisode,
-            onPreviousEpisode: _goToPreviousEpisode,
-            onNextEpisode: _goToNextEpisode,
-          );
-          // return Center(
-          //   child: IconButton(
-          //     onPressed: () {
-          //       state.widget.controller.player.playOrPause();
-          //     },
-          //     icon: StreamBuilder(
-          //       stream: state.widget.controller.player.stream.playing,
-          //       builder: (context, playing) =>
-          //           Icon(playing.data == true ? Icons.pause : Icons.play_arrow),
-          //     ),
-          //     // It's not necessary to use [StreamBuilder] or to use [Player] & [VideoController] from [state].
-          //     // [StreamSubscription]s can be made inside [initState] of this widget.
-          //   ),
-          // );
-        },
-      ),
+      body: switch (state) {
+        VideoPlayerLoading _ => _buildLoadingState(),
+
+        final VideoPlayerError m => _buildErrorState(m.message),
+        VideoPlayerPlaying _ => Video(
+          controller: _videoController,
+          // controls: MaterialVideoControls,
+          controls: (state) {
+            return ModernVideoPlayerControls(
+              player: state.widget.controller.player,
+              title: _displayLabel,
+              onBack: _exitPlayer,
+              hasPreviousEpisode: _hasPreviousEpisode,
+              hasNextEpisode: _hasNextEpisode,
+              onPreviousEpisode: _goToPreviousEpisode,
+              onNextEpisode: _goToNextEpisode,
+            );
+          },
+        ),
+        _ => const SizedBox.shrink(),
+      },
+
       // body: Stack(
       //   fit: StackFit.expand,
       //   children: [
@@ -1143,75 +1041,164 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   //   );
   // }
 
-  // Widget _buildLoadingState() {
-  //   return SizedBox.expand(
-  //     child: Container(
-  //       color: Colors.black,
-  //       padding: const EdgeInsets.all(24),
-  //       child: Center(
-  //         child: Column(
-  //           mainAxisAlignment: MainAxisAlignment.center,
-  //           mainAxisSize: MainAxisSize.min,
-  //           children: [
-  //             Container(
-  //               padding: const EdgeInsets.all(16),
-  //               decoration: BoxDecoration(
-  //                 gradient: AppColors.getPrimaryGradient(),
-  //                 shape: BoxShape.circle,
-  //                 boxShadow: [
-  //                   BoxShadow(
-  //                     color: AppColors.primaryShadow,
-  //                     blurRadius: 20,
-  //                     spreadRadius: 5,
-  //                   ),
-  //                 ],
-  //               ),
-  //               child: const SizedBox(
-  //                 width: 32,
-  //                 height: 32,
-  //                 child: CircularProgressIndicator(
-  //                   color: Colors.white,
-  //                   strokeWidth: 3,
-  //                 ),
-  //               ),
-  //             ),
-  //             const SizedBox(height: 16),
-  //             Text(
-  //               AppLocalizations.of(context).loadingStream,
-  //               style: const TextStyle(
-  //                 color: Colors.white,
-  //                 fontSize: 14,
-  //                 fontWeight: FontWeight.w600,
-  //               ),
-  //               textAlign: TextAlign.center,
-  //             ),
-  //             const SizedBox(height: 4),
-  //             Text(
-  //               AppLocalizations.of(context).preparingServer,
-  //               style: TextStyle(
-  //                 color: Colors.white.withValues(alpha: 0.6),
-  //                 fontSize: 12,
-  //               ),
-  //               textAlign: TextAlign.center,
-  //             ),
-  //           ],
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
+  Widget _buildLoadingState() {
+    return SizedBox.expand(
+      child: Container(
+        color: Colors.black,
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: AppColors.getPrimaryGradient(),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryShadow,
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                AppLocalizations.of(context).loadingStream,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                AppLocalizations.of(context).preparingServer,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-  // Widget _buildErrorState() {
-  //   return SizedBox.expand(
-  //     child: Container(
-  //       color: Colors.black,
-  //       padding: const EdgeInsets.all(24),
-  //       child: Center(
-  //         child: _buildErrorWidget(
-  //           _errorMessage ?? AppLocalizations.of(context).error,
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
+  Widget _buildErrorState(String message) {
+    return SizedBox.expand(
+      child: Container(
+        color: Colors.black,
+        padding: const EdgeInsets.all(24),
+        child: Center(child: _buildErrorWidget(message)),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(String message) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.red.withValues(alpha: 0.2),
+                  Colors.red.withValues(alpha: 0.1),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.error_outline, color: Colors.red, size: 48),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            AppLocalizations.of(context).playerError,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 12,
+            children: [
+              FocusableWidget(
+                onSelect: _initializeVideoPlayer,
+                child: ElevatedButton.icon(
+                  onPressed: _initializeVideoPlayer,
+                  icon: const Icon(Icons.refresh),
+                  label: Text(AppLocalizations.of(context).retry),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              FocusableWidget(
+                onSelect: _exitPlayer,
+                child: ElevatedButton.icon(
+                  onPressed: _exitPlayer,
+                  icon: const Icon(Icons.close),
+                  label: Text(AppLocalizations.of(context).close),
+                  style: ElevatedButton.styleFrom(
+                    // backgroundColor: Colors.orange,
+                    // foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
