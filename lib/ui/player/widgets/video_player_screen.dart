@@ -925,6 +925,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
             player: state.widget.controller.player,
             title: _displayLabel,
             onBack: _exitPlayer,
+            hasPreviousEpisode: _hasPreviousEpisode,
+            hasNextEpisode: _hasNextEpisode,
+            onPreviousEpisode: _goToPreviousEpisode,
+            onNextEpisode: _goToNextEpisode,
           );
           // return Center(
           //   child: IconButton(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -124,7 +125,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   double? _seekPreviewValue; // 0..1 durante o arraste
 
   // ─── TV detection (assíncrono) ──────────────────────────────────
-  bool? _isTVDevice;
+  bool _isTVDevice = false;
 
   @override
   void initState() {
@@ -224,7 +225,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   Duration get _autoHide {
     if (widget.autoHideDuration != null) return widget.autoHideDuration!;
-    return _isTVDevice == true ? _kTVAutoHide : _kMobileAutoHide;
+    return _isTVDevice ? _kTVAutoHide : _kMobileAutoHide;
   }
 
   void _showAndScheduleAutoHide() {
@@ -289,55 +290,52 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   @override
   Widget build(BuildContext context) {
+    final isTV = _isTVDevice;
+
     return MouseRegion(
       onHover: (_) => _showAndScheduleAutoHide(),
-      // `Focus` com `onKeyEvent` captura QUALQUER tecla que chegue
-      // ao subtree dos controles (mesmo as que vão ser tratadas pelo
-      // `CallbackShortcuts` abaixo). Re-mostra o overlay + re-agenda
-      // o auto-hide. Retornamos `KeyEventResult.ignored` para que
-      // a propagação continue normalmente e os atalhos (J/K/L, setas,
-      // N/P) funcionem como antes.
-      //
-      // Por que não `HardwareKeyboard.instance.addHandler` global:
-      //   - P9 da skill `flutter-tv-readiness` — handler global
-      //     intercepta teclas mesmo com foco em Dialog ou outro widget.
-      //   - `Focus` é escopado ao subtree dos controles, sem leak
-      //     nem conflito com o `_installHardwareKeyboardHandler`
-      //     do `video_player_screen.dart` (que cuida só do ESC).
       child: Focus(
         onKeyEvent: (node, event) {
+          log('ModernVideoPlayerControls: onKeyEvent: $event');
           if (event is! KeyDownEvent) return KeyEventResult.ignored;
-          // Qualquer tecla: re-mostra o overlay. Não consome o evento
-          // (ignored) — o CallbackShortcuts filho decide se trata.
+          // Qualquer tecla: re-mostra o overlay. Retorna `ignored` para
+          // que o evento prossiga para handlers acima (video surface,
+          // sistema de navegação da TV para o botão Back físico).
           _showAndScheduleAutoHide();
           return KeyEventResult.ignored;
         },
         child: CallbackShortcuts(
-          bindings: {
-            // TV / desktop: atalhos que NÃO interferem com os botões focados.
-            // Funcionam quando o foco está no subtree dos controles
-            // (mas não em um botão específico — nesses casos, é consumido).
-            const SingleActivator(LogicalKeyboardKey.space): _togglePlay,
-            const SingleActivator(LogicalKeyboardKey.keyK): _togglePlay,
+          bindings: <ShortcutActivator, VoidCallback>{
+            // ─── Globais (todas as plataformas) ──────────────────────
             const SingleActivator(LogicalKeyboardKey.mediaPlayPause):
                 _togglePlay,
-            const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
-                _seekBy(const Duration(seconds: -5)),
-            const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-                _seekBy(const Duration(seconds: 5)),
-            const SingleActivator(LogicalKeyboardKey.keyJ): () =>
-                _seekBy(const Duration(seconds: -10)),
-            const SingleActivator(LogicalKeyboardKey.keyL): () =>
-                _seekBy(const Duration(seconds: 10)),
-            const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
-                _changeVolume(5),
-            const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
-                _changeVolume(-5),
-            // Mapeia N/P para episódio seguinte/anterior (convenção YouTube).
+            // N/P — navegação entre episódios (não conflita com D-pad)
             if (widget.hasNextEpisode)
               const SingleActivator(LogicalKeyboardKey.keyN): _goToNext,
             if (widget.hasPreviousEpisode)
               const SingleActivator(LogicalKeyboardKey.keyP): _goToPrevious,
+
+            if (!isTV) ...{
+              // ─── Desktop-only ─────────────────────────────────────
+              // Space/K/Select/Enter → play/pause
+              const SingleActivator(LogicalKeyboardKey.space): _togglePlay,
+              const SingleActivator(LogicalKeyboardKey.keyK): _togglePlay,
+              const SingleActivator(LogicalKeyboardKey.select): _togglePlay,
+              const SingleActivator(LogicalKeyboardKey.enter): _togglePlay,
+              // Setas → seek/volume (TV: setas navegam foco via FocusableWidget)
+              const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+                  _seekBy(const Duration(seconds: -5)),
+              const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+                  _seekBy(const Duration(seconds: 5)),
+              const SingleActivator(LogicalKeyboardKey.keyJ): () =>
+                  _seekBy(const Duration(seconds: -10)),
+              const SingleActivator(LogicalKeyboardKey.keyL): () =>
+                  _seekBy(const Duration(seconds: 10)),
+              const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
+                  _changeVolume(5),
+              const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
+                  _changeVolume(-5),
+            },
           },
           child: GestureDetector(
             // Tap em área vazia (não em botão) = toggle play/pause.
@@ -362,14 +360,16 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   Widget _buildLayout() {
     return ColoredBox(
       color: Colors.black.withValues(alpha: 0.35),
-      child: Column(
-        children: [
-          if (widget.title != null) _buildTopBar(),
-          const Spacer(),
-          _buildCenterControls(),
-          const Spacer(),
-          _buildBottomBar(),
-        ],
+      child: FocusTraversalGroup(
+        child: Column(
+          children: [
+            if (widget.title != null) _buildTopBar(),
+            const Spacer(),
+            _buildCenterControls(),
+            const Spacer(),
+            _buildBottomBar(),
+          ],
+        ),
       ),
     );
   }
@@ -429,7 +429,11 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           _Replay10Button(
             onPressed: () => _seekBy(const Duration(seconds: -10)),
           ),
-          _PlayPauseButton(isPlaying: _isPlaying, onPressed: _togglePlay),
+          _PlayPauseButton(
+            isPlaying: _isPlaying,
+            onPressed: _togglePlay,
+            autoFocus: _isTVDevice,
+          ),
           _Forward10Button(
             onPressed: () => _seekBy(const Duration(seconds: 10)),
           ),
@@ -646,36 +650,46 @@ class _Forward10Button extends StatelessWidget {
 class _PlayPauseButton extends StatelessWidget {
   final bool isPlaying;
   final VoidCallback onPressed;
+  final bool autoFocus;
 
-  const _PlayPauseButton({required this.isPlaying, required this.onPressed});
+  const _PlayPauseButton({
+    required this.isPlaying,
+    required this.onPressed,
+    this.autoFocus = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return FocusableWidget(
       onSelect: onPressed,
+      autoFocus: autoFocus,
       borderRadius: 40,
       focusPadding: const EdgeInsets.all(4),
       focusScale: 1.08,
-      child: InkResponse(
-        onTap: onPressed,
-        radius: 48,
-        child: Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.85),
-            shape: BoxShape.circle,
-            boxShadow: const [
-              BoxShadow(color: Colors.black54, blurRadius: 8, spreadRadius: 1),
-            ],
-          ),
-          child: Icon(
-            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            size: 48,
-            color: Colors.white,
-          ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(
+          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+          size: 48,
+          color: Colors.white,
         ),
       ),
+      // child: Container(
+      //   width: 72,
+      //   height: 72,
+      //   decoration: BoxDecoration(
+      //     color: AppColors.primary.withValues(alpha: 0.85),
+      //     shape: BoxShape.circle,
+      //     boxShadow: const [
+      //       BoxShadow(color: Colors.black54, blurRadius: 8, spreadRadius: 1),
+      //     ],
+      //   ),
+      //   child: Icon(
+      //     isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+      //     size: 48,
+      //     color: Colors.white,
+      //   ),
+      // ),
     );
   }
 }
