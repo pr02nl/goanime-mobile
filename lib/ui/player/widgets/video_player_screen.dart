@@ -20,8 +20,6 @@ import '../../core/themes/app_colors.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
-import '../../core/widgets/skip_button.dart';
-import '../video_player_aniskip_mixin.dart';
 import 'video_player_episode_buttons.dart';
 
 class ModernVideoPlayerScreen extends StatefulWidget {
@@ -57,10 +55,17 @@ class ModernVideoPlayerScreen extends StatefulWidget {
       _ModernVideoPlayerScreenState();
 }
 
-class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
-    with VideoPlayerAniSkipMixin {
-  Player? _player;
-  VideoController? _videoController;
+class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
+  late final _player = Player(
+    configuration: const PlayerConfiguration(logLevel: MPVLogLevel.info),
+  );
+  late final _videoController = VideoController(
+    _player,
+    configuration: const VideoControllerConfiguration(
+      enableHardwareAcceleration: true,
+      androidAttachSurfaceAfterVideoParameters: true,
+    ),
+  );
   bool _isLoading = true;
   String? _errorMessage;
   Map<String, String>? _currentVideoHeaders;
@@ -139,17 +144,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   // --- VideoPlayerAniSkipMixin abstract member implementations ---
 
-  @override
-  bool isActiveEpisode(String? key) {
-    if (key == null) return false;
-    return mounted && activeEpisodeKey == key;
-  }
+  // @override
+  // bool isActiveEpisode(String? key) {
+  //   if (key == null) return false;
+  //   return mounted && activeEpisodeKey == key;
+  // }
 
-  @override
-  Player? get player => _player;
+  // @override
+  // Player? get player => _player;
 
-  @override
-  BuildContext get localizationContext => context;
+  // @override
+  // BuildContext get localizationContext => context;
 
   // --- End mixin implementations ---
 
@@ -266,13 +271,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       debugPrint('[VideoPlayer] Reinitializing player for new episode...');
 
       // Force a clean reinitialization
-      cleanupAniSkip();
-      skipButtonActiveSegment = null;
-      skipButtonDismissed = false;
-      lastAutoHideTime = null;
-      skipTimes = null;
-      showSkipButton = false;
-      skipButtonLabel = '';
+      // cleanupAniSkip();
+      // skipButtonActiveSegment = null;
+      // skipButtonDismissed = false;
+      // lastAutoHideTime = null;
+      // skipTimes = null;
+      // showSkipButton = false;
+      // skipButtonLabel = '';
 
       _initializeVideoPlayer();
     }
@@ -314,13 +319,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         getDur: _getCurrentDuration,
       ),
     );
-    cleanupAniSkip();
-    skipButtonActiveSegment = null;
-    skipButtonDismissed = false;
-    lastAutoHideTime = null;
-    skipTimes = null;
-    showSkipButton = false;
-    skipButtonLabel = '';
+    // cleanupAniSkip();
+    // skipButtonActiveSegment = null;
+    // skipButtonDismissed = false;
+    // lastAutoHideTime = null;
+    // skipTimes = null;
+    // showSkipButton = false;
+    // skipButtonLabel = '';
     _initializeVideoPlayer();
   }
 
@@ -431,9 +436,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   }
 
   /// Closures para o player. `_player` pode ser null durante cleanup.
-  Duration _getCurrentPosition() => _player?.state.position ?? Duration.zero;
+  Duration _getCurrentPosition() => _player.state.position;
 
-  Duration _getCurrentDuration() => _player?.state.duration ?? Duration.zero;
+  Duration _getCurrentDuration() => _player.state.duration;
 
   /// Espera o `Player.stream.tracks` emitir um snapshot com pelo menos
   /// uma faixa de legenda (embutida) ou atingir o timeout. Substitui o
@@ -443,7 +448,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// `subtitle` vazio — o método retorna OK nesse caso após o timeout.
   Future<void> _waitForEmbeddedSubtitleTracks(String episodeKey) async {
     final player = _player;
-    if (player == null) return;
 
     // Captura a subscription para cancelar em troca de episódio.
     _tracksSub?.cancel();
@@ -496,18 +500,18 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     final episodeKey = _buildEpisodeKey(widget);
     debugPrint('[VideoPlayer] 🎬 Initializing player for episode: $episodeKey');
 
-    activeEpisodeKey = episodeKey;
-    positionTimer?.cancel();
-    skipButtonAutoHideTimer?.cancel();
-    skipButtonActiveSegment = null;
-    skipButtonDismissed = false;
-    skipTimesRetryCount = 0;
+    // activeEpisodeKey = episodeKey;
+    // positionTimer?.cancel();
+    // skipButtonAutoHideTimer?.cancel();
+    // skipButtonActiveSegment = null;
+    // skipButtonDismissed = false;
+    // skipTimesRetryCount = 0;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      skipTimes = null;
-      showSkipButton = false;
-      skipButtonLabel = '';
+      // skipTimes = null;
+      // showSkipButton = false;
+      // skipButtonLabel = '';
     });
 
     // Fase 2: lê progresso salvo do banco (PauloFlix) ANTES do setState
@@ -524,10 +528,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
     try {
       await _cleanupControllers();
-      if (!isActiveEpisode(episodeKey)) {
-        debugPrint('[VideoPlayer] Initialization aborted (episode changed).');
-        return;
-      }
+      // if (!isActiveEpisode(episodeKey)) {
+      //   debugPrint('[VideoPlayer] Initialization aborted (episode changed).');
+      //   return;
+      // }
 
       String resolvedVideoUrl;
 
@@ -537,28 +541,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       debugPrint('Using playback headers: $_currentVideoHeaders');
 
-      // `_isTVDevice` já está populado pelo `await tvFuture` acima.
-      final isTV = _isTVDevice == true;
-
-      _player = Player(
-        configuration: const PlayerConfiguration(logLevel: MPVLogLevel.info),
-      );
-      _videoController = VideoController(
-        _player!,
-        configuration: const VideoControllerConfiguration(
-          enableHardwareAcceleration: true,
-          androidAttachSurfaceAfterVideoParameters: true,
-        ),
-      );
-      debugPrint('[VideoPlayer] HW acceleration: true (isTV: $isTV)');
-
-      // Força rebuild para inserir o Video widget na árvore AGORA,
-      // permitindo que AndroidVideoController crie a Surface Android
-      // antes de player.open() ser chamado.
-      if (mounted) setState(() {});
-
       // Aguarda a Surface Android estar pronta antes de abrir a mídia
-      await _player!.platform?.waitForVideoControllerInitializationIfAttached
+      await _player.platform?.waitForVideoControllerInitializationIfAttached
           .timeout(
             const Duration(seconds: 5),
             onTimeout: () => debugPrint('[VideoPlayer] Surface init timeout'),
@@ -569,7 +553,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // caso contrário, troca rápida de episódio acumula listeners
       // zumbis que disparam setState em widgets desmontados.
       _errorSub?.cancel();
-      _errorSub = _player?.stream.error.listen((error) {
+      _errorSub = _player.stream.error.listen((error) {
         debugPrint('[VideoPlayer] Error stream received: $error');
         if (error.toString().isNotEmpty && mounted) {
           setState(() {
@@ -581,12 +565,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       // Log playback state changes for debugging
       _playingSub?.cancel();
-      _playingSub = _player?.stream.playing.listen((playing) {
+      _playingSub = _player.stream.playing.listen((playing) {
         debugPrint('[VideoPlayer] Playing state: $playing');
       });
 
       _completedSub?.cancel();
-      _completedSub = _player?.stream.completed.listen((completed) {
+      _completedSub = _player.stream.completed.listen((completed) {
         debugPrint('[VideoPlayer] Completed: $completed');
       });
 
@@ -652,7 +636,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       try {
         final media = Media(resolvedVideoUrl, httpHeaders: mergedHeaders);
-        await _player!.open(media, play: false);
+        await _player.open(media, play: false);
         debugPrint(
           '[VideoPlayer] Media opened (paused, waiting for video ready)',
         );
@@ -660,7 +644,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         debugPrint('[VideoPlayer] Failed with headers, trying without...');
         // Fallback: try without headers
         final media = Media(resolvedVideoUrl);
-        await _player!.open(media, play: false);
+        await _player.open(media, play: false);
         debugPrint('[VideoPlayer] Media opened (no headers fallback, paused)');
       }
 
@@ -669,7 +653,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       if (!shouldReset &&
           _savedPositionSeconds != null &&
           _savedPositionSeconds! > 0) {
-        await _player!.seek(Duration(seconds: _savedPositionSeconds!));
+        await _player.seek(Duration(seconds: _savedPositionSeconds!));
         debugPrint(
           '[VideoPlayer] Resuming at ${_savedPositionSeconds}s '
           '(of ${_savedDurationSeconds ?? "?"}s)',
@@ -684,10 +668,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // `Media.open`, então ouvimos o `stream.tracks` em vez de assumir um
       // delay fixo (que falha em streams lentos / contêineres grandes).
       await _waitForEmbeddedSubtitleTracks(episodeKey);
-      if (!isActiveEpisode(episodeKey)) {
-        debugPrint('[VideoPlayer] Tracks wait ignored (episode changed).');
-        return;
-      }
+      // if (!isActiveEpisode(episodeKey)) {
+      //   debugPrint('[VideoPlayer] Tracks wait ignored (episode changed).');
+      //   return;
+      // }
 
       // Carrega legenda (.srt) externa, se fornecida via Episode.subtitleUrl.
       // Equivale a `ffmpeg -i video.mp4 -i legend.srt -c copy out.mkv`, mas
@@ -704,7 +688,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
             title: s.displayName,
             language: s.language,
           );
-          await _player!.setSubtitleTrack(subtitle);
+          await _player.setSubtitleTrack(subtitle);
           debugPrint('[VideoPlayer] Subtitle loaded: ${s.displayName}');
         } catch (e) {
           debugPrint('[VideoPlayer] Failed to load subtitle: $e');
@@ -714,7 +698,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         // Sem legenda externa, ativa "Auto" no media_kit para usar o
         // detectado nas embutidas.
         try {
-          await _player!.setSubtitleTrack(SubtitleTrack.auto());
+          await _player.setSubtitleTrack(SubtitleTrack.auto());
           debugPrint('[VideoPlayer] Subtitle auto (from embedded tracks)');
         } catch (e) {
           debugPrint('[VideoPlayer] Failed auto subtitle: $e');
@@ -725,7 +709,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // This prevents audio playing before the video surface is ready.
       // We listen to the tracks stream which fires when the video track
       // is parsed (contains video dimensions).
-      await _player?.stream.tracks
+      await _player.stream.tracks
           .firstWhere((tracks) => tracks.video.isNotEmpty)
           .timeout(
             const Duration(seconds: 15),
@@ -735,37 +719,37 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
             },
           );
 
-      if (!isActiveEpisode(episodeKey)) {
-        debugPrint('[VideoPlayer] Controller init ignored (episode changed).');
-        return;
-      }
+      // if (!isActiveEpisode(episodeKey)) {
+      //   debugPrint('[VideoPlayer] Controller init ignored (episode changed).');
+      //   return;
+      // }
 
       // Video is ready — start playback now
-      await _player?.play();
+      await _player.play();
       debugPrint('[VideoPlayer] Playback started');
 
       if (!mounted) return;
 
       if (mounted) {
-        if (!isActiveEpisode(episodeKey)) {
-          debugPrint(
-            '[VideoPlayer] Skipped final state update (episode changed).',
-          );
-          return;
-        }
+        // if (!isActiveEpisode(episodeKey)) {
+        //   debugPrint(
+        //     '[VideoPlayer] Skipped final state update (episode changed).',
+        //   );
+        //   return;
+        // }
         setState(() {
           _isLoading = false;
         });
       }
 
-      final videoDurationSeconds = _player?.state.duration.inSeconds ?? 0;
+      final videoDurationSeconds = _player.state.duration.inSeconds;
       debugPrint('[VideoPlayer] Duration (s): $videoDurationSeconds');
-      await loadSkipTimes(
-        episodeLengthSeconds: videoDurationSeconds,
-        malId: widget.anime?.malId,
-        anilistId: widget.anime?.anilistId,
-        episodeNumber: _currentEpisode.number.toString(),
-      );
+      // await loadSkipTimes(
+      //   episodeLengthSeconds: videoDurationSeconds,
+      //   malId: widget.anime?.malId,
+      //   anilistId: widget.anime?.anilistId,
+      //   episodeNumber: _currentEpisode.number.toString(),
+      // );
     } catch (e) {
       debugPrint('Error initializing video: $e');
       if (mounted) {
@@ -778,8 +762,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   }
 
   Future<void> _cleanupControllers() async {
-    positionTimer?.cancel();
-    skipButtonAutoHideTimer?.cancel();
+    // positionTimer?.cancel();
+    // skipButtonAutoHideTimer?.cancel();
 
     // Cancela stream subscriptions para que listeners não disparem
     // setState em State desmontada após troca rápida de episódio.
@@ -792,9 +776,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     _completedSub = null;
     _tracksSub = null;
 
-    await _player?.dispose();
-    _player = null;
-    _videoController = null;
     _currentVideoHeaders = null;
   }
 
@@ -907,7 +888,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     );
 
     // Cleanup síncrono: para o player antes do State ser desmontado
-    _player?.stop();
+    _player.stop();
     _errorSub?.cancel();
     _playingSub?.cancel();
     _completedSub?.cancel();
@@ -922,9 +903,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   }
 
   Future<void> _deferredCleanup() async {
-    await _player?.dispose();
-    _player = null;
-    _videoController = null;
+    await _player.dispose();
   }
 
   /// Sai do player voltando para a tela anterior (home/detail/lista de
@@ -945,23 +924,28 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      extendBody: true,
-      extendBodyBehindAppBar: true,
+      // backgroundColor: Colors.black,
+      // extendBody: true,
+      // extendBodyBehindAppBar: true,
       // O Video widget DEVE estar sempre na árvore para que o
       // AndroidVideoController crie a Surface antes de player.open().
       // Estados de loading/erro são sobrepostos via Stack.
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Video sempre presente para garantir Surface inicializada
-          _buildFullscreenContent(),
-          // Loading overlay
-          if (_isLoading) _buildLoadingState(),
-          // Error overlay
-          if (!_isLoading && _errorMessage != null) _buildErrorState(),
-        ],
+      body: Video(
+        controller: _videoController,
+        // Select [MaterialVideoControls].
+        controls: MaterialVideoControls,
       ),
+      // body: Stack(
+      //   fit: StackFit.expand,
+      //   children: [
+      //     // Video sempre presente para garantir Surface inicializada
+      //     _buildFullscreenContent(),
+      //     // Loading overlay
+      //     if (_isLoading) _buildLoadingState(),
+      //     // Error overlay
+      //     if (!_isLoading && _errorMessage != null) _buildErrorState(),
+      //   ],
+      // ),
     );
   }
 
@@ -978,14 +962,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     final tvKeyboardShortcuts = <ShortcutActivator, VoidCallback>{
       // Select/Enter → play/pause (botão do meio do D-pad)
       const SingleActivator(LogicalKeyboardKey.select): () {
-        _player?.playOrPause();
+        _player.playOrPause();
       },
       const SingleActivator(LogicalKeyboardKey.enter): () {
-        _player?.playOrPause();
+        _player.playOrPause();
       },
       // Space → play/pause (já existe no padrão, mas reforçamos)
       const SingleActivator(LogicalKeyboardKey.space): () {
-        _player?.playOrPause();
+        _player.playOrPause();
       },
       // N/P → próximo/anterior episódio
       if (hasEpisodes && _hasNextEpisode)
@@ -994,7 +978,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         const SingleActivator(LogicalKeyboardKey.keyP): _goToPreviousEpisode,
       // Media keys
       const SingleActivator(LogicalKeyboardKey.mediaPlayPause): () {
-        _player?.playOrPause();
+        _player.playOrPause();
       },
     };
 
@@ -1009,10 +993,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           // receberem foco. Em loading/erro renderizamos só um Container
           // preto, e o foco D-pad cai para o _buildErrorState/
           // _buildLoadingState posicionados acima.
-          if (_videoController != null &&
-              !_isLoading &&
-              _errorMessage == null &&
-              isTV)
+          if (!_isLoading && _errorMessage == null && isTV)
             MaterialDesktopVideoControlsTheme(
               normal: MaterialDesktopVideoControlsThemeData(
                 visibleOnMount: true,
@@ -1116,38 +1097,36 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                 ],
               ),
               child: Video(
-                controller: _videoController!,
+                controller: _videoController,
                 fit: BoxFit.contain,
-                controls: MaterialDesktopVideoControls,
+                controls: AdaptiveVideoControls,
               ),
             )
-          else if (_videoController != null)
+          else
             Video(
-              controller: _videoController!,
+              controller: _videoController,
               fit: BoxFit.contain,
               controls: AdaptiveVideoControls,
-            )
-          else
-            Container(color: Colors.black),
+            ),
           // Skip Button Overlay (AniSkip) — permanece como Positioned
           // porque é um botão de ação rápida que aparece/desaparece
           // independente dos controls do player. Não precisa de foco
           // D-pad (acionado por enter/select via SkipButtonOverlay
           // ou tap em mobile).
-          Positioned(
-            bottom: isTV ? 40 : 80,
-            right: isTV ? 40 : 24,
-            child: SafeArea(
-              child: IgnorePointer(
-                ignoring: !showSkipButton,
-                child: SkipButton(
-                  onSkip: skipIntroOutro,
-                  label: skipButtonLabel,
-                  show: showSkipButton,
-                ),
-              ),
-            ),
-          ),
+          // Positioned(
+          //   bottom: isTV ? 40 : 80,
+          //   right: isTV ? 40 : 24,
+          //   child: SafeArea(
+          //     child: IgnorePointer(
+          //       ignoring: !showSkipButton,
+          //       child: SkipButton(
+          //         onSkip: skipIntroOutro,
+          //         label: skipButtonLabel,
+          //         show: showSkipButton,
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
