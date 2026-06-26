@@ -8,33 +8,35 @@ import 'package:media_kit/media_kit.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
+import '../../../l10n/app_localizations.dart';
 
-/// Overlay de controle customizado para o media_kit, estilo YouTube/VLC.
+/// Estados internos do player UI.
+enum _PlayerUIState { loading, playing, error }
+
+/// Overlay de controle customizado para o media_kit.
 ///
 /// Composição (top → bottom):
 /// ```
-/// ┌────────────────────────────────────────────┐
-/// │ [back]   [título do episódio]               │  ← top bar
-/// ├────────────────────────────────────────────┤
-/// │                                            │
-/// │   [⏮]   [⏪ 10s]   [⏯ play]   [10s ⏩]   [⏭]│  ← center controls
-/// │                                            │
-/// ├────────────────────────────────────────────┤
-/// │ [01:23]  [─────●──────────────]  [24:00]   │  ← bottom bar (seek)
-/// └────────────────────────────────────────────┘
+/// ┌─────────────────────────────────────────────────┐
+/// │ [back]   título do episódio        [⏭ próximo] │  ← top bar + next
+/// ├─────────────────────────────────────────────────┤
+/// │                                                 │
+/// │               [▶⏸  play/pause]                   │  ← center (só play)
+/// │                                                 │
+/// ├─────────────────────────────────────────────────┤
+/// │ [01:23]  ─────●───────────────  [24:00]   [Vol] │  ← bottom bar + seek
+/// └─────────────────────────────────────────────────┘
 /// ```
 ///
 /// Comportamento:
-/// - Auto-hide: 3s em mobile, 5s em TV (Netflix/YouTube TV padrão).
-/// - Re-mostra em qualquer tap/movimento de mouse/key dentro da área.
-/// - Tap em área vazia (não em botão) = toggle play/pause.
+/// - Auto-hide: 3s mobile, 5s TV.
+/// - Tap = toggle play/pause.
 /// - Foco D-pad completo: cada botão tem [FocusableWidget].
-/// - TV (D-pad): setas funcionam como seek/volume via [CallbackShortcuts].
-///
-/// Por que sem Provider: o estado do overlay (isVisible, isPlaying,
-/// position, duration) é puramente local ao widget. Não há razão para
-/// expor para fora — outro widget que precisasse ouvir (mini-player,
-/// watchlist) usa os streams nativos do `Player` diretamente.
+/// - Loading/error: gerenciado internamente via streams do Player.
+/// - Desktop (não-TV): space/enter/select fazem play/pause;
+///   setas up/down volume, J/L seek 10s.
+/// - TV/D-pad: left/right seek (se nada focado); select/enter
+///   ativa botão focado; setas navegam foco.
 class ModernVideoPlayerControls extends StatefulWidget {
   /// Instância do `Player` do media_kit. Obrigatório.
   final Player player;
@@ -45,16 +47,7 @@ class ModernVideoPlayerControls extends StatefulWidget {
   /// Callback do botão "voltar" (sai do player).
   final VoidCallback onBack;
 
-  /// Tem episódio anterior (mostra botão ⏮).
-  final bool hasPreviousEpisode;
-
-  /// Tem episódio seguinte (mostra botão ⏭).
-  final bool hasNextEpisode;
-
-  /// Callback para episódio anterior.
-  final VoidCallback? onPreviousEpisode;
-
-  /// Callback para próximo episódio.
+  /// Callback para próximo episódio. `null` = sem botão.
   final VoidCallback? onNextEpisode;
 
   /// Callback opcional para o botão "skip" (AniSkip intro/outro).
@@ -62,26 +55,26 @@ class ModernVideoPlayerControls extends StatefulWidget {
   final String? skipLabel;
   final VoidCallback? onSkip;
 
+  /// Callback para tentar novamente após erro.
+  final VoidCallback? onRetry;
+
+  /// Callback para fechar o player.
+  final VoidCallback? onClose;
+
   /// Auto-hide customizado (sobrescreve o padrão 3s/5s).
   final Duration? autoHideDuration;
-
-  /// AutoFocus no primeiro botão focado. Padrão: `false` para não roubar
-  /// o foco do D-pad antes do usuário agir.
-  final bool autoFocusFirst;
 
   const ModernVideoPlayerControls({
     super.key,
     required this.player,
     required this.title,
     required this.onBack,
-    this.hasPreviousEpisode = false,
-    this.hasNextEpisode = false,
-    this.onPreviousEpisode,
     this.onNextEpisode,
     this.skipLabel,
     this.onSkip,
+    this.onRetry,
+    this.onClose,
     this.autoHideDuration,
-    this.autoFocusFirst = false,
   });
 
   @override
@@ -106,6 +99,10 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   Duration _duration = Duration.zero;
   double _volume = 100.0;
 
+  // ─── UI state (loading/error/playing) ──────────────────────────
+  _PlayerUIState _uiState = _PlayerUIState.loading;
+  String? _errorMessage;
+
   // Quanto do vídeo já está em buffer (0..1). Vem de
   // `Player.stream.bufferingPercentage` (0..100 → divide por 100).
   // Usado pela _SeekBar para mostrar a faixa cinza-claro ANTES da
@@ -119,6 +116,8 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   StreamSubscription<double>? _volumeSub;
   StreamSubscription<bool>? _completedSub;
   StreamSubscription<double>? _bufferPctSub;
+  StreamSubscription<String>? _errorStreamSub;
+  StreamSubscription<bool>? _bufferingSub;
 
   // ─── Seek interaction ────────────────────────────────────────────
   bool _isSeeking = false;
@@ -169,7 +168,37 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     final p = widget.player;
     // playing
     _playingSub = p.stream.playing.listen((v) {
-      if (mounted) setState(() => _isPlaying = v);
+      if (mounted) {
+        setState(() {
+          _isPlaying = v;
+          if (v && _uiState == _PlayerUIState.loading) {
+            _uiState = _PlayerUIState.playing;
+          }
+        });
+      }
+    });
+    // error
+    // ignore: cancel_subscriptions
+    _errorStreamSub = p.stream.error.listen((error) {
+      if (mounted && error.isNotEmpty) {
+        debugPrint('[ModernVideoPlayerControls] Player error: $error');
+        setState(() {
+          _uiState = _PlayerUIState.error;
+          _errorMessage = error;
+        });
+      }
+    });
+    // buffering
+    _bufferingSub = p.stream.buffering.listen((buffering) {
+      if (mounted && _uiState != _PlayerUIState.error) {
+        // Só mostra loading se o player ainda não começou a tocar
+        // (útil para o loading inicial).
+        if (buffering && !_isPlaying && _position == Duration.zero) {
+          setState(() => _uiState = _PlayerUIState.loading);
+        } else if (!buffering && _uiState == _PlayerUIState.loading) {
+          setState(() => _uiState = _PlayerUIState.playing);
+        }
+      }
     });
     // position
     _positionSub = p.stream.position.listen((v) {
@@ -183,17 +212,13 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _volumeSub = p.stream.volume.listen((v) {
       if (mounted) setState(() => _volume = v);
     });
-    // completed → reseta posição (evita ficar parado no último frame)
+    // completed → reseta posição
     _completedSub = p.stream.completed.listen((v) {
       if (mounted && v) {
-        setState(() {
-          _isPlaying = false;
-        });
+        setState(() => _isPlaying = false);
       }
     });
-    // buffer percentage (0..100 do media_kit) → normalizado 0..1.
-    // Cobre o caso "seek pra frente além do buffer" — usuário vê
-    // o quanto já carregou antes de tentar pular.
+    // buffer percentage (0..100) → normalizado 0..1
     _bufferPctSub = p.stream.bufferingPercentage.listen((pct) {
       if (mounted) {
         setState(() => _bufferFraction = (pct / 100.0).clamp(0.0, 1.0));
@@ -213,6 +238,8 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _volumeSub?.cancel();
     _completedSub?.cancel();
     _bufferPctSub?.cancel();
+    _errorStreamSub?.cancel();
+    _bufferingSub?.cancel();
   }
 
   Future<void> _detectTVDevice() async {
@@ -276,21 +303,32 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _showAndScheduleAutoHide();
   }
 
-  void _goToPrevious() {
-    widget.onPreviousEpisode?.call();
-    _showAndScheduleAutoHide();
-  }
-
   void _goToNext() {
     widget.onNextEpisode?.call();
     _showAndScheduleAutoHide();
+  }
+
+  void _retry() {
+    setState(() {
+      _uiState = _PlayerUIState.loading;
+      _errorMessage = null;
+    });
+    widget.onRetry?.call();
+    _showAndScheduleAutoHide();
+  }
+
+  void _close() {
+    widget.onClose?.call();
   }
 
   // ─── Build ───────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final isTV = _isTVDevice;
+    // Determina qual overlay mostrar
+    final showLoading = _uiState == _PlayerUIState.loading;
+    final showError = _uiState == _PlayerUIState.error;
+    final showControls = !showLoading && !showError;
 
     return MouseRegion(
       onHover: (_) => _showAndScheduleAutoHide(),
@@ -298,9 +336,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         onKeyEvent: (node, event) {
           log('ModernVideoPlayerControls: onKeyEvent: $event');
           if (event is! KeyDownEvent) return KeyEventResult.ignored;
-          // Qualquer tecla: re-mostra o overlay. Retorna `ignored` para
-          // que o evento prossiga para handlers acima (video surface,
-          // sistema de navegação da TV para o botão Back físico).
           _showAndScheduleAutoHide();
           return KeyEventResult.ignored;
         },
@@ -309,24 +344,21 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
             // ─── Globais (todas as plataformas) ──────────────────────
             const SingleActivator(LogicalKeyboardKey.mediaPlayPause):
                 _togglePlay,
-            // N/P — navegação entre episódios (não conflita com D-pad)
-            if (widget.hasNextEpisode)
+            // Setas left/right → seek (fallback: consumido por
+            // FocusableWidget se um botão estiver focado)
+            const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+                _seekBy(const Duration(seconds: -5)),
+            const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+                _seekBy(const Duration(seconds: 5)),
+            // N → próximo episódio
+            if (widget.onNextEpisode != null)
               const SingleActivator(LogicalKeyboardKey.keyN): _goToNext,
-            if (widget.hasPreviousEpisode)
-              const SingleActivator(LogicalKeyboardKey.keyP): _goToPrevious,
-
-            if (!isTV) ...{
-              // ─── Desktop-only ─────────────────────────────────────
-              // Space/K/Select/Enter → play/pause
+            // Desktop-only (TV usa D-pad para navegação de foco)
+            if (!_isTVDevice) ...{
               const SingleActivator(LogicalKeyboardKey.space): _togglePlay,
               const SingleActivator(LogicalKeyboardKey.keyK): _togglePlay,
               const SingleActivator(LogicalKeyboardKey.select): _togglePlay,
               const SingleActivator(LogicalKeyboardKey.enter): _togglePlay,
-              // Setas → seek/volume (TV: setas navegam foco via FocusableWidget)
-              const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
-                  _seekBy(const Duration(seconds: -5)),
-              const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-                  _seekBy(const Duration(seconds: 5)),
               const SingleActivator(LogicalKeyboardKey.keyJ): () =>
                   _seekBy(const Duration(seconds: -10)),
               const SingleActivator(LogicalKeyboardKey.keyL): () =>
@@ -338,18 +370,31 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
             },
           },
           child: GestureDetector(
-            // Tap em área vazia (não em botão) = toggle play/pause.
             behavior: HitTestBehavior.opaque,
-            onTap: _togglePlay,
-            child: AnimatedBuilder(
-              animation: _fadeAnimation,
-              builder: (context, child) {
-                return IgnorePointer(
-                  ignoring: !_isVisible,
-                  child: Opacity(opacity: _fadeAnimation.value, child: child),
-                );
-              },
-              child: _buildLayout(),
+            onTap: showControls ? _togglePlay : null,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Camada 1: controles normais (sempre presente, fade)
+                if (showControls)
+                  AnimatedBuilder(
+                    animation: _fadeAnimation,
+                    builder: (context, child) {
+                      return IgnorePointer(
+                        ignoring: !_isVisible,
+                        child: Opacity(
+                          opacity: _fadeAnimation.value,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _buildLayout(),
+                  ),
+                // Camada 2: loading overlay
+                if (showLoading) _buildLoadingOverlay(),
+                // Camada 3: error overlay
+                if (showError) _buildErrorOverlay(),
+              ],
             ),
           ),
         ),
@@ -385,7 +430,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
               icon: Icons.arrow_back_rounded,
               tooltip: 'Voltar',
               onPressed: widget.onBack,
-              autoFocus: widget.autoFocusFirst,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -401,8 +445,15 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // Slot futuro: settings, subtitle picker, etc.
-            const SizedBox(width: 48),
+            if (widget.onNextEpisode != null) ...[
+              const SizedBox(width: 12),
+              _ControlButton(
+                icon: Icons.skip_next_rounded,
+                tooltip: 'Próximo episódio',
+                onPressed: _goToNext,
+                iconSize: 28,
+              ),
+            ],
           ],
         ),
       ),
@@ -410,40 +461,16 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   }
 
   Widget _buildCenterControls() {
-    // Importante: TODOS os botões aqui são interativos e precisam de
-    // FocusableWidget para que o D-pad alcance em TV (P4 da skill
-    // `flutter-tv-readiness`). Sem isso, replay-10/forward-10/play
-    // ficam invisíveis ao controle remoto.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (widget.hasPreviousEpisode)
-            _ControlButton(
-              icon: Icons.skip_previous_rounded,
-              tooltip: 'Episódio anterior',
-              onPressed: _goToPrevious,
-              iconSize: 36,
-            ),
-          _Replay10Button(
-            onPressed: () => _seekBy(const Duration(seconds: -10)),
-          ),
           _PlayPauseButton(
             isPlaying: _isPlaying,
             onPressed: _togglePlay,
             autoFocus: _isTVDevice,
           ),
-          _Forward10Button(
-            onPressed: () => _seekBy(const Duration(seconds: 10)),
-          ),
-          if (widget.hasNextEpisode)
-            _ControlButton(
-              icon: Icons.skip_next_rounded,
-              tooltip: 'Próximo episódio',
-              onPressed: _goToNext,
-              iconSize: 36,
-            ),
         ],
       ),
     );
@@ -527,6 +554,184 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     if (h > 0) return '$h:$m:$s';
     return '$m:$s';
   }
+
+  // ─── Loading overlay ───────────────────────────────────────────
+
+  Widget _buildLoadingOverlay() {
+    return SizedBox.expand(
+      child: Container(
+        color: Colors.black,
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: AppColors.getPrimaryGradient(),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryShadow,
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                AppLocalizations.of(context).loadingStream,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                AppLocalizations.of(context).preparingServer,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Error overlay ─────────────────────────────────────────────
+
+  Widget _buildErrorOverlay() {
+    final message = _errorMessage;
+    return SizedBox.expand(
+      child: Container(
+        color: Colors.black,
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A2E),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.red.withValues(alpha: 0.3),
+              ),
+            ),
+            child: FocusTraversalGroup(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.red.withValues(alpha: 0.2),
+                          Colors.red.withValues(alpha: 0.1),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 48,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    AppLocalizations.of(context).playerError,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    message ?? AppLocalizations.of(context).error,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      FocusableWidget(
+                        onSelect: _retry,
+                        autoFocus: _isTVDevice,
+                        borderRadius: 16,
+                        child: ElevatedButton.icon(
+                          onPressed: _retry,
+                          icon: const Icon(Icons.refresh),
+                          label: Text(
+                            AppLocalizations.of(context).retry,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      FocusableWidget(
+                        onSelect: _close,
+                        borderRadius: 16,
+                        child: ElevatedButton.icon(
+                          onPressed: _close,
+                          icon: const Icon(Icons.close),
+                          label: Text(
+                            AppLocalizations.of(context).close,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -540,21 +745,18 @@ class _ControlButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback? onPressed;
   final double iconSize;
-  final bool autoFocus;
 
   const _ControlButton({
     required this.icon,
     required this.tooltip,
     required this.onPressed,
     this.iconSize = 24,
-    this.autoFocus = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return FocusableWidget(
       onSelect: onPressed,
-      autoFocus: autoFocus,
       borderRadius: 24,
       focusPadding: const EdgeInsets.all(8),
       focusScale: 1.1,
@@ -570,72 +772,6 @@ class _ControlButton extends StatelessWidget {
               size: iconSize,
               color: Colors.white,
               shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Botão "voltar 10s" com FocusableWidget (P4 da skill TV-readiness).
-class _Replay10Button extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const _Replay10Button({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return FocusableWidget(
-      onSelect: onPressed,
-      borderRadius: 24,
-      focusPadding: const EdgeInsets.all(8),
-      focusScale: 1.1,
-      child: Tooltip(
-        message: 'Voltar 10 segundos',
-        child: InkResponse(
-          onTap: onPressed,
-          radius: 32,
-          child: const Padding(
-            padding: EdgeInsets.all(8),
-            child: Icon(
-              Icons.replay_10_rounded,
-              size: 36,
-              color: Colors.white,
-              shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Botão "avançar 10s" com FocusableWidget (P4 da skill TV-readiness).
-class _Forward10Button extends StatelessWidget {
-  final VoidCallback onPressed;
-
-  const _Forward10Button({required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return FocusableWidget(
-      onSelect: onPressed,
-      borderRadius: 24,
-      focusPadding: const EdgeInsets.all(8),
-      focusScale: 1.1,
-      child: Tooltip(
-        message: 'Avançar 10 segundos',
-        child: InkResponse(
-          onTap: onPressed,
-          radius: 32,
-          child: const Padding(
-            padding: EdgeInsets.all(8),
-            child: Icon(
-              Icons.forward_10_rounded,
-              size: 36,
-              color: Colors.white,
-              shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
             ),
           ),
         ),

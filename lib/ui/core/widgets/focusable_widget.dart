@@ -186,11 +186,12 @@ class _FocusableWidgetState extends State<FocusableWidget>
                   'for direction=${intent.direction}',
                 );
                 Actions.invoke(context, intent);
+                return true;
               }
               // Sem action customizada: usa o default do Flutter
               // (DirectionalFocusAction) via Actions.maybeFind.
               final parentCtx = _parentOfActionsContext;
-              if (parentCtx == null) return null;
+              if (parentCtx == null) return true;
               final ancestor = Actions.maybeFind<DirectionalFocusIntent>(
                 parentCtx,
                 intent: intent,
@@ -198,7 +199,11 @@ class _FocusableWidgetState extends State<FocusableWidget>
               if (ancestor != null) {
                 return Actions.invoke(context, intent);
               }
-              return null;
+              // Default: o Flutter já moveu o foco via focus traversal.
+              // Retorna true para consumir o evento e impedir que ele
+              // vaze para CallbackShortcuts (seek/volume) quando o
+              // botão está focado (P4 TV-readiness).
+              return true;
             },
           ),
         },
