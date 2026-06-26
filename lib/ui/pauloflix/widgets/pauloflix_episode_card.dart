@@ -100,8 +100,6 @@ class PauloflixEpisodeCard extends StatelessWidget {
     this.positionSeconds,
     this.durationSeconds,
     this.isCompleted = false,
-    // Schema V2扩e (Fase N+7): 5 campos NFO扩idos. Todos
-    // default `null` (NFOs antigos não têm).
     this.originalTitle,
     this.outline,
     this.aired,
@@ -145,9 +143,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             clipBehavior: Clip.antiAlias,
             child: Row(
@@ -282,8 +278,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
     // manual), então usamos um try/catch como fallback defensivo.
     // Em produção (app rodando) o `of` sempre retorna não-null —
     // o fallback é o caminho de teste, não o caminho comum.
-    final runtimeLabel =
-        () {
+    final runtimeLabel = () {
       try {
         return AppLocalizations.of(context).runtimeMinutesLabel;
       } catch (_) {
@@ -299,7 +294,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
           children: [
             // Título do episódio
             Text(
-              episode.title,
+              originalTitle ?? episode.title,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: isTV ? 16 : 14,
@@ -313,22 +308,21 @@ class PauloflixEpisodeCard extends StatelessWidget {
             // subtítulo discreto, só aparece se != title (evita
             // duplicação visual para NFOs PT-BR que têm o mesmo
             // texto em title e originalTitle).
-            if (originalTitle != null &&
-                originalTitle!.isNotEmpty &&
-                originalTitle != episode.title) ...[
-              const SizedBox(height: 2),
-              Text(
-                originalTitle!,
-                style: TextStyle(
-                  color: Colors.white60,
-                  fontSize: isTV ? 13 : 11,
-                  fontStyle: FontStyle.italic,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-
+            // if (originalTitle != null &&
+            //     originalTitle!.isNotEmpty &&
+            //     originalTitle != episode.title) ...[
+            //   const SizedBox(height: 2),
+            //   Text(
+            //     originalTitle!,
+            //     style: TextStyle(
+            //       color: Colors.white60,
+            //       fontSize: isTV ? 13 : 11,
+            //       fontStyle: FontStyle.italic,
+            //     ),
+            //     maxLines: 1,
+            //     overflow: TextOverflow.ellipsis,
+            //   ),
+            // ],
             const SizedBox(height: 4),
 
             // Metadados
@@ -360,11 +354,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
 
                 // **Fase N+7 — rating扩e:** ícone estrela + nota.
                 if (rating != null) ...[
-                  const Icon(
-                    Icons.star,
-                    color: Color(0xFFFBBF24),
-                    size: 12,
-                  ),
+                  const Icon(Icons.star, color: Color(0xFFFBBF24), size: 12),
                   const SizedBox(width: 2),
                   Text(
                     rating!.toStringAsFixed(1),
@@ -386,10 +376,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
                   const SizedBox(width: 2),
                   Text(
                     '$runtime $runtimeLabel',
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 11,
-                    ),
+                    style: const TextStyle(color: Colors.white60, fontSize: 11),
                   ),
                 ],
 
@@ -403,10 +390,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
                   const SizedBox(width: 2),
                   Text(
                     _formatAiredDate(aired!, context),
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 11,
-                    ),
+                    style: const TextStyle(color: Colors.white60, fontSize: 11),
                   ),
                 ],
 
@@ -420,10 +404,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
                   const SizedBox(width: 2),
                   Text(
                     '${episode.fileSize}MB',
-                    style: const TextStyle(
-                      color: Colors.white38,
-                      fontSize: 11,
-                    ),
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
                   ),
                 ],
               ],
@@ -452,10 +433,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
             if (_showProgressBar || _showCompletedIcon) ...[
               const SizedBox(height: 6),
               if (_showProgressBar)
-                _ProgressBar(
-                  ratio: _progressRatio,
-                  isTV: isTV,
-                )
+                _ProgressBar(ratio: _progressRatio, isTV: isTV)
               else
                 _CompletedIndicator(isTV: isTV),
             ],
@@ -480,12 +458,32 @@ class PauloflixEpisodeCard extends StatelessWidget {
   /// forem necessárias.
   String _formatAiredDate(DateTime date, BuildContext context) {
     const ptMonths = [
-      'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
-      'jul', 'ago', 'set', 'out', 'nov', 'dez',
+      'jan',
+      'fev',
+      'mar',
+      'abr',
+      'mai',
+      'jun',
+      'jul',
+      'ago',
+      'set',
+      'out',
+      'nov',
+      'dez',
     ];
     const enMonths = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final isPt = Localizations.localeOf(context).languageCode == 'pt';
     final monthAbbr = isPt ? ptMonths : enMonths;
