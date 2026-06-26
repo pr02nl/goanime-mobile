@@ -8,8 +8,6 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/constants/api_constants.dart';
-import '../../../data/services/anime_service.dart';
 import '../../../data/services/auth/authenticated_http_client.dart';
 import '../../../data/services/auth/jwt_token_manager.dart';
 import '../../../data/services/episode_progress_service.dart';
@@ -238,27 +236,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       ]);
     }
   }
-
-  /// Configura listener para detectar mudanças no sistema UI (fullscreen exit)
-  // void _setupFullscreenListener() {
-  //   SystemChrome.setSystemUIChangeCallback((systemOverlaysAreVisible) async {
-  //     // systemOverlaysAreVisible = true quando saiu do fullscreen
-  //     if (systemOverlaysAreVisible && _isFullscreen) {
-  //       setState(() {
-  //         _isFullscreen = false;
-  //       });
-
-  //       if (_isTVDevice == true) {
-  //         // Na TV: fechar o player quando sair do fullscreen
-  //         debugPrint('[VideoPlayer] TV: Fechando player ao sair do fullscreen');
-  //         if (mounted && Navigator.canPop(context)) {
-  //           Navigator.pop(context);
-  //         }
-  //       }
-  //       // No smartphone: apenas sai do fullscreen sem fechar (comportamento padrão)
-  //     }
-  //   });
-  // }
 
   @override
   void didUpdateWidget(covariant ModernVideoPlayerScreen oldWidget) {
@@ -529,57 +506,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       }
 
       String resolvedVideoUrl;
-      Map<String, String> controllerHeaders = {};
 
       // Verificar se é PauloFlix (URL direta do arquivo MKV)
-      if (widget.anime?.source == AnimeSource.pauloFlix) {
-        debugPrint('[VideoPlayer] PauloFlix: Using direct URL');
-        resolvedVideoUrl = _currentEpisode.url;
-      } else {
-        // AnimeFire: extrair URL do vídeo
-        debugPrint('[VideoPlayer] Getting AnimeFire episode URL');
-        final videoSrc = await AnimeService.extractVideoURL(
-          _currentEpisode.url,
-        );
+      debugPrint('[VideoPlayer] PauloFlix: Using direct URL');
+      resolvedVideoUrl = _currentEpisode.url;
 
-        if (!isActiveEpisode(episodeKey)) {
-          debugPrint(
-            '[VideoPlayer] AnimeFire fetch ignored (episode changed).',
-          );
-          return;
-        }
-
-        if (videoSrc.isEmpty) {
-          throw Exception('Video URL not found on page');
-        }
-
-        final actualVideo = await AnimeService.extractActualVideoURL(videoSrc);
-        if (actualVideo.url.isEmpty) {
-          throw Exception('Video URL could not be extracted from API');
-        }
-
-        if (!isActiveEpisode(episodeKey)) {
-          debugPrint(
-            '[VideoPlayer] Actual video extraction ignored (episode changed).',
-          );
-          return;
-        }
-
-        resolvedVideoUrl = actualVideo.url;
-        final playbackHeaders = <String, String>{
-          HttpHeaders.userAgentHeader:
-              'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36',
-          HttpHeaders.refererHeader: '${ApiConstants.animeFireBaseUrl}/',
-        };
-
-        if (actualVideo.hasHeaders) {
-          playbackHeaders.addAll(actualVideo.headers);
-        }
-
-        controllerHeaders = Map<String, String>.from(playbackHeaders);
-      }
-
-      _currentVideoHeaders = controllerHeaders;
       debugPrint('Using playback headers: $_currentVideoHeaders');
 
       // Resolve TV detection before creating VideoController
@@ -591,17 +522,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       final isTV = _isTVDevice == true;
 
       _player = Player(
-        configuration: const PlayerConfiguration(
-          protocolWhitelist: [
-            'file',
-            'tcp',
-            'tls',
-            'http',
-            'https',
-            'crypto',
-            'data',
-          ],
-        ),
+        configuration: const PlayerConfiguration(logLevel: MPVLogLevel.info),
       );
       _videoController = VideoController(
         _player!,
@@ -677,7 +598,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       };
 
       // Merge: controller headers take priority over defaults
-      final mergedHeaders = {...defaultHeaders, ...controllerHeaders};
+      final mergedHeaders = {...defaultHeaders};
 
       // ═══════════════════════════════════════════════════════════════════════
       // Migração Tailscale → HTTPS+token: se a URL for do PauloFlix, injeta
@@ -906,35 +827,41 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           Wrap(
             spacing: 12,
             children: [
-              ElevatedButton.icon(
-                onPressed: _initializeVideoPlayer,
-                icon: const Icon(Icons.refresh),
-                label: Text(AppLocalizations.of(context).retry),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              FocusableWidget(
+                onSelect: _initializeVideoPlayer,
+                child: ElevatedButton.icon(
+                  onPressed: _initializeVideoPlayer,
+                  icon: const Icon(Icons.refresh),
+                  label: Text(AppLocalizations.of(context).retry),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-                label: Text(AppLocalizations.of(context).close),
-                style: ElevatedButton.styleFrom(
-                  // backgroundColor: Colors.orange,
-                  // foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              FocusableWidget(
+                onSelect: () => Navigator.pop(context),
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                  label: Text(AppLocalizations.of(context).close),
+                  style: ElevatedButton.styleFrom(
+                    // backgroundColor: Colors.orange,
+                    // foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -1215,72 +1142,74 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   }
 
   Widget _buildLoadingState() {
-    final inner = Container(
-      color: Colors.black,
-      padding: const EdgeInsets.all(24),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: AppColors.getPrimaryGradient(),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryShadow,
-                    blurRadius: 20,
-                    spreadRadius: 5,
+    return SizedBox.expand(
+      child: Container(
+        color: Colors.black,
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: AppColors.getPrimaryGradient(),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryShadow,
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
                   ),
-                ],
-              ),
-              child: const SizedBox(
-                width: 32,
-                height: 32,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 3,
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              AppLocalizations.of(context).loadingStream,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              const SizedBox(height: 16),
+              Text(
+                AppLocalizations.of(context).loadingStream,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              AppLocalizations.of(context).preparingServer,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 12,
+              const SizedBox(height: 4),
+              Text(
+                AppLocalizations.of(context).preparingServer,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
-    return SizedBox.expand(child: inner);
   }
 
   Widget _buildErrorState() {
-    final inner = Container(
-      color: Colors.black,
-      padding: const EdgeInsets.all(24),
-      child: Center(
-        child: _buildErrorWidget(
-          _errorMessage ?? AppLocalizations.of(context).error,
+    return SizedBox.expand(
+      child: Container(
+        color: Colors.black,
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: _buildErrorWidget(
+            _errorMessage ?? AppLocalizations.of(context).error,
+          ),
         ),
       ),
     );
-    return SizedBox.expand(child: inner);
   }
 }
