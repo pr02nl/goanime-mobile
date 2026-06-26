@@ -3,14 +3,15 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/services/anime_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../routing/route_data.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/logo_widget.dart';
-import 'video_player_screen.dart';
 
 class EpisodeListScreen extends StatefulWidget {
   final Anime anime;
@@ -521,27 +522,42 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
     // Mantido como Navigator.push com PageRouteBuilder custom:
     // a transição de slide horizontal é intencional aqui (diferente da
     // transição padrão do GoRouter) e define a UX do player legacy.
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            ModernVideoPlayerScreen(
-              episode: episode,
-              animeTitle: widget.anime.name,
-              anime: widget.anime,
-              episodeList: _episodes,
-              episodeIndex: index >= 0 ? index : null,
-            ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: animation.drive(
-              Tween(begin: const Offset(1.0, 0.0), end: Offset.zero),
-            ),
-            child: child,
-          );
-        },
+    context.pushNamed(
+      'player',
+      extra: PlayerRouteData(
+        episode: episode,
+        animeTitle: widget.anime.name,
+        anime: widget.anime,
+        isMovie: false,
+        episodeList: _episodes,
+        episodeIndex: index,
+        // contentId: widget.content.id,
+        // seasonId: widget.seasonId,
+        // episodeNumber: widget.records[index].episodeNumber.toString(),
       ),
     );
+
+    // Navigator.push(
+    //   context,
+    //   PageRouteBuilder(
+    //     pageBuilder: (context, animation, secondaryAnimation) =>
+    //         ModernVideoPlayerScreen(
+    //           episode: episode,
+    //           animeTitle: widget.anime.name,
+    //           anime: widget.anime,
+    //           episodeList: _episodes,
+    //           episodeIndex: index >= 0 ? index : null,
+    //         ),
+    //     transitionsBuilder: (context, animation, secondaryAnimation, child) {
+    //       return SlideTransition(
+    //         position: animation.drive(
+    //           Tween(begin: const Offset(1.0, 0.0), end: Offset.zero),
+    //         ),
+    //         child: child,
+    //       );
+    //     },
+    //   ),
+    // );
   }
 }
 

@@ -230,7 +230,7 @@ class _HeroBanner extends StatelessWidget {
         Episode(
           number: scrapings[i].number.toString(),
           url: scrapings[i].url,
-          title: records[i].title,
+          title: records[i].originalTitle ?? records[i].title,
           thumbnailUrl: scrapings[i].thumbnailUrl,
         ),
     ];
