@@ -88,6 +88,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// salvo.
   PauloFlixEpisodeProgressRepository? _progressRepo;
 
+  JwtTokenManager? _jwtTokenManager;
+
   int? _savedPositionSeconds;
   int? _savedDurationSeconds;
   bool _savedIsCompleted = false;
@@ -173,6 +175,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     _progressRepo = widget.seasonId != null && widget.episodeNumber != null
         ? context.read<PauloFlixEpisodeProgressRepository?>()
         : null;
+    _jwtTokenManager = context.read<JwtTokenManager?>();
     _initializeVideoPlayer();
     _detectDeviceAndEnterFullscreen();
     _installHardwareKeyboardHandler();
@@ -610,7 +613,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // ═══════════════════════════════════════════════════════════════════════
       if (kPauloFlixHostPattern.hasMatch(uri.host)) {
         try {
-          final token = await context.read<JwtTokenManager>().getValidToken();
+          final token = await _jwtTokenManager?.getValidToken() ?? '';
           mergedHeaders['Authorization'] = 'Bearer $token';
           debugPrint(
             '[VideoPlayer] ✓ JWT injetado no header do player (PauloFlix)',
