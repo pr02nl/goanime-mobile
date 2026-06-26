@@ -67,6 +67,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   bool? _isTVDevice;
 
+  // Future de detecção de TV disparado em initState. `_initializeVideoPlayer`
+  // aguarda este future ANTES de criar o Player, eliminando a race onde a
+  // orientação era aplicada depois do `Media.open` ou a checagem de HW
+  // accel via `_isTVDevice` ficava `null` entre a chamada duplicada
+  // (`_detectDeviceAndEnterFullscreen` + chamada em `_initializeVideoPlayer`).
+  Future<bool>? _tvDetectionFuture;
+
   // Overlay controls auto-hide
   bool _showOverlayControls = true;
   Timer? _overlayControlsTimer;
@@ -200,12 +207,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   bool _onHardwareKey(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
 
-    // Esc: sai do fullscreen limpando estado local. O
-    // MaterialDesktopVideoControls já trata Esc internamente (chama
-    // exitFullscreen do package), mas NÃO atualiza nosso `_isFullscreen`
-    // nem limpa SystemUiMode no desktop. Fazemos aqui.
+    // Esc: volta para a tela anterior (mesmo comportamento do botão back
+    // do app). Não fecha o app em TV — convenção Netflix/YouTube TV:
+    // back do controle volta para a home do app, não pro launcher.
+    // Se não houver rota pai, _exitPlayer decide o fallback.
     if (event.logicalKey == LogicalKeyboardKey.escape) {
-      return true; // consome o evento
+      _exitPlayer();
+      return true; // consumido: não propaga para MaterialDesktopVideoControls
     }
 
     // Qualquer outra tecla: re-mostra overlay.
@@ -220,24 +228,35 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   }
 
   /// Detecta o tipo de dispositivo e configura comportamentos específicos (TV, etc.)
-  void _detectDeviceAndEnterFullscreen() async {
+  ///
+  /// Dispara o future `_tvDetectionFuture` para que `_initializeVideoPlayer`
+  /// possa aguardar o resultado antes de criar o Player. Isso elimina a race
+  /// onde a checagem `_isTVDevice == true` chegava tarde e o HW accel era
+  /// configurado com base em `null`.
+  void _detectDeviceAndEnterFullscreen() {
     if (!mounted) return;
-
     if (!Platform.isAndroid) {
+      _isTVDevice = false;
+      _tvDetectionFuture = Future.value(false);
       return;
     }
+    _tvDetectionFuture = _resolveIsTV();
+  }
 
-    // Detectar se é TV
-    _isTVDevice = await TVDetector.isTV;
-    if (!mounted) return;
-
-    if (_isTVDevice == true) {
-      // TV: fullscreen + landscape only
-      SystemChrome.setPreferredOrientations([
+  Future<bool> _resolveIsTV() async {
+    final isTV = await TVDetector.isTV;
+    if (!mounted) return false;
+    _isTVDevice = isTV;
+    if (isTV) {
+      // TV: fullscreen + landscape only. Aplicar AGORA (não em
+      // _initializeVideoPlayer) garante que a orientação já está
+      // travada antes de o Media.open rodar.
+      await SystemChrome.setPreferredOrientations(const [
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ]);
     }
+    return isTV;
   }
 
   @override
@@ -501,6 +520,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     // para já ter a decisão de reset/seek pronta quando o Media abrir.
     await _loadSavedProgress();
 
+    // Aguarda detecção de TV iniciada em initState. Garante que
+    // `_isTVDevice` está populado antes de criar o Player (HW accel,
+    // controles, orientation já aplicados).
+    final tvFuture = _tvDetectionFuture;
+    if (tvFuture != null) {
+      await tvFuture;
+    }
+
     try {
       await _cleanupControllers();
       if (!isActiveEpisode(episodeKey)) {
@@ -516,12 +543,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       debugPrint('Using playback headers: $_currentVideoHeaders');
 
-      // Resolve TV detection before creating VideoController
-      // to apply correct hardware acceleration setting.
-      // IMPORTANTE: Nao desabilitar HW accel na TV — causa tela preta.
-      if (_isTVDevice == null && Platform.isAndroid) {
-        _isTVDevice = await TVDetector.isTV;
-      }
+      // `_isTVDevice` já está populado pelo `await tvFuture` acima.
       final isTV = _isTVDevice == true;
 
       _player = Player(
@@ -850,9 +872,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                 ),
               ),
               FocusableWidget(
-                onSelect: () => Navigator.pop(context),
+                onSelect: _exitPlayer,
                 child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _exitPlayer,
                   icon: const Icon(Icons.close),
                   label: Text(AppLocalizations.of(context).close),
                   style: ElevatedButton.styleFrom(
@@ -931,6 +953,21 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         });
       }
     });
+  }
+
+  /// Sai do player voltando para a tela anterior (home/detail/lista de
+  /// episódios). Comportamento de mercado Netflix/YouTube TV: o back do
+  /// controle remoto **não fecha o app** — volta para a home do app, onde
+  /// o usuário pode escolher outro anime ou "sair" via Home do launcher.
+  ///
+  /// Se o player foi aberto como rota raiz (sem pai no Navigator), cai
+  /// para `SystemNavigator.pop()` na TV (fecha app). Em mobile isso é
+  /// improvável porque o player sempre é empilhado sobre uma rota.
+  void _exitPlayer() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return;
+    }
   }
 
   @override
@@ -1085,9 +1122,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                       child: Row(
                         children: [
                           FocusableWidget(
-                            onSelect: () {
-                              Navigator.pop(context);
-                            },
+                            onSelect: _exitPlayer,
                             borderRadius: 24,
                             focusPadding: EdgeInsets.zero,
                             focusScale: 1.05,
