@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -16,11 +15,9 @@ import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_episode_record.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../core/themes/app_colors.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/utils/tv_detector.dart';
-import '../../core/widgets/focusable_widget.dart';
-import 'video_player_episode_buttons.dart';
+import 'modern_video_player_controls.dart';
 
 class ModernVideoPlayerScreen extends StatefulWidget {
   final Episode episode;
@@ -70,7 +67,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   String? _errorMessage;
   Map<String, String>? _currentVideoHeaders;
 
-  bool? _isTVDevice;
+  // bool? _isTVDevice;
 
   // Future de detecção de TV disparado em initState. `_initializeVideoPlayer`
   // aguarda este future ANTES de criar o Player, eliminando a race onde a
@@ -235,7 +232,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   void _detectDeviceAndEnterFullscreen() {
     if (!mounted) return;
     if (!Platform.isAndroid) {
-      _isTVDevice = false;
+      // _isTVDevice = false;
       _tvDetectionFuture = Future.value(false);
       return;
     }
@@ -245,7 +242,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   Future<bool> _resolveIsTV() async {
     final isTV = await TVDetector.isTV;
     if (!mounted) return false;
-    _isTVDevice = isTV;
+    // _isTVDevice = isTV;
     if (isTV) {
       // TV: fullscreen + landscape only. Aplicar AGORA (não em
       // _initializeVideoPlayer) garante que a orientação já está
@@ -779,98 +776,98 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     _currentVideoHeaders = null;
   }
 
-  Widget _buildErrorWidget(String message) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.red.withValues(alpha: 0.2),
-                  Colors.red.withValues(alpha: 0.1),
-                ],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.error_outline, color: Colors.red, size: 48),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            AppLocalizations.of(context).playerError,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 12,
-            children: [
-              FocusableWidget(
-                onSelect: _initializeVideoPlayer,
-                child: ElevatedButton.icon(
-                  onPressed: _initializeVideoPlayer,
-                  icon: const Icon(Icons.refresh),
-                  label: Text(AppLocalizations.of(context).retry),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              FocusableWidget(
-                onSelect: _exitPlayer,
-                child: ElevatedButton.icon(
-                  onPressed: _exitPlayer,
-                  icon: const Icon(Icons.close),
-                  label: Text(AppLocalizations.of(context).close),
-                  style: ElevatedButton.styleFrom(
-                    // backgroundColor: Colors.orange,
-                    // foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildErrorWidget(String message) {
+  //   return Container(
+  //     padding: const EdgeInsets.all(24),
+  //     margin: const EdgeInsets.all(16),
+  //     decoration: BoxDecoration(
+  //       color: const Color(0xFF1A1A2E),
+  //       borderRadius: BorderRadius.circular(20),
+  //       border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+  //     ),
+  //     child: Column(
+  //       mainAxisAlignment: MainAxisAlignment.center,
+  //       mainAxisSize: MainAxisSize.min,
+  //       children: [
+  //         Container(
+  //           padding: const EdgeInsets.all(16),
+  //           decoration: BoxDecoration(
+  //             gradient: LinearGradient(
+  //               colors: [
+  //                 Colors.red.withValues(alpha: 0.2),
+  //                 Colors.red.withValues(alpha: 0.1),
+  //               ],
+  //             ),
+  //             shape: BoxShape.circle,
+  //           ),
+  //           child: const Icon(Icons.error_outline, color: Colors.red, size: 48),
+  //         ),
+  //         const SizedBox(height: 20),
+  //         Text(
+  //           AppLocalizations.of(context).playerError,
+  //           style: const TextStyle(
+  //             color: Colors.white,
+  //             fontSize: 20,
+  //             fontWeight: FontWeight.bold,
+  //           ),
+  //         ),
+  //         const SizedBox(height: 12),
+  //         Text(
+  //           message,
+  //           textAlign: TextAlign.center,
+  //           style: TextStyle(
+  //             color: Colors.white.withValues(alpha: 0.7),
+  //             fontSize: 14,
+  //           ),
+  //         ),
+  //         const SizedBox(height: 24),
+  //         Wrap(
+  //           spacing: 12,
+  //           children: [
+  //             FocusableWidget(
+  //               onSelect: _initializeVideoPlayer,
+  //               child: ElevatedButton.icon(
+  //                 onPressed: _initializeVideoPlayer,
+  //                 icon: const Icon(Icons.refresh),
+  //                 label: Text(AppLocalizations.of(context).retry),
+  //                 style: ElevatedButton.styleFrom(
+  //                   backgroundColor: Colors.orange,
+  //                   foregroundColor: Colors.white,
+  //                   padding: const EdgeInsets.symmetric(
+  //                     horizontal: 24,
+  //                     vertical: 12,
+  //                   ),
+  //                   shape: RoundedRectangleBorder(
+  //                     borderRadius: BorderRadius.circular(12),
+  //                   ),
+  //                 ),
+  //               ),
+  //             ),
+  //             FocusableWidget(
+  //               onSelect: _exitPlayer,
+  //               child: ElevatedButton.icon(
+  //                 onPressed: _exitPlayer,
+  //                 icon: const Icon(Icons.close),
+  //                 label: Text(AppLocalizations.of(context).close),
+  //                 style: ElevatedButton.styleFrom(
+  //                   // backgroundColor: Colors.orange,
+  //                   // foregroundColor: Colors.white,
+  //                   padding: const EdgeInsets.symmetric(
+  //                     horizontal: 24,
+  //                     vertical: 12,
+  //                   ),
+  //                   shape: RoundedRectangleBorder(
+  //                     borderRadius: BorderRadius.circular(12),
+  //                   ),
+  //                 ),
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   @override
   void dispose() {
@@ -895,15 +892,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     _tracksSub?.cancel();
 
     // Cleanup assíncrono em background (não pode await no dispose)
-    _deferredCleanup();
+    _player.dispose();
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations([]);
     super.dispose(); // Mixin cancela positionTimer, skipButtonAutoHideTimer
-  }
-
-  Future<void> _deferredCleanup() async {
-    await _player.dispose();
   }
 
   /// Sai do player voltando para a tela anterior (home/detail/lista de
@@ -924,16 +917,30 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // backgroundColor: Colors.black,
-      // extendBody: true,
-      // extendBodyBehindAppBar: true,
-      // O Video widget DEVE estar sempre na árvore para que o
-      // AndroidVideoController crie a Surface antes de player.open().
-      // Estados de loading/erro são sobrepostos via Stack.
       body: Video(
         controller: _videoController,
-        // Select [MaterialVideoControls].
-        controls: MaterialVideoControls,
+        // controls: MaterialVideoControls,
+        controls: (state) {
+          return ModernVideoPlayerControls(
+            player: state.widget.controller.player,
+            title: _displayLabel,
+            onBack: _exitPlayer,
+          );
+          // return Center(
+          //   child: IconButton(
+          //     onPressed: () {
+          //       state.widget.controller.player.playOrPause();
+          //     },
+          //     icon: StreamBuilder(
+          //       stream: state.widget.controller.player.stream.playing,
+          //       builder: (context, playing) =>
+          //           Icon(playing.data == true ? Icons.pause : Icons.play_arrow),
+          //     ),
+          //     // It's not necessary to use [StreamBuilder] or to use [Player] & [VideoController] from [state].
+          //     // [StreamSubscription]s can be made inside [initState] of this widget.
+          //   ),
+          // );
+        },
       ),
       // body: Stack(
       //   fit: StackFit.expand,
@@ -949,258 +956,258 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     );
   }
 
-  Widget _buildFullscreenContent() {
-    final isTV = _isTVDevice == true;
-    final hasEpisodes = !widget.isMovie && widget.episodeList != null;
+  // Widget _buildFullscreenContent() {
+  //   final isTV = _isTVDevice == true;
+  //   final hasEpisodes = !widget.isMovie && widget.episodeList != null;
 
-    log(
-      '[VideoPlayer] Building fullscreen content (isTV: $isTV, hasEpisodes: $hasEpisodes)',
-    );
+  //   log(
+  //     '[VideoPlayer] Building fullscreen content (isTV: $isTV, hasEpisodes: $hasEpisodes)',
+  //   );
 
-    // Atalhos de teclado customizados para TV (D-pad)
-    // O MaterialDesktopVideoControls NÃO trata select/enter por padrão.
-    final tvKeyboardShortcuts = <ShortcutActivator, VoidCallback>{
-      // Select/Enter → play/pause (botão do meio do D-pad)
-      const SingleActivator(LogicalKeyboardKey.select): () {
-        _player.playOrPause();
-      },
-      const SingleActivator(LogicalKeyboardKey.enter): () {
-        _player.playOrPause();
-      },
-      // Space → play/pause (já existe no padrão, mas reforçamos)
-      const SingleActivator(LogicalKeyboardKey.space): () {
-        _player.playOrPause();
-      },
-      // N/P → próximo/anterior episódio
-      if (hasEpisodes && _hasNextEpisode)
-        const SingleActivator(LogicalKeyboardKey.keyN): _goToNextEpisode,
-      if (hasEpisodes && _hasPreviousEpisode)
-        const SingleActivator(LogicalKeyboardKey.keyP): _goToPreviousEpisode,
-      // Media keys
-      const SingleActivator(LogicalKeyboardKey.mediaPlayPause): () {
-        _player.playOrPause();
-      },
-    };
+  //   // Atalhos de teclado customizados para TV (D-pad)
+  //   // O MaterialDesktopVideoControls NÃO trata select/enter por padrão.
+  //   final tvKeyboardShortcuts = <ShortcutActivator, VoidCallback>{
+  //     // Select/Enter → play/pause (botão do meio do D-pad)
+  //     const SingleActivator(LogicalKeyboardKey.select): () {
+  //       _player.playOrPause();
+  //     },
+  //     const SingleActivator(LogicalKeyboardKey.enter): () {
+  //       _player.playOrPause();
+  //     },
+  //     // Space → play/pause (já existe no padrão, mas reforçamos)
+  //     const SingleActivator(LogicalKeyboardKey.space): () {
+  //       _player.playOrPause();
+  //     },
+  //     // N/P → próximo/anterior episódio
+  //     if (hasEpisodes && _hasNextEpisode)
+  //       const SingleActivator(LogicalKeyboardKey.keyN): _goToNextEpisode,
+  //     if (hasEpisodes && _hasPreviousEpisode)
+  //       const SingleActivator(LogicalKeyboardKey.keyP): _goToPreviousEpisode,
+  //     // Media keys
+  //     const SingleActivator(LogicalKeyboardKey.mediaPlayPause): () {
+  //       _player.playOrPause();
+  //     },
+  //   };
 
-    return SizedBox.expand(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Vídeo com MaterialDesktopVideoControls (TV).
-          // Esconde os controls durante loading/erro — o `Focus(autofocus:true)`
-          // interno do MaterialDesktopVideoControls sequestra o D-pad e
-          // impede os botões de erro (retry/close) e o back overlay de
-          // receberem foco. Em loading/erro renderizamos só um Container
-          // preto, e o foco D-pad cai para o _buildErrorState/
-          // _buildLoadingState posicionados acima.
-          if (!_isLoading && _errorMessage == null && isTV)
-            MaterialDesktopVideoControlsTheme(
-              normal: MaterialDesktopVideoControlsThemeData(
-                visibleOnMount: true,
-                playAndPauseOnTap: true,
-                keyboardShortcuts: tvKeyboardShortcuts,
-                // Botão back + título entram no topButtonBar para ficarem
-                // DENTRO do `Focus` interno do player — assim o D-pad
-                // consegue alcançá-los.
-                topButtonBar: [
-                  FocusableWidget(
-                    onSelect: _exitPlayer,
-                    borderRadius: 24,
-                    focusPadding: EdgeInsets.zero,
-                    focusScale: 1.05,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Text(
-                      _displayLabel,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-                bottomButtonBar: [
-                  if (hasEpisodes && _hasPreviousEpisode)
-                    EpisodeSkipPreviousButton(onPressed: _goToPreviousEpisode),
-                  const MaterialDesktopPlayOrPauseButton(),
-                  if (hasEpisodes && _hasNextEpisode)
-                    EpisodeSkipNextButton(onPressed: _goToNextEpisode),
-                  const MaterialDesktopVolumeButton(),
-                  const MaterialDesktopPositionIndicator(),
-                  const Spacer(),
-                  const MaterialDesktopFullscreenButton(),
-                ],
-              ),
-              fullscreen: MaterialDesktopVideoControlsThemeData(
-                visibleOnMount: true,
-                playAndPauseOnTap: true,
-                keyboardShortcuts: tvKeyboardShortcuts,
-                topButtonBar: [
-                  FocusableWidget(
-                    onSelect: _exitPlayer,
-                    borderRadius: 24,
-                    focusPadding: EdgeInsets.zero,
-                    focusScale: 1.05,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.arrow_back,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Text(
-                      _displayLabel,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-                bottomButtonBar: [
-                  if (hasEpisodes && _hasPreviousEpisode)
-                    EpisodeSkipPreviousButton(onPressed: _goToPreviousEpisode),
-                  const MaterialDesktopPlayOrPauseButton(),
-                  if (hasEpisodes && _hasNextEpisode)
-                    EpisodeSkipNextButton(onPressed: _goToNextEpisode),
-                  const MaterialDesktopVolumeButton(),
-                  const MaterialDesktopPositionIndicator(),
-                  const Spacer(),
-                  const MaterialDesktopFullscreenButton(),
-                ],
-              ),
-              child: Video(
-                controller: _videoController,
-                fit: BoxFit.contain,
-                controls: AdaptiveVideoControls,
-              ),
-            )
-          else
-            Video(
-              controller: _videoController,
-              fit: BoxFit.contain,
-              controls: AdaptiveVideoControls,
-            ),
-          // Skip Button Overlay (AniSkip) — permanece como Positioned
-          // porque é um botão de ação rápida que aparece/desaparece
-          // independente dos controls do player. Não precisa de foco
-          // D-pad (acionado por enter/select via SkipButtonOverlay
-          // ou tap em mobile).
-          // Positioned(
-          //   bottom: isTV ? 40 : 80,
-          //   right: isTV ? 40 : 24,
-          //   child: SafeArea(
-          //     child: IgnorePointer(
-          //       ignoring: !showSkipButton,
-          //       child: SkipButton(
-          //         onSkip: skipIntroOutro,
-          //         label: skipButtonLabel,
-          //         show: showSkipButton,
-          //       ),
-          //     ),
-          //   ),
-          // ),
-        ],
-      ),
-    );
-  }
+  //   return SizedBox.expand(
+  //     child: Stack(
+  //       fit: StackFit.expand,
+  //       children: [
+  //         // Vídeo com MaterialDesktopVideoControls (TV).
+  //         // Esconde os controls durante loading/erro — o `Focus(autofocus:true)`
+  //         // interno do MaterialDesktopVideoControls sequestra o D-pad e
+  //         // impede os botões de erro (retry/close) e o back overlay de
+  //         // receberem foco. Em loading/erro renderizamos só um Container
+  //         // preto, e o foco D-pad cai para o _buildErrorState/
+  //         // _buildLoadingState posicionados acima.
+  //         if (!_isLoading && _errorMessage == null && isTV)
+  //           MaterialDesktopVideoControlsTheme(
+  //             normal: MaterialDesktopVideoControlsThemeData(
+  //               visibleOnMount: true,
+  //               playAndPauseOnTap: true,
+  //               keyboardShortcuts: tvKeyboardShortcuts,
+  //               // Botão back + título entram no topButtonBar para ficarem
+  //               // DENTRO do `Focus` interno do player — assim o D-pad
+  //               // consegue alcançá-los.
+  //               topButtonBar: [
+  //                 FocusableWidget(
+  //                   onSelect: _exitPlayer,
+  //                   borderRadius: 24,
+  //                   focusPadding: EdgeInsets.zero,
+  //                   focusScale: 1.05,
+  //                   child: Container(
+  //                     padding: const EdgeInsets.all(10),
+  //                     decoration: BoxDecoration(
+  //                       color: Colors.black.withValues(alpha: 0.4),
+  //                       shape: BoxShape.circle,
+  //                     ),
+  //                     child: const Icon(
+  //                       Icons.arrow_back,
+  //                       color: Colors.white,
+  //                       size: 24,
+  //                     ),
+  //                   ),
+  //                 ),
+  //                 const SizedBox(width: 12),
+  //                 Flexible(
+  //                   child: Text(
+  //                     _displayLabel,
+  //                     style: TextStyle(
+  //                       color: Colors.white.withValues(alpha: 0.9),
+  //                       fontSize: 14,
+  //                       fontWeight: FontWeight.w600,
+  //                     ),
+  //                     maxLines: 1,
+  //                     overflow: TextOverflow.ellipsis,
+  //                   ),
+  //                 ),
+  //               ],
+  //               bottomButtonBar: [
+  //                 if (hasEpisodes && _hasPreviousEpisode)
+  //                   EpisodeSkipPreviousButton(onPressed: _goToPreviousEpisode),
+  //                 const MaterialDesktopPlayOrPauseButton(),
+  //                 if (hasEpisodes && _hasNextEpisode)
+  //                   EpisodeSkipNextButton(onPressed: _goToNextEpisode),
+  //                 const MaterialDesktopVolumeButton(),
+  //                 const MaterialDesktopPositionIndicator(),
+  //                 const Spacer(),
+  //                 const MaterialDesktopFullscreenButton(),
+  //               ],
+  //             ),
+  //             fullscreen: MaterialDesktopVideoControlsThemeData(
+  //               visibleOnMount: true,
+  //               playAndPauseOnTap: true,
+  //               keyboardShortcuts: tvKeyboardShortcuts,
+  //               topButtonBar: [
+  //                 FocusableWidget(
+  //                   onSelect: _exitPlayer,
+  //                   borderRadius: 24,
+  //                   focusPadding: EdgeInsets.zero,
+  //                   focusScale: 1.05,
+  //                   child: Container(
+  //                     padding: const EdgeInsets.all(10),
+  //                     decoration: BoxDecoration(
+  //                       color: Colors.black.withValues(alpha: 0.4),
+  //                       shape: BoxShape.circle,
+  //                     ),
+  //                     child: const Icon(
+  //                       Icons.arrow_back,
+  //                       color: Colors.white,
+  //                       size: 24,
+  //                     ),
+  //                   ),
+  //                 ),
+  //                 const SizedBox(width: 12),
+  //                 Flexible(
+  //                   child: Text(
+  //                     _displayLabel,
+  //                     style: TextStyle(
+  //                       color: Colors.white.withValues(alpha: 0.9),
+  //                       fontSize: 14,
+  //                       fontWeight: FontWeight.w600,
+  //                     ),
+  //                     maxLines: 1,
+  //                     overflow: TextOverflow.ellipsis,
+  //                   ),
+  //                 ),
+  //               ],
+  //               bottomButtonBar: [
+  //                 if (hasEpisodes && _hasPreviousEpisode)
+  //                   EpisodeSkipPreviousButton(onPressed: _goToPreviousEpisode),
+  //                 const MaterialDesktopPlayOrPauseButton(),
+  //                 if (hasEpisodes && _hasNextEpisode)
+  //                   EpisodeSkipNextButton(onPressed: _goToNextEpisode),
+  //                 const MaterialDesktopVolumeButton(),
+  //                 const MaterialDesktopPositionIndicator(),
+  //                 const Spacer(),
+  //                 const MaterialDesktopFullscreenButton(),
+  //               ],
+  //             ),
+  //             child: Video(
+  //               controller: _videoController,
+  //               fit: BoxFit.contain,
+  //               controls: AdaptiveVideoControls,
+  //             ),
+  //           )
+  //         else
+  //           Video(
+  //             controller: _videoController,
+  //             fit: BoxFit.contain,
+  //             controls: AdaptiveVideoControls,
+  //           ),
+  //         // Skip Button Overlay (AniSkip) — permanece como Positioned
+  //         // porque é um botão de ação rápida que aparece/desaparece
+  //         // independente dos controls do player. Não precisa de foco
+  //         // D-pad (acionado por enter/select via SkipButtonOverlay
+  //         // ou tap em mobile).
+  //         // Positioned(
+  //         //   bottom: isTV ? 40 : 80,
+  //         //   right: isTV ? 40 : 24,
+  //         //   child: SafeArea(
+  //         //     child: IgnorePointer(
+  //         //       ignoring: !showSkipButton,
+  //         //       child: SkipButton(
+  //         //         onSkip: skipIntroOutro,
+  //         //         label: skipButtonLabel,
+  //         //         show: showSkipButton,
+  //         //       ),
+  //         //     ),
+  //         //   ),
+  //         // ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
-  Widget _buildLoadingState() {
-    return SizedBox.expand(
-      child: Container(
-        color: Colors.black,
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: AppColors.getPrimaryGradient(),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryShadow,
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: const SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 3,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                AppLocalizations.of(context).loadingStream,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                AppLocalizations.of(context).preparingServer,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _buildLoadingState() {
+  //   return SizedBox.expand(
+  //     child: Container(
+  //       color: Colors.black,
+  //       padding: const EdgeInsets.all(24),
+  //       child: Center(
+  //         child: Column(
+  //           mainAxisAlignment: MainAxisAlignment.center,
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             Container(
+  //               padding: const EdgeInsets.all(16),
+  //               decoration: BoxDecoration(
+  //                 gradient: AppColors.getPrimaryGradient(),
+  //                 shape: BoxShape.circle,
+  //                 boxShadow: [
+  //                   BoxShadow(
+  //                     color: AppColors.primaryShadow,
+  //                     blurRadius: 20,
+  //                     spreadRadius: 5,
+  //                   ),
+  //                 ],
+  //               ),
+  //               child: const SizedBox(
+  //                 width: 32,
+  //                 height: 32,
+  //                 child: CircularProgressIndicator(
+  //                   color: Colors.white,
+  //                   strokeWidth: 3,
+  //                 ),
+  //               ),
+  //             ),
+  //             const SizedBox(height: 16),
+  //             Text(
+  //               AppLocalizations.of(context).loadingStream,
+  //               style: const TextStyle(
+  //                 color: Colors.white,
+  //                 fontSize: 14,
+  //                 fontWeight: FontWeight.w600,
+  //               ),
+  //               textAlign: TextAlign.center,
+  //             ),
+  //             const SizedBox(height: 4),
+  //             Text(
+  //               AppLocalizations.of(context).preparingServer,
+  //               style: TextStyle(
+  //                 color: Colors.white.withValues(alpha: 0.6),
+  //                 fontSize: 12,
+  //               ),
+  //               textAlign: TextAlign.center,
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
-  Widget _buildErrorState() {
-    return SizedBox.expand(
-      child: Container(
-        color: Colors.black,
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: _buildErrorWidget(
-            _errorMessage ?? AppLocalizations.of(context).error,
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _buildErrorState() {
+  //   return SizedBox.expand(
+  //     child: Container(
+  //       color: Colors.black,
+  //       padding: const EdgeInsets.all(24),
+  //       child: Center(
+  //         child: _buildErrorWidget(
+  //           _errorMessage ?? AppLocalizations.of(context).error,
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 }
