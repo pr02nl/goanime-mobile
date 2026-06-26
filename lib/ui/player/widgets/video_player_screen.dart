@@ -66,6 +66,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       androidAttachSurfaceAfterVideoParameters: true,
     ),
   );
+  List<VideoTrack>? videos;
+  List<AudioTrack>? audios;
+  List<SubtitleTrack>? subtitles;
+  AudioTrack? audiosBr;
   Map<String, String>? _currentVideoHeaders;
 
   // bool? _isTVDevice;
@@ -481,17 +485,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     final episodeKey = _buildEpisodeKey(widget);
     debugPrint('[VideoPlayer] 🎬 Initializing player for episode: $episodeKey');
 
-    // activeEpisodeKey = episodeKey;
-    // positionTimer?.cancel();
-    // skipButtonAutoHideTimer?.cancel();
-    // skipButtonActiveSegment = null;
-    // skipButtonDismissed = false;
-    // skipTimesRetryCount = 0;
-    setState(() {
-      // showSkipButton = false;
-      // skipButtonLabel = '';
-    });
-
     // Fase 2: lê progresso salvo do banco (PauloFlix) ANTES do setState
     // para já ter a decisão de reset/seek pronta quando o Media abrir.
     await _loadSavedProgress();
@@ -503,6 +496,23 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     if (tvFuture != null) {
       await tvFuture;
     }
+
+    // Get notified as [Stream]:
+    _player.stream.tracks.listen((event) {
+      videos = event.video;
+      audios = event.audio;
+      subtitles = event.subtitle;
+      if (audios == null || audios!.isEmpty) {
+        return;
+      }
+      for (final st in audios!) {
+        if (st.language != null && st.language!.toLowerCase() == 'por') {
+          audiosBr = st;
+          return;
+        }
+        debugPrint('audios language: ${st.language}');
+      }
+    });
 
     try {
       await _cleanupControllers();
@@ -692,6 +702,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       // Video is ready — start playback now
       await _player.play();
       debugPrint('[VideoPlayer] Playback started');
+
+      if (audiosBr != null) {
+        debugPrint('Found Portuguese audio track: ${audiosBr!.id}');
+        await _player.setAudioTrack(audiosBr!);
+      }
 
       if (!mounted) return;
 
