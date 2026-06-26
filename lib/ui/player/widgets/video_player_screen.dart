@@ -182,9 +182,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         ? context.read<PauloFlixEpisodeProgressRepository?>()
         : null;
     _jwtTokenManager = context.read<JwtTokenManager?>();
-    _initializeVideoPlayer();
     _detectDeviceAndEnterFullscreen();
     _installHardwareKeyboardHandler();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeVideoPlayer();
+    });
   }
 
   /// Handler global de teclado. Usamos HardwareKeyboard em vez de Focus/
@@ -629,7 +631,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       // `prepareResumeOrReset` é no-op se `_progressService == null`
       // (fluxos não-PauloFlix).
       final shouldReset = await _maybeResetBeforeOpen();
-
+      if (mounted) {
+        setState(() {
+          state = const VideoPlayerPlaying();
+        });
+      }
       try {
         final media = Media(resolvedVideoUrl, httpHeaders: mergedHeaders);
         await _player.open(media, play: false);
@@ -725,18 +731,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       debugPrint('[VideoPlayer] Playback started');
 
       if (!mounted) return;
-
-      if (mounted) {
-        // if (!isActiveEpisode(episodeKey)) {
-        //   debugPrint(
-        //     '[VideoPlayer] Skipped final state update (episode changed).',
-        //   );
-        //   return;
-        // }
-        setState(() {
-          state = const VideoPlayerPlaying();
-        });
-      }
 
       final videoDurationSeconds = _player.state.duration.inSeconds;
       debugPrint('[VideoPlayer] Duration (s): $videoDurationSeconds');
