@@ -74,11 +74,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   // (`_detectDeviceAndEnterFullscreen` + chamada em `_initializeVideoPlayer`).
   Future<bool>? _tvDetectionFuture;
 
-  // Overlay controls auto-hide
-  bool _showOverlayControls = true;
-  Timer? _overlayControlsTimer;
-  static const Duration _overlayControlsAutoHideDuration = Duration(seconds: 3);
-
   // Stream subscriptions — guardadas para cancelar em _cleanupControls e
   // evitar listeneres órfãos que disparam setState após troca de episódio.
   StreamSubscription? _errorSub;
@@ -217,7 +212,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     }
 
     // Qualquer outra tecla: re-mostra overlay.
-    _showOverlayControlsAndResetTimer();
     return false; // deixa propagar (espaco/setas/J/K/F vão para controls)
   }
 
@@ -899,7 +893,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   @override
   void dispose() {
-    _overlayControlsTimer?.cancel();
     _uninstallHardwareKeyboardHandler();
     SystemChrome.setSystemUIChangeCallback(null);
 
@@ -932,27 +925,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     await _player?.dispose();
     _player = null;
     _videoController = null;
-  }
-
-  /// Mostra os controles de overlay e reinicia o timer de auto-hide
-  void _showOverlayControlsAndResetTimer() {
-    if (!mounted) return;
-    setState(() {
-      _showOverlayControls = true;
-    });
-    _startOverlayControlsHideTimer();
-  }
-
-  /// Inicia o timer que esconde os controles de overlay
-  void _startOverlayControlsHideTimer() {
-    _overlayControlsTimer?.cancel();
-    _overlayControlsTimer = Timer(_overlayControlsAutoHideDuration, () {
-      if (mounted) {
-        setState(() {
-          _showOverlayControls = false;
-        });
-      }
-    });
   }
 
   /// Sai do player voltando para a tela anterior (home/detail/lista de
@@ -1007,29 +979,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // Select/Enter → play/pause (botão do meio do D-pad)
       const SingleActivator(LogicalKeyboardKey.select): () {
         _player?.playOrPause();
-        _showOverlayControlsAndResetTimer();
       },
       const SingleActivator(LogicalKeyboardKey.enter): () {
         _player?.playOrPause();
-        _showOverlayControlsAndResetTimer();
       },
       // Space → play/pause (já existe no padrão, mas reforçamos)
       const SingleActivator(LogicalKeyboardKey.space): () {
         _player?.playOrPause();
-        _showOverlayControlsAndResetTimer();
-      },
-      // Setas → mostrar controles
-      const SingleActivator(LogicalKeyboardKey.arrowLeft): () {
-        _showOverlayControlsAndResetTimer();
-      },
-      const SingleActivator(LogicalKeyboardKey.arrowRight): () {
-        _showOverlayControlsAndResetTimer();
-      },
-      const SingleActivator(LogicalKeyboardKey.arrowUp): () {
-        _showOverlayControlsAndResetTimer();
-      },
-      const SingleActivator(LogicalKeyboardKey.arrowDown): () {
-        _showOverlayControlsAndResetTimer();
       },
       // N/P → próximo/anterior episódio
       if (hasEpisodes && _hasNextEpisode)
@@ -1039,142 +995,160 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // Media keys
       const SingleActivator(LogicalKeyboardKey.mediaPlayPause): () {
         _player?.playOrPause();
-        _showOverlayControlsAndResetTimer();
       },
     };
 
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: _showOverlayControlsAndResetTimer,
-      child: MouseRegion(
-        onHover: (_) => _showOverlayControlsAndResetTimer(),
-        child: SizedBox.expand(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Vídeo com MaterialDesktopVideoControls (TV)
-              _videoController != null
-                  ? (isTV
-                        ? MaterialDesktopVideoControlsTheme(
-                            normal: MaterialDesktopVideoControlsThemeData(
-                              visibleOnMount: true,
-                              playAndPauseOnTap: true,
-                              keyboardShortcuts: tvKeyboardShortcuts,
-                              bottomButtonBar: [
-                                if (hasEpisodes && _hasPreviousEpisode)
-                                  EpisodeSkipPreviousButton(
-                                    onPressed: _goToPreviousEpisode,
-                                  ),
-                                const MaterialDesktopPlayOrPauseButton(),
-                                if (hasEpisodes && _hasNextEpisode)
-                                  EpisodeSkipNextButton(
-                                    onPressed: _goToNextEpisode,
-                                  ),
-                                const MaterialDesktopVolumeButton(),
-                                const MaterialDesktopPositionIndicator(),
-                                const Spacer(),
-                                const MaterialDesktopFullscreenButton(),
-                              ],
-                            ),
-                            fullscreen: MaterialDesktopVideoControlsThemeData(
-                              visibleOnMount: true,
-                              playAndPauseOnTap: true,
-                              keyboardShortcuts: tvKeyboardShortcuts,
-                              bottomButtonBar: [
-                                if (hasEpisodes && _hasPreviousEpisode)
-                                  EpisodeSkipPreviousButton(
-                                    onPressed: _goToPreviousEpisode,
-                                  ),
-                                const MaterialDesktopPlayOrPauseButton(),
-                                if (hasEpisodes && _hasNextEpisode)
-                                  EpisodeSkipNextButton(
-                                    onPressed: _goToNextEpisode,
-                                  ),
-                                const MaterialDesktopVolumeButton(),
-                                const MaterialDesktopPositionIndicator(),
-                                const Spacer(),
-                                const MaterialDesktopFullscreenButton(),
-                              ],
-                            ),
-                            child: Video(
-                              controller: _videoController!,
-                              fit: BoxFit.contain,
-                              controls: MaterialDesktopVideoControls,
-                            ),
-                          )
-                        : Video(
-                            controller: _videoController!,
-                            fit: BoxFit.contain,
-                            controls: AdaptiveVideoControls,
-                          ))
-                  : Container(color: Colors.black),
-              // Botão flutuante voltar + título
-              Positioned(
-                top: isTV ? 16 : 8,
-                left: isTV ? 16 : 8,
-                right: isTV ? 80 : 60,
-                child: AnimatedOpacity(
-                  opacity: _showOverlayControls ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: SafeArea(
-                    child: Material(
-                      color: Colors.transparent,
-                      child: Row(
-                        children: [
-                          FocusableWidget(
-                            onSelect: _exitPlayer,
-                            borderRadius: 24,
-                            focusPadding: EdgeInsets.zero,
-                            focusScale: 1.05,
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.4),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                          Flexible(
-                            child: Text(
-                              '  $_displayLabel',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+    return SizedBox.expand(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Vídeo com MaterialDesktopVideoControls (TV).
+          // Esconde os controls durante loading/erro — o `Focus(autofocus:true)`
+          // interno do MaterialDesktopVideoControls sequestra o D-pad e
+          // impede os botões de erro (retry/close) e o back overlay de
+          // receberem foco. Em loading/erro renderizamos só um Container
+          // preto, e o foco D-pad cai para o _buildErrorState/
+          // _buildLoadingState posicionados acima.
+          if (_videoController != null &&
+              !_isLoading &&
+              _errorMessage == null &&
+              isTV)
+            MaterialDesktopVideoControlsTheme(
+              normal: MaterialDesktopVideoControlsThemeData(
+                visibleOnMount: true,
+                playAndPauseOnTap: true,
+                keyboardShortcuts: tvKeyboardShortcuts,
+                // Botão back + título entram no topButtonBar para ficarem
+                // DENTRO do `Focus` interno do player — assim o D-pad
+                // consegue alcançá-los.
+                topButtonBar: [
+                  FocusableWidget(
+                    onSelect: _exitPlayer,
+                    borderRadius: 24,
+                    focusPadding: EdgeInsets.zero,
+                    focusScale: 1.05,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 24,
                       ),
                     ),
                   ),
-                ),
-              ),
-              // Skip Button Overlay (AniSkip)
-              Positioned(
-                bottom: isTV ? 40 : 80,
-                right: isTV ? 40 : 24,
-                child: SafeArea(
-                  child: IgnorePointer(
-                    ignoring: !showSkipButton,
-                    child: SkipButton(
-                      onSkip: skipIntroOutro,
-                      label: skipButtonLabel,
-                      show: showSkipButton,
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      _displayLabel,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                ],
+                bottomButtonBar: [
+                  if (hasEpisodes && _hasPreviousEpisode)
+                    EpisodeSkipPreviousButton(onPressed: _goToPreviousEpisode),
+                  const MaterialDesktopPlayOrPauseButton(),
+                  if (hasEpisodes && _hasNextEpisode)
+                    EpisodeSkipNextButton(onPressed: _goToNextEpisode),
+                  const MaterialDesktopVolumeButton(),
+                  const MaterialDesktopPositionIndicator(),
+                  const Spacer(),
+                  const MaterialDesktopFullscreenButton(),
+                ],
+              ),
+              fullscreen: MaterialDesktopVideoControlsThemeData(
+                visibleOnMount: true,
+                playAndPauseOnTap: true,
+                keyboardShortcuts: tvKeyboardShortcuts,
+                topButtonBar: [
+                  FocusableWidget(
+                    onSelect: _exitPlayer,
+                    borderRadius: 24,
+                    focusPadding: EdgeInsets.zero,
+                    focusScale: 1.05,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      _displayLabel,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+                bottomButtonBar: [
+                  if (hasEpisodes && _hasPreviousEpisode)
+                    EpisodeSkipPreviousButton(onPressed: _goToPreviousEpisode),
+                  const MaterialDesktopPlayOrPauseButton(),
+                  if (hasEpisodes && _hasNextEpisode)
+                    EpisodeSkipNextButton(onPressed: _goToNextEpisode),
+                  const MaterialDesktopVolumeButton(),
+                  const MaterialDesktopPositionIndicator(),
+                  const Spacer(),
+                  const MaterialDesktopFullscreenButton(),
+                ],
+              ),
+              child: Video(
+                controller: _videoController!,
+                fit: BoxFit.contain,
+                controls: MaterialDesktopVideoControls,
+              ),
+            )
+          else if (_videoController != null)
+            Video(
+              controller: _videoController!,
+              fit: BoxFit.contain,
+              controls: AdaptiveVideoControls,
+            )
+          else
+            Container(color: Colors.black),
+          // Skip Button Overlay (AniSkip) — permanece como Positioned
+          // porque é um botão de ação rápida que aparece/desaparece
+          // independente dos controls do player. Não precisa de foco
+          // D-pad (acionado por enter/select via SkipButtonOverlay
+          // ou tap em mobile).
+          Positioned(
+            bottom: isTV ? 40 : 80,
+            right: isTV ? 40 : 24,
+            child: SafeArea(
+              child: IgnorePointer(
+                ignoring: !showSkipButton,
+                child: SkipButton(
+                  onSkip: skipIntroOutro,
+                  label: skipButtonLabel,
+                  show: showSkipButton,
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
