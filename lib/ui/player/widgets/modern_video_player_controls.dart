@@ -494,7 +494,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                     shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
                   ),
                 ),
-                _VolumeButton(currentVolume: _volume, onChange: _changeVolume),
                 Text(
                   _formatDuration(_duration),
                   style: const TextStyle(
@@ -852,54 +851,6 @@ class _SkipIntroButton extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Botão de volume com indicador (mostra valor atual).
-class _VolumeButton extends StatelessWidget {
-  final double currentVolume;
-  final ValueChanged<double> onChange;
-
-  const _VolumeButton({required this.currentVolume, required this.onChange});
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = currentVolume == 0
-        ? Icons.volume_off_rounded
-        : currentVolume < 50
-        ? Icons.volume_down_rounded
-        : Icons.volume_up_rounded;
-
-    return FocusableWidget(
-      onSelect: () => onChange(0), // foco → toggle mute
-      borderRadius: 16,
-      focusScale: 1.05,
-      child: InkResponse(
-        onTap: () => onChange(currentVolume > 0 ? -currentVolume : 10),
-        radius: 24,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: Colors.white, size: 18),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 50,
-                child: Text(
-                  currentVolume == 0 ? 'Mudo' : '${currentVolume.round()}%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
       ),
