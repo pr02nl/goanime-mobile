@@ -124,6 +124,10 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   // ─── TV detection (assíncrono) ──────────────────────────────────
   bool _isTVDevice = false;
 
+  final FocusNode focusNode = FocusNode(
+    debugLabel: 'ModernVideoPlayerControls',
+  );
+
   @override
   void initState() {
     super.initState();
@@ -253,6 +257,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _autoHideTimer?.cancel();
     if (!_isVisible) {
       setState(() => _isVisible = true);
+      focusNode.requestFocus();
     }
     _fadeController.forward();
     _autoHideTimer = Timer(_autoHide, _hide);
@@ -320,6 +325,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     return MouseRegion(
       onHover: (_) => _showAndScheduleAutoHide(),
       child: Focus(
+        autofocus: true,
         onKeyEvent: (node, event) {
           if (event is! KeyDownEvent) return KeyEventResult.ignored;
           switch (event.logicalKey) {
@@ -453,7 +459,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           _PlayPauseButton(
             isPlaying: _isPlaying,
             onPressed: _togglePlay,
-            autoFocus: true,
+            focusNode: focusNode,
           ),
         ],
       ),
@@ -762,20 +768,20 @@ class _ControlButton extends StatelessWidget {
 /// Envolto em [FocusableWidget] para que o D-pad alcance em TV (P4).
 class _PlayPauseButton extends StatelessWidget {
   final bool isPlaying;
+  final FocusNode? focusNode;
   final VoidCallback onPressed;
-  final bool autoFocus;
 
   const _PlayPauseButton({
     required this.isPlaying,
     required this.onPressed,
-    this.autoFocus = false,
+    this.focusNode,
   });
 
   @override
   Widget build(BuildContext context) {
     return FocusableWidget(
       onSelect: onPressed,
-      autoFocus: autoFocus,
+      focusNode: focusNode,
       borderRadius: 40,
       focusPadding: const EdgeInsets.all(4),
       focusScale: 1.08,
