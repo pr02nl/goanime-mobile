@@ -263,14 +263,14 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _showAndScheduleAutoHide();
   }
 
-  // void _seekBy(Duration delta) {
-  //   final newPos = _position + delta;
-  //   final clamped = newPos < Duration.zero
-  //       ? Duration.zero
-  //       : (newPos > _duration ? _duration : newPos);
-  //   widget.player.seek(clamped);
-  //   _showAndScheduleAutoHide();
-  // }
+  void _seekBy(Duration delta) {
+    final newPos = _position + delta;
+    final clamped = newPos < Duration.zero
+        ? Duration.zero
+        : (newPos > _duration ? _duration : newPos);
+    widget.player.seek(clamped);
+    _showAndScheduleAutoHide();
+  }
 
   void _seekTo(double normalized) {
     if (_duration == Duration.zero) return;
@@ -318,12 +318,19 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
             case LogicalKeyboardKey.select:
             case LogicalKeyboardKey.enter:
               _togglePlay();
-              break;
+              return KeyEventResult.handled;
+            case LogicalKeyboardKey.arrowUp:
+            case LogicalKeyboardKey.arrowDown:
+            case LogicalKeyboardKey.arrowLeft:
+            case LogicalKeyboardKey.arrowRight:
+              _showAndScheduleAutoHide();
+              // Deixa setas passarem para o sistema de foco (traversal)
+              // e para os handlers específicos (ex: _DpadAwareSeekBar)
+              return KeyEventResult.ignored;
             default:
               _showAndScheduleAutoHide();
-              break;
+              return KeyEventResult.ignored;
           }
-          return KeyEventResult.handled;
         },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -348,13 +355,24 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     return ColoredBox(
       color: Colors.black.withValues(alpha: 0.35),
       child: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
         child: Column(
           children: [
-            if (widget.title != null) _buildTopBar(),
+            if (widget.title != null)
+              FocusTraversalOrder(
+                order: const NumericFocusOrder(1),
+                child: _buildTopBar(),
+              ),
             const Spacer(),
-            _buildCenterControls(),
+            FocusTraversalOrder(
+              order: const NumericFocusOrder(2),
+              child: _buildCenterControls(),
+            ),
             const Spacer(),
-            _buildBottomBar(),
+            FocusTraversalOrder(
+              order: const NumericFocusOrder(3),
+              child: _buildBottomBar(),
+            ),
           ],
         ),
       ),
@@ -408,11 +426,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _PlayPauseButton(
-            isPlaying: _isPlaying,
-            onPressed: _togglePlay,
-            focusNode: focusNode,
-          ),
+          _PlayPauseButton(isPlaying: _isPlaying, onPressed: _togglePlay),
         ],
       ),
     );
@@ -436,19 +450,38 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
               ),
               const SizedBox(height: 8),
             ],
-            _SeekBar(
-              position: _isSeeking ? _previewPosition() : _position,
-              duration: _duration,
-              buffer: _buffer,
-              onSeek: _seekTo,
-              onSeekStart: () {
-                setState(() => _isSeeking = true);
-                _showAndScheduleAutoHide();
+            Focus(
+              onKeyEvent: (node, event) {
+                if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                switch (event.logicalKey) {
+                  case LogicalKeyboardKey.arrowLeft:
+                    _seekBy(const Duration(seconds: -5));
+                    return KeyEventResult.handled;
+                  case LogicalKeyboardKey.arrowRight:
+                    _seekBy(const Duration(seconds: 5));
+                    return KeyEventResult.handled;
+                  case LogicalKeyboardKey.arrowUp:
+                  case LogicalKeyboardKey.arrowDown:
+                    // Deixa o foco navegar verticalmente
+                    return KeyEventResult.ignored;
+                  default:
+                    return KeyEventResult.ignored;
+                }
               },
-              onSeekEnd: () {
-                setState(() => _isSeeking = false);
-                _showAndScheduleAutoHide();
-              },
+              child: _SeekBar(
+                position: _isSeeking ? _previewPosition() : _position,
+                duration: _duration,
+                buffer: _buffer,
+                onSeek: _seekTo,
+                onSeekStart: () {
+                  setState(() => _isSeeking = true);
+                  _showAndScheduleAutoHide();
+                },
+                onSeekEnd: () {
+                  setState(() => _isSeeking = false);
+                  _showAndScheduleAutoHide();
+                },
+              ),
             ),
             const SizedBox(height: 6),
             Row(
@@ -718,22 +751,18 @@ class _ControlButton extends StatelessWidget {
 
 /// Botão central de play/pause — maior que os outros (estilo VLC).
 /// Envolto em [FocusableWidget] para que o D-pad alcance em TV (P4).
+/// NOTA: não recebe um `FocusNode` externo — o `FocusableWidget` cria
+/// o seu próprio para evitar conflito com o `Focus` pai do controle.
 class _PlayPauseButton extends StatelessWidget {
   final bool isPlaying;
-  final FocusNode? focusNode;
   final VoidCallback onPressed;
 
-  const _PlayPauseButton({
-    required this.isPlaying,
-    required this.onPressed,
-    this.focusNode,
-  });
+  const _PlayPauseButton({required this.isPlaying, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return FocusableWidget(
       onSelect: onPressed,
-      focusNode: focusNode,
       borderRadius: 40,
       focusPadding: const EdgeInsets.all(4),
       focusScale: 1.08,
@@ -782,17 +811,19 @@ class _SeekBar extends StatelessWidget {
         : 0.0;
     final effectiveBuffer = (buffer.inMilliseconds / max).clamp(0.0, 1.0);
     final displayBuffer = effectiveBuffer < value ? value : effectiveBuffer;
-    return Slider(
-      activeColor: Colors.white,
-      inactiveColor: Colors.grey.withValues(alpha: 0.25),
-      thumbColor: AppColors.primary,
-      secondaryActiveColor: Colors.white.withValues(alpha: 0.5),
-      value: value,
-      secondaryTrackValue: displayBuffer,
-      onChanged: onSeek,
-      onChangeStart: (_) => onSeekStart(),
-      onChangeEnd: (_) => onSeekEnd(),
-      allowedInteraction: SliderInteraction.tapOnly,
+    return ExcludeFocus(
+      child: Slider(
+        activeColor: Colors.white,
+        inactiveColor: Colors.grey.withValues(alpha: 0.25),
+        thumbColor: AppColors.primary,
+        secondaryActiveColor: Colors.white.withValues(alpha: 0.5),
+        value: value,
+        secondaryTrackValue: displayBuffer,
+        onChanged: onSeek,
+        onChangeStart: (_) => onSeekStart(),
+        onChangeEnd: (_) => onSeekEnd(),
+        allowedInteraction: SliderInteraction.tapOnly,
+      ),
     );
   }
 }
