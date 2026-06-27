@@ -118,31 +118,13 @@ dev_dependencies:
   # de 5s sem esperar 5s reais.
   fake_async: ^1.3.1
 
-  # custom_lint: framework para criar regras de lint customizadas
-  # (AST analysis). Usado pelo `paulo_flix_lint_plugin` em
-  # `tools/analysis_options/paulo_flix_lint_plugin/` para detectar
-  # `context.read<...>()` dentro do `build` de um widget que cria
-  # um `Provider` (anti-pattern que causa `ProviderNotFoundException`).
-  #
-  # Pinned 0.7.5 para compatibilidade com analyzer 7.x (usado por
-  # drift_dev 2.29.0 — pinned também). Versão 0.8.x precisa de analyzer 8+.
-  custom_lint: 0.7.5
-  custom_lint_builder: 0.7.5
-
-  # Drift pinned 2.32.0 para alinhar com sqlite3 ^3.3.3 (custom_lint
-  # continua em 0.7.5 com analyzer 7.x via `dependency_overrides`).
+  # Drift pinned 2.32.0 para alinhar com sqlite3 ^3.3.3.
   drift_dev: 2.32.0
 dependency_overrides:
   characters: ^1.4.1
   material_color_utilities: ^0.13.0
   meta: ^1.17.0
   test_api: ^0.7.7
-  # Força analyzer 7.x — compatibilidade entre custom_lint_builder 0.7.5
-  # (analyzer 7.x) e drift_dev 2.32.0 (analyzer 10+). Sem o override, pub
-  # não consegue resolver. O analyzer 7.x funciona para ambos via fallback.
-  # Remover este override quando custom_lint_builder ou drift_dev
-  # migrarem para analyzer 8+.
-  analyzer: ^7.3.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
