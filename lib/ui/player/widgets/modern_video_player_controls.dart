@@ -332,7 +332,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
             fit: StackFit.expand,
             children: [
               // Camada 1: controles normais (sempre presente, fade)
-              if (showControls) _buildLayout(),
+              if (_isVisible) _buildLayout(),
               // Camada 2: loading overlay
               if (showLoading) _buildLoadingOverlay(),
               // Camada 3: error overlay
