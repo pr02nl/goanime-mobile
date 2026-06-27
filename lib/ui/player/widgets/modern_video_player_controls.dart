@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -313,24 +314,30 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         autofocus: true,
         onKeyEvent: (node, event) {
           if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          log('Key pressed: ${event.logicalKey}');
           switch (event.logicalKey) {
             case LogicalKeyboardKey.space:
             case LogicalKeyboardKey.select:
             case LogicalKeyboardKey.enter:
               _togglePlay();
-              return KeyEventResult.handled;
-            case LogicalKeyboardKey.arrowUp:
-            case LogicalKeyboardKey.arrowDown:
+              break;
             case LogicalKeyboardKey.arrowLeft:
+              _seekBy(const Duration(seconds: -5));
+              break;
             case LogicalKeyboardKey.arrowRight:
-              _showAndScheduleAutoHide();
-              // Deixa setas passarem para o sistema de foco (traversal)
-              // e para os handlers específicos (ex: _DpadAwareSeekBar)
-              return KeyEventResult.ignored;
+              _seekBy(const Duration(seconds: 5));
+              break;
+            case LogicalKeyboardKey.goBack:
+              if (_isVisible) {
+                _hide();
+              } else {
+                _close();
+              }
             default:
               _showAndScheduleAutoHide();
-              return KeyEventResult.ignored;
+              break;
           }
+          return KeyEventResult.ignored;
         },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -355,24 +362,13 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     return ColoredBox(
       color: Colors.black.withValues(alpha: 0.35),
       child: FocusTraversalGroup(
-        policy: OrderedTraversalPolicy(),
         child: Column(
           children: [
-            if (widget.title != null)
-              FocusTraversalOrder(
-                order: const NumericFocusOrder(1),
-                child: _buildTopBar(),
-              ),
+            if (widget.title != null) _buildTopBar(),
             const Spacer(),
-            FocusTraversalOrder(
-              order: const NumericFocusOrder(2),
-              child: _buildCenterControls(),
-            ),
+            _buildCenterControls(),
             const Spacer(),
-            FocusTraversalOrder(
-              order: const NumericFocusOrder(3),
-              child: _buildBottomBar(),
-            ),
+            _buildBottomBar(),
           ],
         ),
       ),
@@ -450,38 +446,20 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
               ),
               const SizedBox(height: 8),
             ],
-            Focus(
-              onKeyEvent: (node, event) {
-                if (event is! KeyDownEvent) return KeyEventResult.ignored;
-                switch (event.logicalKey) {
-                  case LogicalKeyboardKey.arrowLeft:
-                    _seekBy(const Duration(seconds: -5));
-                    return KeyEventResult.handled;
-                  case LogicalKeyboardKey.arrowRight:
-                    _seekBy(const Duration(seconds: 5));
-                    return KeyEventResult.handled;
-                  case LogicalKeyboardKey.arrowUp:
-                  case LogicalKeyboardKey.arrowDown:
-                    // Deixa o foco navegar verticalmente
-                    return KeyEventResult.ignored;
-                  default:
-                    return KeyEventResult.ignored;
-                }
+            _SeekBar(
+              position: _isSeeking ? _previewPosition() : _position,
+              duration: _duration,
+              buffer: _buffer,
+              onSeek: _seekTo,
+              onSeekStart: () {
+                setState(() => _isSeeking = true);
+                _showAndScheduleAutoHide();
               },
-              child: _SeekBar(
-                position: _isSeeking ? _previewPosition() : _position,
-                duration: _duration,
-                buffer: _buffer,
-                onSeek: _seekTo,
-                onSeekStart: () {
-                  setState(() => _isSeeking = true);
-                  _showAndScheduleAutoHide();
-                },
-                onSeekEnd: () {
-                  setState(() => _isSeeking = false);
-                  _showAndScheduleAutoHide();
-                },
-              ),
+              onSeekEnd: () {
+                setState(() => _isSeeking = false);
+                _showAndScheduleAutoHide();
+              },
+              onSeekBy: (seconds) => _seekBy(Duration(seconds: seconds)),
             ),
             const SizedBox(height: 6),
             Row(
@@ -785,14 +763,19 @@ class _PlayPauseButton extends StatelessWidget {
 ///
 /// O [Slider] do Flutter não suporta buffer indicator nativamente,
 /// então implementamos com [Stack] + 3 [FractionallySizedBox].
-/// O [Slider] continua sendo usado para o thumb + D-pad handling.
-class _SeekBar extends StatelessWidget {
+/// O [Slider] continua sendo usado para o thumb visual.
+///
+/// O slider é envolvido em [ExcludeFocus] para impedir que ele retenha
+/// o foco D-pad (TV). Um [Focus] wrapper externo intercepta as setas
+/// esquerda/direita para fazer seek de ±5 segundos.
+class _SeekBar extends StatefulWidget {
   final Duration position;
   final Duration duration;
   final Duration buffer;
   final ValueChanged<double> onSeek;
   final VoidCallback onSeekStart;
   final VoidCallback onSeekEnd;
+  final ValueChanged<int> onSeekBy;
 
   const _SeekBar({
     required this.position,
@@ -801,28 +784,67 @@ class _SeekBar extends StatelessWidget {
     required this.onSeek,
     required this.onSeekStart,
     required this.onSeekEnd,
+    required this.onSeekBy,
   });
 
   @override
+  State<_SeekBar> createState() => _SeekBarState();
+}
+
+class _SeekBarState extends State<_SeekBar> {
+  late final FocusNode _focusNode = FocusNode(debugLabel: 'SeekBar');
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final max = duration.inMilliseconds.toDouble();
+    final max = widget.duration.inMilliseconds.toDouble();
     final value = max > 0
-        ? (position.inMilliseconds / max).clamp(0.0, 1.0)
+        ? (widget.position.inMilliseconds / max).clamp(0.0, 1.0)
         : 0.0;
-    final effectiveBuffer = (buffer.inMilliseconds / max).clamp(0.0, 1.0);
+    final effectiveBuffer = (widget.buffer.inMilliseconds / max).clamp(
+      0.0,
+      1.0,
+    );
     final displayBuffer = effectiveBuffer < value ? value : effectiveBuffer;
-    return ExcludeFocus(
-      child: Slider(
-        activeColor: Colors.white,
-        inactiveColor: Colors.grey.withValues(alpha: 0.25),
-        thumbColor: AppColors.primary,
-        secondaryActiveColor: Colors.white.withValues(alpha: 0.5),
-        value: value,
-        secondaryTrackValue: displayBuffer,
-        onChanged: onSeek,
-        onChangeStart: (_) => onSeekStart(),
-        onChangeEnd: (_) => onSeekEnd(),
-        allowedInteraction: SliderInteraction.tapOnly,
+
+    return Focus(
+      focusNode: _focusNode,
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        switch (event.logicalKey) {
+          case LogicalKeyboardKey.arrowLeft:
+            widget.onSeekBy(-5);
+            return KeyEventResult.handled;
+          case LogicalKeyboardKey.arrowRight:
+            widget.onSeekBy(5);
+            return KeyEventResult.handled;
+          case LogicalKeyboardKey.arrowUp:
+          case LogicalKeyboardKey.arrowDown:
+            // Deixa o FocusTraversalGroup (ancestral) processar
+            // a navegação para o próximo componente.
+            return KeyEventResult.ignored;
+          default:
+            return KeyEventResult.ignored;
+        }
+      },
+      child: ExcludeFocus(
+        child: Slider(
+          activeColor: Colors.white,
+          inactiveColor: Colors.grey.withValues(alpha: 0.25),
+          thumbColor: AppColors.primary,
+          secondaryActiveColor: Colors.white.withValues(alpha: 0.5),
+          value: value,
+          secondaryTrackValue: displayBuffer,
+          onChanged: widget.onSeek,
+          onChangeStart: (_) => widget.onSeekStart(),
+          onChangeEnd: (_) => widget.onSeekEnd(),
+          allowedInteraction: SliderInteraction.tapOnly,
+        ),
       ),
     );
   }
