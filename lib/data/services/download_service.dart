@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqlite3/sqlite3.dart' as sql;
 
 import '../../core/database/tables/downloads.dart'
     show DownloadQuality, DownloadStatus;
@@ -137,33 +136,23 @@ class DownloadItem {
 
 /// Download service - manages all download operations
 class DownloadService extends ChangeNotifier {
-  static final DownloadService _instance = DownloadService._internal();
-  factory DownloadService() => _instance;
-  DownloadService._internal() : _repository = null, _httpClient = null;
-
-  /// Ctor de produção com repository injetado (Fase 3). Use este no
-  /// boot do app em vez do `DownloadService()` singleton.
+  /// Ctor único com repository injetado.
   ///
-  /// [httpClient] é injetado em produção com o `AuthenticatedHttpClient`
+  /// [httpClient] é opcional; em produção recebe o `AuthenticatedHttpClient`
   /// para que downloads de arquivos PauloFlix (que exigem JWT) passem
-  /// pela auth. Em testes, pode-se injetar um `MockClient` ou omitir
-  /// (cai no `http.Client()` default, sem auth).
+  /// pela auth. Em testes, pode-se omitir (cai no `http.Client()` default).
   DownloadService.withRepository(
     this._repository, {
     http.Client? httpClient,
-  })  : _database = null,
-       _httpClient = httpClient,
-       assert(_repository != null);
+  }) : _httpClient = httpClient;
 
-  /// HTTP client usado pelos downloads. Injetado via
-  /// [withRepository] em produção (com auth). Null no ctor legado
-  /// (cai no `http.Client()` puro, sem auth — usado em testes).
+  /// HTTP client usado pelos downloads. Null em testes (cai no
+  /// `http.Client()` puro, sem auth).
   final http.Client? _httpClient;
 
-  /// Repository Drift (Fase 3). Null no ctor legado (sqlite3 FFI direto).
-  final DownloadsRepository? _repository;
+  /// Repository Drift — fonte de verdade da persistência de downloads.
+  final DownloadsRepository _repository;
 
-  sql.Database? _database;
   final Map<String, DownloadItem> _downloads = {};
   final Map<String, StreamSubscription> _activeDownloads = {};
   final Map<String, http.Client> _downloadClients = {};
@@ -188,117 +177,20 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Initialize the download service
+  /// Initialize the download service — carrega os downloads do Drift
+  /// e aplica o reset stale→queued (Fase 1 fix).
   Future<void> initialize() async {
-    if (_repository != null) {
-      // FASE 3: usa repository (Drift). _database fica null.
-      await _loadDownloadsFromRepository();
-    } else {
-      _database = await _initDatabase();
-      await _loadDownloads();
-    }
-  }
-
-  /// Carrega downloads do repository (Fase 3).
-  Future<void> _loadDownloadsFromRepository() async {
-    final repo = _repository!;
-    final items = await repo.getAll();
+    final items = await _repository.getAll();
     _downloads.clear();
     for (final download in items) {
       _downloads[download.id] = download;
-      // Reset downloading → queued (Fase 1 fix, preservado na Fase 3).
+      // Reset downloading → queued (Fase 1 fix).
       if (download.status == DownloadStatus.downloading) {
-        await repo.resetStaleToQueued();
+        await _repository.resetStaleToQueued();
         final reset = download.copyWith(status: DownloadStatus.queued);
         _downloads[download.id] = reset;
       }
     }
-    notifyListeners();
-  }
-
-  /// Initialize the database.
-  ///
-  /// BUG FIX (Fase 1): agora replica o padrão das outras services:
-  /// - PRAGMA journal_mode = WAL e foreign_keys = ON em `_createTables`.
-  /// - Path no Android respeita o legacy `<docs parent>/databases/`
-  ///   (consistente com Watchlist/PauloFlix/PauloFlixMovies).
-  Future<sql.Database> _initDatabase() async {
-    final dbPath = await _resolveDatabasePath();
-    final db = sql.sqlite3.open(dbPath);
-    _createDb(db);
-    return db;
-  }
-
-  /// Resolve o path do banco `downloads.db`. No Android, preserva o path
-  /// legacy `<docs parent>/databases/` que o sqflite usava em versões
-  /// anteriores. Em outras plataformas, usa `<docs>/downloads.db`.
-  Future<String> _resolveDatabasePath() async {
-    final documentsDirectory = await getApplicationDocumentsDirectory();
-    if (Platform.isAndroid) {
-      final legacyDir = Directory(
-        path.join(documentsDirectory.parent.path, 'databases'),
-      );
-      final legacyPath = path.join(legacyDir.path, 'downloads.db');
-      if (File(legacyPath).existsSync()) {
-        return legacyPath;
-      }
-      if (!legacyDir.existsSync()) {
-        legacyDir.createSync(recursive: true);
-      }
-      return legacyPath;
-    }
-    return path.join(documentsDirectory.path, 'downloads.db');
-  }
-
-  void _createDb(sql.Database db) {
-    db.execute('PRAGMA journal_mode = WAL');
-    db.execute('PRAGMA foreign_keys = ON');
-    db.execute('''
-      CREATE TABLE IF NOT EXISTS downloads (
-        id TEXT PRIMARY KEY,
-        animeId TEXT NOT NULL,
-        animeName TEXT NOT NULL,
-        episodeNumber TEXT NOT NULL,
-        episodeTitle TEXT NOT NULL,
-        videoUrl TEXT NOT NULL,
-        thumbnailUrl TEXT NOT NULL,
-        quality INTEGER NOT NULL,
-        status INTEGER NOT NULL,
-        progress REAL NOT NULL,
-        bytesDownloaded INTEGER NOT NULL,
-        totalBytes INTEGER NOT NULL,
-        filePath TEXT,
-        error TEXT,
-        createdAt INTEGER NOT NULL,
-        completedAt INTEGER
-      )
-    ''');
-  }
-
-  /// Load downloads from database
-  Future<void> _loadDownloads() async {
-    if (_database == null) {
-      return;
-    }
-
-    final rows = _database!.select('SELECT * FROM downloads');
-    _downloads.clear();
-
-    for (final row in rows) {
-      final download = DownloadItem.fromMap(Map<String, dynamic>.from(row));
-      _downloads[download.id] = download;
-
-      // Reset downloading status to queued on app restart.
-      // BUG FIX (Fase 1): antes o reset só acontecia em memória; agora
-      // persistimos com _saveDownload para que o banco não fique
-      // reportando `downloading` para um download que não está rodando.
-      if (download.status == DownloadStatus.downloading) {
-        final reset = download.copyWith(status: DownloadStatus.queued);
-        _downloads[download.id] = reset;
-        await _saveDownload(reset);
-      }
-    }
-
     notifyListeners();
   }
 
@@ -340,7 +232,7 @@ class DownloadService extends ChangeNotifier {
     );
 
     _downloads[id] = download;
-    await _saveDownload(download);
+    await _repository.save(download);
 
     notifyListeners();
     _processQueue();
@@ -405,7 +297,7 @@ class DownloadService extends ChangeNotifier {
 
     _activeDownloadCount++;
     _downloads[id] = download.copyWith(status: DownloadStatus.downloading);
-    await _saveDownload(_downloads[id]!);
+    await _repository.save(_downloads[id]!);
     notifyListeners();
 
     try {
@@ -442,7 +334,7 @@ class DownloadService extends ChangeNotifier {
         status: DownloadStatus.failed,
         error: e.toString(),
       );
-      await _saveDownload(_downloads[id]!);
+      await _repository.save(_downloads[id]!);
     } finally {
       _activeDownloadCount--;
       _activeDownloads.remove(id);
@@ -522,7 +414,7 @@ class DownloadService extends ChangeNotifier {
 
     // Set filePath immediately so cancel/retry can clean up partial file
     _downloads[id] = _downloads[id]!.copyWith(filePath: filePath);
-    await _saveDownload(_downloads[id]!);
+    await _repository.save(_downloads[id]!);
     notifyListeners();
 
     // Create HTTP client (injetado em produção com AuthenticatedHttpClient)
@@ -599,7 +491,7 @@ class DownloadService extends ChangeNotifier {
           debugPrint(
             '[Download] Progress: ${(progress * 100).toStringAsFixed(1)}% (${(bytesDownloaded / 1024 / 1024).toStringAsFixed(2)} MB)',
           );
-          await _saveDownload(_downloads[id]!);
+          await _repository.save(_downloads[id]!);
         }
       }
 
@@ -615,7 +507,7 @@ class DownloadService extends ChangeNotifier {
         progress: 1.0,
         completedAt: DateTime.now(),
       );
-      await _saveDownload(_downloads[id]!);
+      await _repository.save(_downloads[id]!);
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -630,7 +522,7 @@ class DownloadService extends ChangeNotifier {
     }
 
     _downloads[id] = download.copyWith(status: DownloadStatus.paused);
-    await _saveDownload(_downloads[id]!);
+    await _repository.save(_downloads[id]!);
     notifyListeners();
   }
 
@@ -642,7 +534,7 @@ class DownloadService extends ChangeNotifier {
     }
 
     _downloads[id] = download.copyWith(status: DownloadStatus.queued);
-    await _saveDownload(_downloads[id]!);
+    await _repository.save(_downloads[id]!);
     notifyListeners();
     _processQueue();
   }
@@ -656,7 +548,7 @@ class DownloadService extends ChangeNotifier {
 
     _downloads[id] = download.copyWith(status: DownloadStatus.cancelled);
     _downloadClients[id]?.close();
-    await _saveDownload(_downloads[id]!);
+    await _repository.save(_downloads[id]!);
 
     // Delete partial file
     if (download.filePath != null) {
@@ -682,7 +574,7 @@ class DownloadService extends ChangeNotifier {
       progress: 0,
       bytesDownloaded: 0,
     );
-    await _saveDownload(_downloads[id]!);
+    await _repository.save(_downloads[id]!);
     notifyListeners();
     _processQueue();
   }
@@ -707,12 +599,8 @@ class DownloadService extends ChangeNotifier {
       }
     }
 
-    // Remove from database
-    if (_repository != null) {
-      await _repository.delete(id);
-    } else {
-      _database?.execute('DELETE FROM downloads WHERE id = ?', [id]);
-    }
+    // Remove from database via repository
+    await _repository.delete(id);
     _downloads.remove(id);
     notifyListeners();
   }
@@ -750,43 +638,6 @@ class DownloadService extends ChangeNotifier {
   List<DownloadItem> getAnimeDownloads(String animeId) {
     return _downloads.values.where((d) => d.animeId == animeId).toList()
       ..sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
-  }
-
-  /// Save download to database
-  Future<void> _saveDownload(DownloadItem download) async {
-    if (_repository != null) {
-      // FASE 3: delega ao Drift.
-      await _repository.save(download);
-      return;
-    }
-    // Legado: sqlite3 FFI.
-    final map = download.toMap();
-    _database?.execute(
-      '''INSERT OR REPLACE INTO downloads
-         (id, animeId, animeName, episodeNumber, episodeTitle,
-          videoUrl, thumbnailUrl, quality, status, progress,
-          bytesDownloaded, totalBytes, filePath, error,
-          createdAt, completedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-      [
-        map['id'],
-        map['animeId'],
-        map['animeName'],
-        map['episodeNumber'],
-        map['episodeTitle'],
-        map['videoUrl'],
-        map['thumbnailUrl'],
-        map['quality'],
-        map['status'],
-        map['progress'],
-        map['bytesDownloaded'],
-        map['totalBytes'],
-        map['filePath'],
-        map['error'],
-        map['createdAt'],
-        map['completedAt'],
-      ],
-    );
   }
 
   /// Get download directory with Android TV compatibility
@@ -833,8 +684,8 @@ class DownloadService extends ChangeNotifier {
   /// Sanitize file name
   String _sanitizeFileName(String name) {
     return name
-        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
-        .replaceAll(RegExp(r'\s+'), '_')
+        .replaceAll(RegExp(r'[<>:\"/\\\\|?*]'), '_')
+        .replaceAll(RegExp(r'\\s+'), '_')
         .trim();
   }
 
@@ -856,8 +707,6 @@ class DownloadService extends ChangeNotifier {
     }
     _downloadClients.clear();
     _activeDownloads.clear();
-    _database?.close();
-    _database = null;
     super.dispose();
   }
 }
