@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../../data/services/api_key_settings_service.dart';
 import '../../../data/services/kodi/pauloflix_nfo_enricher.dart';
 import '../../../data/services/pauloflix_movies_service.dart';
-import '../../../data/services/tmdb_service.dart';
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../../domain/repositories/pauloflix_movies_repository.dart';
 import '../../core/utils/pagination.dart';
@@ -21,8 +19,6 @@ enum PauloFlixMoviesStatus { initial, loading, loaded, error }
 /// pelo `syncContent`.
 class PauloFlixMoviesProvider extends ChangeNotifier {
   final PauloFlixMoviesRepository _repository;
-  final TmdbService _tmdb;
-  final ApiKeySettingsService _settings;
 
   /// Enricher NFO (Fase 4 do plano NFO enrichment) — opcional. Quando
   /// `null` (legacy/tests), `syncContent` usa só TMDB para enriquecer
@@ -33,10 +29,8 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
 
   /// Ctor padrão (compat) — usa um no-op repository.
   PauloFlixMoviesProvider()
-      : _repository = _NullPauloFlixMoviesRepository(),
-        _tmdb = TmdbService(),
-        _settings = ApiKeySettingsService(),
-        _nfoEnricher = null;
+    : _repository = _NullPauloFlixMoviesRepository(),
+      _nfoEnricher = null;
 
   /// Ctor com repository + services opcionais (testes).
   ///
@@ -45,13 +39,9 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   /// (`movie.nfo`) antes do TMDB.
   PauloFlixMoviesProvider.withServices({
     required PauloFlixMoviesRepository repository,
-    TmdbService? tmdbService,
-    ApiKeySettingsService? settingsService,
     PauloFlixNfoEnricher? nfoEnricher,
-  })  : _repository = repository,
-        _tmdb = tmdbService ?? TmdbService(),
-        _settings = settingsService ?? ApiKeySettingsService(),
-        _nfoEnricher = nfoEnricher;
+  }) : _repository = repository,
+       _nfoEnricher = nfoEnricher;
 
   PauloFlixMoviesStatus _status = PauloFlixMoviesStatus.initial;
   List<PauloFlixMovie> _contents = [];
@@ -81,17 +71,8 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Verifica se TMDB está configurado (chave persistida).
-  Future<bool> isTmdbConfigured() => _settings.isTmdbConfigured();
-
   /// Sincroniza filmes do PauloFlix + enriquece com TMDB.
   Future<bool> syncContent() async {
-    if (!_tmdb.isConfigured) {
-      _errorMessage = 'TMDB não configurado. Vá em Configurações → API Keys.';
-      _status = PauloFlixMoviesStatus.error;
-      notifyListeners();
-      return false;
-    }
     _status = PauloFlixMoviesStatus.loading;
     _syncProgress = 'Iniciando sincronização de filmes...';
     notifyListeners();
@@ -196,13 +177,14 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   /// Retorna `null` se [movies] estiver vazia.
   static PauloFlixMovie? pickFeaturedMovie(List<PauloFlixMovie> movies) {
     if (movies.isEmpty) return null;
-    final sorted = [...movies]..sort((a, b) {
-      final scoreCmp = (b.score ?? 0).compareTo(a.score ?? 0);
-      if (scoreCmp != 0) return scoreCmp;
-      final yearCmp = (b.year ?? 0).compareTo(a.year ?? 0);
-      if (yearCmp != 0) return yearCmp;
-      return b.availableMovieCount.compareTo(a.availableMovieCount);
-    });
+    final sorted = [...movies]
+      ..sort((a, b) {
+        final scoreCmp = (b.score ?? 0).compareTo(a.score ?? 0);
+        if (scoreCmp != 0) return scoreCmp;
+        final yearCmp = (b.year ?? 0).compareTo(a.year ?? 0);
+        if (yearCmp != 0) return yearCmp;
+        return b.availableMovieCount.compareTo(a.availableMovieCount);
+      });
     return sorted.first;
   }
 
@@ -231,8 +213,9 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     }
 
     // 2. Top N gêneros por contagem.
-    final topGenres = genreCount.entries.where((e) => e.value >= minPerGenre).toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final topGenres =
+        genreCount.entries.where((e) => e.value >= minPerGenre).toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
     final selected = topGenres.take(maxGenres).map((e) => e.key).toList();
 
     // 3. Para cada gênero top, filtra e ranqueia.
@@ -303,15 +286,16 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     //    (caractere high-value) ao comparar: '#' (0x23) viria antes de 'A'
     //    (0x41) na comparação default — substituímos por '~' (0x7E) que
     //    está depois de todas as letras maiúsculas.
-    final sorted = [...movies]..sort((a, b) {
-      final aKey = _sortKey(a.displayName);
-      final bKey = _sortKey(b.displayName);
-      final cmp = aKey.compareTo(bKey);
-      if (cmp != 0) return cmp;
-      return a.displayName
-          .toLowerCase()
-          .compareTo(b.displayName.toLowerCase());
-    });
+    final sorted = [...movies]
+      ..sort((a, b) {
+        final aKey = _sortKey(a.displayName);
+        final bKey = _sortKey(b.displayName);
+        final cmp = aKey.compareTo(bKey);
+        if (cmp != 0) return cmp;
+        return a.displayName.toLowerCase().compareTo(
+          b.displayName.toLowerCase(),
+        );
+      });
 
     // 2. Pagina.
     final pages = <List<PauloFlixMovie>>[];
@@ -390,8 +374,12 @@ class _NullPauloFlixMoviesRepository implements PauloFlixMoviesRepository {
   @override
   Future<void> markAsUnavailable(String folderName) async {}
   @override
-  Future<Map<String, int>> getStats() async =>
-      {'total': 0, 'available': 0, 'withMetadata': 0, 'collections': 0};
+  Future<Map<String, int>> getStats() async => {
+    'total': 0,
+    'available': 0,
+    'withMetadata': 0,
+    'collections': 0,
+  };
   @override
   Stream<List<PauloFlixMovie>> watch() => const Stream.empty();
 }

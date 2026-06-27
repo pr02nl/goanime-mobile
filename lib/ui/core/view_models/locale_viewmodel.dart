@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../data/services/tmdb_service.dart';
-
 class LocaleViewModel extends ChangeNotifier {
   static const String _localeKey = 'app_locale';
   Locale _locale = const Locale('pt', 'BR');
@@ -40,9 +38,6 @@ class LocaleViewModel extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_localeKey, locale.languageCode);
-      // Invalida o cache em memória do TmdbService para que a próxima
-      // chamada a getGenres() recarregue o cache no novo idioma.
-      TmdbService().invalidateGenresCache();
     } catch (e) {
       debugPrint('[LocaleViewModel] setLocale failed: $e');
     }

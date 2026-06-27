@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/data/services/api_key_settings_service.dart';
 import 'package:goanime/domain/models/pauloflix_movie.dart';
 import 'package:goanime/domain/repositories/pauloflix_movies_repository.dart';
 import 'package:goanime/ui/pauloflix_movies/view_models/pauloflix_movies_provider.dart';
@@ -31,21 +30,14 @@ class FakePauloFlixMoviesRepository implements PauloFlixMoviesRepository {
   @override
   Future<void> markAsUnavailable(String folderName) async {}
   @override
-  Future<Map<String, int>> getStats() async =>
-      {'total': 0, 'available': 0, 'withMetadata': 0, 'collections': 0};
+  Future<Map<String, int>> getStats() async => {
+    'total': 0,
+    'available': 0,
+    'withMetadata': 0,
+    'collections': 0,
+  };
   @override
   Stream<List<PauloFlixMovie>> watch() => const Stream.empty();
-}
-
-/// Settings fake que não toca SharedPreferences.
-class FakeApiKeySettingsService extends ApiKeySettingsService {
-  final bool _configured;
-
-  FakeApiKeySettingsService({bool configured = false})
-    : _configured = configured;
-
-  @override
-  Future<bool> isTmdbConfigured() async => _configured;
 }
 
 void main() {
@@ -148,7 +140,6 @@ void main() {
 
         final provider = PauloFlixMoviesProvider.withServices(
           repository: FakePauloFlixMoviesRepository([]),
-          settingsService: FakeApiKeySettingsService(configured: false),
         );
 
         final result = await provider.syncContent();

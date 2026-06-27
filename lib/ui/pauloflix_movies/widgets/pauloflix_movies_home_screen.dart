@@ -40,8 +40,7 @@ class PauloFlixMoviesHomeScreen extends StatefulWidget {
       _PauloFlixMoviesHomeScreenState();
 }
 
-class _PauloFlixMoviesHomeScreenState
-    extends State<PauloFlixMoviesHomeScreen> {
+class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
   bool _checkedInitialSync = false;
   bool _isTV = false;
 
@@ -49,10 +48,10 @@ class _PauloFlixMoviesHomeScreenState
   List<PauloFlixMovie> _allContents = const [];
   PaginationResult<PauloFlixMovie> _pagination =
       const PaginationResult<PauloFlixMovie>(
-    pages: [],
-    letterToPageIndex: {},
-    availableLetters: [],
-  );
+        pages: [],
+        letterToPageIndex: {},
+        availableLetters: [],
+      );
   List<PauloFlixMovie> _collections = const [];
   List<PauloFlixMovie> _topRated = const [];
   List<PauloFlixMovie> _recent = const [];
@@ -72,12 +71,7 @@ class _PauloFlixMoviesHomeScreenState
       // Primeira abertura: TMDB não configurado OU banco vazio → sincronizar.
       if (!_checkedInitialSync) {
         _checkedInitialSync = true;
-        final isConfigured = await provider.isTmdbConfigured();
-        if (!isConfigured) {
-          if (mounted) _showTmdbMissingBanner();
-        } else if (provider.contents.isEmpty) {
-          provider.syncContent();
-        }
+        provider.syncContent();
       }
 
       final screenWidth =
@@ -106,7 +100,8 @@ class _PauloFlixMoviesHomeScreenState
   /// Memoiza o snapshot derivado. Recomputa apenas se o conteúdo mudou
   /// (medido por `length + identidade do primeiro item`).
   void _ensureSnapshotBuilt(List<PauloFlixMovie> contents) {
-    final newHash = contents.length ^
+    final newHash =
+        contents.length ^
         (contents.isNotEmpty ? contents.first.hashCode : 0) ^
         (contents.isNotEmpty ? contents.last.hashCode : 0);
     if (newHash == _snapshotHash) return;
@@ -129,11 +124,12 @@ class _PauloFlixMoviesHomeScreenState
     if (_topRated.length > 12) _topRated = _topRated.sublist(0, 12);
 
     // 4. Recentes (top 12 por year desc).
-    _recent = [..._allContents]..sort((a, b) {
-      final yearCmp = (b.year ?? 0).compareTo(a.year ?? 0);
-      if (yearCmp != 0) return yearCmp;
-      return (b.score ?? 0).compareTo(a.score ?? 0);
-    });
+    _recent = [..._allContents]
+      ..sort((a, b) {
+        final yearCmp = (b.year ?? 0).compareTo(a.year ?? 0);
+        if (yearCmp != 0) return yearCmp;
+        return (b.score ?? 0).compareTo(a.score ?? 0);
+      });
     _recent = _recent.where((m) => m.year != null).toList();
     if (_recent.length > 12) _recent = _recent.sublist(0, 12);
 
@@ -149,40 +145,6 @@ class _PauloFlixMoviesHomeScreenState
     _pagination = PauloFlixMoviesProvider.paginateByLetter(
       _allContents,
       perPage: 24,
-    );
-  }
-
-  void _showTmdbMissingBanner() {
-    final l10n = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showMaterialBanner(
-      MaterialBanner(
-        backgroundColor: const Color(0xFFDC2626).withValues(alpha: 0.15),
-        content: Text(
-          l10n.tmdbNotConfigured,
-          style: const TextStyle(color: Colors.white),
-        ),
-        leading: const Icon(Icons.key_off, color: Color(0xFFDC2626)),
-        actions: [
-          FocusableWidget(
-            onSelect: () {
-              if (mounted) {
-                ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
-              }
-            },
-            child: TextButton(
-              onPressed: () {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
-                }
-              },
-              child: const Text(
-                'OK',
-                style: TextStyle(color: Color(0xFFDC2626)),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -217,10 +179,7 @@ class _PauloFlixMoviesHomeScreenState
           else if (contents.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: MoviesEmptyState(
-                isSyncing: false,
-                onSync: _syncContent,
-              ),
+              child: MoviesEmptyState(isSyncing: false, onSync: _syncContent),
             )
           else
             ..._buildContentSlivers(l10n),
@@ -237,10 +196,7 @@ class _PauloFlixMoviesHomeScreenState
     if (_featured != null) {
       slivers.add(
         SliverToBoxAdapter(
-          child: MovieHeroBanner(
-            movie: _featured!,
-            isTV: _isTV,
-          ),
+          child: MovieHeroBanner(movie: _featured!, isTV: _isTV),
         ),
       );
       slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
@@ -304,11 +260,7 @@ class _PauloFlixMoviesHomeScreenState
     }
 
     // 6. Grid paginado "Todos os Filmes" com índice A–Z.
-    slivers.add(
-      SliverToBoxAdapter(
-        child: _buildAllMoviesSection(l10n),
-      ),
-    );
+    slivers.add(SliverToBoxAdapter(child: _buildAllMoviesSection(l10n)));
 
     return slivers;
   }
@@ -341,10 +293,7 @@ class _PauloFlixMoviesHomeScreenState
             ),
           ),
           const SizedBox(height: 12),
-          MoviesPaginatedGrid(
-            pagination: _pagination,
-            isTV: _isTV,
-          ),
+          MoviesPaginatedGrid(pagination: _pagination, isTV: _isTV),
         ],
       ),
     );
@@ -352,7 +301,8 @@ class _PauloFlixMoviesHomeScreenState
 
   IconData _iconForGenre(String genre) {
     final name = PauloFlixMoviesProvider.genreIcon(genre);
-    return _genreIconMap[name] ?? const IconData(0xe02c, fontFamily: 'MaterialIcons');
+    return _genreIconMap[name] ??
+        const IconData(0xe02c, fontFamily: 'MaterialIcons');
   }
 
   // Mapeamento de nome → codePoint. Constante para satisfazer

@@ -17,7 +17,6 @@ import 'data/services/auth/jwt_token_manager.dart';
 import 'data/services/download_service.dart';
 import 'data/services/kodi/pauloflix_nfo_enricher.dart';
 import 'data/services/paulo_flix_episode_sync_service.dart';
-import 'data/services/tmdb_service.dart';
 import 'domain/repositories/downloads_repository.dart';
 import 'domain/repositories/home_repository.dart';
 import 'domain/repositories/paulo_flix_episode_progress_repository.dart';
@@ -55,13 +54,6 @@ class PauloFlixApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final router = createAppRouter(initialError: startupError);
-
-    // Inicializa o TmdbService com o banco + locale viewmodel ANTES do
-    // MultiProvider para que esteja pronto quando o sync rodar.
-    // O TmdbService é um singleton, então basta chamar uma vez.
-    TmdbService()
-      ..setDatabase(appDatabase)
-      ..setLocaleViewModel(localeViewModel);
 
     // Configura o cache manager global do `cached_network_image` para
     // injetar `Authorization: Bearer` em TODA request de imagem.

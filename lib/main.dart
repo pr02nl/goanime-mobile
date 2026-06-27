@@ -10,7 +10,6 @@ import 'data/services/auth/jwt_token_manager.dart';
 import 'data/services/download_service.dart';
 import 'data/services/pauloflix_movies_service.dart';
 import 'data/services/pauloflix_service.dart';
-import 'data/services/tmdb_service.dart';
 import 'ui/core/utils/performance_config.dart';
 import 'ui/core/view_models/locale_viewmodel.dart';
 import 'ui/settings/view_models/theme_viewmodel.dart';
@@ -47,12 +46,6 @@ void main() async {
     startupError ??= 'LocaleViewModel: $e';
   }
 
-  try {
-    await TmdbService().configureFromSettings();
-  } catch (e) {
-    startupError ??= 'TMDB: $e';
-  }
-
   // ═══════════════════════════════════════════════════════════════════════
   // JWT manager — DEVE ser inicializado ANTES dos services que vão usá-lo
   // (DownloadService, PauloFlixEpisodeSyncService). Em produção, o
@@ -68,9 +61,7 @@ void main() async {
   try {
     await jwtManager.initialize();
     // ignore: avoid_print
-    print(
-      '[PauloFlixAuth] ✓ JWT manager OK. device_id=${jwtManager.deviceId}',
-    );
+    print('[PauloFlixAuth] ✓ JWT manager OK. device_id=${jwtManager.deviceId}');
     authClient = AuthenticatedHttpClient(
       tokenManager: jwtManager,
       inner: http.Client(),
@@ -117,10 +108,14 @@ void main() async {
     PauloFlixService.configure(authClient);
     PauloFlixMoviesService.configure(authClient);
     // ignore: avoid_print
-    print('[PauloFlixAuth] ✓ Auth client configurado em PauloFlix, Movies e DownloadService.');
+    print(
+      '[PauloFlixAuth] ✓ Auth client configurado em PauloFlix, Movies e DownloadService.',
+    );
   } else {
     // ignore: avoid_print
-    print('[PauloFlixAuth] ⚠ Sem authClient — services vão usar http.Client() default.');
+    print(
+      '[PauloFlixAuth] ⚠ Sem authClient — services vão usar http.Client() default.',
+    );
   }
 
   runApp(
