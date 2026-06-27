@@ -6,7 +6,6 @@ import 'tables/paulo_flix_episodes.dart';
 import 'tables/paulo_flix_seasons.dart';
 import 'tables/pauloflix_content.dart';
 import 'tables/pauloflix_movies.dart';
-import 'tables/tmdb_genres.dart';
 import 'tables/watchlist_items.dart';
 
 part 'app_database.g.dart';
@@ -30,7 +29,6 @@ part 'app_database.g.dart';
     PauloFlixMovies,
     PauloFlixSeasons,
     PauloFlixEpisodes,
-    TmdbGenres,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -81,143 +79,135 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
-          // A lógica de importação dos bancos legados roda na Fase 2
-          // (ver `docs/DATABASE_REFACTORING.md` §3).
-        },
-        // Migrations futuras (1.x → 3) implementadas na Fase 2.
-        onUpgrade: (m, from, to) async {
-          // v3 → v4: adiciona tabela tmdb_genres.
-          if (from < 4) {
-            // `Migrator.database` é tipado como `GeneratedDatabase` (base),
-            // mas em runtime é a nossa `AppDatabase`. Cast para acessar
-            // os getters gerados.
-            final db = m.database as AppDatabase;
-            await m.createTable(db.tmdbGenres);
-          }
-          // v4 → v5: adiciona tabelas paulo_flix_seasons e paulo_flix_episodes
-          // (Fase 0 do plano de progresso). Cria seasons PRIMEIRO porque
-          // episodes tem FK para seasons.
-          if (from < 5) {
-            final db = m.database as AppDatabase;
-            await m.createTable(db.pauloFlixSeasons);
-            await m.createTable(db.pauloFlixEpisodes);
-          }
-          // v5 → v6: adiciona coluna thumbnailUrl em paulo_flix_episodes
-          // (Fase 0 do plano NFO enrichment). Sem migration data — o
-          // sync vai popular em background nas próximas horas.
-          if (from < 6) {
-            // Cast necessário: `Migrator.database` é tipado como
-            // `GeneratedDatabase` (base), mas em runtime é a nossa
-            // `AppDatabase`. Mesmo padrão usado em v3→v4 e v4→v5 acima.
-            final db = m.database as AppDatabase;
-            await m.addColumn(
-              db.pauloFlixEpisodes,
-              db.pauloFlixEpisodes.thumbnailUrl,
-            );
-          }
-          // v6 → v7: adiciona coluna `description` em paulo_flix_seasons
-          // e paulo_flix_episodes (Fase 10 do plano NFO enrichment V2).
-          // Sem migration data — o sync vai popular em background nas
-          // próximas horas (lê de season.nfo e S01E{nnn}.nfo).
-          //
-          // NOTA: usamos `customStatement` (raw SQL) em vez de
-          // `m.addColumn(db.pauloFlixSeasons, db.pauloFlixSeasons.description)`
-          // porque o getter `description` ainda não está gerado em
-          // `app_database.g.dart` (Fase 11 é owner do .g.dart e
-          // adiciona o getter em paralelo). O raw SQL tem o mesmo
-          // efeito (ALTER TABLE ADD COLUMN) e não depende do codegen.
-          if (from < 7) {
-            final db = m.database as AppDatabase;
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_seasons ADD COLUMN description TEXT',
-            );
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_episodes ADD COLUMN description TEXT',
-            );
-          }
-          // v7 → v8: adiciona posterFileName/fanartFileName em
-          // paulo_flix_seasons para popular imagens de season via
-          // fallback em `poster.jpg`/`fanart.jpg` (análogo ao que
-          // `PauloFlixMovieRaw` faz para filmes). Mesma técnica
-          // raw-SQL do v6→v7 (customStatement) para não depender
-          // do codegen — o .g.dart é patcheado em paralelo.
-          if (from < 8) {
-            final db = m.database as AppDatabase;
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_seasons '
-              'ADD COLUMN poster_file_name TEXT',
-            );
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_seasons '
-              'ADD COLUMN fanart_file_name TEXT',
-            );
-          }
-          // v8 → v9: adiciona 5 colunas V2 (Fase N+7) em
-          // paulo_flix_episodes: original_title, outline, aired,
-          // rating, runtime. Mesma técnica raw-SQL do v6→v7 e v7→v8
-          // (customStatement) para não depender do codegen — o
-          // .g.dart é patcheado em paralelo na mesma task. Sem
-          // migration data — o sync repopula em background.
-          if (from < 9) {
-            final db = m.database as AppDatabase;
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_episodes '
-              'ADD COLUMN original_title TEXT',
-            );
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_episodes '
-              'ADD COLUMN outline TEXT',
-            );
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_episodes '
-              'ADD COLUMN aired INTEGER',
-            );
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_episodes '
-              'ADD COLUMN rating REAL',
-            );
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_episodes '
-              'ADD COLUMN runtime INTEGER',
-            );
-          }
-          // v9 → v10: adiciona colunas original_title, year, tmdb_id em
-          // paulo_flix_content para persistir metadados do JSON index.
-          // Sem migration data — o próximo sync repopula em background.
-          if (from < 10) {
-            final db = m.database as AppDatabase;
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_content '
-              'ADD COLUMN original_title TEXT',
-            );
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_content '
-              'ADD COLUMN year INTEGER',
-            );
-            await db.customStatement(
-              'ALTER TABLE paulo_flix_content '
-              'ADD COLUMN tmdb_id INTEGER',
-            );
-          }
-        },
-        // CRÍTICO: configurar `busy_timeout` ANTES de qualquer operação
-        // de migration. Sem isso, qualquer DDL em uma instalação que
-        // ficou em estado inconsistente (lock órfão do SQLite após crash
-        // do app) falha com `SQLITE_BUSY (5) — database is locked`.
-        //
-        // O padrão SQLite é 0ms (falha imediata). 5s dá tempo suficiente
-        // para outra conexão liberar o lock (ex: hot-reload do debug
-        // segurando handle antigo).
-        beforeOpen: (details) async {
-          // CRÍTICO: `busy_timeout = 5000` evita `SQLITE_BUSY (5)` em
-          // DDL quando o banco ficou em estado inconsistente (lock órfão
-          // do SQLite após crash do app ou hot-reload do debug segurando
-          // handle antigo). Padrão SQLite é 0ms (falha imediata).
-          await customStatement('PRAGMA busy_timeout = 5000');
-          await customStatement('PRAGMA foreign_keys = ON');
-          await customStatement('PRAGMA journal_mode = WAL');
-        },
-      );
+    onCreate: (m) async {
+      await m.createAll();
+      // A lógica de importação dos bancos legados roda na Fase 2
+      // (ver `docs/DATABASE_REFACTORING.md` §3).
+    },
+    // Migrations futuras (1.x → 3) implementadas na Fase 2.
+    onUpgrade: (m, from, to) async {
+      // v4 → v5: adiciona tabelas paulo_flix_seasons e paulo_flix_episodes
+      // (Fase 0 do plano de progresso). Cria seasons PRIMEIRO porque
+      // episodes tem FK para seasons.
+      if (from < 5) {
+        final db = m.database as AppDatabase;
+        await m.createTable(db.pauloFlixSeasons);
+        await m.createTable(db.pauloFlixEpisodes);
+      }
+      // v5 → v6: adiciona coluna thumbnailUrl em paulo_flix_episodes
+      // (Fase 0 do plano NFO enrichment). Sem migration data — o
+      // sync vai popular em background nas próximas horas.
+      if (from < 6) {
+        // Cast necessário: `Migrator.database` é tipado como
+        // `GeneratedDatabase` (base), mas em runtime é a nossa
+        // `AppDatabase`. Mesmo padrão usado em v3→v4 e v4→v5 acima.
+        final db = m.database as AppDatabase;
+        await m.addColumn(
+          db.pauloFlixEpisodes,
+          db.pauloFlixEpisodes.thumbnailUrl,
+        );
+      }
+      // v6 → v7: adiciona coluna `description` em paulo_flix_seasons
+      // e paulo_flix_episodes (Fase 10 do plano NFO enrichment V2).
+      // Sem migration data — o sync vai popular em background nas
+      // próximas horas (lê de season.nfo e S01E{nnn}.nfo).
+      //
+      // NOTA: usamos `customStatement` (raw SQL) em vez de
+      // `m.addColumn(db.pauloFlixSeasons, db.pauloFlixSeasons.description)`
+      // porque o getter `description` ainda não está gerado em
+      // `app_database.g.dart` (Fase 11 é owner do .g.dart e
+      // adiciona o getter em paralelo). O raw SQL tem o mesmo
+      // efeito (ALTER TABLE ADD COLUMN) e não depende do codegen.
+      if (from < 7) {
+        final db = m.database as AppDatabase;
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_seasons ADD COLUMN description TEXT',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_episodes ADD COLUMN description TEXT',
+        );
+      }
+      // v7 → v8: adiciona posterFileName/fanartFileName em
+      // paulo_flix_seasons para popular imagens de season via
+      // fallback em `poster.jpg`/`fanart.jpg` (análogo ao que
+      // `PauloFlixMovieRaw` faz para filmes). Mesma técnica
+      // raw-SQL do v6→v7 (customStatement) para não depender
+      // do codegen — o .g.dart é patcheado em paralelo.
+      if (from < 8) {
+        final db = m.database as AppDatabase;
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_seasons '
+          'ADD COLUMN poster_file_name TEXT',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_seasons '
+          'ADD COLUMN fanart_file_name TEXT',
+        );
+      }
+      // v8 → v9: adiciona 5 colunas V2 (Fase N+7) em
+      // paulo_flix_episodes: original_title, outline, aired,
+      // rating, runtime. Mesma técnica raw-SQL do v6→v7 e v7→v8
+      // (customStatement) para não depender do codegen — o
+      // .g.dart é patcheado em paralelo na mesma task. Sem
+      // migration data — o sync repopula em background.
+      if (from < 9) {
+        final db = m.database as AppDatabase;
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_episodes '
+          'ADD COLUMN original_title TEXT',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_episodes '
+          'ADD COLUMN outline TEXT',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_episodes '
+          'ADD COLUMN aired INTEGER',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_episodes '
+          'ADD COLUMN rating REAL',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_episodes '
+          'ADD COLUMN runtime INTEGER',
+        );
+      }
+      // v9 → v10: adiciona colunas original_title, year, tmdb_id em
+      // paulo_flix_content para persistir metadados do JSON index.
+      // Sem migration data — o próximo sync repopula em background.
+      if (from < 10) {
+        final db = m.database as AppDatabase;
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_content '
+          'ADD COLUMN original_title TEXT',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_content '
+          'ADD COLUMN year INTEGER',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_content '
+          'ADD COLUMN tmdb_id INTEGER',
+        );
+      }
+    },
+    // CRÍTICO: configurar `busy_timeout` ANTES de qualquer operação
+    // de migration. Sem isso, qualquer DDL em uma instalação que
+    // ficou em estado inconsistente (lock órfão do SQLite após crash
+    // do app) falha com `SQLITE_BUSY (5) — database is locked`.
+    //
+    // O padrão SQLite é 0ms (falha imediata). 5s dá tempo suficiente
+    // para outra conexão liberar o lock (ex: hot-reload do debug
+    // segurando handle antigo).
+    beforeOpen: (details) async {
+      // CRÍTICO: `busy_timeout = 5000` evita `SQLITE_BUSY (5)` em
+      // DDL quando o banco ficou em estado inconsistente (lock órfão
+      // do SQLite após crash do app ou hot-reload do debug segurando
+      // handle antigo). Padrão SQLite é 0ms (falha imediata).
+      await customStatement('PRAGMA busy_timeout = 5000');
+      await customStatement('PRAGMA foreign_keys = ON');
+      await customStatement('PRAGMA journal_mode = WAL');
+    },
+  );
 }
