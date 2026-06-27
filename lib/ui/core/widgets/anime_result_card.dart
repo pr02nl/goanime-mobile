@@ -226,7 +226,7 @@ class AnimeResultCard extends StatelessWidget {
                   focusPadding: EdgeInsets.zero,
                   focusScale: 1.05,
                   // InkWell removido: o FocusableWidget já injeta splash
-                  // nativo via Material+InkWell (lib/widgets/focusable_widget.dart).
+                  // nativo via Material+InkWell (lib/ui/core/widgets/focusable_widget.dart).
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),

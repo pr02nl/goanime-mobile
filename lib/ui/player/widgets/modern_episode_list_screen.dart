@@ -469,7 +469,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
   }) {
     // FocusableWidget adiciona d-pad: na TV, o usuário alterna entre lista e
     // grade com Enter/Select no botão focado. Em mobile/tablet cai no fallback
-    // GestureDetector puro (lib/widgets/focusable_widget.dart:115).
+    // GestureDetector puro (lib/ui/core/widgets/focusable_widget.dart:115).
     return FocusableWidget(
       onSelect: onTap,
       borderRadius: 12,

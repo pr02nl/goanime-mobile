@@ -9,6 +9,9 @@ Este documento descreve as mudanças implementadas no projeto PauloFlix para adi
 ### 1. Sistema de Tema
 
 #### `lib/ui/core/themes/netflix_theme.dart`
+
+_Templates da skill foram movidos para `docs/archive/devin-skills/`._
+
 - Tema completo inspirado no Netflix com cores, animações e estilos
 - Cores primárias: vermelho Netflix (#E50914), preto puro (#000000)
 - Curvas de animação suaves (easeInOutCubic)
@@ -268,14 +271,14 @@ flutter analyze    # ✅ Sem erros
 - `lib/ui/watchlist/widgets/watchlist_screen.dart` - Refatorado para usar NetflixCard
 - `lib/ui/core/widgets/responsive_anime_card.dart` - Cores atualizadas para NetflixTheme
 
-### Arquivos da Skill
-- `.devin/skills/netflix_ui_ux/SKILL.md` - Documentação da skill
-- `.devin/skills/netflix_ui_ux/netflix_theme.dart` - Template do tema
-- `.devin/skills/netflix_ui_ux/netflix_card.dart` - Template do card
-- `.devin/skills/netflix_ui_ux/netflix_carousel.dart` - Template do carousel
-- `.devin/skills/netflix_ui_ux/README.md` - Guia de uso
-- `.devin/skills/netflix_ui_ux/INTEGRATION_EXAMPLE.md` - Exemplos
-- `.devin/skills/netflix_ui_ux/EXISTING_INTEGRATION.md` - Guia de migração
+### Arquivos da Skill (movidos para archive)
+- `docs/archive/devin-skills/SKILL.md` - Documentação da skill
+- `docs/archive/devin-skills/netflix_theme.dart` - Template do tema
+- `docs/archive/devin-skills/netflix_card.dart` - Template do card
+- `docs/archive/devin-skills/netflix_carousel.dart` - Template do carousel
+- `docs/archive/devin-skills/README.md` - Guia de uso
+- `docs/archive/devin-skills/INTEGRATION_EXAMPLE.md` - Exemplos
+- `docs/archive/devin-skills/EXISTING_INTEGRATION.md` - Guia de migração
 
 ## 🎯 Próximos Passos
 

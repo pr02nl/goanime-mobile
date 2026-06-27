@@ -75,7 +75,7 @@ class _SkipButtonState extends State<SkipButton>
 
     // FocusableWidget envolve o InkWell para adicionar suporte a d-pad/TV.
     // Em mobile/tablet, cai no fallback GestureDetector puro
-    // (lib/widgets/focusable_widget.dart:115), preservando o toque.
+    // (lib/ui/core/widgets/focusable_widget.dart:115), preservando o toque.
     return FocusableWidget(
       onSelect: widget.onSkip,
       borderRadius: 12,

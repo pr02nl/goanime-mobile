@@ -41,7 +41,7 @@ class _ResponsiveAnimeCardState extends State<ResponsiveAnimeCard> {
 
     // FocusableWidget envolve o GestureDetector para dar suporte a d-pad/TV.
     // Em mobile/tablet, o wrapper cai no fallback GestureDetector puro
-    // (lib/widgets/focusable_widget.dart:115), preservando o comportamento.
+    // (lib/ui/core/widgets/focusable_widget.dart:115), preservando o comportamento.
     return FocusableWidget(
       onSelect: widget.onTap,
       borderRadius: 12,

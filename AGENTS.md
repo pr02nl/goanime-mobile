@@ -329,7 +329,7 @@ Responsive.getBannerHeight(context)             // Banner height
 ## Skills Available
 
 ### Netflix UI/UX Skill
-Located at: `.devin/skills/netflix_ui_ux/`
+Located at: `docs/archive/devin-skills/`
 
 Creates Netflix-inspired responsive Flutter UI/UX with:
 - Premium design patterns
