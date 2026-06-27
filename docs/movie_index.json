@@ -1,0 +1,70 @@
+{
+  "updated_at": "2026-06-27T13:53:47.099092+00:00",
+  "total_movies": 348,
+  "movies": [
+    {
+      "title": "2012",
+      "original_title": "2012",
+      "sort_title": "2012",
+      "path": "2012 (2009)",
+      "year": "2009",
+      "rating": 5.9,
+      "plot": "Bilhões de habitantes da Terra não estão cientes de que o planeta tem uma data de expiração. Com os avisos de um cientista norte-americano, os líderes mundiais começam os preparativos secretos para a sobrevivência de alguns membros da sociedade. Quando o cataclisma global finalmente ocorre, o fracassado escritor Jackson Curtis tenta levar sua família para um lugar seguro quando o mundo começa a desmoronar.",
+      "genre": [
+        "Ficção científica"
+      ],
+      "director": "Roland Emmerich",
+      "tmdb_id": 0,
+      "poster": "/movies/2012 (2009)/poster.jpg",
+      "fanart": "/movies/2012 (2009)/fanart.jpg",
+      "file": "/movies/2012 (2009)/2012.2009.Open.Matte.1080p.WEBRip.x265.10bit-KONTRAST.mp4",
+      "nfo": {
+        "title": "2012",
+        "originaltitle": "2012",
+        "sorttitle": "2012",
+        "plot": "Bilhões de habitantes da Terra não estão cientes de que o planeta tem uma data de expiração. Com os avisos de um cientista norte-americano, os líderes mundiais começam os preparativos secretos para a sobrevivência de alguns membros da sociedade. Quando o cataclisma global finalmente ocorre, o fracassado escritor Jackson Curtis tenta levar sua família para um lugar seguro quando o mundo começa a desmoronar.",
+        "outline": "Bilhões de habitantes da Terra não estão cientes de que o planeta tem uma data de expiração. Com os avisos de um cientista norte-americano, os líderes mundiais começam os preparativos secretos para a sobrevivência de alguns membros da sociedade. Quando o cataclisma global finalmente ocorre, o fracassado escritor Jackson Curtis tenta levar sua família para um lugar seguro quando o mundo começa a desmoronar.",
+        "year": "2009",
+        "aired": "2009-10-10",
+        "director": "Roland Emmerich",
+        "genre": "Ficção científica",
+        "rating": "5.9",
+        "votes": "12775",
+        "runtime": "158",
+        "studio": "The Mark Gordon Company"
+      }
+    },
+    {
+      "title": "A Colônia",
+      "original_title": "Double Team",
+      "sort_title": "A Colônia",
+      "path": "A Colonia (1997)",
+      "year": "1997",
+      "rating": 5.3,
+      "plot": "Um espião internacional faz parceria com um extravagante traficante de armas para escapar de uma colônia penal e salvar sua família.",
+      "genre": [
+        "Ficção científica"
+      ],
+      "director": "徐克",
+      "tmdb_id": 0,
+      "poster": "/movies/A Colonia (1997)/poster.jpg",
+      "fanart": "/movies/A Colonia (1997)/fanart.jpg",
+      "file": "/movies/A Colonia (1997)/Double Team (1997).mkv",
+      "nfo": {
+        "title": "A Colônia",
+        "originaltitle": "Double Team",
+        "sorttitle": "A Colônia",
+        "plot": "Um espião internacional faz parceria com um extravagante traficante de armas para escapar de uma colônia penal e salvar sua família.",
+        "outline": "Um espião internacional faz parceria com um extravagante traficante de armas para escapar de uma colônia penal e salvar sua família.",
+        "year": "1997",
+        "aired": "1997-04-04",
+        "director": "徐克",
+        "genre": "Ficção científica",
+        "rating": "5.3",
+        "votes": "839",
+        "runtime": "93",
+        "studio": "One Story Pictures"
+      }
+    }
+  ]
+}
