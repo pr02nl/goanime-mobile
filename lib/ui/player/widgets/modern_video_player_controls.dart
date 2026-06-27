@@ -195,18 +195,14 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         }
         break;
       case LogicalKeyboardKey.goBack:
-        if (_isVisible) {
-          _hide();
-        } else {
-          _close();
-        }
+        _hide();
+        break;
       default:
         _showAndScheduleAutoHide();
         break;
     }
 
-    // Qualquer outra tecla: re-mostra overlay.
-    return false; // deixa propagar (espaco/setas/J/K/F vão para controls)
+    return false;
   }
 
   // ─── Player subscriptions ───────────────────────────────────────
