@@ -24,7 +24,7 @@
         android:label="PauloFlix"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
-        android:banner="@drawable/tv_banner"
+        android:banner="@mipmap/tv_banner"
         android:usesCleartextTraffic="true"
         android:resizeableActivity="true"
         android:supportsRtl="true">
