@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
-import '../../../l10n/app_localizations.dart';
 
 /// Estados internos do player UI.
 enum _PlayerUIState { loading, playing, error }
@@ -220,6 +220,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     });
     // buffer percentage (0..100) → normalizado 0..1
     _bufferPctSub = p.stream.bufferingPercentage.listen((pct) {
+      log('bufferingPercentage: $pct%');
       if (mounted) {
         setState(() => _bufferFraction = (pct / 100.0).clamp(0.0, 1.0));
       }
@@ -630,9 +631,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
             decoration: BoxDecoration(
               color: const Color(0xFF1A1A2E),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.red.withValues(alpha: 0.3),
-              ),
+              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
             ),
             child: FocusTraversalGroup(
               child: Column(
@@ -685,9 +684,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                         child: ElevatedButton.icon(
                           onPressed: _retry,
                           icon: const Icon(Icons.refresh),
-                          label: Text(
-                            AppLocalizations.of(context).retry,
-                          ),
+                          label: Text(AppLocalizations.of(context).retry),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
                             foregroundColor: Colors.white,
@@ -708,9 +705,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                         child: ElevatedButton.icon(
                           onPressed: _close,
                           icon: const Icon(Icons.close),
-                          label: Text(
-                            AppLocalizations.of(context).close,
-                          ),
+                          label: Text(AppLocalizations.of(context).close),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 24,
