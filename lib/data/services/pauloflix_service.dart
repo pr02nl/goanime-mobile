@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
@@ -6,16 +8,16 @@ import '../../core/constants/api_constants.dart';
 import '../../core/utils/url_codec.dart';
 import '../../domain/models/pauloflix_content.dart';
 import '../../domain/models/pauloflix_models.dart';
-import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../domain/repositories/pauloflix_repository.dart';
-import '../models/jikan_models.dart';
-import 'jikan_service.dart';
-import 'kodi/kodi_nfo_models.dart';
+import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import 'kodi/pauloflix_nfo_enricher.dart';
 
 class PauloFlixService {
   static const String baseUrl = ApiConstants.animePauloFlix;
-  static const Duration reEnrichThreshold = Duration(days: 7);
+  static const String indexUrl = ApiConstants.tvIndexUrl;
+
+  /// Host base sem path — usado para resolver paths relativos do JSON.
+  static const String _baseHost = 'https://media.oliveira.braga.nom.br';
 
   /// HTTP client usado pelas chamadas estáticas.
   /// Inicializado por [configure] no startup do app com o
@@ -29,61 +31,9 @@ class PauloFlixService {
     _httpClient = client;
   }
 
-  static Future<List<PauloFlixShow>> fetchAllShows() async {
-    try {
-      debugPrint('[PauloFlix] Fetching all shows from $baseUrl');
-      final response = await _httpClient
-          .get(Uri.parse(baseUrl))
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200) {
-        debugPrint('[PauloFlix] Failed to fetch shows: ${response.statusCode}');
-        return [];
-      }
-      final document = html_parser.parse(response.body);
-      final linkElements = document.querySelectorAll('a[href]');
-      final List<_ShowLinkEntry> allLinks = [];
-      for (final element in linkElements) {
-        final href = element.attributes['href'] ?? '';
-        final text = element.text.trim();
-        if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {
-          continue;
-        }
-        allLinks.add(_ShowLinkEntry(href: href, name: text));
-      }
-
-      // **Não** detecta imagens na raiz para atribuir aos shows —
-      // isso é BUG: todos os shows receberiam o mesmo `poster.jpg`/
-      // `fanart.jpg` (se existir) ou nenhum. As imagens reais ficam
-      // **dentro de cada pasta de show** (`/tvshows/HxH/poster.jpg`).
-      //
-      // A detecção correta acontece em `_enrichSingleShow` via
-      // `PauloFlixNfoEnricher.fetchShowNfoWithImages` (Fase N+1).
-      // O `_detectAnimeImageFiles` foi removido nesta fase — a
-      // detecção raiz não é usada em nenhum lugar.
-
-      final List<PauloFlixShow> shows = [];
-      for (final entry in allLinks) {
-        if (!entry.href.endsWith('/')) continue;
-        final rawName = entry.href.substring(0, entry.href.length - 1);
-        final decodedName = safeDecodeComponent(rawName);
-        final absoluteUrl = '$baseUrl${entry.href}';
-        shows.add(
-          PauloFlixShow(
-            name: decodedName,
-            url: absoluteUrl,
-            // posterFileName/fanartFileName intencionalmente null —
-            // a detecção por show acontece em `_enrichSingleShow`.
-          ),
-        );
-      }
-      debugPrint('[PauloFlix] Found ${shows.length} shows');
-      return shows;
-    } catch (e) {
-      debugPrint('[PauloFlix] Error fetching shows: $e');
-      throw Exception('Error fetching PauloFlix shows: $e');
-    }
-  }
-
+  /// Busca temporadas de um show via scraping HTML da pasta do show.
+  /// Mantido para a tela de episódios (chamada on-demand pelo
+  /// `PauloFlixEpisodeListViewModel`).
   static Future<List<PauloFlixSeason>> fetchShowSeasons(String showUrl) async {
     try {
       debugPrint('[PauloFlix] Fetching seasons from $showUrl');
@@ -140,6 +90,9 @@ class PauloFlixService {
     '.m4v',
   };
 
+  /// Busca episódios de uma temporada via scraping HTML da pasta.
+  /// Mantido para a tela de episódios (chamada on-demand pelo
+  /// `PauloFlixEpisodeListViewModel`).
   static Future<List<PauloFlixEpisode>> fetchSeasonEpisodes(
     String seasonUrl,
   ) async {
@@ -191,19 +144,15 @@ class PauloFlixService {
   }
 
   static int? _extractSeasonNumber(String name) {
-    // Padrão 1: "Season 01", "Season 1" (formato completo)
     final seasonMatch = RegExp(
       r'Season\s+(\d+)',
       caseSensitive: false,
     ).firstMatch(name);
     if (seasonMatch != null) return int.tryParse(seasonMatch.group(1)!);
 
-    // Padrão 2: "S01", "S1" (abreviação comum)
-    // Cuida de "S01 - East Blue", "S01E01", "S01_Arco_X", etc.
     final sMatch = RegExp(r'\bS(\d+)\b').firstMatch(name);
     if (sMatch != null) return int.tryParse(sMatch.group(1)!);
 
-    // Padrão 3: "Temporada 01" (português)
     final ptMatch = RegExp(
       r'Temporada\s+(\d+)',
       caseSensitive: false,
@@ -227,7 +176,6 @@ class PauloFlixService {
     if (simpleMatch != null) {
       final number = int.tryParse(simpleMatch.group(1)!);
       if (number != null) {
-        // Remove any video extension from title
         var title = filename;
         for (final ext in videoExtensions) {
           title = title.replaceAll(ext, '');
@@ -238,119 +186,199 @@ class PauloFlixService {
     return null;
   }
 
+  /// Sincroniza todo o conteúdo do PauloFlix TV a partir do JSON index
+  /// do servidor (`tv_index.json`).
+  ///
+  /// ## Diferenças do sync legado (HTML scraping + Jikan)
+  ///
+  /// - **Sem scraping HTML:** lê um JSON index que já contém todos os
+  ///   metadados (título, descrição, poster, fanart, seasons/episódios).
+  /// - **Sem API externa (Jikan):** toda a informação vem do JSON,
+  ///   eliminando chamadas HTTP externas e rate limiting.
+  /// - **Sem TTL:** o JSON é fonte da verdade — cada sync processa
+  ///   todos os shows e atualiza o banco via `DoUpdate` (UPSERT real).
+  /// - **Sync de episódios integrado:** quando [episodeRepository] é
+  ///   fornecido, o sync popula seasons/episódios diretamente do JSON,
+  ///   sem scraping adicional.
+  ///
+  /// [enricher] é mantido como parâmetro apenas para compatibilidade
+  /// de assinatura — é **ignorado** (não há mais NFO-scraping no sync).
   static Future<bool> syncContent({
     required PauloFlixRepository repository,
     void Function(String progress)? onProgress,
     void Function(String error)? onError,
 
-    /// Callback chamado **após** cada show ser salvo no banco.
-    /// Usado pelo `PauloFlixProvider` para disparar o sync de
-    /// seasons/episodes do show imediatamente após ele existir no banco
-    /// (evita uma segunda passada por show no final).
-    ///
-    /// [PauloFlixContent.id] é guaranteed non-null no callback (o show
-    /// acabou de ser inserido com id auto-gerado).
+    /// Mantido para compatibilidade de assinatura, mas **ignorado**
+    /// — o JSON index substituiu o scraped-based sync.
+    // ignore: avoid_unused_constructor_parameters
     Future<void> Function(PauloFlixContent content)? onContentSynced,
 
-    /// Opcional (Fase 2) — quando fornecido, **também** sincroniza
-    /// seasons/episodes de shows novos ou que mudaram de pasta.
-    /// Usado pelo `PauloFlixProvider.syncContent` que tem o
-    /// `PauloFlixEpisodeSyncService` injetado.
+    /// Quando fornecido, popula seasons/episódios diretamente do JSON
+    /// index, sem necessidade de scraping adicional.
     PauloFlixEpisodeProgressRepository? episodeRepository,
 
-    /// Opcional (Fase 3 do plano NFO enrichment) — quando fornecido, o
-    /// enricher é tentado **antes** do Jikan. Se o servidor PauloFlix
-    /// tem `tvshow.nfo` válido na pasta do show, o `PauloFlixContent`
-    /// é construído a partir do NFO (`PauloFlixContent.fromNfo`).
-    /// Caso contrário (404, parse fail, sem `<title>`, etc.), o
-    /// fallback Jikan roda normalmente — comportamento idêntico ao
-    /// legado quando [enricher] é `null`.
+    /// Mantido para compatibilidade de assinatura — **ignorado**.
+    // ignore: avoid_unused_constructor_parameters
     PauloFlixNfoEnricher? enricher,
   }) async {
     try {
-      onProgress?.call('Buscando shows do PauloFlix...');
-      final shows = await fetchAllShows();
-      if (shows.isEmpty) {
-        onError?.call('Nenhum show encontrado no PauloFlix');
+      onProgress?.call('Baixando índice JSON do PauloFlix TV...');
+      final response = await _httpClient
+          .get(Uri.parse(indexUrl))
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode != 200) {
+        onError?.call('Erro ao baixar índice: HTTP ${response.statusCode}');
         return false;
       }
 
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final List<dynamic> showsJson = data['shows'] as List<dynamic>;
+
+      if (showsJson.isEmpty) {
+        onError?.call('Nenhum show encontrado no índice JSON');
+        return false;
+      }
+
+      onProgress?.call('Índice baixado: ${showsJson.length} shows');
+
+      // Converte todos os shows do JSON para PauloFlixContent
+      final List<PauloFlixContent> contents = [];
+      final Map<String, Map<String, dynamic>> showJsonByPath = {};
+
+      for (final showJson in showsJson) {
+        final json = showJson as Map<String, dynamic>;
+        final content = PauloFlixContent.fromTvIndex(
+          json: json,
+          baseHost: _baseHost,
+        );
+        contents.add(content);
+        showJsonByPath[json['path'] as String] = json;
+      }
+
+      // Busca shows existentes no banco
       final existingContent = await repository.getAll();
-      final result = await _computeShowsToProcess(shows, existingContent);
+      final existingPaths = existingContent.map((c) => c.folderName).toSet();
+      final currentPaths = contents.map((c) => c.folderName).toSet();
 
-      if (result.removedFolderNames.isNotEmpty) {
+      // Shows que sumiram do servidor
+      final removedPaths = existingPaths.difference(currentPaths);
+
+      if (removedPaths.isNotEmpty) {
         onProgress?.call(
-          'Marcando ${result.removedFolderNames.length} shows removidos...',
+          'Marcando ${removedPaths.length} shows removidos...',
         );
       }
 
-      if (result.showsToProcess.isEmpty) {
-        onProgress?.call(
-          'Sincronizacao completa: ${existingContent.length} shows',
-        );
-        await _finishSync(repository, result.removedFolderNames);
-        return true;
-      }
-
-      final contents = await _enrichShowsWithJikan(
-        result.showsToProcess,
-        onProgress,
-        enricher: enricher,
-      );
-
-      onProgress?.call(
-        'Salvando ${contents.length} items no banco de dados...',
-      );
+      // Salva todos os shows (DoUpdate lida com conflitos)
+      onProgress?.call('Salvando ${contents.length} shows no banco...');
       await repository.saveBatch(contents);
 
-      // Relê o batch inserido para obter os ids reais (autoincrement).
-      // Para cada show, dispara o callback onContentSynced (que pode
-      // acionar o sync de seasons/episodes, se o caller passar
-      // episodeRepository). O callback é chamado **sequencialmente** para
-      // não martelar o servidor com requests paralelas.
+      // Se temos repositório de episódios, popula seasons/episódios do JSON
+      if (episodeRepository != null) {
+        final saved = await _loadSavedContentsWithIds(
+          repository,
+          contents.map((c) => c.folderName).toList(),
+        );
+
+        for (final content in saved) {
+          final json = showJsonByPath[content.folderName];
+          if (json == null) continue;
+
+          final seasonsJson = json['seasons'] as List<dynamic>?;
+          if (seasonsJson == null || seasonsJson.isEmpty) continue;
+
+          onProgress?.call(
+            'Sincronizando episódios de ${content.displayName}...',
+          );
+
+          for (final seasonJson in seasonsJson) {
+            final seasonData = seasonJson as Map<String, dynamic>;
+            final seasonNumber = seasonData['season'] as int;
+            final folderName =
+                'Season ${seasonNumber.toString().padLeft(2, '0')}';
+            final displayName = 'Season $seasonNumber';
+
+            final seasonId = await episodeRepository.upsertSeason(
+              contentId: content.id!,
+              seasonNumber: seasonNumber,
+              displayName: displayName,
+              folderName: folderName,
+            );
+
+            final episodesJson = seasonData['episodes'] as List<dynamic>?;
+            if (episodesJson == null || episodesJson.isEmpty) continue;
+
+            for (final episodeJson in episodesJson) {
+              final ep = episodeJson as Map<String, dynamic>;
+              final episodeNumber = ep['episode'] as int;
+              final episodeTitle =
+                  (ep['title'] as String?) ?? 'Episode $episodeNumber';
+              final filePath = ep['file'] as String;
+              final videoUrl = '$_baseHost$filePath';
+
+              String? thumbnailUrl;
+              if (ep['thumb'] != null) {
+                thumbnailUrl = '$_baseHost${ep['thumb']}';
+              }
+
+              // NFO V2 fields extras
+              final nfoJson = ep['nfo'] as Map<String, dynamic>?;
+              final int? runtime;
+              if (nfoJson?['runtime'] != null) {
+                runtime = int.tryParse(nfoJson!['runtime'].toString());
+              } else {
+                runtime = null;
+              }
+
+              await episodeRepository.upsertEpisode(
+                seasonId: seasonId,
+                episodeNumber: episodeNumber,
+                title: episodeTitle,
+                videoUrl: videoUrl,
+                thumbnailUrl: thumbnailUrl,
+                description: ep['plot'] as String?,
+                originalTitle: nfoJson?['originaltitle'] as String?,
+                outline: nfoJson?['outline'] as String?,
+                aired: ep['aired'] != null
+                    ? DateTime.tryParse(ep['aired'] as String)
+                    : null,
+                rating: (ep['rating'] as num?)?.toDouble(),
+                runtime: runtime,
+              );
+            }
+          }
+        }
+      }
+
+      // Dispara callback onContentSynced (se caller ainda quiser)
       if (onContentSynced != null) {
         final saved = await _loadSavedContentsWithIds(
           repository,
           contents.map((c) => c.folderName).toList(),
         );
-        var i = 0;
         for (final c in saved) {
-          i++;
-          onProgress?.call(
-            'Sincronizando seasons/episodes $i/${saved.length} (${c.displayName})...',
-          );
-          try {
-            await onContentSynced(c);
-          } catch (e) {
-            debugPrint(
-              '[PauloFlix] Erro no sync de seasons/episodes '
-              'de ${c.displayName}: $e',
-            );
-            // Continua com os outros shows.
-          }
+          await onContentSynced(c);
         }
       }
 
-      await _finishSync(repository, result.removedFolderNames);
+      // Marca shows removidos
+      for (final path in removedPaths) {
+        await repository.markAsUnavailable(path);
+      }
 
-      final totalAvailable =
-          existingContent.length -
-          result.removedFolderNames.length +
-          result.showsToProcess.length;
-      onProgress?.call('Sincronizacao completa: $totalAvailable shows');
+      final totalAvailable = existingContent.length - removedPaths.length;
+      onProgress?.call('Sincronização completa: $totalAvailable shows');
       return true;
     } catch (e) {
       debugPrint('[PauloFlix] Sync error: $e');
-      onError?.call('Erro na sincronizacao: $e');
+      onError?.call('Erro na sincronização: $e');
       return false;
     }
   }
 
   /// Relê do banco os `PauloFlixContent` pelos folderNames recém
   /// inseridos, retornando-os com `id` preenchido.
-  ///
-  /// Necessário porque `saveBatch` não retorna os ids gerados pelo
-  /// autoincrement. 1 query batch (1 round-trip ao banco) em vez de N.
   static Future<List<PauloFlixContent>> _loadSavedContentsWithIds(
     PauloFlixRepository repository,
     List<String> folderNames,
@@ -362,247 +390,12 @@ class PauloFlixService {
         if (byFolder.containsKey(name)) byFolder[name]!,
     ];
   }
-
-  static Future<_ComputeResult> _computeShowsToProcess(
-    List<PauloFlixShow> shows,
-    List<PauloFlixContent> existingContent,
-  ) async {
-    final existingFolderNames = existingContent
-        .map((c) => c.folderName)
-        .toSet();
-    final currentFolderNames = shows.map((s) => s.name).toSet();
-
-    final removedFolderNames = existingFolderNames.difference(
-      currentFolderNames,
-    );
-
-    final staleThreshold = DateTime.now().subtract(reEnrichThreshold);
-
-    final newShows = shows
-        .where((s) => !existingFolderNames.contains(s.name))
-        .toList();
-    final needsUpdate = existingContent
-        .where(
-          (c) =>
-              currentFolderNames.contains(c.folderName) &&
-              (_isIncomplete(c) || c.lastSynced.isBefore(staleThreshold)),
-        )
-        .toList();
-
-    final showsToProcess = [...newShows];
-    for (final content in needsUpdate) {
-      final match = shows.where((s) => s.name == content.folderName);
-      if (match.isNotEmpty) {
-        final show = match.first;
-        if (!showsToProcess.any((s) => s.name == show.name)) {
-          showsToProcess.add(show);
-        }
-      }
-    }
-    return _ComputeResult(
-      showsToProcess: showsToProcess,
-      removedFolderNames: removedFolderNames.toList(),
-    );
-  }
-
-  static Future<List<PauloFlixContent>> _enrichShowsWithJikan(
-    List<PauloFlixShow> shows,
-    void Function(String progress)? onProgress, {
-    PauloFlixNfoEnricher? enricher,
-  }) async {
-    final total = shows.length;
-    final jikanService = JikanService();
-    final List<PauloFlixContent> contents = [];
-    const batchSize = 3;
-
-    for (int i = 0; i < shows.length; i += batchSize) {
-      final batch = shows.skip(i).take(batchSize).toList();
-      final processed = i + batch.length;
-
-      onProgress?.call(
-        'Processando $processed/$total (batch de ${batch.length})',
-      );
-
-      final batchResults = await Future.wait(
-        batch.map(
-          (show) => _enrichSingleShow(
-            show,
-            jikanService,
-            enricher: enricher,
-          ),
-        ),
-      );
-
-      contents.addAll(batchResults);
-
-      if (processed < total) {
-        await Future.delayed(const Duration(seconds: 1));
-      }
-    }
-
-    return contents;
-  }
-
-  /// Enriquece um único show com a estratégia NFO-first → Jikan → placeholder.
-  ///
-  /// **Pipeline (Fase 3):**
-  /// 1. Se [enricher] for fornecido, tenta `fetchShowNfo(showUrl)`. Em
-  ///    caso de sucesso, monta o `PauloFlixContent.fromNfo(...)` e
-  ///    retorna. NFO é fonte primária de metadados.
-  /// 2. Caso o enricher esteja ausente, retorne null, ou o NFO não
-  ///    tenha `<title>` (show sem metadado útil), cai no
-  ///    `_enrichSingleShowJikan` (comportamento legado).
-  /// 3. Se ambos falharem, retorna um `PauloFlixContent` placeholder
-  ///    com só `folderName`/`displayName`/`serverUrl` preenchidos —
-  ///    idêntico ao legado.
-  ///
-  /// **Sequência:** NFO e Jikan rodam **sequencialmente** (await), não
-  /// em paralelo. Se o NFO é hit (resposta rápida do servidor local),
-  /// economizamos a chamada Jikan. Se NFO é miss (404 ou timeout de
-  /// 10s), o Jikan é chamado como fallback — comportamento idêntico
-  /// ao legado. O batching no caller (`_enrichShowsWithJikan`) ainda
-  /// paraleliza entre shows diferentes (batchSize 3), só não entre
-  /// NFO e Jikan do mesmo show.
-  static Future<PauloFlixContent> _enrichSingleShow(
-    PauloFlixShow show,
-    JikanService jikanService, {
-    PauloFlixNfoEnricher? enricher,
-  }) async {
-    // 1) Tenta NFO + listing HTML da pasta do show (paralelo).
-    //
-    // **Por que `fetchShowNfoWithImages`:** o NFO pode ter
-    // `<thumb aspect="poster">poster.jpg</thumb>` apontando para o
-    // arquivo, mas o JPG pode estar ausente na pasta. Por isso
-    // detectamos o listing da pasta do show **na mesma passada**
-    // (2 GETs paralelos via `Future.wait` — mesmo RTT que 1 GET
-    // sequencial) e passamos as URLs detectadas como fallback
-    // quando o NFO não tem `<thumb>`.
-    //
-    // Antes desta correção (Fase N+1), o `fetchAllShows` lia os JPGs
-    // físicos da pasta **raiz** `/tvshows/` e atribuía o mesmo
-    // `poster.jpg`/`fanart.jpg` (ou nenhum) a TODOS os shows — bug
-    // clássico: todos os cards mostravam a mesma imagem (ou nenhum).
-    if (enricher != null) {
-      try {
-        final result = await enricher.fetchShowNfoWithImages(show.url);
-        final KodiShowNfo? nfo = result.nfo;
-        final images = result.images;
-        if (nfo != null) {
-          debugPrint('[PauloFlix] NFO hit for ${show.name}');
-          // Fallback em cascata: 1) JPG físico na pasta do show
-          // (images.poster) → 2) URL absoluta via `resolveThumbUrl`
-          // se for path relativo. Mesmo padrão do season.nfo
-          // (SeasonEpisodesReconcileService).
-          final fallbackPosterUrl = images.poster != null
-              ? PauloFlixNfoEnricher.resolveThumbUrl(show.url, images.poster!)
-              : null;
-          final fallbackFanartUrl = images.fanart != null
-              ? PauloFlixNfoEnricher.resolveThumbUrl(show.url, images.fanart!)
-              : null;
-          return PauloFlixContent.fromNfo(
-            folderName: show.name,
-            serverUrl: show.url,
-            nfo: nfo,
-            // Fallback: se o NFO não tem `<thumb>` apontando para
-            // poster/fanart, usa o JPG físico detectado na pasta do
-            // show. Antes desta correção, vinha do listing raiz
-            // (compartilhado por todos os shows).
-            fallbackPosterUrl: fallbackPosterUrl,
-            fallbackFanartUrl: fallbackFanartUrl,
-          );
-        }
-      } catch (e) {
-        debugPrint(
-          '[PauloFlix] NFO enrich failed for ${show.name} '
-          '(falling back to Jikan): $e',
-        );
-        // Cai no Jikan abaixo.
-      }
-    }
-
-    // 2) Fallback Jikan (comportamento legado).
-    return _enrichSingleShowJikan(show, jikanService);
-  }
-
-  /// Comportamento legado (pré-Fase 3): enriquecimento via Jikan.
-  /// Mantido como função privada separada para preservar
-  /// `git blame` claro da refatoração NFO-first.
-  static Future<PauloFlixContent> _enrichSingleShowJikan(
-    PauloFlixShow show,
-    JikanService jikanService,
-  ) async {
-    try {
-      final searchResults = await jikanService.searchAnimes(
-        show.name,
-        limit: 5,
-      );
-      JikanAnime? matchedAnime;
-      if (searchResults.isNotEmpty) {
-        matchedAnime = searchResults
-            .where((a) => a.title.toLowerCase() == show.name.toLowerCase())
-            .firstOrNull;
-        matchedAnime ??= searchResults.first;
-      }
-      if (matchedAnime != null) {
-        return PauloFlixContent.fromJikan(
-          folderName: show.name,
-          serverUrl: show.url,
-          jikanAnime: matchedAnime,
-        );
-      }
-    } catch (e) {
-      debugPrint('[PauloFlix] Error processing ${show.name}: $e');
-    }
-    return PauloFlixContent(
-      folderName: show.name,
-      serverUrl: show.url,
-      displayName: show.name,
-    );
-  }
-
-  static Future<void> _finishSync(
-    PauloFlixRepository repository,
-    List<String> removedFolderNames,
-  ) async {
-    for (final folderName in removedFolderNames) {
-      await repository.markAsUnavailable(folderName);
-    }
-    // removeStaleContent não tem equivalente exato no repository; o
-    // markAsUnavailable já é suficiente (a migração v1→v3 cobre legados).
-  }
-
-  /// Um conteúdo PauloFlix é considerado "incompleto" quando falta um
-  /// dos dois metadados essenciais para exibição: `imageUrl` (card/hero)
-  /// ou `malId` (vínculo com Jikan/AniList). Shows incompletos são
-  /// re-enriquecidos em todo `syncContent`, independente do TTL de 7
-  /// dias, para que o Jikan tenha novas chances de preencher o que
-  /// faltou em tentativas anteriores (anime obscure, rate limit etc.).
-  static bool _isIncomplete(PauloFlixContent content) {
-    final imageMissing = content.imageUrl == null || content.imageUrl!.isEmpty;
-    final malIdMissing = content.malId == null;
-    return imageMissing || malIdMissing;
-  }
 }
 
+/// Informação de episódio extraída do nome do arquivo pelo
+/// [PauloFlixService._extractEpisodeInfo].
 class _EpisodeInfo {
   final int number;
   final String title;
   const _EpisodeInfo({required this.number, required this.title});
-}
-
-/// Link parseado do HTML listing de uma pasta do /tvshows/.
-class _ShowLinkEntry {
-  final String href;
-  final String name;
-  const _ShowLinkEntry({required this.href, required this.name});
-}
-
-/// Resultado de [PauloFlixService._computeShowsToProcess].
-class _ComputeResult {
-  final List<PauloFlixShow> showsToProcess;
-  final List<String> removedFolderNames;
-  const _ComputeResult({
-    required this.showsToProcess,
-    required this.removedFolderNames,
-  });
 }

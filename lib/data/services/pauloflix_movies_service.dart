@@ -9,9 +9,7 @@ import '../../core/utils/url_codec.dart' as url_codec;
 import '../../domain/models/pauloflix_movie.dart';
 import '../../domain/models/pauloflix_movie_item.dart';
 import '../../domain/repositories/pauloflix_movies_repository.dart';
-import 'kodi/kodi_nfo_models.dart';
 import 'kodi/pauloflix_nfo_enricher.dart';
-import 'tmdb_service.dart';
 
 /// Lê diretórios HTML do PauloFlix Movies e enriquece com metadados do TMDB.
 ///
@@ -28,24 +26,18 @@ import 'tmdb_service.dart';
 /// Regex utilizada:
 /// - **Ano**: `(YYYY)` entre parênteses `( ... )` no nome da pasta.
 ///   Se não houver `(YYYY)`, retorna null e a busca no TMDB fica sem filtro de ano.
-///
-/// Para **coleções** (pastas só com sub-pastas, ex: `Coleção Harry Potter`),
-/// o nome da pasta é usado como displayName sem extração de ano.
-///
-/// O nome do arquivo (`.mkv`/`.mp4`) só é usado para localizar a URL de
-/// streaming — nunca é passado pro TMDB.
 class PauloFlixMoviesService {
   static const String baseUrl = ApiConstants.moviePauloFlix;
-  static const Duration reEnrichThreshold = Duration(days: 7);
+  static const String indexUrl = ApiConstants.movieIndexUrl;
 
-  /// HTTP client usado pelas chamadas estáticas.
-  /// Inicializado por [configure] no startup do app com o
-  /// `AuthenticatedHttpClient` (que injeta `Authorization: Bearer *** JWT).
-  /// Default: `http.Client()` (sem auth) — usado em testes e como fallback.
+  /// Host base sem path — usado para resolver paths relativos do JSON.
+  static const String _baseHost = 'https://media.oliveira.braga.nom.br';
+
+  /// HTTP client injetável (default: `http.Client()`, injetado por
+  /// [configure] com `AuthenticatedHttpClient`).
   static http.Client _httpClient = http.Client();
 
-  /// Injeta o HTTP client. Chamar UMA vez no `app.dart` antes do primeiro
-  /// sync. Em testes, pode injetar um `MockClient`.
+  /// Injeta o HTTP client. Chamar UMA vez no `app.dart`.
   static void configure(http.Client client) {
     _httpClient = client;
   }
@@ -68,21 +60,10 @@ class PauloFlixMoviesService {
   /// preservar compat com callers legados (e.g.
   /// `PauloFlixMoviesService.safeDecodeComponent(...)` no
   /// `pauloflix_movie_detail_screen.dart`).
-  ///
-  /// **Fase 8 (NFO Enrichment V2):** a função foi extraída para
-  /// `lib/core/utils/url_codec.dart` (helper compartilhado entre os
-  /// 3 services PauloFlix) e este shim estático só existe para
-  /// não quebrar imports.
   static String safeDecodeComponent(String input) =>
       url_codec.safeDecodeComponent(input);
 
   /// Faz parse de uma página de listing HTML e retorna os links.
-  ///
-  /// Recebe opcionalmente os headers HTTP do response (para detecção
-  /// de charset via header `Content-Type`, fallback ao `<meta charset>`
-  /// do HTML). Se o servidor declara um charset não-UTF-8 (e.g.
-  /// `ISO-8859-1`, comum em VPS sem config UTF-8), o body é
-  /// re-decodificado para preservar acentos do português.
   static List<_LinkEntry> _parseLinks(
     String htmlBody, {
     Map<String, String>? responseHeaders,
@@ -112,18 +93,6 @@ class PauloFlixMoviesService {
 
   /// Normaliza o body HTML para UTF-8 quando o servidor declara um
   /// charset não-UTF-8.
-  ///
-  /// O `html_parser` assume Latin-1 como default se não encontrar
-  /// `<meta charset>` (ou usa UTF-8 se encontrar). Como alguns
-  /// servidores (nginx sem `charset utf-8;` no `autoindex on;`)
-  /// enviam o body já em Latin-1 com acentos, o parser interpreta
-  /// esses bytes como Latin-1 corretamente — **mas** se ele
-  /// assume UTF-8 e o body é Latin-1, acentos viram `?`.
-  ///
-  /// Workaround: detecta o charset declarado (meta tag → Content-Type
-  /// header) e, se for não-UTF-8, força re-decode do body
-  /// (encode-decode Latin-1) para extrair a string original e
-  /// re-encodar em UTF-8.
   static String _normalizeHtmlCharset(
     String htmlBody,
     Map<String, String>? responseHeaders,
@@ -137,12 +106,6 @@ class PauloFlixMoviesService {
       return htmlBody;
     }
     try {
-      // latin1.encode re-converte cada char para o byte Latin-1
-      // correspondente (revertendo o que o Dart já tinha como UTF-16);
-      // depois utf8.decode interpreta esses bytes como UTF-8. Se o
-      // body original era Latin-1, o utf8 resultará em garbage;
-      // neste caso aceitamos o trade-off (o server DEVERIA ter
-      // declarado UTF-8 ou enviado Content-Type header com charset).
       final bytes = latin1.encode(htmlBody);
       return utf8.decode(bytes, allowMalformed: true);
     } catch (e) {
@@ -151,208 +114,40 @@ class PauloFlixMoviesService {
     }
   }
 
-  /// Detecta se uma pasta contém um filme individual ou coleção de sub-pastas.
-  ///
-  /// - O **título** do filme é derivado do `folderName` (com remoção leve
-  ///   de tags).
-  /// - O **ano** é extraído pela regex `(YYYY)` no `folderName`.
-  /// - O **arquivo de vídeo** é o primeiro `.mkv`/`.mp4` encontrado —
-  ///   a URL dele é o `videoUrl` final a ser enviado ao player.
-  static Future<PauloFlixMovieRaw> inspectFolder(
-    String folderName,
-    String folderUrl,
-  ) async {
-    final folderTitle = cleanTitleForTmdb(folderName);
-    final folderYear = extractYearFromFolder(folderName);
-
-    debugPrint(
-      '[PauloFlix Movies] Inspecting: $folderUrl — '
-      'title="$folderTitle", year=${folderYear ?? "?"}',
-    );
-
-    try {
-      final response = await _httpClient
-          .get(Uri.parse(folderUrl))
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) {
-        return PauloFlixMovieRaw.empty(
-          folderName: folderName,
-          folderUrl: folderUrl,
-        );
-      }
-
-      final links = _parseLinks(
-        response.body,
-        responseHeaders: response.headers,
-      );
-
-      // Arquivos de legenda (.srt) —lista completa, ranking aplicado depois.
-      final subtitleFiles = links
-          .where(
-            (l) =>
-                l.href.toLowerCase().endsWith('.srt') ||
-                l.name.toLowerCase().endsWith('.srt'),
-          )
-          .toList();
-      final rankedSubtitles = _rankAllSubtitles(subtitleFiles, folderUrl);
-
-      // Arquivos de vídeo (sem '/' no href)
-      final videoFiles = links
-          .where(
-            (l) => videoExtensions.any(
-              (ext) => l.href.toLowerCase().endsWith(ext),
-            ),
-          )
-          .toList();
-
-      // Procura também por nome (caso o link receba href e text iguais)
-      if (videoFiles.isEmpty) {
-        videoFiles.addAll(
-          links.where(
-            (l) => videoExtensions.any(
-              (ext) => l.name.toLowerCase().endsWith(ext),
-            ),
-          ),
-        );
-      }
-
-      if (videoFiles.isNotEmpty) {
-        final first = videoFiles.first;
-        final videoUrl = '$folderUrl${Uri.encodeComponent(first.name)}';
-
-        // Detecta poster/fanart físicos na pasta. Esses arquivos
-        // são fonte de verdade se o `movie.nfo` não tiver `<thumb>`
-        // ou se o path do `<thumb>` for relativo. Padrão Kodi:
-        // `poster.jpg` (capa) e `fanart.jpg` (banner 16:9). Aceita
-        // também `banner.jpg` como alias de fanart.
-        final imageFiles = _detectImageFiles(links);
-        return PauloFlixMovieRaw.single(
-          folderName: folderName,
-          folderUrl: folderUrl,
-          videoFile: PauloFlixMovieFile(
-            folderName: folderName,
-            folderUrl: folderUrl,
-            videoFileName: first.name,
-            videoUrl: videoUrl,
-            cleanedName: folderTitle,
-            year: folderYear,
-            subtitles: rankedSubtitles,
-          ),
-          posterFileName: imageFiles.poster,
-          fanartFileName: imageFiles.fanart,
-        );
-      }
-
-      // Sub-pastas (coleção)
-      final subFolders = links
-          .where((l) => l.href.endsWith('/'))
-          .map(
-            (l) => PauloFlixMovieSubfolder(
-              name: l.name,
-              url: '$folderUrl${l.href}',
-            ),
-          )
-          .toList();
-
-      if (subFolders.isNotEmpty) {
-        return PauloFlixMovieRaw.collection(
-          folderName: folderName,
-          folderUrl: folderUrl,
-          subfolders: subFolders,
-        );
-      }
-
-      return PauloFlixMovieRaw.empty(
-        folderName: folderName,
-        folderUrl: folderUrl,
-      );
-    } catch (e) {
-      debugPrint('[PauloFlix Movies] inspectFolder error: $e');
-      return PauloFlixMovieRaw.empty(
-        folderName: folderName,
-        folderUrl: folderUrl,
-      );
-    }
-  }
-
-  /// Lista todas as pastas raiz de /movies/.
-  static Future<List<PauloFlixMovieSubfolder>> fetchRootFolders() async {
-    try {
-      debugPrint('[PauloFlix Movies] Fetching root: $baseUrl');
-      final response = await _httpClient
-          .get(Uri.parse(baseUrl))
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200) return [];
-      final links = _parseLinks(
-        response.body,
-        responseHeaders: response.headers,
-      );
-      return links
-          .where((l) => l.href.endsWith('/'))
-          .map(
-            (l) => PauloFlixMovieSubfolder(
-              name: l.name,
-              url: '$baseUrl${Uri.encodeComponent(l.name)}/',
-            ),
-          )
-          .toList();
-    } catch (e) {
-      debugPrint('[PauloFlix Movies] fetchRootFolders error: $e');
-      return [];
-    }
-  }
-
-  // ---------------- Extração de título + ano ----------------
-
-  /// Regex de ano entre parênteses: `(2010)`, `(1985)`.
-  static final RegExp _yearInParens = RegExp(r'\((19|20)\d{2}\)');
-
   /// Extrai o ano entre parênteses do nome da pasta. Retorna null se
   /// não houver `(YYYY)`.
-  ///
-  /// Importante: a regex é deliberadamente restrita a parênteses
-  /// (não colchetes) e exige exatamente 4 dígitos começando com `19` ou
-  /// `20` — isso evita falsos positivos com anos embutidos em tags
-  /// de codec (ex: `x265` → false, mas `(2010)` → matched).
   static int? extractYearFromFolder(String folderName) {
     final match = _yearInParens.firstMatch(folderName);
     if (match == null) return null;
-    final raw = match.group(0)!; // "(2010)"
+    final raw = match.group(0)!;
     final yearStr = raw.substring(1, raw.length - 1);
     return int.tryParse(yearStr);
   }
 
-  /// Tags comuns que aparecem em nomes de pastas como ornamentação.
-  /// Case-insensitive. Removidas por [cleanTitleForTmdb].
+  /// Regex de ano entre parênteses: `(2010)`, `(1985)`.
+  static final RegExp _yearInParens = RegExp(r'\((19|20)\d{2}\)');
+
+  /// Lista de tags decorativas removidas por [cleanTitleForTmdb].
   static const List<String> _decorativeTags = [
-    // Qualidade
     '1080p', '720p', '480p', '2160p', '4K',
     'FULLHD', 'FullHD',
     'BRRip', 'BDRip', 'WEB-DL', 'WEBRip', 'WEB', 'HDTV',
     'HDRip', 'DVDRip', 'Open.Matte', 'Directors.Cut',
     'Extended', 'Versão Estendida', 'VERSAO ESTENDIDA',
-    // Codec / áudio
     'x265', 'x264', 'HEVC', 'H265', 'H264', 'AV1', 'AVC',
     '10bit', 'Opus', 'AAC', 'AC3', 'DDP5.1', 'DD5.1',
     'DUAL', 'Dublado', 'Legendado',
-    // Grupos
     'WWW.BLUDV.COM', 'BLUDV.COM', 'WOLVERDONFILMES.COM', 'wolverdonfilmes.com',
     'GalaxyRG', 'YTS.MX', 'KONTRAST', 'Alan_680', 'AndreTPF',
     'LAPUMiA', 'Zero00', 'RARBG', 'TGx',
     'ThePirateFilmes', 'The.Pirate.Filmes',
   ];
 
-  /// Mapa estático (não const porque `RegExp` não tem construtor const)
-  /// de tokens de idioma comum em legendas SRT → código BCP-47.
-  ///
-  /// Ordem na estrutura reflete prioridade de matching.
   static final Map<RegExp, String> _subtitleLanguageTokens = {
-    // PT-BR tem prioridade máxima
     RegExp(r'\.pob\.srt$', caseSensitive: false): 'pt-BR',
     RegExp(r'\.pt[-_]br\.srt$', caseSensitive: false): 'pt-BR',
     RegExp(r'\.por\.srt$', caseSensitive: false): 'pt-BR',
     RegExp(r'\.pt\.srt$', caseSensitive: false): 'pt',
-    // Outros idiomas
     RegExp(r'\.eng\.srt$', caseSensitive: false): 'en',
     RegExp(r'\.en\.srt$', caseSensitive: false): 'en',
     RegExp(r'\.spa\.srt$', caseSensitive: false): 'es',
@@ -368,16 +163,11 @@ class PauloFlixMoviesService {
     RegExp(r'\.jp\.srt$', caseSensitive: false): 'ja',
   };
 
-  /// Detecta se o arquivo `.srt` é uma legenda "forced" — versão de
-  /// trechos traduzidos que ficam visíveis mesmo sem selecionar faixa
-  /// (e.g. signos em língua estrangeira no filme).
   static final RegExp _forcedSrtPattern = RegExp(
     r'\.forced\.srt$',
     caseSensitive: false,
   );
 
-  /// Rótulos amigáveis para o selector no player. Mantém ordem
-  /// canônica para conseguir match determinístico.
   static const Map<String, String> _languageDisplayNames = {
     'pt-BR': 'Português (Brasil)',
     'pt': 'Português',
@@ -389,11 +179,6 @@ class PauloFlixMoviesService {
     'ja': 'Japonês',
   };
 
-  /// Retorna TODAS as legendas candidatas (ordenadas por prioridade),
-  /// com `SubtitleTrackInfo` completo para cada uma —incluindo o
-  /// displayName amigável.
-  ///
-  /// Quando não há nenhum `.srt` na pasta, retorna lista vazia.
   static List<SubtitleTrackInfo> _rankAllSubtitles(
     List<_LinkEntry> subtitleFiles,
     String folderUrl,
@@ -425,7 +210,6 @@ class PauloFlixMoviesService {
 
     return sorted.map((entry) {
       final base = _safeBase(entry.href).toLowerCase();
-      // Detecta idioma
       String? langCode;
       for (final token in _subtitleLanguageTokens.entries) {
         if (token.key.hasMatch(base)) {
@@ -434,14 +218,9 @@ class PauloFlixMoviesService {
         }
       }
       langCode ??= 'pt-BR';
-
-      // Detecta forced
       final forced = _forcedSrtPattern.hasMatch(base);
-
-      // Display name: "[Idioma] (forçado)" se forced, senão só "[Idioma]"
       final displayName = _languageDisplayNames[langCode] ?? langCode;
       final fullDisplayName = forced ? '$displayName (forçado)' : displayName;
-
       final url = '$folderUrl${Uri.encodeComponent(entry.name)}';
       return SubtitleTrackInfo(
         url: url,
@@ -452,12 +231,9 @@ class PauloFlixMoviesService {
     }).toList();
   }
 
-  /// Extrai só o nome do arquivo de uma URL ou nome completo (sem separadores
-  /// de path).
   static String _safeBase(String href) {
     final parts = href.split('/');
     var last = parts.isEmpty ? href : parts.last;
-    // Decodifica %XX se houver
     try {
       last = Uri.decodeComponent(last);
     } catch (e) {
@@ -466,31 +242,13 @@ class PauloFlixMoviesService {
     return last;
   }
 
-  /// Extensões de imagem reconhecidas para poster/fanart/banner.
   static const Set<String> _imageExtensions = {
-    '.jpg',
-    '.jpeg',
-    '.png',
-    '.webp',
+    '.jpg', '.jpeg', '.png', '.webp',
   };
 
-  /// Nomes canônicos (Kodi) que identificam poster, fanart, banner.
-  /// Match case-insensitive, com ou sem extensão.
   static const _posterNames = {'poster', 'cover', 'folder', 'movie-poster'};
   static const _fanartNames = {'fanart', 'backdrop', 'banner', 'movie-banner'};
 
-  /// Varre os [links] do listing HTML e detecta arquivos de imagem
-  /// que servem como poster e fanart do filme.
-  ///
-  /// **Estratégia:**
-  /// 1. Procura nomes canônicos primeiro (`poster.jpg`, `fanart.jpg`).
-  /// 2. Se não encontrar, aceita qualquer `.jpg`/`.png`/etc cujo
-  ///    nome contenha "poster"/"fanart"/"cover"/"banner" (case-insensitive).
-  /// 3. Se ainda não encontrar, usa o primeiro `.jpg`/`.png` como poster
-  ///    fallback (heurística fraca — só usada em último caso).
-  ///
-  /// **Por que dedupe:** se a pasta tem `poster.jpg` E `folder.jpg`,
-  /// `poster.jpg` vence (canônico). O primeiro `fanart` válido vence.
   static _DetectedImages _detectImageFiles(List<_LinkEntry> links) {
     String? poster;
     String? fanart;
@@ -506,10 +264,8 @@ class PauloFlixMoviesService {
           : '';
       if (!_imageExtensions.contains(ext)) continue;
 
-      // Guarda primeiro .jpg/.png como fallback.
       firstImage ??= link.name;
 
-      // Match canônico (sem extensão).
       if (poster == null && _posterNames.contains(base)) {
         poster = link.name;
         continue;
@@ -518,8 +274,6 @@ class PauloFlixMoviesService {
         fanart = link.name;
         continue;
       }
-
-      // Match fuzzy: nome contém keyword.
       if (poster == null && _posterNames.any((n) => base.contains(n))) {
         poster = link.name;
         continue;
@@ -530,292 +284,220 @@ class PauloFlixMoviesService {
       }
     }
 
-    // Fallback final: usa primeiro .jpg como poster se nada casou.
-    // Não tenta fallback de fanart (sem fanart é aceitável).
     poster ??= firstImage;
-
     return _DetectedImages(poster: poster, fanart: fanart);
   }
 
   /// Limpa o nome da pasta para produzir um título buscável no TMDB.
-  ///
-  /// Regras:
-  /// 1. Remove o `(YYYY)` se houver (vai ser usado como filtro separado).
-  /// 2. Remove ano solto entre colchetes `[1985]`.
-  /// 3. Remove tags decorativas (qualidade, codecs, áudio, grupos).
-  /// 4. Substitui `.`, `_`, `-`, `+` por espaço.
-  /// 5. Colapsa múltiplos espaços, remove acentos das pontas.
-  ///
-  /// Exemplos:
-  /// - `A Origem (2010)` → `A Origem`
-  /// - `Constantine 2005 (1080p) WWW.BLUDV.COM` → `Constantine 2005`
-  /// - `Coleção Harry Potter 2001 - 2011  WWW.BLUDV.COM` → `Coleção Harry Potter 2001 2011`
   static String cleanTitleForTmdb(String folderName) {
     var name = folderName;
-
-    // 1) Remove (YYYY) — vai ser extraído separadamente
     name = name.replaceAll(_yearInParens, ' ');
-
-    // 2) Remove [YYYY] também
     name = name.replaceAll(RegExp(r'\[(19|20)\d{2}\]'), ' ');
-
-    // 3) Remove tags decorativas
     for (final tag in _decorativeTags) {
       final escaped = RegExp.escape(tag);
       name = name.replaceAll(RegExp(escaped, caseSensitive: false), ' ');
     }
-
-    // 4) Pontuação virando espaço
     name = name.replaceAll(RegExp(r'[._+\-]+'), ' ');
-
-    // 5) Normaliza múltiplos espaços + trim + remove pontas
     name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
     name = name.replaceAll(RegExp(r'^[^\wÀ-ÿ]+|[^\wÀ-ÿ]+$'), '');
-
     return name;
   }
 
-  // ---------------- Sincronização ----------------
+  // ---------------- Inspeção de pasta (scraping on-demand) ----------------
 
-  /// Sincroniza todo o conteúdo:
-  /// - Marca como indisponível o que não está mais em /movies/
-  /// - Enriquece com metadados TMDB apenas o que é novo OU está sem imagem
+  /// Resultado do scraping on-demand de uma pasta para uso pelo
+  /// [PauloFlixMoviesProvider] (tela de detalhe).
+  static Future<PauloFlixMovieRaw> inspectFolder(
+    String folderName,
+    String folderUrl,
+  ) async {
+    final folderTitle = cleanTitleForTmdb(folderName);
+    final folderYear = extractYearFromFolder(folderName);
+
+    debugPrint(
+      '[PauloFlix Movies] Inspecting: $folderUrl — '
+      'title="$folderTitle", year=${folderYear ?? "?"}',
+    );
+
+    try {
+      final response = await _httpClient
+          .get(Uri.parse(folderUrl))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) {
+        return PauloFlixMovieRaw.empty(
+          folderName: folderName,
+          folderUrl: folderUrl,
+        );
+      }
+
+      final links = _parseLinks(
+        response.body,
+        responseHeaders: response.headers,
+      );
+
+      final subtitleFiles = links
+          .where(
+            (l) =>
+                l.href.toLowerCase().endsWith('.srt') ||
+                l.name.toLowerCase().endsWith('.srt'),
+          )
+          .toList();
+      final rankedSubtitles = _rankAllSubtitles(subtitleFiles, folderUrl);
+
+      final videoFiles = links
+          .where(
+            (l) => videoExtensions.any(
+              (ext) => l.href.toLowerCase().endsWith(ext),
+            ),
+          )
+          .toList();
+
+      if (videoFiles.isEmpty) {
+        videoFiles.addAll(
+          links.where(
+            (l) => videoExtensions.any(
+              (ext) => l.name.toLowerCase().endsWith(ext),
+            ),
+          ),
+        );
+      }
+
+      if (videoFiles.isNotEmpty) {
+        final first = videoFiles.first;
+        final videoUrl = '$folderUrl${Uri.encodeComponent(first.name)}';
+        final imageFiles = _detectImageFiles(links);
+        return PauloFlixMovieRaw.single(
+          folderName: folderName,
+          folderUrl: folderUrl,
+          videoFile: PauloFlixMovieFile(
+            folderName: folderName,
+            folderUrl: folderUrl,
+            videoFileName: first.name,
+            videoUrl: videoUrl,
+            cleanedName: folderTitle,
+            year: folderYear,
+            subtitles: rankedSubtitles,
+          ),
+          posterFileName: imageFiles.poster,
+          fanartFileName: imageFiles.fanart,
+        );
+      }
+
+      final subFolders = links
+          .where((l) => l.href.endsWith('/'))
+          .map(
+            (l) => PauloFlixMovieSubfolder(
+              name: l.name,
+              url: '$folderUrl${l.href}',
+            ),
+          )
+          .toList();
+
+      if (subFolders.isNotEmpty) {
+        return PauloFlixMovieRaw.collection(
+          folderName: folderName,
+          folderUrl: folderUrl,
+          subfolders: subFolders,
+        );
+      }
+
+      return PauloFlixMovieRaw.empty(
+        folderName: folderName,
+        folderUrl: folderUrl,
+      );
+    } catch (e) {
+      debugPrint('[PauloFlix Movies] inspectFolder error: $e');
+      return PauloFlixMovieRaw.empty(
+        folderName: folderName,
+        folderUrl: folderUrl,
+      );
+    }
+  }
+
+  // ---------------- Sincronização (JSON index) ----------------
+
+  /// Sincroniza todo o conteúdo do PauloFlix Movies a partir do JSON
+  /// index do servidor (`movie_index.json`).
   ///
-  /// **Fase 4 (NFO enrichment):** quando [enricher] é fornecido, o
-  /// `movie.nfo` é tentado **antes** do TMDB. Se o servidor PauloFlix
-  /// tem `movie.nfo` válido na pasta do filme, o `PauloFlixMovie` é
-  /// construído a partir do NFO (`PauloFlixMovie.fromNfo`) e o TMDB
-  /// é pulado. Caso contrário (404, parse fail, sem `<title>`, ou
-  /// pasta de coleção), o fluxo TMDB roda normalmente.
+  /// ## Diferenças do sync legado (HTML scraping + TMDB)
   ///
-  /// Quando [enricher] é `null` (legacy/tests), o comportamento é
-  /// idêntico ao pré-Fase 4: só TMDB.
+  /// - **Sem scraping HTML:** o JSON index contém todos os metadados
+  ///   (título, ano, descrição, poster, fanart, gêneros, rating, etc.).
+  /// - **Sem API externa (TMDB):** toda a informação vem do JSON,
+  ///   eliminando chamadas HTTP externas e rate limiting.
+  /// - **Sem TTL:** o JSON é fonte da verdade — cada sync processa
+  ///   todos os filmes e atualiza o banco via `DoUpdate` (UPSERT real).
+  ///
+  /// [enricher] e o fluxo TMDB são mantidos apenas para compatibilidade
+  /// de assinatura — são **ignorados** neste sync.
   static Future<bool> syncContent({
     required PauloFlixMoviesRepository repository,
     void Function(String progress)? onProgress,
     void Function(String error)? onError,
 
-    /// Opcional (Fase 4 do plano NFO enrichment) — quando fornecido, o
-    /// enricher é tentado **antes** do TMDB. Se o servidor PauloFlix
-    /// tem `movie.nfo` válido na pasta do filme, o `PauloFlixMovie` é
-    /// construído a partir do NFO (`PauloFlixMovie.fromNfo`). Caso
-    /// contrário (404, parse fail, sem `<title>`, pasta de coleção),
-    /// o fallback TMDB roda normalmente — comportamento idêntico ao
-    /// legado quando [enricher] é `null`.
+    /// Mantido para compatibilidade de assinatura — **ignorado**.
+    // ignore: avoid_unused_constructor_parameters
     PauloFlixNfoEnricher? enricher,
   }) async {
     try {
-      final tmdb = TmdbService();
-      if (!tmdb.isConfigured) {
-        onError?.call('TMDB não configurado. Vá em Configurações → API Keys.');
+      onProgress?.call('Baixando índice JSON do PauloFlix Movies...');
+      final response = await _httpClient
+          .get(Uri.parse(indexUrl))
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode != 200) {
+        onError?.call('Erro ao baixar índice: HTTP ${response.statusCode}');
         return false;
       }
 
-      // Carrega o cache de gêneros (camada memória → banco → TMDB).
-      // É barato no caminho normal (cache hit), e o caso miss já vai
-      // popular tanto o cache quanto a tabela `tmdb_genres`.
-      final genreIdToName = await tmdb.getGenres();
-      debugPrint(
-        '[PauloFlix Movies] Cache de gêneros carregado: '
-        '${genreIdToName.length} entradas',
-      );
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final List<dynamic> moviesJson = data['movies'] as List<dynamic>;
 
-      onProgress?.call('Buscando pastas do PauloFlix Movies...');
-      final folders = await fetchRootFolders();
-      if (folders.isEmpty) {
-        onError?.call('Nenhuma pasta encontrada em /movies/');
+      if (moviesJson.isEmpty) {
+        onError?.call('Nenhum filme encontrado no índice JSON');
         return false;
       }
-      onProgress?.call(
-        'Encontradas ${folders.length} pastas. Inspecionando...',
-      );
 
-      final existing = await repository.getAll();
-      final existingFolders = existing.map((c) => c.folderName).toSet();
-      final currentFolders = folders.map((f) => f.name).toSet();
+      onProgress?.call('Índice baixado: ${moviesJson.length} filmes');
 
-      final removed = existingFolders.difference(currentFolders);
-      final staleThreshold = DateTime.now().subtract(reEnrichThreshold);
-
-      // Coleta tudo o que precisa enriquecer
-      final needsEnrich = existing
-          .where(
-            (c) =>
-                currentFolders.contains(c.folderName) &&
-                (c.imageUrl == null ||
-                    c.imageUrl!.isEmpty ||
-                    (c.isCollection == false && c.availableMovieCount == 0) ||
-                    c.lastSynced.isBefore(staleThreshold)),
-          )
-          .map((c) {
-            final match = folders.where((f) => f.name == c.folderName);
-            return match.isNotEmpty ? match.first : null;
-          })
-          .whereType<PauloFlixMovieSubfolder>()
-          .toList();
-
-      final newFolders = folders
-          .where((f) => !existingFolders.contains(f.name))
-          .toList();
-
-      final toProcess = <PauloFlixMovieSubfolder>[...newFolders];
-      for (final f in needsEnrich) {
-        if (!toProcess.any((tf) => tf.name == f.name)) toProcess.add(f);
-      }
-
-      if (toProcess.isEmpty) {
-        onProgress?.call('Sincronização completa: ${existing.length} itens');
-        if (removed.isNotEmpty) {
-          for (final name in removed) {
-            await repository.markAsUnavailable(name);
-          }
-        }
-        // Mesmo sem novas pastas, tenta re-popular gêneros de filmes
-        // salvos anteriormente com `genres` vazio.
-        await _repopulateMissingGenres(repository, genreIdToName, onProgress);
-        // removeStaleContent não tem equivalente exato no repository.
-        return true;
-      }
-
-      onProgress?.call('Processando ${toProcess.length} pastas no TMDB...');
-
+      // Converte todos os filmes do JSON para PauloFlixMovie
       final List<PauloFlixMovie> contents = [];
-      int processed = 0;
-
-      for (final folder in toProcess) {
-        processed++;
-        onProgress?.call(
-          'Processando ${folder.name} ($processed/${toProcess.length})',
+      for (final movieJson in moviesJson) {
+        final json = movieJson as Map<String, dynamic>;
+        contents.add(
+          PauloFlixMovie.fromMovieIndex(
+            json: json,
+            baseHost: _baseHost,
+          ),
         );
-
-        try {
-          final raw = await inspectFolder(folder.name, folder.url);
-          switch (raw.type) {
-            case MovieFolderType.single:
-              // Fase 4 (NFO enrichment): tenta `movie.nfo` ANTES do
-              // TMDB. Se o servidor PauloFlix tem `movie.nfo` válido
-              // na pasta do filme, o `PauloFlixMovie` é construído a
-              // partir do NFO e o caminho TMDB é pulado inteiro
-              // (economiza request de search/match).
-              //
-              // Se o enricher for `null`, ou o NFO não existir (404),
-              // ou o parse falhar, cai no fluxo TMDB legado (abaixo).
-              if (enricher != null) {
-                try {
-                  final KodiShowNfo? nfo = await enricher.fetchMovieNfo(
-                    folder.url,
-                  );
-                  if (nfo != null) {
-                    debugPrint('[PauloFlix Movies] NFO hit for ${folder.name}');
-                    contents.add(
-                      PauloFlixMovie.fromNfo(
-                        folderName: folder.name,
-                        serverUrl: folder.url,
-                        nfo: nfo,
-                        // Fallback: se o NFO não tem `<thumb>` apontando
-                        // para poster/fanart, usa o JPG físico
-                        // detectado no listing da pasta.
-                        fallbackPosterUrl: raw.posterUrl,
-                        fallbackFanartUrl: raw.fanartUrl,
-                      ),
-                    );
-                    break;
-                  }
-                } catch (e) {
-                  debugPrint(
-                    '[PauloFlix Movies] NFO enrich failed for ${folder.name} '
-                    '(falling back to TMDB): $e',
-                  );
-                  // Cai no TMDB abaixo.
-                }
-              }
-
-              final video = raw.videoFile!;
-              final searchResults = await tmdb.searchMovies(
-                video.cleanedName,
-                year: video.year,
-                limit: 3,
-              );
-
-              // Detecta se algum genre_id do resultado não está no
-              // cache. Se sim, recarrega o cache do TMDB.
-              final allGenreIds = searchResults
-                  .expand((m) => m.genreIds)
-                  .toList();
-              if (allGenreIds.isNotEmpty) {
-                await tmdb.ensureGenresCover(allGenreIds);
-              }
-              // Recarrega o mapa (pode ter sido atualizado acima).
-              final currentGenreMap = await tmdb.getGenres();
-
-              final match = tmdb.matchInResults(
-                searchResults,
-                video.cleanedName,
-              );
-              if (match != null) {
-                contents.add(
-                  PauloFlixMovie.fromTmdb(
-                    folderName: folder.name,
-                    serverUrl: folder.url,
-                    tmdb: match,
-                    genreIdToName: currentGenreMap,
-                    // Fallback: se o TMDB não tem poster/backdrop,
-                    // usa o JPG físico detectado no listing da pasta.
-                    fallbackPosterUrl: raw.posterUrl,
-                    fallbackFanartUrl: raw.fanartUrl,
-                  ),
-                );
-              } else {
-                contents.add(
-                  _placeholder(
-                    folder.name,
-                    folder.url,
-                    displayName: video.cleanedName,
-                  ),
-                );
-              }
-              break;
-
-            case MovieFolderType.collection:
-              contents.add(
-                PauloFlixMovie(
-                  folderName: folder.name,
-                  serverUrl: folder.url,
-                  displayName: folder.name,
-                  isCollection: true,
-                  availableMovieCount: raw.subfolders.length,
-                ),
-              );
-              break;
-
-            case MovieFolderType.empty:
-              contents.add(_placeholder(folder.name, folder.url));
-              break;
-          }
-        } catch (e) {
-          debugPrint('[PauloFlix Movies] Error on ${folder.name}: $e');
-          contents.add(_placeholder(folder.name, folder.url));
-        }
-
-        // Throttle amigável para o TMDB
-        if (processed % 5 == 0) {
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
       }
 
-      onProgress?.call('Salvando ${contents.length} itens no banco...');
+      // Busca filmes existentes no banco
+      final existingContent = await repository.getAll();
+      final existingPaths =
+          existingContent.map((c) => c.folderName).toSet();
+      final currentPaths = contents.map((c) => c.folderName).toSet();
+
+      // Filmes que sumiram do servidor
+      final removedPaths = existingPaths.difference(currentPaths);
+
+      if (removedPaths.isNotEmpty) {
+        onProgress?.call(
+          'Marcando ${removedPaths.length} filmes removidos...',
+        );
+      }
+
+      // Salva todos os filmes (DoUpdate lida com conflitos)
+      onProgress?.call('Salvando ${contents.length} filmes no banco...');
       await repository.saveBatch(contents);
 
-      if (removed.isNotEmpty) {
-        onProgress?.call('Marcando ${removed.length} filmes removidos...');
-        for (final name in removed) {
-          await repository.markAsUnavailable(name);
-        }
+      // Marca filmes removidos
+      for (final path in removedPaths) {
+        await repository.markAsUnavailable(path);
       }
-      // removeStaleContent não tem equivalente exato no repository.
 
       final totalAvailable =
-          existing.length - removed.length + newFolders.length;
+          existingContent.length - removedPaths.length;
       onProgress?.call('Sincronização completa: $totalAvailable filmes');
       return true;
     } catch (e) {
@@ -825,82 +507,8 @@ class PauloFlixMoviesService {
     }
   }
 
-  static PauloFlixMovie _placeholder(
-    String folderName,
-    String folderUrl, {
-    String? displayName,
-  }) {
-    return PauloFlixMovie(
-      folderName: folderName,
-      serverUrl: folderUrl,
-      displayName: displayName ?? folderName,
-    );
-  }
-
-  /// Migração leve: re-popula `genres` de filmes já salvos que estão
-  /// com a coluna vazia. Roda automaticamente no `syncContent`.
-  ///
-  /// Estratégia: para cada filme com `tmdbId != null` e `genres.isEmpty`,
-  /// chama `getMovieDetails(tmdbId)` (que retorna `genres` completo
-  /// via `TmdbMovie.fromJson`) e atualiza o registro.
-  ///
-  /// Throttle: 2 req/s para respeitar o rate-limit do TMDB.
-  /// Filmes sem `tmdbId` são pulados (não dá para resolver).
-  static Future<void> _repopulateMissingGenres(
-    PauloFlixMoviesRepository repository,
-    Map<int, String> genreIdToName,
-    void Function(String progress)? onProgress,
-  ) async {
-    final all = await repository.getAll();
-    final needFix = all
-        .where((m) => m.tmdbId != null && !m.isCollection && m.genres.isEmpty)
-        .toList();
-    if (needFix.isEmpty) {
-      debugPrint(
-        '[PauloFlix Movies] Nenhum filme com genres vazio para re-popular.',
-      );
-      return;
-    }
-
-    onProgress?.call('Atualizando gêneros de ${needFix.length} filmes...');
-    final tmdb = TmdbService();
-    int fixed = 0;
-    for (final m in needFix) {
-      try {
-        final details = await tmdb.getMovieDetails(m.tmdbId!);
-        if (details != null && details.genres.isNotEmpty) {
-          // Detalhes tem `genres: List<TmdbGenre>` populado, sem precisar
-          // do cache. Esse é o caminho mais confiável.
-          final newGenres = details.genres
-              .map((g) => g.name)
-              .toList(growable: false);
-          await repository.saveContent(m.copyWith(genres: newGenres));
-          fixed++;
-        } else if (genreIdToName.isNotEmpty && m.tmdbId != null) {
-          // Fallback: usar o cache de genre_id → nome. Mas o filme já
-          // salvo não tem `genreIds` separado, então este caminho
-          // só funciona se houver match por nome (não é o caso
-          // comum — fica como placeholder).
-        }
-      } catch (e) {
-        debugPrint(
-          '[PauloFlix Movies] _repopulateMissingGenres skip '
-          '${m.folderName}: $e',
-        );
-      }
-      // Throttle gentil: 2 req/s.
-      if (fixed % 2 == 1) {
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-    }
-    onProgress?.call('Gêneros atualizados em $fixed filmes');
-    debugPrint(
-      '[PauloFlix Movies] _repopulateMissingGenres: '
-      'processados=${needFix.length}, atualizados=$fixed',
-    );
-  }
-
   /// Retorna o arquivo de vídeo (.mkv/.mp4) de uma pasta de filme.
+  /// Usado pela tela de detalhe (scraping on-demand da pasta).
   static Future<PauloFlixMovieFile?> fetchMovieFile(String folderUrl) async {
     final segments = folderUrl.split('/');
     final rawName = segments[segments.length - 2].isEmpty

@@ -13,4 +13,11 @@ class ApiConstants {
   static const String animePauloFlix = 'https://media.oliveira.braga.nom.br/tvshows/';
   static const String moviePauloFlix = 'https://media.oliveira.braga.nom.br/movies/';
   static const String kitsuBaseUrl = 'https://kitsu.io/api/edge';
+
+  // JSON index files — índice completo com todos os metadados,
+  // gerado server-side para sync rápido (substitui scraping HTML).
+  static const String tvIndexUrl =
+      'https://media.oliveira.braga.nom.br/tvshows/tv_index.json';
+  static const String movieIndexUrl =
+      'https://media.oliveira.braga.nom.br/movies/movie_index.json';
 }

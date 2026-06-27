@@ -101,6 +101,49 @@ class PauloFlixMovie {
     );
   }
 
+  /// Cria a partir do JSON index do servidor PauloFlix
+  /// (`movie_index.json`).
+  ///
+  /// O JSON já contém todos os metadados disponíveis (título, ano,
+  /// descrição, poster, fanart, gêneros, etc.), eliminando a
+  /// necessidade de scraping HTML + chamadas à TMDB.
+  ///
+  /// [baseHost] é o host sem path (ex: `https://media.oliveira.braga.nom.br`).
+  /// Os paths relativos do JSON (`/movies/.../poster.jpg`) são
+  /// resolvidos para URLs absolutas automaticamente.
+  factory PauloFlixMovie.fromMovieIndex({
+    required Map<String, dynamic> json,
+    required String baseHost,
+  }) {
+    final path = json['path'] as String;
+    final encodedPath = Uri.encodeComponent(path);
+    final serverUrl = '$baseHost/movies/$encodedPath/';
+
+    String? resolveUrl(String? relative) {
+      if (relative == null || relative.isEmpty) return null;
+      return relative.startsWith('http') ? relative : '$baseHost$relative';
+    }
+
+    return PauloFlixMovie(
+      folderName: path,
+      displayName: (json['title'] as String?) ?? path,
+      serverUrl: serverUrl,
+      imageUrl: resolveUrl(json['poster'] as String?),
+      bannerUrl: resolveUrl(json['fanart'] as String?),
+      description: json['description'] as String?,
+      score: (json['rating'] as num?)?.toDouble(),
+      genres: json['genres'] != null
+          ? List<String>.from(json['genres'] as List)
+          : [],
+      releaseDate: json['release_date'] as String?,
+      runtime: json['runtime'] as int?,
+      year: json['year'] as int?,
+      tmdbId: json['tmdb_id'] as int?,
+      isCollection: (json['is_collection'] as bool?) ?? false,
+      availableMovieCount: (json['available_movie_count'] as int?) ?? 1,
+    );
+  }
+
   /// Cria a partir de um `KodiShowNfo` parseado de `movie.nfo` (Fase 4 do
   /// plano NFO enrichment). É a fonte **primária** de metadados quando o
   /// servidor PauloFlix tem `movie.nfo` na pasta do filme — nesse caso,

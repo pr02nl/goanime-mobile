@@ -63,15 +63,19 @@ class AppDatabase extends _$AppDatabase {
   ///   `paulo_flix_seasons` para popular imagens de season via
   ///   fallback em `poster.jpg`/`fanart.jpg` (análogo ao que
   ///   `PauloFlixMovieRaw` faz para filmes).
-  /// * v9 (Fase N+7 —扩e schema NFO V2): adiciona 5 colunas em
+  /// * v9 (Fase N+7 — schema NFO V2): adiciona 5 colunas em
   ///   `paulo_flix_episodes` para persistir os campos do NFO V2
-  ///   que o parser扩eiu no commit `d486800`:
+  ///   que o parser leu no commit `d486800`:
   ///   - `original_title` (TextColumn?) — `<originaltitle>`
   ///   - `outline` (TextColumn?) — `<outline>`
   ///   - `aired` (DateTimeColumn?) — `<aired>` (formato YYYY-MM-DD)
   ///   - `rating` (RealColumn?) — `<rating>`
   ///   - `runtime` (IntColumn?) — `<runtime>` (em minutos)
   ///   Sem migration data — o próximo sync repopula em background.
+  /// * v10 (2026-06-23): REMOVIDO — adicionava 3 colunas em `paulo_flix_content`
+  ///   (original_title, year, tmdb_id) mas o build_runner não roda com o
+  ///   pin do analyzer (conflito custom_lint_builder × drift_dev). Esses
+  ///   campos vivem apenas no modelo de domínio, populados via JSON index.
   @override
   int get schemaVersion => 9;
 
@@ -178,6 +182,14 @@ class AppDatabase extends _$AppDatabase {
               'ALTER TABLE paulo_flix_episodes '
               'ADD COLUMN runtime INTEGER',
             );
+          }
+          // v9 → v10: REMOVIDO. As colunas original_title, year, tmdb_id
+          // não são mais gerenciadas pelo Drift — vivem apenas no modelo
+          // de domínio PauloFlixContent, populadas via JSON index. Ver
+          // lib/core/database/tables/pauloflix_content.dart comentário.
+          // Motivo: build_runner não roda com analyzer 7.x pinado.
+          if (from < 10) {
+            // no-op: esquema v10 não existe mais
           }
         },
         // CRÍTICO: configurar `busy_timeout` ANTES de qualquer operação

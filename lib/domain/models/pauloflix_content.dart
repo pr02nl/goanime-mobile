@@ -18,6 +18,16 @@ class PauloFlixContent {
   final int? episodeCount;
   final int? malId;
   final int? anilistId;
+
+  /// Título original (idioma original da produção).
+  final String? originalTitle;
+
+  /// Ano de estreia.
+  final int? year;
+
+  /// ID do TMDB para fallback de metadados.
+  final int? tmdbId;
+
   final DateTime lastSynced;
   final bool isAvailable;
 
@@ -35,6 +45,9 @@ class PauloFlixContent {
     this.episodeCount,
     this.malId,
     this.anilistId,
+    this.originalTitle,
+    this.year,
+    this.tmdbId,
     DateTime? lastSynced,
     this.isAvailable = true,
   }) : lastSynced = lastSynced ?? DateTime.now();
@@ -107,6 +120,52 @@ class PauloFlixContent {
     );
   }
 
+  /// Cria um [PauloFlixContent] a partir do JSON index do servidor
+  /// PauloFlix (`tv_index.json`).
+  ///
+  /// O JSON já contém todos os metadados disponíveis (título,
+  /// descrição, poster, fanart, gêneros, etc.), eliminando a
+  /// necessidade de scraping HTML + chamadas à Jikan.
+  ///
+  /// [baseHost] é o host sem path (ex: `https://media.oliveira.braga.nom.br`).
+  /// Os paths relativos do JSON (`/tvshows/.../poster.jpg`) são
+  /// resolvidos para URLs absolutas automaticamente.
+  factory PauloFlixContent.fromTvIndex({
+    required Map<String, dynamic> json,
+    required String baseHost,
+  }) {
+    final path = json['path'] as String;
+    final encodedPath = Uri.encodeComponent(path);
+    final serverUrl = '$baseHost/tvshows/$encodedPath/';
+
+    String? resolveUrl(String? relative) {
+      if (relative == null || relative.isEmpty) return null;
+      return relative.startsWith('http') ? relative : '$baseHost$relative';
+    }
+
+    return PauloFlixContent(
+      folderName: path,
+      displayName: (json['title'] as String?) ?? path,
+      serverUrl: serverUrl,
+      imageUrl: resolveUrl(json['poster'] as String?),
+      bannerUrl: resolveUrl(
+            json['banner'] as String? ?? json['fanart'] as String?,
+      ),
+      description: json['description'] as String?,
+      score: (json['score'] as num?)?.toDouble(),
+      genres: json['genres'] != null
+          ? List<String>.from(json['genres'] as List)
+          : [],
+      status: json['status'] as String?,
+      episodeCount: json['episode_count'] as int?,
+      originalTitle: json['original_title'] as String?,
+      year: json['year'] as int?,
+      tmdbId: json['tmdb_id'] as int?,
+      malId: json['mal_id'] as int?,
+      anilistId: json['anilist_id'] as int?,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'folderName': folderName,
@@ -123,6 +182,9 @@ class PauloFlixContent {
       'episodeCount': episodeCount,
       'malId': malId,
       'anilistId': anilistId,
+      'originalTitle': originalTitle,
+      'year': year,
+      'tmdbId': tmdbId,
       'lastSynced': lastSynced.toIso8601String(),
       'isAvailable': isAvailable ? 1 : 0,
     };
@@ -146,6 +208,9 @@ class PauloFlixContent {
       episodeCount: map['episodeCount'] as int?,
       malId: map['malId'] as int?,
       anilistId: map['anilistId'] as int?,
+      originalTitle: map['originalTitle'] as String?,
+      year: map['year'] as int?,
+      tmdbId: map['tmdbId'] as int?,
       lastSynced: DateTime.parse(map['lastSynced'] as String),
       isAvailable: (map['isAvailable'] as int) == 1,
     );
