@@ -72,12 +72,12 @@ class AppDatabase extends _$AppDatabase {
   ///   - `rating` (RealColumn?) — `<rating>`
   ///   - `runtime` (IntColumn?) — `<runtime>` (em minutos)
   ///   Sem migration data — o próximo sync repopula em background.
-  /// * v10 (2026-06-23): REMOVIDO — adicionava 3 colunas em `paulo_flix_content`
-  ///   (original_title, year, tmdb_id) mas o build_runner não roda com o
-  ///   pin do analyzer (conflito custom_lint_builder × drift_dev). Esses
-  ///   campos vivem apenas no modelo de domínio, populados via JSON index.
+  /// * v10 (2026-06-27): adiciona `original_title`, `year`, `tmdb_id` em
+  ///   `paulo_flix_content` para persistir metadados do JSON index
+  ///   (`tv_index.json` / `movie_index.json`). Sem migration data — o
+  ///   próximo sync repopula em background.
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -183,13 +183,23 @@ class AppDatabase extends _$AppDatabase {
               'ADD COLUMN runtime INTEGER',
             );
           }
-          // v9 → v10: REMOVIDO. As colunas original_title, year, tmdb_id
-          // não são mais gerenciadas pelo Drift — vivem apenas no modelo
-          // de domínio PauloFlixContent, populadas via JSON index. Ver
-          // lib/core/database/tables/pauloflix_content.dart comentário.
-          // Motivo: build_runner não roda com analyzer 7.x pinado.
+          // v9 → v10: adiciona colunas original_title, year, tmdb_id em
+          // paulo_flix_content para persistir metadados do JSON index.
+          // Sem migration data — o próximo sync repopula em background.
           if (from < 10) {
-            // no-op: esquema v10 não existe mais
+            final db = m.database as AppDatabase;
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_content '
+              'ADD COLUMN original_title TEXT',
+            );
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_content '
+              'ADD COLUMN year INTEGER',
+            );
+            await db.customStatement(
+              'ALTER TABLE paulo_flix_content '
+              'ADD COLUMN tmdb_id INTEGER',
+            );
           }
         },
         // CRÍTICO: configurar `busy_timeout` ANTES de qualquer operação
