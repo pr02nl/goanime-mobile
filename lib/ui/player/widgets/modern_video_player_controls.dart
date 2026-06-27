@@ -123,6 +123,8 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   // ─── TV detection (assíncrono) ──────────────────────────────────
   bool _isTVDevice = false;
 
+  bool _hardwareKeyboardHandlerInstalled = false;
+
   final FocusNode focusNode = FocusNode(
     debugLabel: 'ModernVideoPlayerControls',
   );
@@ -133,6 +135,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _subscribeToPlayer();
     _detectTVDevice();
     _showAndScheduleAutoHide();
+    _installHardwareKeyboardHandler();
   }
 
   @override
@@ -149,7 +152,51 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   void dispose() {
     _autoHideTimer?.cancel();
     _unsubscribeFromPlayer();
+    _uninstallHardwareKeyboardHandler();
     super.dispose();
+  }
+
+  void _installHardwareKeyboardHandler() {
+    if (_hardwareKeyboardHandlerInstalled) return;
+    _hardwareKeyboardHandlerInstalled = true;
+    HardwareKeyboard.instance.addHandler(_onHardwareKey);
+  }
+
+  void _uninstallHardwareKeyboardHandler() {
+    if (!_hardwareKeyboardHandlerInstalled) return;
+    _hardwareKeyboardHandlerInstalled = false;
+    HardwareKeyboard.instance.removeHandler(_onHardwareKey);
+  }
+
+  bool _onHardwareKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+
+    log('Key pressed: ${event.logicalKey}');
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.space:
+      case LogicalKeyboardKey.select:
+      case LogicalKeyboardKey.enter:
+        _togglePlay();
+        break;
+      case LogicalKeyboardKey.arrowLeft:
+        _seekBy(const Duration(seconds: -5));
+        break;
+      case LogicalKeyboardKey.arrowRight:
+        _seekBy(const Duration(seconds: 5));
+        break;
+      case LogicalKeyboardKey.goBack:
+        if (_isVisible) {
+          _hide();
+        } else {
+          _close();
+        }
+      default:
+        _showAndScheduleAutoHide();
+        break;
+    }
+
+    // Qualquer outra tecla: re-mostra overlay.
+    return false; // deixa propagar (espaco/setas/J/K/F vão para controls)
   }
 
   // ─── Player subscriptions ───────────────────────────────────────
@@ -310,49 +357,19 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
     return MouseRegion(
       onHover: (_) => _showAndScheduleAutoHide(),
-      child: Focus(
-        autofocus: true,
-        onKeyEvent: (node, event) {
-          if (event is! KeyDownEvent) return KeyEventResult.ignored;
-          log('Key pressed: ${event.logicalKey}');
-          switch (event.logicalKey) {
-            case LogicalKeyboardKey.space:
-            case LogicalKeyboardKey.select:
-            case LogicalKeyboardKey.enter:
-              _togglePlay();
-              break;
-            case LogicalKeyboardKey.arrowLeft:
-              _seekBy(const Duration(seconds: -5));
-              break;
-            case LogicalKeyboardKey.arrowRight:
-              _seekBy(const Duration(seconds: 5));
-              break;
-            case LogicalKeyboardKey.goBack:
-              if (_isVisible) {
-                _hide();
-              } else {
-                _close();
-              }
-            default:
-              _showAndScheduleAutoHide();
-              break;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: showControls ? _togglePlay : null,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Camada 1: controles normais (sempre presente, fade)
-              if (_isVisible) _buildLayout(),
-              // Camada 2: loading overlay
-              if (showLoading) _buildLoadingOverlay(),
-              // Camada 3: error overlay
-              if (showError) _buildErrorOverlay(),
-            ],
-          ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: showControls ? _togglePlay : null,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Camada 1: controles normais (sempre presente, fade)
+            if (_isVisible) _buildLayout(),
+            // Camada 2: loading overlay
+            if (showLoading) _buildLoadingOverlay(),
+            // Camada 3: error overlay
+            if (showError) _buildErrorOverlay(),
+          ],
         ),
       ),
     );
@@ -702,28 +719,32 @@ class _ControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FocusableWidget(
-      onSelect: onPressed,
-      borderRadius: 24,
-      focusPadding: const EdgeInsets.all(8),
-      focusScale: 1.1,
-      child: Tooltip(
-        message: tooltip,
-        child: InkResponse(
-          onTap: onPressed,
-          radius: 32,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Icon(
-              icon,
-              size: iconSize,
-              color: Colors.white,
-              shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
-            ),
-          ),
-        ),
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(
+        icon,
+        size: iconSize,
+        color: Colors.white,
+        shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
       ),
     );
+    // return Tooltip(
+    //   message: tooltip,
+    //   child: InkResponse(
+    //     onTap: onPressed,
+    //     radius: 32,
+    //     child: Padding(
+    //       padding: const EdgeInsets.all(8),
+    //       child: Icon(
+    //         icon,
+    //         size: iconSize,
+    //         color: Colors.white,
+    //         shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
+    //       ),
+    //     ),
+    //   ),
+    // );
   }
 }
 
@@ -739,18 +760,14 @@ class _PlayPauseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FocusableWidget(
-      onSelect: onPressed,
-      borderRadius: 40,
-      focusPadding: const EdgeInsets.all(4),
-      focusScale: 1.08,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(
-          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          size: 48,
-          color: Colors.white,
-        ),
+    return IconButton(
+      tooltip: isPlaying ? 'Pausar' : 'Reproduzir',
+      autofocus: true,
+      onPressed: onPressed,
+      icon: Icon(
+        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+        size: 48,
+        color: Colors.white,
       ),
     );
   }
