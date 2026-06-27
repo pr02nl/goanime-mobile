@@ -1,211 +1,56 @@
 # 📦 Modelos de Dados - Documentação
 
-> **⚠️ Nota sobre persistência:** os modelos `PauloFlixContent`, `PauloFlixMovie`,
-> `WatchlistAnime` e `DownloadItem` são os **modelos de domínio**
-> consumidos pelos 4 repositories (Fase 3). A serialização em SQLite
-> (Drift) usa tipos nativos: `genres` é **JSON** (não CSV), datas
-> como `DateTimeColumn` (Drift converte para INTEGER epoch-seconds
-> automaticamente), enums `DownloadStatus`/`DownloadQuality` via
-> `intEnum<>`. Ver `docs/DATABASE_REFACTORING.md`.
+> **Persistência:** Drift com 7 tabelas. `genres` é **JSON serializado** (não CSV).
+> Ver `docs/Services.md` para a arquitetura completa.
 
 ## Jikan API Models
 
 ### JikanAnime
-Modelo principal de anime da Jikan API.
+
+Modelo principal de anime da Jikan API (usado apenas pela Home/Busca externa).
 
 ```dart
 class JikanAnime {
-  final int malId;              // ID do MyAnimeList
-  final String title;           // Título principal
-  final String? titleEnglish;   // Título em inglês
-  final String? titleJapanese;  // Título em japonês
-  final String imageUrl;        // URL da imagem (WebP preferido)
-  final String? largImageUrl;   // URL da imagem grande
-  final String? synopsis;       // Sinopse
-  final double? score;          // Nota média (0-10)
-  final int? episodes;        // Número de episódios
-  final String? status;       // Status (Finished, Ongoing, etc)
-  final String? rating;       // Classificação etária
-  final List<JikanGenre> genres; // Lista de gêneros
-  final int? year;              // Ano de lançamento
-  final String? season;         // Estação (winter, spring, summer, fall)
+  final int malId;
+  final String title;
+  final String? titleEnglish;
+  final String? titleJapanese;
+  final String imageUrl;          // WebP preferido
+  final String? largImageUrl;
+  final String? synopsis;
+  final double? score;
+  final int? episodes;
+  final String? status;
+  final String? rating;
+  final List<JikanGenre> genres;
+  final int? year;
+  final String? season;
 }
 ```
 
-**Prioridade de Imagens**: WebP > JPG (para melhor qualidade e compressão)
-
-### JikanGenre
-```dart
-class JikanGenre {
-  final int malId;    // ID do gênero
-  final String name;  // Nome do gênero
-  final String type;  // Tipo (anime/manga)
-}
-```
-
-### JikanResponse<T>
-Wrapper genérico para respostas paginadas.
-```dart
-class JikanResponse<T> {
-  final List<T> data;
-  final JikanPagination? pagination;
-}
-```
-
-### JikanPagination
-```dart
-class JikanPagination {
-  final int lastVisiblePage;
-  final bool hasNextPage;
-  final int currentPage;
-}
-```
-
-### IDs de Gêneros
-```dart
-class JikanGenreIds {
-  static const int action = 1;
-  static const int adventure = 2;
-  static const int comedy = 4;
-  static const int drama = 8;
-  static const int fantasy = 10;
-  static const int horror = 14;
-  static const int mystery = 7;
-  static const int romance = 22;
-  static const int sciFi = 24;
-  static const int sliceOfLife = 36;
-  static const int sports = 30;
-  static const int supernatural = 37;
-}
-```
+### JikanResponse<T>, JikanPagination, JikanGenreIds
+Wrapper de resposta paginada. IDs de gêneros (Action=1, Adventure=2, Comedy=4, etc.)
 
 ---
 
 ## AniList API Models
 
-### AniListResponse
-Wrapper da resposta GraphQL.
-```dart
-class AniListResponse {
-  final MediaData data;
-}
-```
-
-### MediaData
-```dart
-class MediaData {
-  final MediaDetails media;
-}
-```
-
 ### MediaDetails
-Modelo enriquecido de anime.
 ```dart
 class MediaDetails {
-  final int id;                 // ID AniList
-  final int? idMal;             // ID MyAnimeList
-  final MediaTitle title;       // Títulos em múltiplos idiomas
-  final CoverImage coverImage;  // Imagens de capa
-  final String? bannerImage;    // Imagem de banner
-  final String? description;    // Descrição HTML
-  final int? episodes;          // Número de episódios
-  final String? status;         // Status
-  final String? season;         // Estação
-  final int? seasonYear;        // Ano da estação
-  final double? averageScore;   // Score médio (0-100)
-  final int? popularity;        // Ranking de popularidade
-  final List<String> genres;    // Lista de gêneros (strings)
-  final MediaFormat? format;    // Formato (TV, Movie, OVA, etc)
-}
-```
-
-### MediaTitle
-```dart
-class MediaTitle {
-  final String? romaji;   // Título em romaji
-  final String? english;  // Título em inglês
-  final String? native;   // Título em japonês
-  
-  String get preferred => english ?? romaji ?? native ?? 'Unknown';
-}
-```
-
-### CoverImage
-```dart
-class CoverImage {
-  final String? extraLarge;
-  final String? large;
-  final String? medium;
-  final String? color;  // Cor predominante (hex)
-  
-  String get best => extraLarge ?? large ?? medium ?? '';
-}
-```
-
-### MediaFormat (Enum)
-```dart
-enum MediaFormat {
-  tv, tvShort, movie, special, ova, ona, 
-  music, manga, novel, oneShot, unknown;
-}
-```
-
----
-
-## AniSkip API Models
-
-### SkipTimes
-Container para tempos de skip.
-```dart
-class SkipTimes {
-  final Skip? op;  // Opening
-  final Skip? ed;  // Ending
-  
-  bool get hasSkipTimes => op != null || ed != null;
-}
-```
-
-### Skip
-Intervalo de tempo para pular.
-```dart
-class Skip {
-  final double start;  // Tempo inicial (segundos)
-  final double end;    // Tempo final (segundos)
-  
-  bool isInRange(double currentSeconds) {
-    return currentSeconds >= start && currentSeconds <= end;
-  }
-}
-```
-
-### SkipInterval
-```dart
-class SkipInterval {
-  final double startTime;
-  final double endTime;
-}
-```
-
-### SkipTimesResult
-Resultado individual da API.
-```dart
-class SkipTimesResult {
-  final SkipInterval interval;
-  final String type;           // 'op' ou 'ed'
-  final String episodeLength;  // Duração total do episódio
-}
-```
-
-### SkipTimesResponse
-Resposta completa da API.
-```dart
-class SkipTimesResponse {
-  final bool found;           // Se encontrou skip times
-  final List<SkipTimesResult> results;
-  final String message;
-  final int statusCode;
-  
-  SkipTimes toSkipTimes();  // Converte para modelo interno
+  final int id;                   // ID AniList
+  final int? idMal;               // ID MyAnimeList
+  final MediaTitle title;         // romaji, english, native
+  final CoverImage coverImage;    // best = extraLarge ?? large ?? medium
+  final String? bannerImage;
+  final String? description;
+  final int? episodes;
+  final String? status, season;
+  final int? seasonYear;
+  final double? averageScore;
+  final int? popularity;
+  final List<String> genres;
+  final MediaFormat? format;
 }
 ```
 
@@ -213,195 +58,200 @@ class SkipTimesResponse {
 
 ## Modelos Internos
 
-### Anime (Main.dart)
-Modelo principal unificado do app.
+### Anime
+Modelo unificado para animes externos (não PauloFlix).
 ```dart
 class Anime {
-  final String name;              // Nome do anime
-  final String url;               // URL da fonte
-  final String? fallbackImageUrl; // Imagem de fallback
-  MediaDetails? aniListData;      // Dados do AniList
-  bool isLoadingAniList = false;  // Flag de carregamento
-  
-  // Getters derivados
-  String get imageUrl => aniListData?.coverImage.best ?? fallbackImageUrl ?? '';
-  String get bannerUrl => aniListData?.bannerImage ?? '';
-  String get description => aniListData?.description ?? '';
-  int? get malId => aniListData?.idMal;
-  int? get anilistId => aniListData?.id;
-  List<String> get genres => aniListData?.genres ?? [];
-  String? get status => aniListData?.status;
-  int? get episodeCount => aniListData?.episodes;
-  double? get averageScore => aniListData?.averageScore;
+  final String name, url;
+  final String? fallbackImageUrl;
+  MediaDetails? aniListData;
+  // Getters: imageUrl, bannerUrl, description, malId, anilistId, genres...
 }
-```
-
-### AnimeSource (Enum)
-```dart
-enum AnimeSource { animeFire }
 ```
 
 ### Episode
 ```dart
 class Episode {
-  final String number;      // Número/identificador do episódio
-  final String url;         // URL para acessar o episódio
-  final String? thumbnail;    // Thumbnail do episódio
-  final String? title;        // Título do episódio
-  final String? description;  // Descrição do episódio
-}
-```
-
-### StreamEpisodeListItem
-Versão enriquecida de episódio.
-```dart
-class StreamEpisodeListItem {
-  final String episodeNumber;
-  final String? thumbnailUrl;
-  final String? title;
-  final String? description;
-  final String? url;
-  final Duration? duration;
-  final DateTime? airDate;
-  
-  Episode toEpisode();  // Converte para Episode básico
-}
-```
-
-### VideoData
-```dart
-class VideoData {
-  final String src;    // URL do vídeo
-  final String label;  // Label da qualidade (eg: "720p")
-}
-```
-
-### VideoResponse
-```dart
-class VideoResponse {
-  final List<VideoData> data;        // Lista de URLs de vídeo
-  final Map<String, dynamic> resposta; // Metadados adicionais
-}
-```
-
-### VideoStreamResult
-Resultado processado de streaming.
-```dart
-class VideoStreamResult {
-  final String url;
-  final Map<String, String> headers;
-  final bool isGoogleVideo;
-  
-  bool get hasHeaders => headers.isNotEmpty;
+  final String number, url;
+  final String? thumbnail, title, description, subtitleUrl;
 }
 ```
 
 ---
 
-### PauloFlixContent
+## PauloFlixContent
 
-Modelo de conteúdo PauloFlix (animes do file server) com metadados do Jikan.
+Modelo de conteúdo PauloFlix (TV shows do file server).
 
-> **Persistência (Fase 3):** `genres` agora é **JSON serializado** (não
-> CSV), preservando vírgulas dentro de nomes de gênero como "Slice of Life"
-> e "Action, Adventure". Drift `TextColumn` `genres_json`. Ver
-> `lib/core/utils/genre_codec.dart`.
+> **Fábricas:**
+> - `fromTvIndex()` — fonte **primária** (JSON index do servidor)
+> - `fromNfo()` — fallback (Kodi NFO, usado pelo NfoEnricher)
+> - `fromJikan()` — legado (não usado no sync principal)
+> - `fromMap()` — desserialização do banco Drift
 
 ```dart
 class PauloFlixContent {
   final int? id;
-  final String folderName;        // Nome da pasta no servidor
+  final String folderName;        // Nome da pasta no servidor (path no JSON index)
   final String displayName;       // Nome formatado para exibição
   final String serverUrl;         // URL completa no servidor
-  final String? imageUrl;         // URL da imagem (do Jikan)
-  final String? bannerUrl;        // URL do banner (do Jikan)
-  final String? description;      // Descrição (do Jikan)
-  final double? score;            // Score (do Jikan)
-  final List<String> genres;      // Gêneros (do Jikan)
-  final String? status;           // Status (do Jikan)
-  final int? episodeCount;        // Número de episódios (do Jikan)
-  final int? malId;               // MAL ID (do Jikan)
-  final int? anilistId;           // AniList ID (do Jikan)
-  final DateTime lastSynced;      // Última sincronização
-  final bool isAvailable;         // Se o conteúdo ainda está disponível
+  final String? imageUrl;         // Poster (do JSON index ou NFO)
+  final String? bannerUrl;        // Fanart/banner (do JSON index ou NFO)
+  final String? description;      // Descrição
+  final double? score;            // Rating
+  final List<String> genres;      // Gêneros (JSON no banco)
+  final String? status;           // Status (Finished, Ongoing...)
+  final int? episodeCount;
+  final int? malId;               // MyAnimeList ID
+  final int? anilistId;           // AniList ID
+  final String? originalTitle;    // Título original (NFO V2)
+  final int? year;                // Ano de estreia
+  final int? tmdbId;              // TMDB ID
+  final DateTime lastSynced;
+  final bool isAvailable;
 }
 ```
 
-### Fábricas
+### fromTvIndex (JSON)
+O JSON index (`tv_index.json`) contém todos os metadados pré-resolvidos:
+```dart
+factory PauloFlixContent.fromTvIndex({
+  required Map<String, dynamic> json,
+  required String baseHost,
+});
+```
+- `path` → `folderName`
+- `title` → `displayName`
+- `poster` / `fanart` → URLs absolutas via `baseHost`
+- `genre` (array) → `genres`
+- `original_title`, `year`, `tmdb_id`, `mal_id`, `anilist_id`
+- `episode_count`, `rating`, `status`
 
-#### `PauloFlixContent.fromJikan()`
-Cria a partir de dados do Jikan.
+### fromNfo (Kodi)
+Fallback para quando o servidor tem NFO mas não há JSON index:
+```dart
+factory PauloFlixContent.fromNfo({
+  required String folderName, String serverUrl,
+  required KodiShowNfo nfo,
+  String? fallbackPosterUrl, String? fallbackFanartUrl,
+});
+```
 
-#### `PauloFlixContent.fromMap()`
-Cria a partir de Map (do banco).
+---
 
-### Métodos
+## PauloFlixMovie
 
-#### `toMap()`
-Converte para Map para persistência.
+Modelo de filme PauloFlix (pode ser filme individual ou coleção).
+
+> **Fábricas:**
+> - `fromMovieIndex()` — fonte **primária** (JSON index)
+> - `fromNfo()` — fallback (Kodi NFO)
+> - `fromTmdb()` — legado (não usado no sync principal)
+> - `fromMap()` — desserialização do banco
+
+```dart
+class PauloFlixMovie {
+  final int? id;
+  final String folderName;
+  final String displayName;
+  final String serverUrl;
+  final String? imageUrl, bannerUrl, description;
+  final double? score;
+  final List<String> genres;
+  final String? releaseDate;
+  final int? runtime, year, tmdbId;
+  final bool isCollection;
+  final int availableMovieCount;
+  final DateTime lastSynced;
+  final bool isAvailable;
+}
+```
+
+### fromMovieIndex (JSON)
+```dart
+factory PauloFlixMovie.fromMovieIndex({
+  required Map<String, dynamic> json,
+  required String baseHost,
+});
+```
+- `path` → `folderName`
+- `title`, `description`, `poster`, `fanart`, `genres[]`
+- `year`, `release_date`, `runtime`, `tmdb_id`
+- `is_collection`, `available_movie_count`
 
 ---
 
 ## Modelos de Persistência
 
 ### WatchlistAnime
-
-> **Persistência:** tabela `watchlist_items` (Drift). Coluna `addedAt` é
-> `DateTimeColumn` (Drift converte para INTEGER epoch-seconds). Removido
-> da Fase 1 o banco legado `watchlist.db` (sqlite3 FFI). O `WatchlistNotifier`
-> foi removido na Fase 4 (substituído pelo `Stream<List<WatchlistAnime>>`
-> do `WatchlistRepository`).
 ```dart
 class WatchlistAnime {
-  final int? id;              // ID local (SQLite)
-  final String animeId;       // ID do anime (MyAnimeList)
-  final String title;         // Título
-  final String coverImage;    // URL da capa
-  final String myAnimeListUrl; // URL do MyAnimeList
-  final DateTime addedAt;     // Data de adição
+  final int? id;
+  final String animeId, title, coverImage, myAnimeListUrl;
+  final DateTime addedAt;
 }
 ```
+Persistência: tabela `watchlist_items` (Drift). Reatividade via `Stream<List<WatchlistAnime>>`.
 
 ### DownloadItem
-
-> **Persistência (Fase 3):** tabela `downloads` (Drift) com colunas
-> `downloadId` UNIQUE, `quality`/`status` como `intEnum<>` (mapeados dos
-> enums em `core/database/tables/downloads.dart`). Campos `progress`/
-> `bytesDownloaded`/`totalBytes` têm `withDefault(0)`. Datas
-> `createdAt`/`completedAt` são `DateTimeColumn` (Drift converte para
-> INTEGER epoch-seconds). O `DownloadService` (fila HTTP) agora usa
-> `DownloadsRepository` por trás — Fase 4 mantém um ctor legado como
-> fallback de segurança.
 ```dart
 class DownloadItem {
-  final String id;                    // ID único (animeId_episodeNumber)
-  final String animeId;               // ID do anime
-  final String animeName;             // Nome do anime
-  final String episodeNumber;         // Número do episódio
-  final String episodeTitle;          // Título do episódio
-  final String videoUrl;              // URL do vídeo
-  final String thumbnailUrl;          // URL da thumbnail
-  final DownloadQuality quality;      // Qualidade solicitada
-  DownloadStatus status;              // Status atual
-  double progress;                    // Progresso (0.0 - 1.0)
-  int bytesDownloaded;                // Bytes baixados
-  int totalBytes;                     // Total de bytes
-  String? filePath;                   // Caminho do arquivo local
-  String? error;                      // Mensagem de erro (se falhou)
-  final DateTime createdAt;           // Data de criação
-  DateTime? completedAt;              // Data de conclusão
+  final String id, animeId, animeName, episodeNumber, episodeTitle;
+  final String videoUrl, thumbnailUrl;
+  final DownloadQuality quality;
+  DownloadStatus status;
+  double progress;
+  int bytesDownloaded, totalBytes;
+  String? filePath, error;
+  final DateTime createdAt;
+  DateTime? completedAt;
 }
 ```
+Persistência: tabela `downloads` (Drift). Gerenciado pelo `DownloadService` + `DownloadsRepository`.
 
-### Enums de Download
 ```dart
-enum DownloadStatus {
-  queued, downloading, paused, 
-  completed, failed, cancelled
+enum DownloadStatus { queued, downloading, paused, completed, failed, cancelled }
+enum DownloadQuality { auto, low, medium, high }
+```
+
+### PauloFlixSeason / PauloFlixEpisode (episode progress)
+```dart
+class PauloFlixSeason {
+  final String name, url;
+  final int number;
 }
 
-enum DownloadQuality {
-  auto, low, medium, high
+class PauloFlixEpisode {
+  final int number;
+  final String title, url;
+  final int? fileSize;
+}
+```
+Persistência: tabelas `paulo_flix_seasons` e `paulo_flix_episodes` (Drift).
+Progresso do usuário: tabela `episode_progress`.
+
+---
+
+## Modelos NFO (Kodi)
+
+```dart
+class KodiShowNfo {
+  final String? title, plot, posterThumb, bannerThumb, fanartThumb;
+  final List<String> genres;
+  final int? year;
+  final double? rating;
+}
+
+class KodiEpisodeNfo {  // schema V2
+  final int? seasonNumber, episodeNumber, runtime;
+  final String? title, originalTitle, plot, outline;
+  final DateTime? aired;
+  final double? rating;
+}
+
+class KodiSeasonNfo {
+  final int? seasonNumber;
+  final String? plot, posterThumb;
 }
 ```
 
@@ -412,24 +262,9 @@ enum DownloadQuality {
 ### HomeData (JikanService)
 ```dart
 class HomeData {
-  final List<JikanAnime> seasonAnimes;
-  final List<JikanAnime> topAnimes;
-  final List<JikanAnime> actionAnimes;
-  final List<JikanAnime> romanceAnimes;
-  final List<JikanAnime> comedyAnimes;
-  final List<JikanAnime> fantasyAnimes;
+  final List<JikanAnime> seasonAnimes, topAnimes;
+  final List<JikanAnime> actionAnimes, romanceAnimes, comedyAnimes, fantasyAnimes;
   final DateTime loadedAt;
-  
-  bool get isExpired => DateTime.now().difference(loadedAt).inMinutes > 30;
-}
-```
-
-### _CacheEntry<T> (JikanService - interno)
-```dart
-class _CacheEntry<T> {
-  final T data;
-  final DateTime timestamp;
-  
-  bool get isExpired => DateTime.now().difference(timestamp).inMinutes > 30;
+  bool get isExpired => difference > 30 min;
 }
 ```

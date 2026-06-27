@@ -8,8 +8,9 @@ Flutter-based mobile anime streaming app for iOS and Android devices with Androi
 - **Language**: Dart
 - **Video Player**: media_kit (high-performance native Flutter player)
 - **State Management**: Provider
-- **Navigation**: MaterialApp with Navigator 1.0 (push/pop)
-- **APIs**: Jikan API (MyAnimeList), AniList GraphQL, TMDB v3
+- **Navigation**: go_router (type-safe deep linking)
+- **Database**: Drift (7 tabelas, banco único `pauloflix.db`)
+- **Sync**: JSON index (`tv_index.json` / `movie_index.json`) do servidor PauloFlix
 
 ## Project Structure (Arquitetura em Camadas)
 ```
@@ -21,17 +22,19 @@ lib/
 │   │   ├── constants/
 │   │   │   ├── api_constants.dart         # Base URLs, endpoints
 │   │   │   └── app_constants.dart         # Chaves de SharedPreferences, limites
-│   │   ├── database/                          # ✅ Drift (Fase 0-4) — fonte de verdade
-│   │   │   ├── app_database.dart          # @DriftDatabase (4 tabelas)
-│   │   │   ├── app_database.g.dart        # Drift codegen (gerado, ignorado)
-│   │   │   ├── connection/                # openConnection + migration v1→v3
-│   │   │   │   ├── connection.dart        # LazyDatabase + PRAGMAs
-│   │   │   │   └── migration_v1_to_v3.dart # Função pura testada
-│   │   │   └── tables/                    # 4 tabelas Drift
-│   │   │       ├── watchlist_items.dart
-│   │   │       ├── downloads.dart
-│   │   │       ├── pauloflix_content.dart
-│   │   │       └── pauloflix_movies.dart
+│   ├── database/                      # Drift — fonte de verdade (7 tabelas)
+│   │   ├── app_database.dart          # @DriftDatabase
+│   │   ├── app_database.g.dart        # Drift codegen (gerado, ignorado)
+│   │   ├── connection/
+│   │   │   └── connection.dart        # LazyDatabase + path resolution
+│   │   └── tables/                    # 7 tabelas Drift
+│   │       ├── watchlist_items.dart
+│   │       ├── downloads.dart
+│   │       ├── pauloflix_content.dart
+│   │       ├── pauloflix_movies.dart
+│   │       ├── pauloflix_seasons.dart
+│   │       ├── pauloflix_episodes.dart
+│   │       └── episode_progress.dart
 │   │   ├── errors/
 │   │   ├── logger/
 │   │   └── network/
@@ -57,8 +60,17 @@ lib/
 │   │       ├── episode_thumbnail_service.dart
 │   │       ├── google_video_proxy.dart
 │   │       ├── jikan_service.dart
-│   │       ├── pauloflix_movies_service.dart  # Scraping HTML + repo
-│   │       ├── pauloflix_service.dart        # Scraping HTML + repo
+│   │       ├── auth/
+│   │       │   ├── authenticated_http_client.dart  # Injeta JWT
+│   │       │   ├── authenticated_cache_manager.dart
+│   │       │   └── jwt_token_manager.dart
+│   │       ├── kodi/
+│   │       │   ├── kodi_nfo_models.dart
+│   │       │   ├── kodi_nfo_parser.dart
+│   │       │   └── pauloflix_nfo_enricher.dart
+│   │       ├── pauloflix_movies_service.dart  # JSON index sync
+│   │       ├── pauloflix_service.dart        # JSON index sync
+│   │       ├── paulo_flix_episode_sync_service.dart
 │   │       ├── search_history_service.dart
 │   │       ├── tmdb_service.dart
 │   │       └── tv_api_key_server.dart
@@ -343,6 +355,8 @@ All project documentation is in the `docs/` folder:
 - `TV_SUPPORT.md` - TV support guide
 - `UI.md` - UI components documentation
 - `NETFLIX_REFACTORING.md` - Netflix UI/UX refactoring documentation
+- `PAULOFLIX_MOVIES.md` - PauloFlix Movies documentation
+- `archive/DATABASE_REFACTORING.md` - Historical DB refactoring plan
 
 ## Common Patterns
 
@@ -355,10 +369,7 @@ final animes = await animeService.getTopAnime();
 
 ### Navigation
 ```dart
-Navigator.push(
-  context,
-  MaterialPageRoute(builder: (context) => DetailScreen(anime: anime)),
-);
+context.pushNamed('player', extra: PlayerRouteData(...));
 ```
 
 ### State Management

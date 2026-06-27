@@ -1,273 +1,164 @@
-# 🎬 PauloFlix Movies — Nova Área de Filmes com TMDB
+# 🎬 PauloFlix Movies — Documentação
 
 ## Visão Geral
 
-Área dedicada a filmes no PauloFlix, espelhando o PauloFlix de animes, mas com:
+Área dedicada a filmes no PauloFlix, espelhando o PauloFlix de animes, com:
 
-- **Servidor de arquivos**: `http://100.95.105.113:8300/movies/` (PauloFlix — file server com HTML listings)
-- **Provedor de metadados**: The Movie Database (TMDB) API v3 — https://www.themoviedb.org/?language=pt-BR
-- **Banco local**: SQLite (`pauloflix_movies.db`), separado do banco de animes
+- **Servidor de arquivos**: `https://media.oliveira.braga.nom.br/movies/` (PauloFlix — file server)
+- **Provedor de metadados**: JSON index (`movie_index.json`) — gerado server-side, contém metadados completos (título, descrição, poster, fanart, gêneros, rating, etc.)
+- **Banco local**: Drift (tabela `paulo_flix_movies` no banco unificado `pauloflix.db`)
 - **Toggle**: pill no action bar do `MainNavigationScreen` para alternar entre Animes e Filmes
-- **Sincronização**: primeira inicialização completa + manual via botão refresh
+- **Sincronização**: uma única request HTTP (`movie_index.json`), elimina chamadas externas e rate limiting
 
-## Decisões de Design (já validadas com o usuário)
+## Sincronização (JSON Index) — FLUXO PRINCIPAL
 
-1. **Toggle no menu superior** (não bottom nav) — duas pills "📺 Animes" / "🎬 Filmes" no AppBar
-2. **TMDB API key v3** — input do usuário em Settings (SharedPreferences), carregada no boot
-3. **Filmes + Coleções** — sub-pastas também são tratadas como filmes (e.g. "Coleção Harry Potter")
-4. **Player reusado** — `ModernVideoPlayerScreen` com 1 episódio (sem AniSkip para filmes)
+### Como funciona
 
-## Estrutura de Pastas do PauloFlix Movies
+1. App faz GET de `https://media.oliveira.braga.nom.br/movies/movie_index.json`
+2. Parseia o JSON → `List<PauloFlixMovie>` via `PauloFlixMovie.fromMovieIndex()`
+3. Salva em batch no banco via `PauloFlixMoviesRepository.saveBatch()`
+4. Marca como indisponível filmes que sumiram do servidor
+
+### Estrutura do JSON Index
+
+```json
+{
+  "movies": [
+    {
+      "path": "A Origem (2010)",
+      "title": "A Origem",
+      "description": "Sinopse do filme...",
+      "poster": "/movies/A Origem (2010)/poster.jpg",
+      "fanart": "/movies/A Origem (2010)/fanart.jpg",
+      "genres": ["Ação", "Ficção Científica"],
+      "rating": 8.8,
+      "year": 2010,
+      "release_date": "2010-07-16",
+      "runtime": 148,
+      "tmdb_id": 27205,
+      "is_collection": false,
+      "available_movie_count": 1
+    }
+  ]
+}
+```
+
+**Paths relativos** são resolvidos com o `baseHost` (`https://media.oliveira.braga.nom.br`) para formar URLs absolutas.
+
+### Vantagens sobre o fluxo anterior (HTML scraping + TMDB)
+
+| Aspecto | Antes | Agora |
+|---------|-------|-------|
+| Requisições HTTP | N scraping HTML + N TMDB API | 1 GET do JSON index |
+| API key TMDB | Necessária (configurada pelo usuário) | Não precisa |
+| Metadados | Parciais (dependia de match TMDB) | Completos (pré-resolvidos server-side) |
+| Rate limiting | 50 req/s (TMDB), throttled a 25 | Nenhum |
+| Velocidade de sync | Minutos (200+ filmes) | Segundos |
+| Confiabilidade | Match imperfeito (nomes bagunçados) | Pré-resolvido, sem ambiguidade |
+
+## Estrutura de Pastas no Servidor
 
 ```
 /movies/
-  ├── A Origem (2010)/                    ← Filme individual
+  ├── A Origem (2010)/              ← Filme individual
   │   ├── A Origem (2010) 1080p - xxx.mp4
   │   └── *.srt (legenda)
   ├── Amadeus/
   │   └── Amadeus.1984.Directors.Cut....mkv
-  └── Coleção Harry Potter 2001-2011/     ← Coleção
+  └── Coleção Harry Potter 2001-2011/   ← Coleção
       ├── Harry Potter e a Pedra Filosofal 2001/
       └── ...
 ```
 
-**Lógica de detecção**:
-- Tem `.mkv`/`.mp4` direto → **filme individual** (pega o primeiro)
-- Tem apenas sub-pastas com `.mkv`/`.mp4` dentro → **coleção** (banner + sub-filmes)
-- `.srt`/`.jpg`/`.txt` são ignorados
+**Detecção na tela de detalhe (on-demand via `inspectFolder`):**
+- Tem `.mkv`/`.mp4` direto → **filme individual**
+- Tem apenas sub-pastas com vídeos → **coleção** (banner + sub-filmes)
+- Vazia → marcada como removida
 
-## Arquivos
+## Detecção de Legenda (.srt)
 
-### Novos (13)
+Quando a pasta do filme contém arquivos `.srt`, a prioridade (via `_rankAllSubtitles`):
 
-| Camada | Arquivo | Função |
-|---|---|---|
-| Models | `lib/models/tmdb_models.dart` | `TmdbMovie`, `TmdbGenre`, helpers de URL |
-| Models | `lib/models/pauloflix_movie.dart` | Modelo unificado (filme OU coleção) |
-| Models | `lib/models/pauloflix_movie_item.dart` | Filme único (dentro de coleção ou isolado) |
-| Services | `lib/services/tmdb_service.dart` | Cliente TMDB + cache 30min + throttle 25 req/s |
-| Services | `lib/services/pauloflix_movies_service.dart` | HTML scraping + limpeza de nomes + detecção coleção |
-| Services | `lib/services/pauloflix_movies_database_service.dart` | SQLite `pauloflix_movies.db` |
-| Services | `lib/services/api_key_settings_service.dart` | Persiste `tmdb_api_key` em SharedPreferences |
-| Providers | `lib/providers/pauloflix_movies_provider.dart` | Espelha `PauloFlixProvider` |
-| Widgets | `lib/widgets/pauloflix_movies_badge.dart` | Badge vermelho cinema |
-| Widgets | `lib/widgets/pauloflix_movies_section.dart` | Carrossel estilo Netflix |
-| Widgets | `lib/widgets/content_type_selector.dart` | Pill "Animes" / "Filmes" no AppBar |
-| Screens | `lib/screens/pauloflix_movies_home_screen.dart` | Grid + busca + sync |
-| Screens | `lib/screens/pauloflix_movie_detail_screen.dart` | Filme OU lista de coleção |
+1. **PT-BR explícito**: `.pob.srt`, `.pt-br.srt`, `.por.srt` (score 100)
+2. **Forced PT-BR**: `.pob.forced.srt`, `.pt-br.forced.srt` (score 95)
+3. **PT genérico**: `.pt.srt` (score 90)
+4. **Idioma conhecido**: `.eng.srt`, `.en.srt`, `.spa.srt`, etc. (score 80)
+5. **Qualquer `.srt`** como fallback (score 50, assumido pt-BR)
 
-### Modificados (3)
+## Especificações Técnicas
 
-- `lib/main.dart` — registra `PauloFlixMoviesProvider` + carrega TMDB key no boot
-- `lib/screens/main_navigation_screen.dart` — toggle no AppBar + body dinâmico (estado `_contentType`)
-- `lib/screens/settings_screen.dart` — campo de input da TMDB API key
+### Modelos
 
-## Schema do Banco
+- `PauloFlixMovie` — modelo de domínio (pb com coleção)
+- `PauloFlixMovieItem` — filme único (dentro de coleção ou isolado)
+- `PauloFlixMovieRaw` — resultado do scraping on-demand
+- `PauloFlixMovieFile` — arquivo de vídeo + subtitles
+- `PauloFlixMovieSubfolder` — sub-pasta dentro de coleção
 
-```sql
-CREATE TABLE pauloflix_movies (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  folderName TEXT NOT NULL UNIQUE,   -- nome da pasta no servidor
-  displayName TEXT NOT NULL,         -- nome limpo para exibição
-  serverUrl TEXT NOT NULL,           -- URL completa da pasta
-  imageUrl TEXT,                     -- poster TMDB (w500)
-  bannerUrl TEXT,                    -- backdrop TMDB (w1280)
-  description TEXT,                  -- overview TMDB
-  score REAL,                        -- vote_average TMDB (0-10)
-  genres TEXT,                       -- comma-separated
-  releaseDate TEXT,                  -- TMDB release_date (YYYY-MM-DD)
-  runtime INTEGER,                   -- minutos
-  year INTEGER,                      -- extraído do nome
-  tmdbId INTEGER,                    -- TMDB ID
-  isCollection INTEGER NOT NULL DEFAULT 0,
-  availableMovieCount INTEGER DEFAULT 0,  -- quantos sub-filmes (coleção)
-  lastSynced TEXT NOT NULL,
-  isAvailable INTEGER NOT NULL DEFAULT 1
-);
-```
-
-## TMDB Service — Endpoints
-
-```
-GET /search/movie?api_key=KEY&query=TITLE&language=pt-BR&year=YEAR&include_adult=false
-GET /movie/{id}?api_key=KEY&language=pt-BR
-GET /configuration?api_key=KEY  (para image_base_url)
-```
-
-**Image base URL**: `https://image.tmdb.org/t/p/{size}{path}`
-- Tamanhos usados: `w500` (poster), `w1280` (backdrop), `original` (fallback)
-
-**Rate limit**: 50 req/s pelo TMDB; throttlar para 25 req/s por segurança (mesmo padrão dos animes).
-
-## Algoritmo de Limpeza de Nomes (CRÍTICO)
-
-Os nomes no `/movies/` são bem bagunçados:
-```
-"A Origem (2010) 1080p - 210GJI.mp4"
-"Amadeus.1984.Directors.Cut.1080p.BluRay.H264.AAC-RARBG.mkv"
-"Deadpool.and.Wolverine.2024.1080p.AMZN.WEBRip.1400MB.DD5.1.x264-GalaxyRG[TGx]"
-"Capitao.America.O.Primeiro.Vingador.2011.1080p-WOLVERDONFILMES.COM"
-```
-
-`cleanMovieName(String rawName)` faz 4 passes:
-
-1. **Remove extensão**: `.mkv`/`.mp4`/`.avi`/`.webm`
-2. **Remove ano entre parênteses/colchetes**: `(2010)`, `[1985]`
-3. **Remove tags em ordem** (case-insensitive):
-   - **Qualidade**: 1080p, 720p, 480p, 2160p, 4K, FULLHD, BluRay, BRRip, BDRip, WEB-DL, WEBRip, WEB, HDTV, HDRip, DVDRip, Open.Matte, Directors.Cut, Extended, Remastered, Remasterizada
-   - **Codecs**: x264, x265, HEVC, H264, H265, 10bit, AVC, AV1, Opus
-   - **Áudio**: DUAL, Dublado, Legendado, Dual.Áudio, 5.1, 7.1, DDP5.1, AAC, AC3, DD5.1, Dual.Audio
-   - **Grupos**: WWW.BLUDV.COM, BLUDV.COM, wolverdonfilmes.com, WOLVERDONFILMES.COM, GalaxyRG, YTS.MX, KONTRAST, Alan_680, AndreTPF, LAPUMiA, SF, Zero00, FG4LL4RD0, RARBG, TGx, TO, ThePirateFilmes, The.Pirate.Filmes
-4. **Normaliza**: múltiplos espaços → 1 espaço, remover pontos finais, trim
-
-**Saídas esperadas**:
-```
-"A Origem"
-"Amadeus"
-"Deadpool and Wolverine"
-"Capitão América O Primeiro Vingador"
-```
-
-**Regex para extrair ano (passado pra busca TMDB)**: `\b(?:19|20)\d{2}\b`
-
-## Detecção Filme vs Coleção
+### Schema do Banco (Drift)
 
 ```dart
-Future<PauloFlixMovieRaw> inspectFolder(folderName, folderUrl) async {
-  final links = (await fetchHtml(folderUrl)).links;
-
-  final videoFiles = links.where((l) =>
-    videoExtensions.any((ext) => l.name.toLowerCase().endsWith(ext))
-  ).toList();
-
-  final subFolders = links.where((l) =>
-    l.href.endsWith('/') && !l.href.contains('..')
-  ).toList();
-
-  if (videoFiles.isNotEmpty) {
-    return PauloFlixMovieRaw.single(
-      folderName: folderName,
-      folderUrl: folderUrl,
-      videoFile: videoFiles.first,
-      year: extractYear(folderName),
-      cleanedName: cleanMovieName(videoFiles.first.name),
-    );
-  }
-
-  if (subFolders.isNotEmpty) {
-    return PauloFlixMovieRaw.collection(
-      folderName: folderName,
-      folderUrl: folderUrl,
-      subfolders: subFolders,
-    );
-  }
-
-  return PauloFlixMovieRaw.empty(folderName: folderName, folderUrl: folderUrl);
+// lib/core/database/tables/pauloflix_movies.dart
+class PauloFlixMovies extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get folderName => text().unique()();
+  TextColumn get displayName => text()();
+  TextColumn get serverUrl => text()();
+  TextColumn get imageUrl => text().nullable()();
+  TextColumn get bannerUrl => text().nullable()();
+  TextColumn get description => text().nullable()();
+  RealColumn get score => real().nullable()();
+  TextColumn get genresJson => text().nullable()(); // JSON array
+  TextColumn get releaseDate => text().nullable()();
+  IntColumn get runtime => integer().nullable()();
+  IntColumn get year => integer().nullable()();
+  IntColumn get tmdbId => integer().nullable()();
+  BoolColumn get isCollection => boolean().withDefault(const Constant(false))();
+  IntColumn get availableMovieCount => integer().withDefault(const Constant(0))();
+  IntColumn get lastSynced => integer()(); // epoch seconds
+  BoolColumn get isAvailable => boolean().withDefault(const Constant(true))();
 }
 ```
 
-## Fluxo da API Key TMDB
+### Arquivos
 
-1. Usuário abre **Settings** → cola a key v3 → Salva
-2. `ApiKeySettingsService` persiste em SharedPreferences (`tmdb_api_key`)
-3. `TmdbService.setApiKey(...)` carrega para uso em memória
-4. `PauloFlixMoviesProvider.syncContent()` checa `TmdbService.isConfigured`:
-   - `false` → erro: "Configure a chave da API do TMDB em Configurações → API Keys"
-   - `true` → prossegue
-5. Se TMDB retornar 401 → invalida cache, pede reconfiguração
-6. Link externo nas Settings: https://www.themoviedb.org/settings/api
+| Camada | Arquivo | Função |
+|--------|---------|--------|
+| Models | `lib/domain/models/pauloflix_movie.dart` | Modelo unificado (filme OU coleção) |
+| Models | `lib/domain/models/pauloflix_movie_item.dart` | Filme único (dentro de coleção ou isolado) |
+| Models | `lib/domain/models/pauloflix_movie_types.dart` | Tipos auxiliares (`PauloFlixMovieRaw`, `PauloFlixMovieFile`, `SubtitleTrackInfo`) |
+| Services | `lib/data/services/pauloflix_movies_service.dart` | Sync JSON index + scraping on-demand |
+| Services | `lib/data/services/tmdb_service.dart` | TMDB (fallback, não usado no sync principal) |
+| Services | `lib/data/services/kodi/pauloflix_nfo_enricher.dart` | NFO enrichment (opcional) |
+| Services | `lib/data/services/kodi/kodi_nfo_parser.dart` | Parser NFO (opcional) |
+| Repository | `lib/domain/repositories/pauloflix_movies_repository.dart` | Interface |
+| Repository | `lib/data/repositories/pauloflix_movies_repository_impl.dart` | Implementação Drift |
+| Provider | `lib/ui/pauloflix_movies/view_models/pauloflix_movies_provider.dart` | State management |
+| Badge | `lib/ui/core/widgets/pauloflix_movies_badge.dart` | Badge vermelho cinema |
+| Section | `lib/ui/core/widgets/pauloflix_movies_section.dart` | Carrossel estilo Netflix |
+| Home | `lib/ui/pauloflix_movies/widgets/pauloflix_movies_home_screen.dart` | Grid + busca + sync |
+| Detail | `lib/ui/pauloflix_movies/widgets/pauloflix_movie_detail_screen.dart` | Filme OU coleção |
+| Search | `lib/ui/pauloflix_movies/widgets/pauloflix_movies_search_screen.dart` | Busca em tempo real |
 
-## Fluxo do Toggle (main_navigation_screen)
+### Algoritmo de Limpeza de Nomes (on-demand, `inspectFolder`)
 
-```
-Estado: ContentType { anime, movie }
-AppBar actions: [Search] [Animes|Filmes toggle] [Watchlist] [Settings]
-Body (IndexedStack):
-  if _contentType == anime → HomeScreen (atual, sem mudança)
-  if _contentType == movie → PauloFlixMoviesHomeScreen
-IndexedStack inferior: Search, Watchlist, Downloads, Settings (intactos)
-```
+Usado apenas pela tela de detalhe (scraping on-demand). O nome da pasta é limpo para busca TMDB:
 
-**Estado default**: `_contentType = ContentType.anime`
+1. Remove extensão (`.mkv`/`.mp4`)
+2. Remove ano entre parênteses: `(2010)`, `[1985]`
+3. Remove tags decorativas (case-insensitive):
+   - Qualidade: `1080p`, `720p`, `4K`, `BluRay`, `WEB-DL`, `Open.Matte`, `Directors.Cut`, etc.
+   - Codecs: `x264`, `x265`, `HEVC`, `AV1`, `10bit`, etc.
+   - Áudio: `DUAL`, `Dublado`, `5.1`, `AAC`, etc.
+   - Grupos: `WWW.BLUDV.COM`, `GalaxyRG`, `YTS.MX`, `KONTRAST`, `RARBG`, etc.
+4. Normaliza: múltiplos espaços → 1, remove pontuação
 
-**Mudança importante**: sincronização automática do PauloFlix Movies só dispara no `_contentType == movie` no `initState` do `PauloFlixMoviesHomeScreen` (lazy load — evita requisições desnecessárias).
+**Nota:** Este algoritmo **não é mais usado no sync principal** (o JSON index já vem com títulos limpos). Foi mantido para compatibilidade com o fluxo de detalhe on-demand.
 
-## Ordem de Implementação
-
-1. **Models** — `tmdb_models.dart`, `pauloflix_movie.dart`, `pauloflix_movie_item.dart`
-2. **Services de infra** — `api_key_settings_service.dart`, `tmdb_service.dart`
-3. **Service principal** — `pauloflix_movies_service.dart` (limpeza de nomes + detecção coleção)
-4. **Database** — `pauloflix_movies_database_service.dart`
-5. **Provider** — `pauloflix_movies_provider.dart`, registrar no `main.dart`
-6. **Settings** — campo TMDB key em `settings_screen.dart`
-7. **Widgets** — `pauloflix_movies_badge.dart`, `pauloflix_movies_section.dart`, `content_type_selector.dart`
-8. **Screens** — `pauloflix_movies_home_screen.dart`, `pauloflix_movie_detail_screen.dart`
-9. **Integration** — `main_navigation_screen.dart` (toggle) + `main.dart` (provider)
-10. **Verificação** — `flutter analyze` + `flutter test` + smoke test
-11. **Documentação** — atualizar `docs/Services.md`, `docs/Models.md`, `docs/APIs.md`, `AGENTS.md`
-
-## Verificação
-
-### Funcional
-- [ ] Primeira abertura: detecta TMDB não configurado → banner com CTA
-- [ ] Após configurar → primeira sincronização (200+ filmes cobertos)
-- [ ] Filmes em grid com posters TMDB
-- [ ] Coleções com banner custom + sub-filmes clicáveis
-- [ ] Filme individual → player direto (reusa `ModernVideoPlayerScreen`)
-- [ ] Coleção → tela de detalhe com sub-filmes
-- [ ] Busca filtra em tempo real
-- [ ] Sync manual via botão refresh
-- [ ] Filmes removidos do servidor → `isAvailable = 0`
-- [ ] Funciona em TV (grid adaptativo, D-pad navigation)
-
-### Técnica
-- [ ] `flutter analyze` sem novos warnings
-- [ ] `flutter test` passa
-- [ ] Banco `pauloflix_movies.db` em `getApplicationDocumentsDirectory()`
-- [ ] Rate limit TMDB respeitado (throttle 25 req/s)
-- [ ] Cache em memória para mesma query (mesmo padrão JikanService)
-- [ ] Logs com prefixo `[PauloFlix Movies]` e `[TmdbService]`
-
-## Comandos de Validação
-
-```bash
-cd C:/Users/pr02n/developer/goanime-mobile
-flutter pub get
-flutter analyze
-flutter test
-flutter run -d <device>
-```
-
-## Riscos & Mitigações
-
-| Risco | Mitigação |
-|---|---|
-| TMDB 401 sem API key | Validação no salvamento; sync bloqueado se `!TmdbService.isConfigured` |
-| Nomes bagunçados de pastas | Algoritmo de 4 passes + extração de ano + tentar variações |
-| Coleções com sub-pastas bagunçadas | Mesma limpeza aplicada recursivamente (1 nível) |
-| Rate limit TMDB | Cache em memória 30min + throttle 25 req/s |
-| Colisões `displayName` | `folderName` UNIQUE no banco + `tmdbId` como secundário |
-| Banco separado de animes | Decisão intencional — backup independente, menor risco de schema-drift |
-
-## Fora de Escopo (intencional)
-
-- Sem trailer/clipes (não usa `/movie/{id}/videos`)
-- Sem credits (cast/crew)
-- Sem reviews
-- Sem filtro por gênero na home
-- Sem watchlist de filmes
-- Sem download offline de filmes
-- Sem persistência de "continuar assistindo" para filmes
-- Toggle afeta apenas o body principal; telas Search/Watchlist/Downloads/Settings seguem focadas em animes
-
-## Convenções Seguidas
+### Convenções
 
 - ✅ Comentários em português
-- ✅ `package:provider` para state management (mesmo padrão)
-- ✅ `sqlite3` para banco (mesmo padrão)
-- ✅ `NetflixCard` + `NetflixCarousel` reusados (não criar widgets paralelos)
-- ✅ `lib/models/*_models.dart` para agrupar modelos por API
-- ✅ `service.dart` com `static` helpers (mesmo padrão `PauloFlixService`)
-- ✅ `ChangeNotifier` providers, não Riverpod/Bloc
-- ✅ `debugPrint` com prefixo `[PauloFlix Movies]` para rastreio de logs
-- ✅ Sem refactor paralelo do PauloFlix de animes (foco só no que foi pedido)
+- ✅ `package:provider` para state management
+- ✅ Drift para persistência (via repository)
+- ✅ `debugPrint` com prefixo `[PauloFlix Movies]` para rastreio
+- ✅ `ChangeNotifier` providers

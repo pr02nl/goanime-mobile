@@ -5,11 +5,14 @@
 ### MainNavigationScreen
 Tela principal de navegação com bottom navigation bar customizado.
 
+**Arquivo:** `lib/ui/navigation/main_navigation_screen.dart`
+
 **Características:**
 - `IndexedStack` para preservar estado das abas
 - Bottom navigation flutuante com glassmorphism
 - Ícones Ionicons com animação de escala
 - Suporte a voltar para Home ao pressionar back
+- ContentTypeSelector (pill "Animes | Filmes") no AppBar
 
 **Abas:**
 1. Home (Ionicons.home)
@@ -23,9 +26,12 @@ Tela principal de navegação com bottom navigation bar customizado.
 ### HomeScreen
 Tela inicial com layout inspirado em Netflix/Disney+.
 
+**Arquivo:** `lib/ui/home/widgets/home_screen.dart`
+
 **Características:**
 - Banner hero com carrossel automático (PageView)
-- Seções horizontais de animes
+- Seções horizontais de animes (Jikan API)
+- Seção PauloFlix animes e filmes (do banco Drift)
 - Pull-to-refresh
 - FAB animado (voltar ao topo)
 - Header com blur effect
@@ -47,6 +53,8 @@ Tela inicial com layout inspirado em Netflix/Disney+.
 
 ### SearchScreen
 Tela de busca com histórico e filtros.
+
+**Arquivo:** `lib/ui/search/widgets/search_screen.dart`
 
 **Características:**
 - Search bar com focus node
@@ -72,31 +80,57 @@ Tela de busca com histórico e filtros.
 
 ---
 
-### EpisodeListScreen
-Lista de episódios de um anime.
+### AnimeDetailScreen
+Tela de detalhe de anime (Jikan + AniList).
+
+**Arquivo:** `lib/ui/home/widgets/anime_detail_screen.dart`
 
 **Características:**
-- Grid view ou list view (toggle)
+- Banner + poster do anime
+- Sinopse, score, gêneros, status
+- Botão de assistir → EpisodeListScreen
+- WatchlistButton integrado
+
+---
+
+### GenreAnimesScreen
+Lista de animes filtrados por gênero.
+
+**Arquivo:** `lib/ui/home/widgets/genre_animes_screen.dart`
+
+**Características:**
+- Gradient header customizado por gênero
+- Grid responsivo de cards
+- Paginação via Jikan API
+
+---
+
+### EpisodeListScreen / ModernEpisodeListScreen
+Lista de episódios de um anime (fonte externa, não PauloFlix).
+
+**Arquivo (legado):** `lib/ui/player/widgets/episode_list_screen.dart`
+**Arquivo (moderno):** `lib/ui/player/widgets/modern_episode_list_screen.dart`
+
+**Características:**
+- Grid view (2 colunas) ou list view (toggle)
 - Thumbnails de episódios com fade-in
 - Informações de AniList (score, status, episódios)
 - Botão de download por episódio
 - Pull-to-refresh
 
-**Layout:**
-- Grid: 2 colunas (tablets 3 colunas)
-- List: Cards verticais com thumbnail
-- Header com cover image do anime
-
 ---
 
-### VideoPlayerScreen
-Player de vídeo com recursos premium.
+### ModernVideoPlayerScreen
+Player de vídeo principal (media_kit).
+
+**Arquivo:** `lib/ui/player/widgets/video_player_screen.dart`
 
 **Características:**
 - Player nativo (media_kit)
 - AniSkip integration (botão de pular intro/outro)
 - Fallback WebView para iOS
 - Google Video proxy para contornar restrições
+- Legendas `.srt` (prioridade PT-BR)
 - Loading overlay com skeleton
 - Error handling com retry
 
@@ -108,8 +142,17 @@ Player de vídeo com recursos premium.
 
 ---
 
+### BloggerWebViewScreen
+Fallback WebView para streaming no iOS.
+
+**Arquivo:** `lib/ui/player/widgets/blogger_webview_screen.dart`
+
+---
+
 ### WatchlistScreen
 Lista de animes salvos para assistir depois.
+
+**Arquivo:** `lib/ui/watchlist/widgets/watchlist_screen.dart`
 
 **Características:**
 - Grid de cards
@@ -122,6 +165,8 @@ Lista de animes salvos para assistir depois.
 
 ### DownloadsScreen
 Gerenciamento de downloads offline.
+
+**Arquivo:** `lib/ui/downloads/widgets/downloads_screen.dart`
 
 **Características:**
 - Tabs: Active / Completed
@@ -136,55 +181,99 @@ Gerenciamento de downloads offline.
 
 ---
 
+### PauloFlixEpisodeListScreen
+Lista de episódios/seasons de um show PauloFlix (via scraping on-demand).
+
+**Arquivo:** `lib/ui/pauloflix/widgets/pauloflix_episode_list_screen.dart`
+
+**Características:**
+- Seasons em abas (tab bar)
+- Episódios em grid por season
+- Thumbnails do servidor (se disponíveis)
+- Progresso do usuário (assistido, posição)
+- Botão de download por episódio
+- Sync on-demand via `PauloFlixEpisodeSyncService`
+
+---
+
+### PauloFlixSearchScreen
+Busca de animes PauloFlix no banco local.
+
+**Arquivo:** `lib/ui/pauloflix/widgets/pauloflix_search_screen.dart`
+
+**Características:**
+- Busca por título em tempo real
+- Grid responsivo com resultados
+- Empty state quando sem resultados
+- TV: grid adaptativo, D-pad navigation
+
+---
+
+### PauloFlixSeeAllScreen
+Lista completa + sync de animes PauloFlix.
+
+**Arquivo:** `lib/ui/pauloflix/widgets/pauloflix_see_all_screen.dart`
+
+**Características:**
+- Grid de todos os shows disponíveis
+- Botão sync (dispara `PauloFlixService.syncContent`)
+- Barra de progresso durante sync
+- Pull-to-refresh
+- TV: D-pad navigation
+
+---
+
 ### PauloFlixMoviesHomeScreen
 Tela principal da área de Filmes do PauloFlix.
 
+**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movies_home_screen.dart`
+
 **Características:**
-- Grid responsivo de filmes com posters TMDB
+- Grid responsivo de filmes com posters do servidor (JSON index)
 - Busca em tempo real
-- Sync manual via botão refresh
-- Detecção de TMDB não configurado → banner com CTA
+- Sync manual via botão refresh (dispara `PauloFlixMoviesService.syncContent`)
 - Coleções com banner custom + sub-filmes clicáveis
 - TV: grid adaptativo (6 colunas), D-pad navigation
-
-**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movies_home_screen.dart`
 
 ---
 
 ### PauloFlixMovieDetailScreen
 Tela de detalhe de filme ou coleção.
 
+**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movie_detail_screen.dart`
+
 **Características:**
-- Filme individual: backdrop + poster + sinopse TMDB + botão Assistir
+- Filme individual: backdrop + poster + sinopse + botão Assistir
 - Coleção: banner + lista de sub-filmes clicáveis
 - Reutiliza `ModernVideoPlayerScreen` para reprodução (sem AniSkip)
-- Suporte a legendas `.srt` (prioridade PT-BR)
+- Suporte a legendas `.srt` (prioridade PT-BR, detectada via `inspectFolder`)
 - TV: FocusableWidget nos sub-filmes
-
-**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movie_detail_screen.dart`
 
 ---
 
 ### PauloFlixMoviesSearchScreen
 Busca de filmes PauloFlix.
 
+**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movies_search_screen.dart`
+
 **Características:**
-- Busca por título (filtra em tempo real)
+- Busca por título (filtra em tempo real no banco local)
 - Grid responsivo com resultados
 - Empty state quando sem resultados
-
-**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movies_search_screen.dart`
 
 ---
 
 ### SettingsScreen
 Configurações do aplicativo.
 
+**Arquivo:** `lib/ui/settings/widgets/settings_screen.dart`
+
 **Características:**
 - Switch de idioma (PT/EN)
 - Toggle de tema (Dark only)
 - Opções de download
 - Clear cache
+- Configuração de API Key TMDB
 - Sobre / Créditos
 
 ---
@@ -192,13 +281,16 @@ Configurações do aplicativo.
 ## Widgets Reutilizáveis
 
 ### AnimeCard
-Card padrão para exibição de anime.
+Card padrão para exibição de anime (Jikan + estilo Netflix opcional).
+
+**Arquivo:** `lib/ui/core/widgets/anime_card.dart`
 
 **Props:**
 ```dart
 AnimeCard({
   required JikanAnime anime,
   required VoidCallback onTap,
+  bool useNetflixStyle = true,
   double? width,
   double? height,
 })
@@ -209,11 +301,14 @@ AnimeCard({
 - CachedNetworkImage com placeholder
 - Fade-in animation
 - Rating badge (score)
+- Netflix style: hover effects com scale, gradient overlay
 
 ---
 
 ### ResponsiveAnimeCard
 Versão responsiva do AnimeCard.
+
+**Arquivo:** `lib/ui/core/widgets/responsive_anime_card.dart`
 
 **Características:**
 - Ajusta tamanho baseado na largura da tela
@@ -221,32 +316,27 @@ Versão responsiva do AnimeCard.
 
 ---
 
-### AnimeSection
-Seção horizontal de animes (estilo Netflix).
+### NetflixCard / NetflixHeroCard / NetflixCarousel
+Componentes Netflix-style.
 
-**Props:**
-```dart
-AnimeSection({
-  required String title,
-  required IconData icon,
-  required List<JikanAnime> animes,
-  bool isLoading = false,
-  String? sectionId,
-  int? genreId,
-})
-```
+**Arquivos:**
+- `lib/ui/core/widgets/netflix_card.dart` — Card com hover effects e scale animation
+- `lib/ui/core/widgets/netflix_hero_card.dart` — Banner hero com gradiente e botões de ação
+- `lib/ui/core/widgets/netflix_carousel.dart` — Carrossel horizontal com navigation buttons
 
 **Características:**
-- Header com título e ícone
-- Lista horizontal scrollável
-- Botão "Ver Todos"
-- Shimmer loading
-- Navigation para GenreAnimesScreen
+- Suporte a TV navigation (FocusableWidget)
+- Animação suave (300ms easeInOutCubic)
+- Shadow dinâmica (elevada no hover)
+- Rating badge estilizado
+- Gradient overlay para legibilidade
 
 ---
 
 ### ShimmerLoading
 Efeito de loading skeleton.
+
+**Arquivo:** `lib/ui/core/widgets/shimmer_loading.dart`
 
 **Uso:**
 ```dart
@@ -267,6 +357,8 @@ ShimmerLoading(
 ### WatchlistButton
 Botão de adicionar/remover da watchlist.
 
+**Arquivo:** `lib/ui/core/widgets/watchlist_button.dart`
+
 **Props:**
 ```dart
 WatchlistButton({
@@ -281,11 +373,14 @@ WatchlistButton({
 - Animação de pulse ao adicionar
 - Ícone muda de bookmark_outline para bookmark
 - Snackbar de confirmação
+- Provider reativo (via WatchlistRepository.watch())
 
 ---
 
 ### DownloadButton
 Botão de download de episódio.
+
+**Arquivo:** `lib/ui/downloads/widgets/download_button.dart`
 
 **Props:**
 ```dart
@@ -312,6 +407,8 @@ DownloadButton({
 ### SkipButton
 Botão de pular intro/outro (AniSkip).
 
+**Arquivo:** `lib/ui/core/widgets/skip_button.dart`
+
 **Props:**
 ```dart
 SkipButton({
@@ -332,6 +429,8 @@ SkipButton({
 ### GenreGlyphIcon
 Ícones de gênero customizados.
 
+**Arquivo:** `lib/ui/core/widgets/genre_glyph_icon.dart`
+
 **Gêneros Suportados:**
 - Action (espada)
 - Adventure (bússola)
@@ -349,7 +448,9 @@ SkipButton({
 ---
 
 ### ContentTypeSelector
-Pill seletor "Animes | Filmes" no AppBar.
+Pill seletor "Animes | Filmes" no AppBar do MainNavigationScreen.
+
+**Arquivo:** `lib/ui/core/widgets/content_type_selector.dart`
 
 **Props:**
 ```dart
@@ -362,9 +463,31 @@ ContentTypeSelector({
 **Características:**
 - Toggle animado entre Animes e Filmes
 - Visual pill com transição suave
-- Usado em `MainNavigationScreen` para alternar o body principal
 
-**Arquivo:** `lib/ui/core/widgets/content_type_selector.dart`
+---
+
+### FocusableWidget
+Wrapper genérico para adicionar suporte a D-pad (TV).
+
+**Arquivo:** `lib/ui/core/widgets/focusable_widget.dart`
+
+**Props:**
+```dart
+FocusableWidget({
+  required Widget child,
+  required VoidCallback onSelect,
+  double scaleAmount = 1.05,
+})
+```
+
+---
+
+### TVGridView / TVSafeTextField
+Widgets otimizados para Android TV.
+
+**Arquivos:**
+- `lib/ui/core/widgets/tv_grid_view.dart` — Grid com navegação D-pad
+- `lib/ui/core/widgets/tv_safe_text_field.dart` — TextField seguro para TV
 
 ---
 
@@ -378,6 +501,8 @@ Badge azul para conteúdo PauloFlix (animes).
 ### PauloFlixMoviesBadge
 Badge vermelho para conteúdo PauloFlix Movies (filmes).
 
+**Arquivo:** `lib/ui/core/widgets/pauloflix_movies_badge.dart`
+
 **Props:**
 ```dart
 PauloFlixMoviesBadge({
@@ -389,21 +514,19 @@ PauloFlixMoviesBadge({
 - Vermelho cinema quando filme individual
 - Indicador de coleção quando `isCollection: true`
 
-**Arquivo:** `lib/ui/core/widgets/pauloflix_movies_badge.dart`
-
 ---
 
 ### PauloFlixSection
 Seção horizontal de animes PauloFlix no HomeScreen.
 
-**Arquivo:** `lib/ui/core/widgets/pauloflix_section.dart`
+**Arquivo:** `lib/ui/pauloflix/widgets/pauloflix_section.dart`
 
 ---
 
 ### PauloFlixMoviesSection
 Seção horizontal de filmes PauloFlix no HomeScreen.
 
-**Arquivo:** `lib/ui/core/widgets/pauloflix_movies_section.dart`
+**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movies_section.dart`
 
 ---
 
@@ -411,6 +534,8 @@ Seção horizontal de filmes PauloFlix no HomeScreen.
 
 ### AppColors
 Paleta de cores centralizada.
+
+**Arquivo:** `lib/ui/core/themes/app_colors.dart`
 
 **Categorias:**
 - Primary (Cyan): Interação principal
@@ -426,11 +551,20 @@ Paleta de cores centralizada.
 - `getSecondaryGradient()`: Purple gradient
 - `getHeroGradient()`: Cyan + Purple
 
+### AppTheme / NetflixTheme / TVTheme
+
+**Arquivos:**
+- `lib/ui/core/themes/app_theme.dart` — Tema unificado (Netflix + TV)
+- `lib/ui/core/themes/netflix_theme.dart` — Cores e animações Netflix
+- `lib/ui/core/themes/tv_theme.dart` — Fontes e espaçamentos TV
+
 ---
 
 ## Responsividade
 
 ### Responsive Utilities
+
+**Arquivo:** `lib/ui/core/utils/responsive.dart`
 
 **Breakpoints:**
 - Mobile: < 600px
@@ -439,15 +573,10 @@ Paleta de cores centralizada.
 
 **Funções:**
 ```dart
-// Responsive
 bool isMobile(BuildContext context)
 bool isTablet(BuildContext context)
 bool isDesktop(BuildContext context)
-
-// Grid columns
 int getCrossAxisCount(BuildContext context)
-
-// Spacing
 EdgeInsets getResponsivePadding(BuildContext context)
 ```
 
@@ -456,6 +585,9 @@ EdgeInsets getResponsivePadding(BuildContext context)
 ## Animações
 
 ### Durações Padrão (PerformanceConfig)
+
+**Arquivo:** `lib/ui/core/utils/performance_config.dart`
+
 ```dart
 fastAnimation: Duration(milliseconds: 150)
 mediumAnimation: Duration(milliseconds: 250)
@@ -474,6 +606,8 @@ slowAnimation: Duration(milliseconds: 400)
 
 ### AppLocalizations
 Suporte a PT-BR e EN-US.
+
+**Arquivo:** `lib/l10n/app_localizations.dart`
 
 **Categorias de Strings:**
 - Common (appName, search, settings, etc)

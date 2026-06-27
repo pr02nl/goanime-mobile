@@ -130,22 +130,67 @@ flutter doctor
 - **iOS**: iOS 12.0+
 - **Web**: Modern web browsers (experimental)
 
+## Architecture Overview
+
+PauloFlix follows a layered architecture:
+
+```
+main.dart → AppDatabase (Drift) + Services (HTTP/JSON index) + Providers (ChangeNotifier) → UI
+```
+
+### Sync (data source)
+- **TV Shows**: `GET /tvshows/tv_index.json` — JSON index com metadados completos
+- **Movies**: `GET /movies/movie_index.json` — JSON index com metadados completos
+- Substitui o scraping HTML + APIs externas (Jikan/TMDB) como fonte primária
+
+### Persistence
+- **Drift** (SQLite type-safe) — banco único `pauloflix.db` com 7 tabelas
+- **SharedPreferences** — cache da Home, histórico de busca, preferências
+
+### Navigation
+- **go_router** — type-safe, deep linking, ShellRoute para bottom nav
+
+### State Management
+- **Provider** (ChangeNotifier) — padrão da casa
+
 ## Android TV Support
 
-PauloFlix now supports Android TV with optimized UI for large screens and remote control navigation:
+PauloFlix supports Android TV with optimized UI for large screens and remote control navigation:
 
-- **D-Pad Navigation**: Navigate through anime lists with your TV remote
+- **D-Pad Navigation**: Navigate with your TV remote
 - **Visual Focus Indicators**: Clear visual feedback for selected items
 - **Adaptive Layouts**: Optimized grid layouts for TV screens (6 columns)
-- **Large Text**: 30-40% larger fonts for better readability from a distance
-- **TV Theme**: Enhanced contrast and spacing for living room viewing
+- **Large Text**: 30-40% larger fonts for better readability
+- **TV Theme**: Enhanced contrast and spacing
 
-For detailed TV setup instructions, see [TV Support Guide](docs/TV_SUPPORT.md).
+See [TV Support Guide](docs/TV_SUPPORT.md).
 
 ## Documentation
 
-- [Technical docs](docs/README.md) — arquitetura, persistência, APIs
-- [Database refactoring plan](docs/DATABASE_REFACTORING.md) — 🗄️ unificação 4 bancos → 1 Drift
+| Doc | Description |
+| --- | ----------- |
+| [Technical docs](docs/README.md) | Architecture, persistence, APIs, sync flow |
+| [Services](docs/Services.md) | All services (JSON index sync, scraping, streaming) |
+| [Models](docs/Models.md) | Data models and factories |
+| [APIs](docs/APIs.md) | API endpoints and authentication |
+| [UI Components](docs/UI.md) | Screens and reusable widgets |
+| [PauloFlix Movies](docs/PAULOFLIX_MOVIES.md) | Movies area details |
+| [Netflix UI/UX](docs/NETFLIX_REFACTORING.md) | Netflix-style components |
+| [TV Support](docs/TV_SUPPORT.md) | Android TV setup and navigation |
+| [DB Refactoring (historical)](docs/archive/DATABASE_REFACTORING.md) | 🗄️ 5-phase database unification plan (completed) |
+
+## Key Dependencies
+
+| Package | Purpose |
+| ------- | ------- |
+| `media_kit` | Native video player |
+| `drift` | Type-safe SQLite ORM |
+| `go_router` | Navigation |
+| `provider` | State management |
+| `http` | HTTP requests |
+| `html` | HTML parsing (fallback) |
+| `xml` | NFO/Kodi parsing |
+| `cryptography_plus` | JWT Ed25519 signing |
 
 ## Contributing
 

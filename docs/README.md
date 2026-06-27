@@ -12,49 +12,67 @@
 
 ```
 lib/
-├── main.dart                    # Ponto de entrada e models principais
-├── l10n/
-│   └── app_localizations.dart   # Internacionalização (PT/EN)
-├── models/
-│   ├── jikan_models.dart        # Modelos da API Jikan (MyAnimeList)
-│   ├── anilist_models.dart      # Modelos da API AniList
-│   ├── aniskip_models.dart      # Modelos da API AniSkip
-│   └── watchlist_anime.dart     # Modelo para watchlist local
-├── screens/
-│   ├── main_navigation_screen.dart  # Navegação principal (bottom nav)
-│   ├── home_screen.dart         # Tela inicial com banners e seções
-│   ├── search_screen.dart       # Busca com filtros de gênero
-│   ├── episode_list_screen.dart   # Lista de episódios do anime
-│   ├── video_player_screen.dart   # Player de vídeo com AniSkip
-│   ├── watchlist_screen.dart    # Lista de animes salvos
-│   ├── downloads_screen.dart    # Gerenciamento de downloads
-│   ├── settings_screen.dart     # Configurações do app
-│   ├── source_selection_screen.dart  # Escolha da fonte de streaming
-│   └── genre_animes_screen.dart # Animes por gênero
-├── services/
-│   ├── jikan_service.dart       # API Jikan (dados de animes)
-│   ├── anilist_service.dart     # API AniList (metadados ricos)
-│   ├── aniskip_service.dart     # API AniSkip (pular intro/outro)
-│   ├── download_service.dart    # Gerenciamento de downloads
-│   ├── watchlist_service.dart   # Persistência de watchlist
-│   ├── search_history_service.dart  # Histórico de busca
-│   ├── episode_thumbnail_service.dart   # Thumbnails de episódios
-│   └── locale_service.dart      # Gerenciamento de idioma
-├── theme/
-│   └── app_colors.dart          # Paleta de cores (Netflix-style)
-├── utils/
-│   ├── performance_config.dart  # Otimizações de performance
-│   └── responsive.dart          # Utilitários responsivos
-├── widgets/
-│   ├── anime_card.dart          # Card de anime
-│   ├── anime_section.dart       # Seção horizontal de animes
-│   ├── download_button.dart     # Botão de download
-│   ├── watchlist_button.dart    # Botão de watchlist
-│   ├── skip_button.dart         # Botão de pular intro/outro
-│   ├── shimmer_loading.dart     # Efeito de loading
-│   ├── responsive_anime_card.dart   # Card responsivo
-│   └── genre_glyph_icon.dart    # Ícones de gênero
-└── google_video_proxy.dart      # Proxy para streaming Google Video
+├── main.dart                       # Ponto de entrada, boot (AppDatabase, JWT, DownloadService)
+├── app.dart                        # MaterialApp, MultiProvider, go_router
+├── l10n/                           # Internacionalização (PT/EN)
+├── routing/
+│   ├── app_router.dart             # go_router (rotas + ShellRoute)
+│   └── route_data.dart             # Typed route extras
+├── core/
+│   ├── constants/
+│   │   ├── api_constants.dart      # URLs, endpoints (incl. tvIndexUrl, movieIndexUrl)
+│   │   └── app_constants.dart      # SharedPreferences keys
+│   ├── database/                   # Drift — fonte de verdade
+│   │   ├── app_database.dart       # @DriftDatabase (7 tabelas)
+│   │   ├── connection/connection.dart  # LazyDatabase + path resolution
+│   │   └── tables/                 # WatchlistItems, Downloads, PauloFlixContent,
+│   │                                # PauloFlixMovies, PauloFlixSeasons,
+│   │                                # PauloFlixEpisodes, EpisodeProgress
+│   ├── errors/                     # Tratamento de erros
+│   ├── logger/                     # Logging
+│   ├── network/                    # Infraestrutura de rede
+│   └── utils/                      # genre_codec, url_codec, performance_config,
+│                                    # responsive, tv_detector, text_utils
+├── domain/                         # Camada de domínio (pura, sem dependências externas)
+│   ├── models/                     # Modelos de domínio
+│   │   ├── anime.dart, episode.dart
+│   │   ├── pauloflix_content.dart, pauloflix_movie.dart
+│   │   ├── pauloflix_models.dart (season, episode)
+│   │   └── ...
+│   └── repositories/              # Interfaces dos repositories (5)
+├── data/                           # Implementações de dados
+│   ├── models/                     # Modelos de API externa
+│   │   ├── jikan_models.dart, anilist_models.dart
+│   │   ├── aniskip_models.dart, tmdb_models.dart
+│   ├── repositories/              # Implementações Drift (5 impls)
+│   │   ├── *repository_impl.dart
+│   └── services/                   # Services de I/O, scraping, sync
+│       ├── auth/                   # AuthenticatedHttpClient, JwtTokenManager
+│       ├── kodi/                   # KodiNfoParser, KodiNfoModels, PauloFlixNfoEnricher
+│       ├── pauloflix_service.dart          # Sync JSON index (TV)
+│       ├── pauloflix_movies_service.dart   # Sync JSON index (Movies)
+│       ├── paulo_flix_episode_sync_service.dart  # Sync episodes on-demand
+│       ├── download_service.dart            # Fila HTTP + persistência
+│       ├── jikan_service.dart, anilist_service.dart
+│       ├── aniskip_service.dart, tmdb_service.dart
+│       ├── anime_service.dart, episode_thumbnail_service.dart
+│       └── search_history_service.dart, tv_api_key_server.dart
+└── ui/                             # Interface do usuário
+    ├── core/
+    │   ├── themes/                 # AppTheme, AppColors, NetflixTheme, TVTheme
+    │   ├── utils/                  # Responsive, PerformanceConfig, TVDetector
+    │   ├── view_models/            # LocaleViewModel
+    │   └── widgets/                # AnimeCard, NetflixCard, NetflixCarousel,
+    │                                # FocusableWidget, ShimmerLoading, etc.
+    ├── home/                       # HomeScreen, AnimeDetailScreen, GenreAnimesScreen
+    ├── navigation/                 # MainNavigationScreen (ShellRoute)
+    ├── pauloflix/                  # PauloFlix (TV shows)
+    ├── pauloflix_movies/           # PauloFlix Movies
+    ├── player/                     # VideoPlayerScreen, ModernEpisodeListScreen
+    ├── search/                     # SearchScreen, SourceSelectionScreen
+    ├── settings/                   # SettingsScreen
+    ├── watchlist/                  # WatchlistScreen
+    └── downloads/                  # DownloadsScreen
 ```
 
 ---
@@ -65,210 +83,116 @@ lib/
 
 Baseada em fundo preto puro (#000000) com acentos vibrantes:
 
-| Cor                | Hex       | Uso                          |
-| ------------------ | --------- | ---------------------------- |
-| Primary (Cyan)     | `#00BCD4` | Botões, destaques, interação |
-| Secondary (Purple) | `#7C4DFF` | Premium, conteúdo especial   |
-| Accent (Pink)      | `#FF4081` | CTAs, ações importantes      |
-| Surface            | `#141414` | Cards (estilo Netflix)       |
-| Text Primary       | `#FFFFFF` | Texto principal              |
-| Text Secondary     | `#B3B3B3` | Texto secundário             |
-
-### Tipografia e Layout
-
-- Design **content-first**: conteúdo em destaque, UI minimalista
-- Banners hero com carrossel automático (PageView)
-- Cards com aspect ratio 2:3 (pôster de anime)
-- Bottom navigation flutuante com glassmorphism
+| Cor | Hex | Uso |
+| --- | --- | --- |
+| Primary (Cyan) | `#00BCD4` | Botões, destaques, interação |
+| Secondary (Purple) | `#7C4DFF` | Premium, conteúdo especial |
+| Accent (Pink) | `#FF4081` | CTAs, ações importantes |
+| Surface | `#141414` | Cards (estilo Netflix) |
+| Text Primary | `#FFFFFF` | Texto principal |
+| Text Secondary | `#B3B3B3` | Texto secundário |
 
 ---
 
 ## 🌐 APIs Integradas
 
-### 1. **Jikan API** (MyAnimeList)
+### 1. **PauloFlix JSON Index** (sync principal)
+- **TV:** `GET /tvshows/tv_index.json` — índice completo de shows
+- **Movies:** `GET /movies/movie_index.json` — índice completo de filmes
+- Substitui scraping HTML + APIs externas (Jikan/TMDB) como fonte primária
 
-- **Base URL**: `https://api.jikan.moe/v4`
-- **Uso**: Dados de animes, top rankings, temporadas, gêneros
-- **Cache**: 30 minutos em memória + persistente (SharedPreferences)
-- **Otimização**: Carregamento paralelo em batches (rate limiting)
-
-### 2. **AniList API** (GraphQL)
-
-- **Base URL**: `https://graphql.anilist.co`
-- **Uso**: Metadados enriquecidos, imagens de capa, banners, scores
-- **Funcionalidades**:
-  - Busca por título (com limpeza inteligente)
-  - Busca por MAL ID
-  - Busca por AniList ID
-
-### 3. **AniSkip API**
-
-- **Base URL**: `https://api.aniskip.com/v2`
-- **Uso**: Timestamps para pular intro e outro automaticamente
-- **Estratégia**: Tenta MAL ID primeiro, depois AniList ID
+### 2. **Jikan API** (MyAnimeList) — Home/Busca de animes externos
+### 3. **AniList API** (GraphQL) — Metadados enriquecidos
+### 4. **AniSkip API** — Skip intro/outro
+### 5. **TMDB API** — Fallback (não usado no sync principal)
 
 ---
 
 ## 💾 Persistência Local
 
-> **Estado atual (pós-refatoração):** **1 banco único** (`pauloflix.db`)
-> gerenciado por **Drift**, com 4 tabelas e migrations versionadas.
-> Veja `docs/DATABASE_REFACTORING.md` para a história completa.
+**Banco único** (`pauloflix.db`) gerenciado por **Drift**, com **7 tabelas** e migrations versionadas.
 
-### SQLite (Drift — fonte de verdade)
+| Tabela | Conteúdo |
+| ------ | -------- |
+| `watchlist_items` | Animes salvos para assistir depois |
+| `downloads` | Metadados de downloads de episódios |
+| `paulo_flix_content` | Cache de animes PauloFlix |
+| `paulo_flix_movies` | Cache de filmes PauloFlix |
+| `paulo_flix_seasons` | Seasons dos shows |
+| `paulo_flix_episodes` | Episódios com metadados |
+| `episode_progress` | Progresso do usuário por episódio |
 
-|| Tabela              | Conteúdo                                         |
-|| ------------------- | ------------------------------------------------ |
-|| `watchlist_items`   | Animes salvos para assistir depois               |
-|| `downloads`         | Metadados de downloads de episódios              |
-|| `paulo_flix_content`| Cache de animes PauloFlix (animes do file server)|
-|| `paulo_flix_movies` | Cache de filmes PauloFlix (filmes do file server)|
-
-### Compartilhadas (SharedPreferences)
-
-- Cache de dados da Home (30 minutos)
+**SharedPreferences:**
+- Cache de dados da Home (30 min)
 - Histórico de busca
 - Preferências de idioma
 - API key do TMDB
-
-### SQLite (apenas para migration v1→v3)
-
-O pacote `sqlite3` ainda é usado em produção **apenas** pela função
-`migrateV1ToV3` (Fase 2), que abre os 4 bancos legados para popular
-o Drift na primeira inicialização. Após essa migração inicial, o
-Drift é a única persistência — não há mais `sqlite3` FFI no caminho
-de leitura/escrita.
 
 ---
 
 ## 🎬 Funcionalidades do Player de Vídeo
 
 ### Tecnologias
-
-- **media_kit**: Player nativo Flutter de alta performance (substitui video_player + chewie)
+- **media_kit**: Player nativo Flutter de alta performance
 - **Google Video Proxy**: Para contornar restrições de referrer
+- **AniSkip**: Pular intro/outro automaticamente
+- **Fallback WebView**: Para iOS quando o player nativo falha
 
-### Recursos Premium
-
-1. **AniSkip Integration**: Botão flutuante para pular intro/outro
-   - Detecção automática baseada no tempo do vídeo
-   - Auto-hide após 15 segundos
-   - Suporte a MAL ID e AniList ID
-
-2. **Qualidade Adaptativa**: Seleção automática de servidor (Google Video, Blogger)
-
-3. **Fallback WebView**: Para iOS quando o player nativo falha
-
-4. **Download para Offline**: Baixar episódios para assistir sem internet
-
----
-
-## ⚡ Otimizações de Performance
-
-### Cache de Imagens
-
-```dart
-// Cache aumentado para 200MB
-PaintingBinding.instance.imageCache.maximumSize = 500;
-PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20;
-```
-
-### Carregamento da Home
-
-- **Paralelização**: 6 requisições em 2 batches (rate limit Jikan)
-- **Cache em memória**: Dados persistem durante a sessão
-- **Cache persistente**: SharedPreferences para inicialização rápida
-- **Pre-cache de imagens**: Thumbnails do banner carregadas antecipadamente
-
-### Listas Otimizadas
-
-- `AutomaticKeepAliveClientMixin` para manter estado das abas
-- `IndexedStack` na navegação principal para preservar estado
-- Shimmer loading em vez de spinners tradicionais
-
----
-
-## 🌍 Internacionalização
-
-Suporte a dois idiomas:
-
-- **Português (PT-BR)** - Idioma padrão
-- **Inglês (EN-US)**
-
-Implementação customizada via `AppLocalizations` com traduções inline.
+### Recursos
+- Qualidade adaptativa (Google Video, Blogger)
+- Download para offline
+- Legendas `.srt` (prioridade PT-BR)
 
 ---
 
 ## 📦 Dependências Principais
 
-| Pacote               | Versão   | Propósito                                        |
-| -------------------- | -------- | ------------------------------------------------ |
-| media_kit            | ^1.2.6   | Player de vídeo/audio nativo de alta performance |
-| media_kit_video      | ^2.0.1   | Widget de vídeo para media_kit                   |
-| media_kit_libs_video | ^1.0.7   | Bibliotecas nativas de vídeo                     |
-| http                 | ^1.1.0   | Requisições HTTP                                 |
-| html                 | ^0.15.4  | Parsing de HTML                                  |
-| sqlite3              | ^3.3.3   | Banco de dados local (FFI)                       |
-| cached_network_image | ^3.3.1   | Cache de imagens                                 |
-| shared_preferences   | ^2.2.2   | Preferências locais                              |
-| provider             | ^6.1.1   | State management                                 |
-| webview_flutter      | ^4.5.0   | Fallback de vídeo                                |
-| ionicons             | ^0.2.2   | Ícones Ionic                                     |
-| lucide_icons         | ^0.257.0 | Ícones Lucide                                    |
-| bottom_navy_bar      | ^6.0.0   | Nav bar customizada                              |
+| Pacote | Versão | Propósito |
+| ------ | ------ | --------- |
+| media_kit | ^1.2.6 | Player de vídeo nativo |
+| media_kit_video | ^2.0.1 | Widget de vídeo |
+| media_kit_libs_video | ^1.0.7 | Bibliotecas nativas |
+| drift | ^2.34.0 | ORM type-safe (persistência principal) |
+| go_router | ^17.3.0 | Navegação type-safe |
+| provider | ^6.1.5+1 | State management |
+| http | ^1.6.0 | Requisições HTTP |
+| html | ^0.15.6 | Parsing HTML (fallback scraping) |
+| xml | ^7.0.1 | Parsing NFO (Kodi) |
+| dio | ^5.7.0 | HTTP client com interceptors |
+| cached_network_image | ^3.4.1 | Cache de imagens |
+| cryptography_plus | ^3.0.0 | JWT Ed25519 signing |
 
 ---
 
 ## 🔄 Fluxo de Dados
 
 ```
-1. Home Screen
-   ↓
-JikanService.loadHomeData() → Cache → UI (Banner + Seções)
+1. Boot (main.dart)
+   ├── JwtTokenManager.initialize()          → Auth JWT
+   ├── AppDatabase()                         → Drift (migration automática)
+   ├── DownloadService.withRepository(...)    → Fila de downloads
+   └── configure(authClient) → PauloFlixService, PauloFlixMoviesService
 
-2. Busca
-   ↓
-SearchScreen → JikanService.searchAnime() → Resultados
+2. Sync de Shows (PauloFlixService.syncContent)
+   GET tv_index.json → parse → repository.saveBatch() → Drift
 
-3. Seleção de Anime
-   ↓
-SourceSelectionScreen → AniListService (metadados)
-   ↓
-EpisodeListScreen → Episode thumbnail fetching
+3. Sync de Filmes (PauloFlixMoviesService.syncContent)
+   GET movie_index.json → parse → repository.saveBatch() → Drift
 
-4. Player
-   ↓
-VideoPlayerScreen → AniSkipService (skip times) + Streaming
+4. Home Screen (Jikan API)
+   JikanService.loadHomeData() → Cache → UI
+
+5. Player
+   VideoPlayerScreen → AniSkipService (skip times) + Streaming
 ```
 
----
+## 📄 Documentação Detalhada
 
-## 🚀 Pontos Fortes do Projeto
-
-1. **Arquitetura limpa** com separação clara de responsabilidades
-2. **Múltiplas fontes de dados** com fallback inteligente
-3. **Sistema de cache robusto** (memória + persistente)
-4. **UI premium** inspirada em grandes plataformas de streaming
-5. **Experiência offline** com downloads locais
-6. **AniSkip integrado** para UX superior no player
-7. **Internacionalização** pronta para expansão
-
----
-
-## 📝 Notas Técnicas
-
-- **SDK**: Dart ^3.9.2
-- **Padrão de estado**: Provider (ChangeNotifier)
-- **Tema**: Dark mode obrigatório (Netflix-style)
-- **Plataformas**: Android, iOS (com tratamento especial para streaming no iOS)
-- **Performance**: Otimizado para 60fps com caching agressivo
-
----
-
-## 📄 Arquivos de Documentação Detalhada
-
-- [APIs.md](./APIs.md) - Documentação das APIs integradas
-- [Services.md](./Services.md) - Detalhes dos serviços
-- [Models.md](./Models.md) - Estrutura de dados
-- [UI.md](./UI.md) - Componentes de interface
-- [IMPROVEMENT_PLAN.md](./IMPROVEMENT_PLAN.md) - Plano completo de melhorias técnicas (MVVM, Provider, go_router, drift, freezed, Repository Pattern) - **Alinhado com [recomendações oficiais do Flutter](https://docs.flutter.dev/app-architecture/guide)**
+- [Services.md](./Services.md) — Detalhes dos services ativos
+- [Models.md](./Models.md) — Estrutura de dados e factories
+- [APIs.md](./APIs.md) — Documentação das APIs integradas
+- [UI.md](./UI.md) — Componentes de interface
+- [PAULOFLIX_MOVIES.md](./PAULOFLIX_MOVIES.md) — Detalhes da área de filmes
+- [TV_SUPPORT.md](./TV_SUPPORT.md) — Suporte a Android TV
+- [NETFLIX_REFACTORING.md](./NETFLIX_REFACTORING.md) — Netflix UI/UX
+- [archive/DATABASE_REFACTORING.md](./archive/DATABASE_REFACTORING.md) — Histórico da refatoração do banco (5 fases concluídas)
