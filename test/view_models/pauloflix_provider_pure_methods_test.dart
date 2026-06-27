@@ -91,7 +91,6 @@ void main() {
       ];
       final result = PauloFlixProvider.groupByTopGenres(
         contents,
-        maxGenres: 2,
         minPerGenre: 2,
       );
       expect(result.keys, containsAll(['Action', 'Comedy']));
@@ -116,8 +115,7 @@ void main() {
     test('respeita perGenre limit por gênero', () {
       final contents = List.generate(
         20,
-        (i) =>
-            _anime(displayName: 'M$i', score: 10.0 - i, genres: ['Action']),
+        (i) => _anime(displayName: 'M$i', score: 10.0 - i, genres: ['Action']),
       );
       final result = PauloFlixProvider.groupByTopGenres(
         contents,
@@ -138,10 +136,11 @@ void main() {
         contents,
         minPerGenre: 1,
       );
-      expect(
-        result['Drama']!.map((c) => c.displayName).toList(),
-        ['High', 'Mid', 'Low'],
-      );
+      expect(result['Drama']!.map((c) => c.displayName).toList(), [
+        'High',
+        'Mid',
+        'Low',
+      ]);
     });
   });
 
@@ -186,10 +185,7 @@ void main() {
         5,
         (i) => _anime(displayName: 'M${i.toString().padLeft(2, '0')}'),
       );
-      final result = PauloFlixProvider.paginateByLetter(
-        contents,
-        perPage: 2,
-      );
+      final result = PauloFlixProvider.paginateByLetter(contents, perPage: 2);
       expect(result.pages.length, 3);
       expect(result.pages[0].length, 2);
       expect(result.pages[1].length, 2);
@@ -204,10 +200,7 @@ void main() {
           contents.add(_anime(displayName: '$letter$i'));
         }
       }
-      final result = PauloFlixProvider.paginateByLetter(
-        contents,
-        perPage: 8,
-      );
+      final result = PauloFlixProvider.paginateByLetter(contents, perPage: 8);
       expect(result.letterToPageIndex['A'], 0);
       expect(result.letterToPageIndex['B'], 1);
       expect(result.letterToPageIndex['C'], 2);

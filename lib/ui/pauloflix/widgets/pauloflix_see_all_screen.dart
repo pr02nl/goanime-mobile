@@ -33,8 +33,8 @@ import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
+import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/paginated_letter_grid.dart';
-import '../../core/widgets/pauloflix_badge.dart';
 import '../view_models/paulo_flix_continue_watching_viewmodel.dart';
 import '../view_models/pauloflix_provider.dart';
 import '_anime_hero_banner.dart';
@@ -137,7 +137,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     // 3. Por gênero (top 4 com ≥3 animes).
     _byGenre = PauloFlixProvider.groupByTopGenres(
       _allContents,
-      maxGenres: 4,
       perGenre: 12,
       minPerGenre: 3,
     );
@@ -206,13 +205,28 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
 
     // 2. Mais bem avaliados.
     if (_topRated.isNotEmpty) {
+      final items = [
+        ..._topRated.map(
+          (anime) => NetflixCard(
+            imageUrl: anime.imageUrl ?? '',
+            title: anime.displayName,
+            rating: anime.score,
+            width: 140,
+            height: 220,
+            isTV: _isTV,
+            onTap: () {
+              context.pushNamed('pauloflix-episodes', extra: anime);
+            },
+          ),
+        ),
+      ];
       slivers.add(
         SliverToBoxAdapter(
-          child: _AnimeSection(
+          child: NetflixCarousel(
             title: l10n.sectionTopRated,
-            icon: Icons.star,
-            contents: _topRated,
+            height: 220,
             isTV: _isTV,
+            items: items,
           ),
         ),
       );
@@ -221,13 +235,28 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     // 3. Por gênero (apenas os 4 top com ≥3 animes).
     for (final entry in _byGenre.entries) {
       if (entry.value.length < 3) continue;
+      final items = [
+        ...entry.value.map(
+          (anime) => NetflixCard(
+            imageUrl: anime.imageUrl ?? '',
+            title: anime.displayName,
+            rating: anime.score,
+            width: 140,
+            height: 220,
+            isTV: _isTV,
+            onTap: () {
+              context.pushNamed('pauloflix-episodes', extra: anime);
+            },
+          ),
+        ),
+      ];
       slivers.add(
         SliverToBoxAdapter(
-          child: _AnimeSection(
+          child: NetflixCarousel(
             title: entry.key,
-            icon: _iconForGenre(entry.key),
-            contents: entry.value,
+            height: 220,
             isTV: _isTV,
+            items: items,
           ),
         ),
       );
@@ -269,37 +298,23 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             accentColor: _accentColor,
             nameOf: (c) => c.displayName,
             cardBuilder: (context, content) {
-              return _AnimeGridCard(content: content, isTV: _isTV);
+              return NetflixCard(
+                imageUrl: content.imageUrl ?? '',
+                title: content.displayName,
+                rating: content.score,
+                width: 140,
+                height: 220,
+                isTV: _isTV,
+                onTap: () {
+                  context.pushNamed('pauloflix-episodes', extra: content);
+                },
+              );
             },
           ),
         ],
       ),
     );
   }
-
-  // ─── Mapeamento de gênero → ícone (mesmo padrão de Movies) ────────
-  IconData _iconForGenre(String genre) {
-    // Reaproveita o mapeamento de PauloFlixMoviesProvider.genreIcon
-    // (já tem fallback para "movie_outlined").
-    return _genreIconMap[genre] ??
-        const IconData(0xe02c, fontFamily: 'MaterialIcons');
-  }
-
-  static const Map<String, IconData> _genreIconMap = {
-    'Action': IconData(0xe3e7, fontFamily: 'MaterialIcons'),
-    'Adventure': IconData(0xe87a, fontFamily: 'MaterialIcons'),
-    'Comedy': IconData(0xea20, fontFamily: 'MaterialIcons'),
-    'Drama': IconData(0xea66, fontFamily: 'MaterialIcons'),
-    'Fantasy': IconData(0xe65f, fontFamily: 'MaterialIcons'),
-    'Horror': IconData(0xe51c, fontFamily: 'MaterialIcons'),
-    'Mystery': IconData(0xe8b6, fontFamily: 'MaterialIcons'),
-    'Romance': IconData(0xe87d, fontFamily: 'MaterialIcons'),
-    'Sci-Fi': IconData(0xeb5b, fontFamily: 'MaterialIcons'),
-    'Slice of Life': IconData(0xeb42, fontFamily: 'MaterialIcons'),
-    'Sports': IconData(0xea25, fontFamily: 'MaterialIcons'),
-    'Supernatural': IconData(0xea67, fontFamily: 'MaterialIcons'),
-    'Thriller': IconData(0xea4a, fontFamily: 'MaterialIcons'),
-  };
 
   // ─── AppBar + Sync banner ──────────────────────────────────────────
 
@@ -424,126 +439,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   /// Usa o mesmo `pushNamed` do hero banner e dos cards da grid.
   void _onContinueWatchingTap(PauloFlixContent content) {
     context.pushNamed('pauloflix-episode-list', extra: content);
-  }
-}
-
-// ─── Section (carrossel horizontal) ────────────────────────────────
-
-class _AnimeSection extends StatelessWidget {
-  final String title;
-  final IconData? icon;
-  final List<PauloFlixContent> contents;
-  final bool isTV;
-
-  const _AnimeSection({
-    required this.title,
-    required this.contents,
-    required this.isTV,
-    this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (contents.isEmpty) return const SizedBox.shrink();
-
-    final count = contents.length;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 20, color: const Color(0xFF6366F1)),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  '$title ($count)',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 220,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: contents.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: SizedBox(
-                    width: 140,
-                    child: _AnimeCarouselCard(
-                      content: contents[index],
-                      isTV: isTV,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AnimeCarouselCard extends StatelessWidget {
-  final PauloFlixContent content;
-  final bool isTV;
-
-  const _AnimeCarouselCard({required this.content, required this.isTV});
-
-  @override
-  Widget build(BuildContext context) {
-    return NetflixCard(
-      imageUrl: content.imageUrl ?? '',
-      title: content.displayName,
-      rating: content.score,
-      width: 140,
-      height: 220,
-      isTV: isTV,
-      showTitle: true,
-      showRating: content.score != null,
-      onTap: () {
-        context.pushNamed('pauloflix-episodes', extra: content);
-      },
-    );
-  }
-}
-
-class _AnimeGridCard extends StatelessWidget {
-  final PauloFlixContent content;
-  final bool isTV;
-
-  const _AnimeGridCard({required this.content, required this.isTV});
-
-  @override
-  Widget build(BuildContext context) {
-    return NetflixCard(
-      imageUrl: content.imageUrl ?? '',
-      title: content.displayName,
-      rating: content.score,
-      width: double.infinity,
-      height: double.infinity,
-      isTV: isTV,
-      showTitle: true,
-      showRating: content.score != null,
-      overlayWidget: const PauloFlixBadge(),
-      onTap: () {
-        context.pushNamed('pauloflix-episodes', extra: content);
-      },
-    );
   }
 }
 

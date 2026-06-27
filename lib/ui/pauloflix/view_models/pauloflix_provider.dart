@@ -39,14 +39,14 @@ class PauloFlixProvider extends ChangeNotifier {
   /// Ctor padrão — provider sem dependência (cria PauloFlixService
   /// internamente para o sync; usado em testes/legado).
   PauloFlixProvider()
-      : _repository = _NullPauloFlixRepository(),
-        _episodeSyncService = null,
-        _nfoEnricher = null;
+    : _repository = _NullPauloFlixRepository(),
+      _episodeSyncService = null,
+      _nfoEnricher = null;
 
   /// Ctor com repository (Fase 3) — usado pelo Provider do app.
   PauloFlixProvider.withRepository(this._repository)
-      : _episodeSyncService = null,
-        _nfoEnricher = null;
+    : _episodeSyncService = null,
+      _nfoEnricher = null;
 
   /// Ctor completo (Fase 2) — injeta o sync service para que
   /// `syncContent` faça o sync completo (shows + seasons + episodes)
@@ -55,9 +55,9 @@ class PauloFlixProvider extends ChangeNotifier {
     required PauloFlixRepository repository,
     required PauloFlixEpisodeSyncService episodeSyncService,
     PauloFlixNfoEnricher? nfoEnricher,
-  })  : _repository = repository,
-        _episodeSyncService = episodeSyncService,
-        _nfoEnricher = nfoEnricher;
+  }) : _repository = repository,
+       _episodeSyncService = episodeSyncService,
+       _nfoEnricher = nfoEnricher;
 
   PauloFlixStatus _status = PauloFlixStatus.initial;
   List<PauloFlixContent> _contents = [];
@@ -248,13 +248,14 @@ class PauloFlixProvider extends ChangeNotifier {
     List<PauloFlixContent> contents,
   ) {
     if (contents.isEmpty) return null;
-    final sorted = [...contents]..sort((a, b) {
-      final scoreCmp = (b.score ?? 0).compareTo(a.score ?? 0);
-      if (scoreCmp != 0) return scoreCmp;
-      return a.displayName
-          .toLowerCase()
-          .compareTo(b.displayName.toLowerCase());
-    });
+    final sorted = [...contents]
+      ..sort((a, b) {
+        final scoreCmp = (b.score ?? 0).compareTo(a.score ?? 0);
+        if (scoreCmp != 0) return scoreCmp;
+        return a.displayName.toLowerCase().compareTo(
+          b.displayName.toLowerCase(),
+        );
+      });
     return sorted.first;
   }
 
@@ -267,7 +268,6 @@ class PauloFlixProvider extends ChangeNotifier {
   /// (heurística do caller para evitar carrosséis de 1 filme).
   static Map<String, List<PauloFlixContent>> groupByTopGenres(
     List<PauloFlixContent> contents, {
-    int maxGenres = 4,
     int perGenre = 12,
     int minPerGenre = 3,
   }) {
@@ -283,12 +283,10 @@ class PauloFlixProvider extends ChangeNotifier {
     }
 
     // 2. Top N gêneros por contagem.
-    final topGenres = genreCount.entries
-        .where((e) => e.value >= minPerGenre)
-        .toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final selected =
-        topGenres.take(maxGenres).map((e) => e.key).toList();
+    final topGenres =
+        genreCount.entries.where((e) => e.value >= minPerGenre).toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+    final selected = topGenres.map((e) => e.key).toList();
 
     // 3. Para cada gênero top, filtra e ranqueia.
     final result = <String, List<PauloFlixContent>>{};
@@ -318,15 +316,16 @@ class PauloFlixProvider extends ChangeNotifier {
     }
 
     // 1. Ordena alfabeticamente, "#" no fim.
-    final sorted = [...contents]..sort((a, b) {
-      final aKey = _sortKey(a.displayName);
-      final bKey = _sortKey(b.displayName);
-      final cmp = aKey.compareTo(bKey);
-      if (cmp != 0) return cmp;
-      return a.displayName
-          .toLowerCase()
-          .compareTo(b.displayName.toLowerCase());
-    });
+    final sorted = [...contents]
+      ..sort((a, b) {
+        final aKey = _sortKey(a.displayName);
+        final bKey = _sortKey(b.displayName);
+        final cmp = aKey.compareTo(bKey);
+        if (cmp != 0) return cmp;
+        return a.displayName.toLowerCase().compareTo(
+          b.displayName.toLowerCase(),
+        );
+      });
 
     // 2. Pagina.
     final pages = <List<PauloFlixContent>>[];
