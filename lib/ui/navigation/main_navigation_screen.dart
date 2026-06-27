@@ -111,7 +111,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
     // Fallback: primeiro descendente focável do scope de conteúdo.
     final fallback = _contentScopeNode.traversalDescendants
-        .where((n) => n.canRequestFocus && !n.skipTraversal && n.context != null)
+        .where(
+          (n) => n.canRequestFocus && !n.skipTraversal && n.context != null,
+        )
         .firstOrNull;
     if (fallback != null) {
       fallback.requestFocus();
@@ -139,16 +141,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     // garante que o scope é o "primário". Para evitar isso, só
     // capturamos se for um widget focável real (`canRequestFocus`).
     final currentFocus = FocusManager.instance.primaryFocus;
-    debugPrint('[SIDEBAR] _openSidebar — primaryFocus antes: '
-        'hasPrimary=${currentFocus?.hasPrimaryFocus} '
-        'inContent=${currentFocus != null ? _isInContentScope(currentFocus) : "N/A"} '
-        'canRequest=${currentFocus?.canRequestFocus}');
+    debugPrint(
+      '[SIDEBAR] _openSidebar — primaryFocus antes: '
+      'hasPrimary=${currentFocus?.hasPrimaryFocus} '
+      'inContent=${currentFocus != null ? _isInContentScope(currentFocus) : "N/A"} '
+      'canRequest=${currentFocus?.canRequestFocus}',
+    );
     if (currentFocus != null &&
         _isInContentScope(currentFocus) &&
         currentFocus.canRequestFocus) {
       _lastContentFocusNode = currentFocus;
-      debugPrint('[SIDEBAR] _openSidebar — _lastContentFocusNode set to: '
-          '${currentFocus.toString().substring(0, 60)}...');
+      debugPrint(
+        '[SIDEBAR] _openSidebar — _lastContentFocusNode set to: '
+        '${currentFocus.toString().substring(0, 60)}...',
+      );
     }
     setState(() => _sidebarOpen = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -158,15 +164,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   void _closeSidebar() {
-    debugPrint('[SIDEBAR] _closeSidebar — wasOpen=$_sidebarOpen, '
-        'primaryFocus=${FocusManager.instance.primaryFocus?.toString().substring(0, 60)}');
+    debugPrint(
+      '[SIDEBAR] _closeSidebar — wasOpen=$_sidebarOpen, '
+      'primaryFocus=${FocusManager.instance.primaryFocus?.toString().substring(0, 60)}',
+    );
     if (!_sidebarOpen) return;
     setState(() => _sidebarOpen = false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        debugPrint('[SIDEBAR] _closeSidebar — post-frame _restoreContentFocus. '
-            'last=${_lastContentFocusNode?.toString().substring(0, 60)}, '
-            'contextNull=${_lastContentFocusNode?.context == null}');
+        debugPrint(
+          '[SIDEBAR] _closeSidebar — post-frame _restoreContentFocus. '
+          'last=${_lastContentFocusNode?.toString().substring(0, 60)}, '
+          'contextNull=${_lastContentFocusNode?.context == null}',
+        );
         _restoreContentFocus();
       }
     });
@@ -204,9 +214,47 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
     _lastBackTime = now;
     if (_sidebarOpen) {
-      _closeSidebar();
+      _showExitDialog();
     } else {
       _openSidebar();
+    }
+  }
+
+  Future<void> _showExitDialog() async {
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Sair do aplicativo?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Tem certeza que deseja sair?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Não', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Sim',
+              style: TextStyle(color: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (mounted) {
+      if (shouldExit == true) {
+        SystemNavigator.pop();
+      } else {
+        _closeSidebar();
+      }
     }
   }
 
@@ -218,12 +266,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   /// (mesma banda vertical) dentro do conteúdo. Rect-based e síncrono —
   /// não depende de `requestFocus` (que é assíncrono).
   bool _isAtLeftEdge(FocusNode node) {
-    debugPrint('[SIDEBAR] _isAtLeftEdge — '
-        'contextNull=${node.context == null}, '
-        'rect=${node.rect}, '
-        'rectIsZero=${node.rect == Rect.zero}, '
-        'nearestScope=${node.nearestScope != null}, '
-        'primaryFocus=$node');
+    debugPrint(
+      '[SIDEBAR] _isAtLeftEdge — '
+      'contextNull=${node.context == null}, '
+      'rect=${node.rect}, '
+      'rectIsZero=${node.rect == Rect.zero}, '
+      'nearestScope=${node.nearestScope != null}, '
+      'primaryFocus=$node',
+    );
     if (node.context == null || node.rect == Rect.zero) return true;
     final scope = node.nearestScope;
     if (scope == null) return true;
@@ -234,7 +284,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       if (sidebar?.containsNode(n) ?? false) return false; // exclui sidebar
       return true;
     }).toList();
-    debugPrint('[SIDEBAR] _isAtLeftEdge — descendants count: ${descendants.length}');
+    debugPrint(
+      '[SIDEBAR] _isAtLeftEdge — descendants count: ${descendants.length}',
+    );
     if (descendants.isEmpty) return true;
     // Mesma linha = sobreposição vertical (band) com o nó atual.
     final band = node.rect;
@@ -248,8 +300,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       if (n.rect.center.dx < minDx) minDx = n.rect.center.dx;
     }
     final result = node.rect.center.dx <= minDx + 0.5;
-    debugPrint('[SIDEBAR] _isAtLeftEdge — result: $result '
-        '(node.dx=${node.rect.center.dx}, minDx=$minDx)');
+    debugPrint(
+      '[SIDEBAR] _isAtLeftEdge — result: $result '
+      '(node.dx=${node.rect.center.dx}, minDx=$minDx)',
+    );
     return result;
   }
 
@@ -372,10 +426,12 @@ class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
   @override
   void invoke(DirectionalFocusIntent intent) {
     final node = primaryFocus;
-    debugPrint('[SIDEBAR] _SidebarEdgeAction.invoke — '
-        'direction=${intent.direction}, '
-        'primaryFocus=$node, '
-        'inSidebar=${node != null ? isInSidebar(node) : "N/A"}');
+    debugPrint(
+      '[SIDEBAR] _SidebarEdgeAction.invoke — '
+      'direction=${intent.direction}, '
+      'primaryFocus=$node, '
+      'inSidebar=${node != null ? isInSidebar(node) : "N/A"}',
+    );
     if (intent.direction == TraversalDirection.left) {
       if (node != null && isInSidebar(node)) return; // sidebar: ← no-op
       if (node != null && isAtLeftEdge(node)) {
@@ -500,9 +556,7 @@ class _DrawerMenu extends StatelessWidget {
                       : ContentType.movie,
                   onChanged: (type) {
                     context.goNamed(
-                      type == ContentType.movie
-                          ? 'pauloflix-movies'
-                          : 'home',
+                      type == ContentType.movie ? 'pauloflix-movies' : 'home',
                     );
                     onItemSelected();
                   },
