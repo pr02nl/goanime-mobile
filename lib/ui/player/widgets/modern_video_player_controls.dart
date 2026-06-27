@@ -473,21 +473,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
               ),
               const SizedBox(height: 8),
             ],
-            // _SeekBar(
-            //   position: _isSeeking ? _previewPosition() : _position,
-            //   duration: _duration,
-            //   buffer: _buffer,
-            //   onSeek: _seekTo,
-            //   onSeekStart: () {
-            //     setState(() => _isSeeking = true);
-            //     _showAndScheduleAutoHide();
-            //   },
-            //   onSeekEnd: () {
-            //     setState(() => _isSeeking = false);
-            //     _showAndScheduleAutoHide();
-            //   },
-            //   onSeekBy: (seconds) => _seekBy(Duration(seconds: seconds)),
-            // ),
             const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -507,6 +492,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                     duration: _duration,
                     buffer: _buffer,
                     onSeek: _seekTo,
+                    togglePlay: _togglePlay,
                     onSeekStart: () {
                       setState(() => _isSeeking = true);
                       _showAndScheduleAutoHide();
@@ -746,32 +732,16 @@ class _ControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(
+    return FocusableWidget(
+      onSelect: onPressed,
+      borderRadius: 32,
+      child: Icon(
         icon,
         size: iconSize,
         color: Colors.white,
         shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
       ),
     );
-    // return Tooltip(
-    //   message: tooltip,
-    //   child: InkResponse(
-    //     onTap: onPressed,
-    //     radius: 32,
-    //     child: Padding(
-    //       padding: const EdgeInsets.all(8),
-    //       child: Icon(
-    //         icon,
-    //         size: iconSize,
-    //         color: Colors.white,
-    //         shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
-    //       ),
-    //     ),
-    //   ),
-    // );
   }
 }
 
@@ -787,11 +757,11 @@ class _PlayPauseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: isPlaying ? 'Pausar' : 'Reproduzir',
-      autofocus: true,
-      onPressed: onPressed,
-      icon: Icon(
+    return FocusableWidget(
+      autoFocus: true,
+      onSelect: onPressed,
+      borderRadius: 32,
+      child: Icon(
         isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
         size: 48,
         color: Colors.white,
@@ -817,6 +787,7 @@ class _SeekBar extends StatefulWidget {
   final Duration duration;
   final Duration buffer;
   final ValueChanged<double> onSeek;
+  final VoidCallback togglePlay;
   final VoidCallback onSeekStart;
   final VoidCallback onSeekEnd;
   final ValueChanged<int> onSeekBy;
@@ -829,6 +800,7 @@ class _SeekBar extends StatefulWidget {
     required this.onSeekStart,
     required this.onSeekEnd,
     required this.onSeekBy,
+    required this.togglePlay,
   });
 
   @override
@@ -874,6 +846,11 @@ class _SeekBarState extends State<_SeekBar> {
       onKeyEvent: (node, event) {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
         switch (event.logicalKey) {
+          case LogicalKeyboardKey.space:
+          case LogicalKeyboardKey.select:
+          case LogicalKeyboardKey.enter:
+            widget.togglePlay();
+            return KeyEventResult.handled;
           case LogicalKeyboardKey.arrowLeft:
             widget.onSeekBy(-5);
             return KeyEventResult.handled;
