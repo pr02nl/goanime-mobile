@@ -90,7 +90,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   bool _isVisible = true;
   Timer? _autoHideTimer;
   late final AnimationController _fadeController;
-  late final Animation<double> _fadeAnimation;
 
   // ─── State mirrors (refletem o Player para rebuild) ──────────────
   bool _isPlaying = false;
@@ -131,16 +130,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
-    );
-    if (_isVisible) _fadeController.value = 1.0;
-
     _subscribeToPlayer();
     _detectTVDevice();
     _showAndScheduleAutoHide();
@@ -347,20 +336,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
             fit: StackFit.expand,
             children: [
               // Camada 1: controles normais (sempre presente, fade)
-              if (showControls)
-                AnimatedBuilder(
-                  animation: _fadeAnimation,
-                  builder: (context, child) {
-                    return IgnorePointer(
-                      ignoring: !_isVisible,
-                      child: Opacity(
-                        opacity: _fadeAnimation.value,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: _buildLayout(),
-                ),
+              if (showControls) _buildLayout(),
               // Camada 2: loading overlay
               if (showLoading) _buildLoadingOverlay(),
               // Camada 3: error overlay
