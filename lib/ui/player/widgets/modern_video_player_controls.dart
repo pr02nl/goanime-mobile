@@ -278,14 +278,14 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _showAndScheduleAutoHide();
   }
 
-  void _seekBy(Duration delta) {
-    final newPos = _position + delta;
-    final clamped = newPos < Duration.zero
-        ? Duration.zero
-        : (newPos > _duration ? _duration : newPos);
-    widget.player.seek(clamped);
-    _showAndScheduleAutoHide();
-  }
+  // void _seekBy(Duration delta) {
+  //   final newPos = _position + delta;
+  //   final clamped = newPos < Duration.zero
+  //       ? Duration.zero
+  //       : (newPos > _duration ? _duration : newPos);
+  //   widget.player.seek(clamped);
+  //   _showAndScheduleAutoHide();
+  // }
 
   void _seekTo(double normalized) {
     if (_duration == Duration.zero) return;
@@ -340,52 +340,32 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           }
           return KeyEventResult.handled;
         },
-        child: CallbackShortcuts(
-          bindings: <ShortcutActivator, VoidCallback>{
-            // ─── Globais (todas as plataformas) ──────────────────────
-            const SingleActivator(LogicalKeyboardKey.mediaPlayPause):
-                _togglePlay,
-            // Setas left/right → seek (fallback: consumido por
-            // FocusableWidget se um botão estiver focado)
-            const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
-                _seekBy(const Duration(seconds: -5)),
-            const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-                _seekBy(const Duration(seconds: 5)),
-            // N → próximo episódio
-            if (widget.onNextEpisode != null)
-              const SingleActivator(LogicalKeyboardKey.keyN): _goToNext,
-            // Desktop-only (TV usa D-pad para navegação de foco)
-            const SingleActivator(LogicalKeyboardKey.space): _togglePlay,
-            const SingleActivator(LogicalKeyboardKey.select): _togglePlay,
-            const SingleActivator(LogicalKeyboardKey.enter): _togglePlay,
-          },
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: showControls ? _togglePlay : null,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Camada 1: controles normais (sempre presente, fade)
-                if (showControls)
-                  AnimatedBuilder(
-                    animation: _fadeAnimation,
-                    builder: (context, child) {
-                      return IgnorePointer(
-                        ignoring: !_isVisible,
-                        child: Opacity(
-                          opacity: _fadeAnimation.value,
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: _buildLayout(),
-                  ),
-                // Camada 2: loading overlay
-                if (showLoading) _buildLoadingOverlay(),
-                // Camada 3: error overlay
-                if (showError) _buildErrorOverlay(),
-              ],
-            ),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: showControls ? _togglePlay : null,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Camada 1: controles normais (sempre presente, fade)
+              if (showControls)
+                AnimatedBuilder(
+                  animation: _fadeAnimation,
+                  builder: (context, child) {
+                    return IgnorePointer(
+                      ignoring: !_isVisible,
+                      child: Opacity(
+                        opacity: _fadeAnimation.value,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: _buildLayout(),
+                ),
+              // Camada 2: loading overlay
+              if (showLoading) _buildLoadingOverlay(),
+              // Camada 3: error overlay
+              if (showError) _buildErrorOverlay(),
+            ],
           ),
         ),
       ),
@@ -828,89 +808,19 @@ class _SeekBar extends StatelessWidget {
     final value = max > 0
         ? (position.inMilliseconds / max).clamp(0.0, 1.0)
         : 0.0;
-    // Garante que a barra de buffer nunca fica MENOR que a posição
-    // atual (pode acontecer se a posição avançar mais rápido que o
-    // report de buffer no início do vídeo).
     final effectiveBuffer = (buffer.inMilliseconds / max).clamp(0.0, 1.0);
     final displayBuffer = effectiveBuffer < value ? value : effectiveBuffer;
-
-    return SizedBox(
-      height: 32, // altura suficiente para o thumb (8px) + padding
-      child: Stack(
-        alignment: Alignment.centerLeft,
-        children: [
-          // Camada 1: track inativo (fundo)
-          // Ocupa toda a largura.
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-          ),
-          // Camada 2: track de buffer (cinza médio)
-          // Largura proporcional ao bufferFraction.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FractionallySizedBox(
-              widthFactor: displayBuffer,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Camada 3: track ativo (primary) + Slider com thumb.
-          // FractionallySizedBox abaixo do Slider para a parte
-          // colorida da track ativa; o Slider por cima provê
-          // hit-test, drag handle D-pad e thumb visual.
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FractionallySizedBox(
-              widthFactor: value,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Camada 4: Slider invisível só pra hit-test + D-pad + thumb.
-          // O `Slider` padrão do Material já tem thumb circular
-          // e suporte a D-pad (setas quando focado).
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 0, // track pintada pelos layers acima
-              activeTrackColor: Colors.transparent,
-              inactiveTrackColor: Colors.transparent,
-              thumbColor: AppColors.primary,
-              overlayColor: AppColors.primary.withValues(alpha: 0.25),
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
-              // Garante que o Slider recebe foco D-pad (comportamento default).
-            ),
-            child: Slider(
-              value: value,
-              onChanged: onSeek,
-              onChangeStart: (_) => onSeekStart(),
-              onChangeEnd: (_) => onSeekEnd(),
-            ),
-          ),
-        ],
-      ),
+    return Slider(
+      activeColor: Colors.white,
+      inactiveColor: Colors.grey.withValues(alpha: 0.25),
+      thumbColor: AppColors.primary,
+      secondaryActiveColor: Colors.white.withValues(alpha: 0.5),
+      value: value,
+      secondaryTrackValue: displayBuffer,
+      onChanged: onSeek,
+      onChangeStart: (_) => onSeekStart(),
+      onChangeEnd: (_) => onSeekEnd(),
+      allowedInteraction: SliderInteraction.tapOnly,
     );
   }
 }
