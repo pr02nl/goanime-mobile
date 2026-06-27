@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -97,7 +96,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
-  double _volume = 100.0;
 
   // ─── UI state (loading/error/playing) ──────────────────────────
   _PlayerUIState _uiState = _PlayerUIState.loading;
@@ -208,10 +206,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _durationSub = p.stream.duration.listen((v) {
       if (mounted) setState(() => _duration = v);
     });
-    // volume
-    _volumeSub = p.stream.volume.listen((v) {
-      if (mounted) setState(() => _volume = v);
-    });
     // completed → reseta posição
     _completedSub = p.stream.completed.listen((v) {
       if (mounted && v) {
@@ -228,7 +222,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _isPlaying = p.state.playing;
     _position = p.state.position;
     _duration = p.state.duration;
-    _volume = p.state.volume;
   }
 
   void _unsubscribeFromPlayer() {
@@ -297,12 +290,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     widget.player.seek(target);
   }
 
-  void _changeVolume(double delta) {
-    final newVol = (_volume + delta).clamp(0.0, 100.0);
-    widget.player.setVolume(newVol);
-    _showAndScheduleAutoHide();
-  }
-
   void _goToNext() {
     widget.onNextEpisode?.call();
     _showAndScheduleAutoHide();
@@ -334,10 +321,10 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       onHover: (_) => _showAndScheduleAutoHide(),
       child: Focus(
         onKeyEvent: (node, event) {
-          log('ModernVideoPlayerControls: onKeyEvent: $event');
-          if (event is! KeyDownEvent) return KeyEventResult.ignored;
           _showAndScheduleAutoHide();
-          return KeyEventResult.ignored;
+          // if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          return KeyEventResult
+              .ignored; // não consome, deixa o FocusableWidget tratar
         },
         child: CallbackShortcuts(
           bindings: <ShortcutActivator, VoidCallback>{
@@ -363,10 +350,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                   _seekBy(const Duration(seconds: -10)),
               const SingleActivator(LogicalKeyboardKey.keyL): () =>
                   _seekBy(const Duration(seconds: 10)),
-              const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
-                  _changeVolume(5),
-              const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
-                  _changeVolume(-5),
             },
           },
           child: GestureDetector(
