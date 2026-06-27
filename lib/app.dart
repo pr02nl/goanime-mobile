@@ -73,8 +73,9 @@ class PauloFlixApp extends StatelessWidget {
     // Por que `defaultCacheManager` e não `httpHeaders` em cada
     // widget: 1 linha cobre todos os usos atuais E futuros
     // (qualquer widget novo herda o auth automaticamente).
-    CachedNetworkImageProvider.defaultCacheManager =
-        AuthenticatedCacheManager(jwtManager);
+    CachedNetworkImageProvider.defaultCacheManager = AuthenticatedCacheManager(
+      jwtManager,
+    );
 
     return MultiProvider(
       providers: [
@@ -168,11 +169,8 @@ class PauloFlixApp extends StatelessWidget {
           create: (ctx) => PauloFlixProvider.withRepositories(
             repository: ctx.read<PauloFlixRepository>(),
             episodeSyncService: ctx.read<PauloFlixEpisodeSyncService>(),
-            // Fase 3 (NFO enrichment) — injeta o enricher. Provider
-            // declarado **antes** deste na lista (acima), portanto
-            // `ctx.read<PauloFlixNfoEnricher>()` está disponível sem
-            // `ProviderNotFoundException` (pitfall #9).
-            nfoEnricher: ctx.read<PauloFlixNfoEnricher>(),
+            episodeProgressRepository: ctx
+                .read<PauloFlixEpisodeProgressRepository>(),
           ),
         ),
         ChangeNotifierProvider(

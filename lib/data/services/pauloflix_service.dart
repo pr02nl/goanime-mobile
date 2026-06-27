@@ -286,8 +286,8 @@ class PauloFlixService {
             final seasonData = seasonJson as Map<String, dynamic>;
             final seasonNumber = seasonData['season'] as int;
             final folderName =
-                'Season ${seasonNumber.toString().padLeft(2, '0')}';
-            final displayName = 'Season $seasonNumber';
+                seasonData['folderName'] as String? ?? 'Season $seasonNumber';
+            final displayName = folderName;
 
             final seasonId = await episodeRepository.upsertSeason(
               contentId: content.id!,
