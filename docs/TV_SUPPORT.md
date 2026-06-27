@@ -25,17 +25,19 @@ O PauloFlix agora possui suporte completo para Android TV (Leanback), permitindo
 ## Arquivos de Suporte a TV
 
 ```
-lib/
-├── utils/
-│   ├── tv_detector.dart          # Detecção de dispositivo TV
-│   └── responsive.dart           # Layouts responsivos (atualizado para TV)
-├── widgets/
-│   ├── focusable_widget.dart     # Widgets com suporte a foco
-│   └── tv_grid_view.dart         # Grid otimizado para navegação TV
-├── theme/
-│   └── tv_theme.dart             # Tema com fontes e espaçamentos para TV
-└── screens/
-    └── main_navigation_screen.dart # Navegação adaptada para TV
+lib/├── ui/
+│   ├── core/utils/
+│   │   ├── tv_detector.dart      # Detecção de dispositivo TV
+│   │   └── responsive.dart       # Layouts responsivos (atualizado para TV)
+│   ├── core/widgets/
+│   │   ├── focusable_widget.dart # Widgets com suporte a foco
+│   │   └── tv_grid_view.dart     # Grid otimizado para navegação TV
+│   ├── core/themes/
+│   │   └── tv_theme.dart         # Tema com fontes e espaçamentos para TV
+│   └── navigation/
+│       └── main_navigation_screen.dart # Navegação adaptada para TV
+└──
+    └── navigation/main_navigation_screen.dart # Navegação adaptada para TV
 ```
 
 ## Configuração Android TV
@@ -73,7 +75,7 @@ if (Responsive.isTV(context)) {
 
 ## Tema TV
 
-O arquivo `lib/theme/tv_theme.dart` contém:
+O arquivo `lib/ui/core/themes/tv_theme.dart` contém:
 
 ### Tamanhos de Fonte
 ```dart

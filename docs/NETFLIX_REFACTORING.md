@@ -8,7 +8,7 @@ Este documento descreve as mudanças implementadas no projeto PauloFlix para adi
 
 ### 1. Sistema de Tema
 
-#### `lib/theme/netflix_theme.dart`
+#### `lib/ui/core/themes/netflix_theme.dart`
 - Tema completo inspirado no Netflix com cores, animações e estilos
 - Cores primárias: vermelho Netflix (#E50914), preto puro (#000000)
 - Curvas de animação suaves (easeInOutCubic)
@@ -16,20 +16,20 @@ Este documento descreve as mudanças implementadas no projeto PauloFlix para adi
 - Spacing e border radius consistentes
 - Temas claro e escuro completos
 
-#### `lib/theme/app_theme.dart`
+#### `lib/ui/core/themes/app_theme.dart`
 - Tema unificado que combina NetflixTheme com TVTheme existente
 - Mantém cores da marca PauloFlix (ciano, roxo, rosa)
 - Preserva customizações específicas para TV
 - Integração suave com o sistema existente
 
-#### `lib/theme/app_colors.dart`
+#### `lib/ui/core/themes/app_colors.dart`
 - Adicionadas referências ao NetflixTheme
 - Gradiente overlay estilo Netflix adicionado
 - Mantém paleta de cores existente do PauloFlix
 
 ### 2. Componentes de UI
 
-#### `lib/widgets/netflix_card.dart`
+#### `lib/ui/core/widgets/netflix_card.dart`
 - **NetflixCard**: Card com hover effects e scale animation
   - Suporte a navegação TV (focus management)
   - Scale animation suave no hover (1.05x)
@@ -43,7 +43,7 @@ Este documento descreve as mudanças implementadas no projeto PauloFlix para adi
   - Layout responsivo
   - Suporte a TV navigation
 
-#### `lib/widgets/netflix_carousel.dart`
+#### `lib/ui/core/widgets/netflix_carousel.dart`
 - **NetflixCarousel**: Carousel horizontal responsivo
   - Scroll suave com gradient fades nas bordas
   - Navigation buttons para desktop/TV
@@ -56,14 +56,14 @@ Este documento descreve as mudanças implementadas no projeto PauloFlix para adi
   - Configurável (itemCount, height)
   - Segue padrões visuais do Netflix
 
-#### `lib/widgets/anime_card.dart` (Melhorado)
+#### `lib/ui/core/widgets/anime_card.dart` (Melhorado)
 - Netflix style ativado por padrão (`useNetflixStyle = true`)
 - Hover effects com scale animation
 - Gradient overlay estilo Netflix
 - Loading states com cores do tema Netflix
 - Compatibilidade mantida com código existente
 
-#### `lib/widgets/anime_section.dart` (Melhorado)
+#### `lib/ui/core/widgets/anime_section.dart` (Melhorado)
 - Netflix style ativado por padrão (`useNetflixStyle = true`)
 - Usa NetflixCarousel automaticamente
 - Fallback legacy atualizado com cores NetflixTheme
@@ -85,7 +85,7 @@ Este documento descreve as mudanças implementadas no projeto PauloFlix para adi
 AnimeCard(
   anime: anime,
   useNetflixStyle: true, // Ativar efeitos Netflix
-  onTap: () => Navigator.push(...),
+  onTap: () => context.pushNamed('player', extra: PlayerRouteData(...)),
 )
 ```
 
@@ -95,8 +95,8 @@ AnimeSection(
   title: 'Trending Now',
   animes: animeList,
   useNetflixStyle: true, // Usa NetflixCarousel
-  onAnimeTap: (anime) => Navigator.push(...),
-  onSeeAll: () => Navigator.push(...),
+  onAnimeTap: (anime) => context.pushNamed('anime-detail', extra: anime),
+  onSeeAll: () => context.pushNamed('genre', extra: GenreRouteData(...)),
 )
 ```
 
@@ -108,7 +108,7 @@ NetflixCard(
   rating: anime.score,
   width: Responsive.getHorizontalListItemWidth(context),
   height: Responsive.getCardHeightSync(context),
-  onTap: () => Navigator.push(...),
+  onTap: () => context.pushNamed('player', extra: PlayerRouteData(...)),
   isTV: await Responsive.isTV(context),
 )
 ```
@@ -132,7 +132,7 @@ NetflixHeroCard(
   imageUrl: featuredAnime.imageUrl,
   title: featuredAnime.title,
   description: featuredAnime.synopsis,
-  onPlay: () => Navigator.push(...),
+  onPlay: () => context.pushNamed('player', extra: PlayerRouteData(...)),
   onMyList: () => addToWatchlist(),
   height: Responsive.getBannerHeight(context),
 )
@@ -255,18 +255,18 @@ flutter analyze    # ✅ Sem erros
 ## 📁 Arquivos Modificados
 
 ### Novos Arquivos
-- `lib/theme/netflix_theme.dart` (313 linhas)
-- `lib/theme/app_theme.dart` (143 linhas)
-- `lib/widgets/netflix_card.dart` (468 linhas)
-- `lib/widgets/netflix_carousel.dart` (292 linhas)
+- `lib/ui/core/themes/netflix_theme.dart` (313 linhas)
+- `lib/ui/core/themes/app_theme.dart` (143 linhas)
+- `lib/ui/core/widgets/netflix_card.dart` (468 linhas)
+- `lib/ui/core/widgets/netflix_carousel.dart` (292 linhas)
 
 ### Arquivos Modificados
-- `lib/theme/app_colors.dart` - Adicionada integração Netflix
+- `lib/ui/core/themes/app_colors.dart` - Adicionada integração Netflix
 - `lib/main.dart` - Atualizado para usar AppTheme
-- `lib/widgets/anime_card.dart` - Netflix style ativado por padrão
-- `lib/widgets/anime_section.dart` - Netflix style ativado por padrão
-- `lib/screens/watchlist_screen.dart` - Refatorado para usar NetflixCard
-- `lib/widgets/responsive_anime_card.dart` - Cores atualizadas para NetflixTheme
+- `lib/ui/core/widgets/anime_card.dart` - Netflix style ativado por padrão
+- `lib/ui/core/widgets/anime_section.dart` - Netflix style ativado por padrão
+- `lib/ui/watchlist/widgets/watchlist_screen.dart` - Refatorado para usar NetflixCard
+- `lib/ui/core/widgets/responsive_anime_card.dart` - Cores atualizadas para NetflixTheme
 
 ### Arquivos da Skill
 - `.devin/skills/netflix_ui_ux/SKILL.md` - Documentação da skill

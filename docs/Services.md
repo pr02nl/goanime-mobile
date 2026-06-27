@@ -475,7 +475,7 @@ Wrapper `http.Client` que injeta `Authorization: Bearer <JWT>` em toda request.
 
 || Camada | Tecnologia | Arquivo |
 || ------ | ---------- | ------- |
-|| Banco de dados | Drift (sqlite3) | `core/database/app_database.dart` |
+|| Banco de dados | Drift | `core/database/app_database.dart` |
 || Repositories (4) | Drift | `data/repositories/*repository_impl.dart` |
 || Sync shows + films | HTTP + JSON index | `data/services/pauloflix*_service.dart` |
 || Sync episodes | HTTP + HTML scraping | `data/services/paulo_flix_episode_sync_service.dart` |
