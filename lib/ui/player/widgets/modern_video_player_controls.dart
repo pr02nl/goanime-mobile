@@ -473,21 +473,21 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
               ),
               const SizedBox(height: 8),
             ],
-            _SeekBar(
-              position: _isSeeking ? _previewPosition() : _position,
-              duration: _duration,
-              buffer: _buffer,
-              onSeek: _seekTo,
-              onSeekStart: () {
-                setState(() => _isSeeking = true);
-                _showAndScheduleAutoHide();
-              },
-              onSeekEnd: () {
-                setState(() => _isSeeking = false);
-                _showAndScheduleAutoHide();
-              },
-              onSeekBy: (seconds) => _seekBy(Duration(seconds: seconds)),
-            ),
+            // _SeekBar(
+            //   position: _isSeeking ? _previewPosition() : _position,
+            //   duration: _duration,
+            //   buffer: _buffer,
+            //   onSeek: _seekTo,
+            //   onSeekStart: () {
+            //     setState(() => _isSeeking = true);
+            //     _showAndScheduleAutoHide();
+            //   },
+            //   onSeekEnd: () {
+            //     setState(() => _isSeeking = false);
+            //     _showAndScheduleAutoHide();
+            //   },
+            //   onSeekBy: (seconds) => _seekBy(Duration(seconds: seconds)),
+            // ),
             const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -501,6 +501,23 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                     shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
                   ),
                 ),
+                Expanded(
+                  child: _SeekBar(
+                    position: _isSeeking ? _previewPosition() : _position,
+                    duration: _duration,
+                    buffer: _buffer,
+                    onSeek: _seekTo,
+                    onSeekStart: () {
+                      setState(() => _isSeeking = true);
+                      _showAndScheduleAutoHide();
+                    },
+                    onSeekEnd: () {
+                      setState(() => _isSeeking = false);
+                      _showAndScheduleAutoHide();
+                    },
+                    onSeekBy: (seconds) => _seekBy(Duration(seconds: seconds)),
+                  ),
+                ), // espaçador flexível
                 Text(
                   _formatDuration(_duration),
                   style: const TextStyle(
@@ -863,35 +880,22 @@ class _SeekBarState extends State<_SeekBar> {
           case LogicalKeyboardKey.arrowRight:
             widget.onSeekBy(5);
             return KeyEventResult.handled;
-          case LogicalKeyboardKey.arrowUp:
-          case LogicalKeyboardKey.arrowDown:
-            // Deixa o FocusTraversalGroup (ancestral) processar
-            // a navegação para o próximo componente.
-            return KeyEventResult.ignored;
           default:
             return KeyEventResult.ignored;
         }
       },
       child: ExcludeFocus(
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(25),
-            border: _isFocused
-                ? Border.all(color: AppColors.primary, width: 3)
-                : null,
-          ),
-          child: Slider(
-            activeColor: Colors.white,
-            inactiveColor: Colors.grey.withValues(alpha: 0.25),
-            thumbColor: AppColors.primary,
-            secondaryActiveColor: Colors.white.withValues(alpha: 0.5),
-            value: value,
-            secondaryTrackValue: displayBuffer,
-            onChanged: widget.onSeek,
-            onChangeStart: (_) => widget.onSeekStart(),
-            onChangeEnd: (_) => widget.onSeekEnd(),
-            allowedInteraction: SliderInteraction.tapOnly,
-          ),
+        child: Slider(
+          activeColor: _isFocused ? AppColors.primary : Colors.white,
+          inactiveColor: Colors.grey.withValues(alpha: 0.25),
+          thumbColor: _isFocused ? AppColors.primary : Colors.white,
+          secondaryActiveColor: Colors.white.withValues(alpha: 0.5),
+          value: value,
+          secondaryTrackValue: displayBuffer,
+          onChanged: widget.onSeek,
+          onChangeStart: (_) => widget.onSeekStart(),
+          onChangeEnd: (_) => widget.onSeekEnd(),
+          allowedInteraction: SliderInteraction.tapOnly,
         ),
       ),
     );
