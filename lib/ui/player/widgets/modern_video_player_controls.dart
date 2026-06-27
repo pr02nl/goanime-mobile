@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -171,18 +170,29 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   bool _onHardwareKey(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
 
-    log('Key pressed: ${event.logicalKey}');
     switch (event.logicalKey) {
       case LogicalKeyboardKey.space:
       case LogicalKeyboardKey.select:
       case LogicalKeyboardKey.enter:
-        _togglePlay();
+        if (!_isVisible) {
+          _togglePlay();
+        } else {
+          _showAndScheduleAutoHide();
+        }
         break;
       case LogicalKeyboardKey.arrowLeft:
-        _seekBy(const Duration(seconds: -5));
+        if (!_isVisible) {
+          _seekBy(const Duration(seconds: -5));
+        } else {
+          _showAndScheduleAutoHide();
+        }
         break;
       case LogicalKeyboardKey.arrowRight:
-        _seekBy(const Duration(seconds: 5));
+        if (!_isVisible) {
+          _seekBy(const Duration(seconds: 5));
+        } else {
+          _showAndScheduleAutoHide();
+        }
         break;
       case LogicalKeyboardKey.goBack:
         if (_isVisible) {
@@ -810,11 +820,24 @@ class _SeekBar extends StatefulWidget {
 
 class _SeekBarState extends State<_SeekBar> {
   late final FocusNode _focusNode = FocusNode(debugLabel: 'SeekBar');
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChange);
+  }
 
   @override
   void dispose() {
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _handleFocusChange() {
+    final hasFocus = _focusNode.hasFocus;
+    if (!mounted) return;
+    setState(() => _isFocused = hasFocus);
   }
 
   @override
@@ -850,17 +873,25 @@ class _SeekBarState extends State<_SeekBar> {
         }
       },
       child: ExcludeFocus(
-        child: Slider(
-          activeColor: Colors.white,
-          inactiveColor: Colors.grey.withValues(alpha: 0.25),
-          thumbColor: AppColors.primary,
-          secondaryActiveColor: Colors.white.withValues(alpha: 0.5),
-          value: value,
-          secondaryTrackValue: displayBuffer,
-          onChanged: widget.onSeek,
-          onChangeStart: (_) => widget.onSeekStart(),
-          onChangeEnd: (_) => widget.onSeekEnd(),
-          allowedInteraction: SliderInteraction.tapOnly,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(25),
+            border: _isFocused
+                ? Border.all(color: AppColors.primary, width: 3)
+                : null,
+          ),
+          child: Slider(
+            activeColor: Colors.white,
+            inactiveColor: Colors.grey.withValues(alpha: 0.25),
+            thumbColor: AppColors.primary,
+            secondaryActiveColor: Colors.white.withValues(alpha: 0.5),
+            value: value,
+            secondaryTrackValue: displayBuffer,
+            onChanged: widget.onSeek,
+            onChangeStart: (_) => widget.onSeekStart(),
+            onChangeEnd: (_) => widget.onSeekEnd(),
+            allowedInteraction: SliderInteraction.tapOnly,
+          ),
         ),
       ),
     );
