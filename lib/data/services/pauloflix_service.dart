@@ -8,9 +8,8 @@ import '../../core/constants/api_constants.dart';
 import '../../core/utils/url_codec.dart';
 import '../../domain/models/pauloflix_content.dart';
 import '../../domain/models/pauloflix_models.dart';
-import '../../domain/repositories/pauloflix_repository.dart';
 import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
-import 'kodi/pauloflix_nfo_enricher.dart';
+import '../../domain/repositories/pauloflix_repository.dart';
 
 class PauloFlixService {
   static const String baseUrl = ApiConstants.animePauloFlix;
@@ -200,9 +199,6 @@ class PauloFlixService {
   /// - **Sync de episódios integrado:** quando [episodeRepository] é
   ///   fornecido, o sync popula seasons/episódios diretamente do JSON,
   ///   sem scraping adicional.
-  ///
-  /// [enricher] é mantido como parâmetro apenas para compatibilidade
-  /// de assinatura — é **ignorado** (não há mais NFO-scraping no sync).
   static Future<bool> syncContent({
     required PauloFlixRepository repository,
     void Function(String progress)? onProgress,
@@ -216,10 +212,6 @@ class PauloFlixService {
     /// Quando fornecido, popula seasons/episódios diretamente do JSON
     /// index, sem necessidade de scraping adicional.
     PauloFlixEpisodeProgressRepository? episodeRepository,
-
-    /// Mantido para compatibilidade de assinatura — **ignorado**.
-    // ignore: avoid_unused_constructor_parameters
-    PauloFlixNfoEnricher? enricher,
   }) async {
     try {
       onProgress?.call('Baixando índice JSON do PauloFlix TV...');
@@ -265,9 +257,7 @@ class PauloFlixService {
       final removedPaths = existingPaths.difference(currentPaths);
 
       if (removedPaths.isNotEmpty) {
-        onProgress?.call(
-          'Marcando ${removedPaths.length} shows removidos...',
-        );
+        onProgress?.call('Marcando ${removedPaths.length} shows removidos...');
       }
 
       // Salva todos os shows (DoUpdate lida com conflitos)
