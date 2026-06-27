@@ -107,7 +107,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   // `Player.stream.bufferingPercentage` (0..100 → divide por 100).
   // Usado pela _SeekBar para mostrar a faixa cinza-claro ANTES da
   // cabeça de play — convenção YouTube/VLC.
-  double _bufferFraction = 0.0;
+  Duration _buffer = Duration.zero;
 
   // ─── Subscriptions ──────────────────────────────────────────────
   StreamSubscription<bool>? _playingSub;
@@ -115,7 +115,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   StreamSubscription<Duration>? _durationSub;
   StreamSubscription<double>? _volumeSub;
   StreamSubscription<bool>? _completedSub;
-  StreamSubscription<double>? _bufferPctSub;
+  StreamSubscription<Duration>? _bufferPctSub;
   StreamSubscription<String>? _errorStreamSub;
   StreamSubscription<bool>? _bufferingSub;
 
@@ -218,11 +218,10 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         setState(() => _isPlaying = false);
       }
     });
-    // buffer percentage (0..100) → normalizado 0..1
-    _bufferPctSub = p.stream.bufferingPercentage.listen((pct) {
-      log('bufferingPercentage: $pct%');
+    // buffer duration
+    _bufferPctSub = p.stream.buffer.listen((buffer) {
       if (mounted) {
-        setState(() => _bufferFraction = (pct / 100.0).clamp(0.0, 1.0));
+        setState(() => _buffer = buffer);
       }
     });
     // Estado inicial.
@@ -498,7 +497,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
             _SeekBar(
               position: _isSeeking ? _previewPosition() : _position,
               duration: _duration,
-              bufferFraction: _bufferFraction,
+              buffer: _buffer,
               onSeek: _seekTo,
               onSeekStart: () {
                 setState(() => _isSeeking = true);
@@ -835,7 +834,7 @@ class _PlayPauseButton extends StatelessWidget {
 class _SeekBar extends StatelessWidget {
   final Duration position;
   final Duration duration;
-  final double bufferFraction;
+  final Duration buffer;
   final ValueChanged<double> onSeek;
   final VoidCallback onSeekStart;
   final VoidCallback onSeekEnd;
@@ -843,7 +842,7 @@ class _SeekBar extends StatelessWidget {
   const _SeekBar({
     required this.position,
     required this.duration,
-    required this.bufferFraction,
+    required this.buffer,
     required this.onSeek,
     required this.onSeekStart,
     required this.onSeekEnd,
@@ -858,7 +857,7 @@ class _SeekBar extends StatelessWidget {
     // Garante que a barra de buffer nunca fica MENOR que a posição
     // atual (pode acontecer se a posição avançar mais rápido que o
     // report de buffer no início do vídeo).
-    final effectiveBuffer = bufferFraction.clamp(0.0, 1.0);
+    final effectiveBuffer = (buffer.inMilliseconds / max).clamp(0.0, 1.0);
     final displayBuffer = effectiveBuffer < value ? value : effectiveBuffer;
 
     return SizedBox(
