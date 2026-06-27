@@ -89,7 +89,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   // ─── Visibility ──────────────────────────────────────────────────
   bool _isVisible = true;
   Timer? _autoHideTimer;
-  late final AnimationController _fadeController;
 
   // ─── State mirrors (refletem o Player para rebuild) ──────────────
   bool _isPlaying = false;
@@ -148,7 +147,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   @override
   void dispose() {
     _autoHideTimer?.cancel();
-    _fadeController.dispose();
     _unsubscribeFromPlayer();
     super.dispose();
   }
@@ -248,7 +246,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       setState(() => _isVisible = true);
       focusNode.requestFocus();
     }
-    _fadeController.forward();
     _autoHideTimer = Timer(_autoHide, _hide);
   }
 
@@ -256,7 +253,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     if (!mounted) return;
     // Em mobile, alguns segundos extras durante seek/hover ajudam UX.
     setState(() => _isVisible = false);
-    _fadeController.reverse();
   }
 
   // ─── Action handlers ────────────────────────────────────────────
