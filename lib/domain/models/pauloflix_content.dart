@@ -1,7 +1,7 @@
+import '../../core/utils/genre_codec.dart';
 import '../../data/models/jikan_models.dart';
 import '../../data/services/kodi/kodi_nfo_models.dart';
 import '../../data/services/kodi/pauloflix_nfo_enricher.dart';
-import '../../core/utils/genre_codec.dart';
 
 /// Conteúdo mapeado do PauloFlix com metadados do Jikan
 class PauloFlixContent {
@@ -149,17 +149,19 @@ class PauloFlixContent {
       serverUrl: serverUrl,
       imageUrl: resolveUrl(json['poster'] as String?),
       bannerUrl: resolveUrl(
-            json['banner'] as String? ?? json['fanart'] as String?,
+        json['banner'] as String? ?? json['fanart'] as String?,
       ),
       description: json['description'] as String?,
       score: (json['score'] as num?)?.toDouble(),
-      genres: json['genres'] != null
-          ? List<String>.from(json['genres'] as List)
+      genres: json['genre'] != null
+          ? List<String>.from(json['genre'] as List)
           : [],
       status: json['status'] as String?,
       episodeCount: json['episode_count'] as int?,
       originalTitle: json['original_title'] as String?,
-      year: json['year'] as int?,
+      year: (json['year'] as String?)?.isNotEmpty == true
+          ? int.tryParse(json['year'] as String)
+          : null,
       tmdbId: json['tmdb_id'] as int?,
       malId: json['mal_id'] as int?,
       anilistId: json['anilist_id'] as int?,
