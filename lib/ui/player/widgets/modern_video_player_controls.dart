@@ -236,9 +236,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   }
 
   Future<void> _detectTVDevice() async {
-    final isTV = await TVDetector.isTV;
+    _isTVDevice = await TVDetector.isTV;
     if (!mounted) return;
-    setState(() => _isTVDevice = isTV);
+    setState(() {});
   }
 
   // ─── Auto-hide ───────────────────────────────────────────────────
@@ -321,10 +321,18 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       onHover: (_) => _showAndScheduleAutoHide(),
       child: Focus(
         onKeyEvent: (node, event) {
-          _showAndScheduleAutoHide();
-          // if (event is! KeyDownEvent) return KeyEventResult.ignored;
-          return KeyEventResult
-              .ignored; // não consome, deixa o FocusableWidget tratar
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          switch (event.logicalKey) {
+            case LogicalKeyboardKey.space:
+            case LogicalKeyboardKey.select:
+            case LogicalKeyboardKey.enter:
+              _togglePlay();
+              break;
+            default:
+              _showAndScheduleAutoHide();
+              break;
+          }
+          return KeyEventResult.handled;
         },
         child: CallbackShortcuts(
           bindings: <ShortcutActivator, VoidCallback>{
@@ -341,16 +349,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
             if (widget.onNextEpisode != null)
               const SingleActivator(LogicalKeyboardKey.keyN): _goToNext,
             // Desktop-only (TV usa D-pad para navegação de foco)
-            if (!_isTVDevice) ...{
-              const SingleActivator(LogicalKeyboardKey.space): _togglePlay,
-              const SingleActivator(LogicalKeyboardKey.keyK): _togglePlay,
-              const SingleActivator(LogicalKeyboardKey.select): _togglePlay,
-              const SingleActivator(LogicalKeyboardKey.enter): _togglePlay,
-              const SingleActivator(LogicalKeyboardKey.keyJ): () =>
-                  _seekBy(const Duration(seconds: -10)),
-              const SingleActivator(LogicalKeyboardKey.keyL): () =>
-                  _seekBy(const Duration(seconds: 10)),
-            },
+            const SingleActivator(LogicalKeyboardKey.space): _togglePlay,
+            const SingleActivator(LogicalKeyboardKey.select): _togglePlay,
+            const SingleActivator(LogicalKeyboardKey.enter): _togglePlay,
           },
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -452,7 +453,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           _PlayPauseButton(
             isPlaying: _isPlaying,
             onPressed: _togglePlay,
-            autoFocus: _isTVDevice,
+            autoFocus: true,
           ),
         ],
       ),
@@ -786,22 +787,6 @@ class _PlayPauseButton extends StatelessWidget {
           color: Colors.white,
         ),
       ),
-      // child: Container(
-      //   width: 72,
-      //   height: 72,
-      //   decoration: BoxDecoration(
-      //     color: AppColors.primary.withValues(alpha: 0.85),
-      //     shape: BoxShape.circle,
-      //     boxShadow: const [
-      //       BoxShadow(color: Colors.black54, blurRadius: 8, spreadRadius: 1),
-      //     ],
-      //   ),
-      //   child: Icon(
-      //     isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-      //     size: 48,
-      //     color: Colors.white,
-      //   ),
-      // ),
     );
   }
 }
