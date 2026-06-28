@@ -792,6 +792,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       body: Video(
         controller: _videoController,
         controls: (state) {
+          final externalSubs = _currentEpisode.subtitleTracks
+              .where((s) => s.url != null)
+              .toList();
           return ModernVideoPlayerControls(
             player: state.widget.controller.player,
             title: _displayLabel,
@@ -799,6 +802,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
             onNextEpisode: _hasNextEpisode ? _goToNextEpisode : null,
             onRetry: _initializeVideoPlayer,
             onClose: _exitPlayer,
+            externalSubtitleTracks:
+                externalSubs.isNotEmpty ? externalSubs : null,
           );
         },
       ),
