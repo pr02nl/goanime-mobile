@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../../../domain/models/episode.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/tv_detector.dart';
@@ -17,7 +18,7 @@ enum _PlayerUIState { loading, playing, error }
 /// Composição (top → bottom):
 /// ```
 /// ┌─────────────────────────────────────────────────┐
-/// │ [back]   título do episódio        [⏭ próximo] │  ← top bar + next
+/// │ [back]   título do episódio     [⚙️] [⏭ próximo]│  ← top bar + next
 /// ├─────────────────────────────────────────────────┤
 /// │                                                 │
 /// │               [▶⏸  play/pause]                   │  ← center (só play)
@@ -63,6 +64,10 @@ class ModernVideoPlayerControls extends StatefulWidget {
   /// Auto-hide customizado (sobrescreve o padrão 3s/5s).
   final Duration? autoHideDuration;
 
+  /// Legendas externas (.srt) do episódio atual. Passado pela screen
+  /// para que o seletor de tracks possa listá-las como opções.
+  final List<EpisodeSubtitleTrack>? externalSubtitleTracks;
+
   const ModernVideoPlayerControls({
     super.key,
     required this.player,
@@ -74,6 +79,7 @@ class ModernVideoPlayerControls extends StatefulWidget {
     this.onRetry,
     this.onClose,
     this.autoHideDuration,
+    this.externalSubtitleTracks,
   });
 
   @override
@@ -99,10 +105,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   _PlayerUIState _uiState = _PlayerUIState.loading;
   String? _errorMessage;
 
-  // Quanto do vídeo já está em buffer (0..1). Vem de
-  // `Player.stream.bufferingPercentage` (0..100 → divide por 100).
-  // Usado pela _SeekBar para mostrar a faixa cinza-claro ANTES da
-  // cabeça de play — convenção YouTube/VLC.
   Duration _buffer = Duration.zero;
 
   // ─── Subscriptions ──────────────────────────────────────────────
@@ -117,7 +119,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   // ─── Seek interaction ────────────────────────────────────────────
   bool _isSeeking = false;
-  double? _seekPreviewValue; // 0..1 durante o arraste
+  double? _seekPreviewValue;
 
   // ─── TV detection (assíncrono) ──────────────────────────────────
   bool _isTVDevice = false;
@@ -140,7 +142,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   @override
   void didUpdateWidget(covariant ModernVideoPlayerControls oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Se o player trocou (rebind), re-assina os streams.
     if (oldWidget.player != widget.player) {
       _unsubscribeFromPlayer();
       _subscribeToPlayer();
@@ -209,7 +210,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   void _subscribeToPlayer() {
     final p = widget.player;
-    // playing
     _playingSub = p.stream.playing.listen((v) {
       if (mounted) {
         setState(() {
@@ -220,8 +220,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         });
       }
     });
-    // error
-    // ignore: cancel_subscriptions
     _errorStreamSub = p.stream.error.listen((error) {
       if (mounted && error.isNotEmpty) {
         debugPrint('[ModernVideoPlayerControls] Player error: $error');
@@ -231,11 +229,8 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         });
       }
     });
-    // buffering
     _bufferingSub = p.stream.buffering.listen((buffering) {
       if (mounted && _uiState != _PlayerUIState.error) {
-        // Só mostra loading se o player ainda não começou a tocar
-        // (útil para o loading inicial).
         if (buffering && !_isPlaying && _position == Duration.zero) {
           setState(() => _uiState = _PlayerUIState.loading);
         } else if (!buffering && _uiState == _PlayerUIState.loading) {
@@ -243,27 +238,22 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         }
       }
     });
-    // position
     _positionSub = p.stream.position.listen((v) {
       if (mounted && !_isSeeking) setState(() => _position = v);
     });
-    // duration
     _durationSub = p.stream.duration.listen((v) {
       if (mounted) setState(() => _duration = v);
     });
-    // completed → reseta posição
     _completedSub = p.stream.completed.listen((v) {
       if (mounted && v) {
         setState(() => _isPlaying = false);
       }
     });
-    // buffer duration
     _bufferPctSub = p.stream.buffer.listen((buffer) {
       if (mounted) {
         setState(() => _buffer = buffer);
       }
     });
-    // Estado inicial.
     _isPlaying = p.state.playing;
     _position = p.state.position;
     _duration = p.state.duration;
@@ -305,7 +295,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   void _hide() {
     if (!mounted) return;
-    // Em mobile, alguns segundos extras durante seek/hover ajudam UX.
     setState(() => _isVisible = false);
   }
 
@@ -313,7 +302,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   void _togglePlay() {
     widget.player.playOrPause();
-    // Mostra controles ao acionar (e re-agenda o auto-hide).
     _showAndScheduleAutoHide();
   }
 
@@ -352,11 +340,293 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     widget.onClose?.call();
   }
 
+  // ─── Track selector ────────────────────────────────────────────
+
+  /// Verifica se há tracks disponíveis para o settings icon aparecer.
+  bool get _hasTracksToSelect {
+    final tracks = widget.player.state.tracks;
+    return tracks.video.length > 1 ||
+        tracks.audio.length > 1 ||
+        tracks.subtitle.isNotEmpty ||
+        (widget.externalSubtitleTracks?.isNotEmpty == true);
+  }
+
+  Widget _buildSettingsButton() {
+    if (!_hasTracksToSelect) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(left: 12),
+      child: _ControlButton(
+        icon: Icons.settings_rounded,
+        tooltip: 'Configurações de áudio/vídeo',
+        onPressed: _showTrackSelector,
+        iconSize: 24,
+      ),
+    );
+  }
+
+  void _showTrackSelector() {
+    _autoHideTimer?.cancel();
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        final tracks = widget.player.state.tracks;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.settings_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                      SizedBox(width: 12),
+                      Text(
+                        'Configurações de Faixas',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: Colors.white12),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (tracks.video.length > 1)
+                          _TrackSection(
+                            icon: Icons.videocam_rounded,
+                            title: 'Vídeo',
+                            tracks: tracks.video
+                                .map(
+                                  (t) => _TrackItemData(
+                                    id: t.id,
+                                    label: t.title ?? _formatVideoRes(t),
+                                    subtitle: _formatVideoSubtitle(t),
+                                    isActive:
+                                        t.id ==
+                                        widget.player.state.track.video.id,
+                                  ),
+                                )
+                                .toList(),
+                            onSelect: (index) {
+                              if (index < tracks.video.length) {
+                                widget.player.setVideoTrack(
+                                  tracks.video[index],
+                                );
+                                Navigator.pop(sheetContext);
+                              }
+                            },
+                          ),
+                        if (tracks.audio.length > 1)
+                          _TrackSection(
+                            icon: Icons.audiotrack_rounded,
+                            title: 'Áudio',
+                            tracks: tracks.audio
+                                .map(
+                                  (t) => _TrackItemData(
+                                    id: t.id,
+                                    label:
+                                        t.title ??
+                                        t.language ??
+                                        'Track ${tracks.audio.indexOf(t) + 1}',
+                                    subtitle: t.codec != null
+                                        ? (t.language != null
+                                              ? '${t.codec} • ${t.language}'
+                                              : t.codec!)
+                                        : t.language,
+                                    isActive:
+                                        t.id ==
+                                        widget.player.state.track.audio.id,
+                                    badge:
+                                        t.language != null &&
+                                            (t.language!.toLowerCase() ==
+                                                    'por' ||
+                                                t.language!.toLowerCase() ==
+                                                    'pt-br')
+                                        ? 'PT-BR'
+                                        : null,
+                                  ),
+                                )
+                                .toList(),
+                            onSelect: (index) {
+                              if (index < tracks.audio.length) {
+                                widget.player.setAudioTrack(
+                                  tracks.audio[index],
+                                );
+                                Navigator.pop(sheetContext);
+                              }
+                            },
+                          ),
+                        _buildSubtitleSection(sheetContext),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      if (mounted) _showAndScheduleAutoHide();
+    });
+  }
+
+  Widget _buildSubtitleSection(BuildContext sheetContext) {
+    final l10n = AppLocalizations.of(context);
+    final track = widget.player.state.track;
+    final currentSubId = track.subtitle.id;
+
+    final options = <_TrackItemData>[];
+
+    // Auto
+    options.add(
+      _TrackItemData(
+        id: 'auto',
+        label: l10n.auto,
+        subtitle: l10n.autoDescription,
+        isActive: currentSubId == 'auto',
+        iconData: Icons.auto_awesome_rounded,
+      ),
+    );
+
+    // Desligado
+    options.add(
+      _TrackItemData(
+        id: 'no',
+        label: l10n.subtitlesOff,
+        subtitle: l10n.subtitlesOffDescription,
+        isActive: currentSubId == 'no',
+        iconData: Icons.subtitles_off_rounded,
+      ),
+    );
+
+    // Embutidas no MKV (lidas do player.state.tracks)
+    final embeddedFromPlayer = widget.player.state.tracks.subtitle;
+    for (final st in embeddedFromPlayer) {
+      options.add(
+        _TrackItemData(
+          id: st.id,
+          label: st.title ?? st.language ?? 'Track ${st.id}',
+          subtitle: st.language ?? l10n.unknownLanguage,
+          isActive: currentSubId == st.id,
+          iconData: Icons.movie_outlined,
+        ),
+      );
+    }
+
+    // Externas (.srt) passadas pela screen
+    final externalSubs = widget.externalSubtitleTracks;
+    if (externalSubs != null) {
+      for (final ext in externalSubs) {
+        options.add(
+          _TrackItemData(
+            id: ext.url ?? ext.displayName,
+            label: ext.displayName,
+            subtitle: '${ext.language} • .srt',
+            isActive: currentSubId == ext.url,
+            iconData: Icons.subtitles_rounded,
+          ),
+        );
+      }
+    }
+
+    return _TrackSection(
+      icon: Icons.closed_caption_rounded,
+      title: 'Legenda',
+      tracks: options,
+      onSelect: (index) async {
+        if (index >= options.length) return;
+        final opt = options[index];
+        try {
+          switch (opt.id) {
+            case 'auto':
+              await widget.player.setSubtitleTrack(SubtitleTrack.auto());
+            case 'no':
+              await widget.player.setSubtitleTrack(SubtitleTrack.no());
+            default:
+              // Procura nos tracks embutidos do player
+              SubtitleTrack? playerTrack;
+              for (final st in embeddedFromPlayer) {
+                if (st.id == opt.id) {
+                  playerTrack = st;
+                  break;
+                }
+              }
+              if (playerTrack != null) {
+                await widget.player.setSubtitleTrack(playerTrack);
+              } else {
+                // Se for externa, carrega via URI
+                final ext = widget.externalSubtitleTracks?.firstWhere(
+                  (e) => e.url == opt.id || e.displayName == opt.id,
+                  orElse: () => widget.externalSubtitleTracks!.first,
+                );
+                if (ext != null && ext.url != null) {
+                  await widget.player.setSubtitleTrack(
+                    SubtitleTrack.uri(
+                      ext.url!,
+                      title: ext.displayName,
+                      language: ext.language,
+                    ),
+                  );
+                }
+              }
+          }
+        } catch (e) {
+          debugPrint('[PlayerControls] Failed to set subtitle track: $e');
+        }
+        if (sheetContext.mounted) Navigator.pop(sheetContext);
+      },
+    );
+  }
+
+  /// Formata a resolução do VideoTrack: "1920x1080" ou fallback para "Track".
+  String _formatVideoRes(VideoTrack t) {
+    final w = t.w ?? 0;
+    final h = t.h ?? 0;
+    if (w > 0 && h > 0) return '${w}x$h';
+    return 'Track';
+  }
+
+  /// Formata o subtítulo do VideoTrack: "codec • language".
+  String _formatVideoSubtitle(VideoTrack t) {
+    final parts = <String>[];
+    final w = t.w ?? 0;
+    final h = t.h ?? 0;
+    if (w > 0 && h > 0) {
+      parts.add('${w}x$h');
+    }
+    if (t.codec != null && t.codec!.isNotEmpty) {
+      parts.add(t.codec!);
+    }
+    if (t.language != null && t.language!.isNotEmpty) {
+      parts.add(t.language!);
+    }
+    return parts.isNotEmpty ? parts.join(' • ') : '';
+  }
+
   // ─── Build ───────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    // Determina qual overlay mostrar
     final showLoading = _uiState == _PlayerUIState.loading;
     final showError = _uiState == _PlayerUIState.error;
     final showControls = !showLoading && !showError;
@@ -369,11 +639,8 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Camada 1: controles normais (sempre presente, fade)
             if (_isVisible) _buildLayout(),
-            // Camada 2: loading overlay
             if (showLoading) _buildLoadingOverlay(),
-            // Camada 3: error overlay
             if (showError) _buildErrorOverlay(),
           ],
         ),
@@ -424,6 +691,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            _buildSettingsButton(),
             if (widget.onNextEpisode != null) ...[
               const SizedBox(width: 12),
               _ControlButton(
@@ -499,7 +767,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                     },
                     onSeekBy: (seconds) => _seekBy(Duration(seconds: seconds)),
                   ),
-                ), // espaçador flexível
+                ),
                 Text(
                   _formatDuration(_duration),
                   style: const TextStyle(
@@ -711,8 +979,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 // Sub-widgets
 // ═══════════════════════════════════════════════════════════════════
 
-/// Botão de controle genérico. Envolve o `IconButton` em `FocusableWidget`
-/// para que o D-pad alcance o alvo em TV (P4 da skill `flutter-tv-readiness`).
+/// Botão de controle genérico.
 class _ControlButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -741,10 +1008,7 @@ class _ControlButton extends StatelessWidget {
   }
 }
 
-/// Botão central de play/pause — maior que os outros (estilo VLC).
-/// Envolto em [FocusableWidget] para que o D-pad alcance em TV (P4).
-/// NOTA: não recebe um `FocusNode` externo — o `FocusableWidget` cria
-/// o seu próprio para evitar conflito com o `Focus` pai do controle.
+/// Botão central de play/pause.
 class _PlayPauseButton extends StatelessWidget {
   final bool isPlaying;
   final VoidCallback onPressed;
@@ -766,18 +1030,7 @@ class _PlayPauseButton extends StatelessWidget {
   }
 }
 
-/// Seek bar customizada com 3 faixas (estilo YouTube/VLC):
-/// 1. Track inativo (cinza claro alpha 0.25) — fundo
-/// 2. Track de buffer (cinza claro alpha 0.5) — quanto já carregou
-/// 3. Track ativo (AppColors.primary) — posição atual de play
-///
-/// O [Slider] do Flutter não suporta buffer indicator nativamente,
-/// então implementamos com [Stack] + 3 [FractionallySizedBox].
-/// O [Slider] continua sendo usado para o thumb visual.
-///
-/// O slider é envolvido em [ExcludeFocus] para impedir que ele retenha
-/// o foco D-pad (TV). Um [Focus] wrapper externo intercepta as setas
-/// esquerda/direita para fazer seek de ±5 segundos.
+/// Seek bar customizada com 3 faixas (estilo YouTube/VLC).
 class _SeekBar extends StatefulWidget {
   final Duration position;
   final Duration duration;
@@ -869,6 +1122,178 @@ class _SeekBarState extends State<_SeekBar> {
           onChangeStart: (_) => widget.onSeekStart(),
           onChangeEnd: (_) => widget.onSeekEnd(),
           allowedInteraction: SliderInteraction.tapOnly,
+        ),
+      ),
+    );
+  }
+}
+
+/// Dados de uma opção de track no seletor.
+class _TrackItemData {
+  final String id;
+  final String label;
+  final String? subtitle;
+  final bool isActive;
+  final String? badge;
+  final IconData? iconData;
+
+  const _TrackItemData({
+    required this.id,
+    required this.label,
+    this.subtitle,
+    this.isActive = false,
+    this.badge,
+    this.iconData,
+  });
+}
+
+/// Seção de tracks no bottom sheet (Vídeo / Áudio / Legenda).
+class _TrackSection extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final List<_TrackItemData> tracks;
+  final ValueChanged<int> onSelect;
+
+  const _TrackSection({
+    required this.icon,
+    required this.title,
+    required this.tracks,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.white54, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                title.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+        for (int i = 0; i < tracks.length; i++)
+          _TrackOption(data: tracks[i], onTap: () => onSelect(i)),
+      ],
+    );
+  }
+}
+
+/// Opção individual de track no seletor.
+class _TrackOption extends StatelessWidget {
+  final _TrackItemData data;
+  final VoidCallback onTap;
+
+  const _TrackOption({required this.data, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const activeColor = Color(0xFF00BCD4);
+    final icon =
+        data.iconData ??
+        (data.isActive
+            ? Icons.check_circle_rounded
+            : Icons.radio_button_unchecked_rounded);
+
+    return FocusableWidget(
+      onSelect: onTap,
+      borderRadius: 8,
+      focusPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      focusScale: 1.0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: data.isActive ? activeColor : Colors.white60,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          data.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: data.isActive
+                                ? Colors.white
+                                : Colors.white70,
+                            fontSize: 14,
+                            fontWeight: data.isActive
+                                ? FontWeight.bold
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (data.badge != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: activeColor.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: activeColor.withValues(alpha: 0.5),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            data.badge!,
+                            style: const TextStyle(
+                              color: activeColor,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (data.subtitle != null && data.subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      data.subtitle!,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (data.isActive)
+              const Icon(
+                Icons.check_circle_rounded,
+                color: activeColor,
+                size: 22,
+              ),
+          ],
         ),
       ),
     );
