@@ -101,6 +101,8 @@ GoRouter createAppRouter({String? initialError}) {
             episodeList: data.episodeList,
             episodeIndex: data.episodeIndex,
             movieFolderName: data.movieFolderName,
+            seasonId: data.seasonId,
+            episodeNumber: data.episodeNumber,
           );
         },
       ),
