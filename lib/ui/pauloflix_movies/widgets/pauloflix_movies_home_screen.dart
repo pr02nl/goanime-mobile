@@ -61,7 +61,6 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
         letterToPageIndex: {},
         availableLetters: [],
       );
-  List<PauloFlixMovie> _collections = const [];
   List<PauloFlixMovie> _topRated = const [];
   List<PauloFlixMovie> _recent = const [];
   Map<String, List<PauloFlixMovie>> _byGenre = const {};
@@ -122,13 +121,8 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
     // 1. Hero — top-rated global.
     _featured = PauloFlixMoviesProvider.pickFeaturedMovie(_allContents);
 
-    // 2. Coleções (top 12 por score).
-    _collections = _allContents.where((m) => m.isCollection).toList()
-      ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-    if (_collections.length > 12) _collections = _collections.sublist(0, 12);
-
-    // 3. Top rated (filmes individuais, top 12).
-    _topRated = _allContents.where((m) => !m.isCollection).toList()
+    // 2. Top rated (top 12 por score).
+    _topRated = [..._allContents]
       ..sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
     if (_topRated.length > 12) _topRated = _topRated.sublist(0, 12);
 
@@ -211,21 +205,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
       slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
     }
 
-    // 2. Coleções.
-    if (_collections.isNotEmpty) {
-      slivers.add(
-        SliverToBoxAdapter(
-          child: MovieSection(
-            title: l10n.sectionCollections,
-            icon: Icons.collections_bookmark,
-            movies: _collections,
-            isTV: _isTV,
-          ),
-        ),
-      );
-    }
-
-    // 3. Mais bem avaliados.
+    // 2. Mais bem avaliados.
     if (_topRated.isNotEmpty) {
       slivers.add(
         SliverToBoxAdapter(

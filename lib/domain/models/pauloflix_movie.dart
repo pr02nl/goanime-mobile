@@ -8,8 +8,9 @@ import 'pauloflix_movie_item.dart';
 
 /// Conteúdo mapeado do PauloFlix Movies com metadados do TMDB.
 ///
-/// Pode representar tanto um filme individual quanto uma coleção
-/// (sub-pastas com filmes do mesmo franchise, ex: "Coleção Harry Potter").
+/// Representa um filme individual com metadados do JSON index
+/// (`movie_index.json`). Cada filme tem URL direta do vídeo (`file`)
+/// e legendas externas opcionais (`subtitles`).
 class PauloFlixMovie {
   final int? id;
   final String folderName;
@@ -24,7 +25,6 @@ class PauloFlixMovie {
   final int? runtime;
   final int? year;
   final int? tmdbId;
-  final bool isCollection;
   final int availableMovieCount;
   final DateTime lastSynced;
   /// URL direta do arquivo de vídeo, vinda do campo `file` do
@@ -55,7 +55,6 @@ class PauloFlixMovie {
     this.tmdbId,
     this.videoUrl,
     this.subtitles,
-    this.isCollection = false,
     this.availableMovieCount = 0,
     DateTime? lastSynced,
     this.isAvailable = true,
@@ -111,7 +110,6 @@ class PauloFlixMovie {
       runtime: tmdb.runtime,
       year: tmdb.year,
       tmdbId: tmdb.id,
-      isCollection: false,
       availableMovieCount: 1,
     );
   }
@@ -180,7 +178,6 @@ class PauloFlixMovie {
       tmdbId: json['tmdb_id'] as int?,
       videoUrl: videoUrl,
       subtitles: subtitles,
-      isCollection: (json['is_collection'] as bool?) ?? false,
       availableMovieCount: (json['available_movie_count'] as int?) ?? 1,
     );
   }
@@ -226,7 +223,6 @@ class PauloFlixMovie {
       tmdbId: null,
       videoUrl: null, // NFO não tem URL de vídeo
       subtitles: null, // NFO não tem subtitles
-      isCollection: false,
       availableMovieCount: 1,
     );
   }
@@ -250,7 +246,6 @@ class PauloFlixMovie {
       'subtitles': subtitles != null && subtitles!.isNotEmpty
           ? jsonEncode(subtitles!.map((s) => s.toJson()).toList())
           : null,
-      'isCollection': isCollection ? 1 : 0,
       'availableMovieCount': availableMovieCount,
       'lastSynced': lastSynced.toIso8601String(),
       'isAvailable': isAvailable ? 1 : 0,
@@ -279,7 +274,6 @@ class PauloFlixMovie {
       runtime: map['runtime'] as int?,
       year: map['year'] as int?,
       tmdbId: map['tmdbId'] as int?,
-      isCollection: (map['isCollection'] as int? ?? 0) == 1,
       availableMovieCount: map['availableMovieCount'] as int? ?? 0,
       lastSynced: DateTime.parse(map['lastSynced'] as String),
       isAvailable: (map['isAvailable'] as int) == 1,
@@ -319,7 +313,6 @@ class PauloFlixMovie {
     int? tmdbId,
     String? videoUrl,
     List<ExternalSubtitleEntry>? subtitles,
-    bool? isCollection,
     int? availableMovieCount,
     DateTime? lastSynced,
     bool? isAvailable,
@@ -340,7 +333,6 @@ class PauloFlixMovie {
       runtime: runtime ?? this.runtime,
       year: year ?? this.year,
       tmdbId: tmdbId ?? this.tmdbId,
-      isCollection: isCollection ?? this.isCollection,
       availableMovieCount: availableMovieCount ?? this.availableMovieCount,
       lastSynced: lastSynced ?? this.lastSynced,
       isAvailable: isAvailable ?? this.isAvailable,

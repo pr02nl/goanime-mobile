@@ -47,7 +47,6 @@ void main() {
         displayName: 'Deadpool',
         serverUrl: 'http://server/deadpool/',
         genres: const ['Action, Comedy', 'Sci-Fi', 'Adventure'],
-        isCollection: false,
         availableMovieCount: 1,
       );
 

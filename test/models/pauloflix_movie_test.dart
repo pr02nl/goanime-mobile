@@ -20,7 +20,6 @@ void main() {
       expect(movie.genres, isEmpty);
       expect(movie.videoUrl, isNull);
       expect(movie.subtitles, isNull);
-      expect(movie.isCollection, false);
       expect(movie.availableMovieCount, 0);
       expect(movie.isAvailable, true);
     });
@@ -58,7 +57,6 @@ void main() {
       expect(movie.tmdbId, 27205);
       expect(movie.videoUrl, isNull);
       expect(movie.subtitles, isNull);
-      expect(movie.isCollection, false);
       expect(movie.availableMovieCount, 1);
       expect(movie.genres, ['Action', 'Sci-Fi']);
     });
@@ -78,7 +76,6 @@ void main() {
         runtime: 148,
         year: 2010,
         tmdbId: 27205,
-        isCollection: false,
         availableMovieCount: 1,
         isAvailable: true,
       );
@@ -100,7 +97,6 @@ void main() {
       expect(restored.tmdbId, original.tmdbId);
       expect(restored.videoUrl, isNull);
       expect(restored.subtitles, isNull);
-      expect(restored.isCollection, original.isCollection);
       expect(restored.availableMovieCount, original.availableMovieCount);
       expect(restored.isAvailable, original.isAvailable);
     });
@@ -121,19 +117,6 @@ void main() {
       expect(movie.score, isNull);
       expect(movie.videoUrl, isNull);
       expect(movie.subtitles, isNull);
-    });
-
-    test('deve representar colecao corretamente', () {
-      final movie = PauloFlixMovie(
-        folderName: 'Harry Potter Collection',
-        displayName: 'Coleção Harry Potter',
-        serverUrl: 'http://server/hp/',
-        isCollection: true,
-        availableMovieCount: 8,
-      );
-
-      expect(movie.isCollection, true);
-      expect(movie.availableMovieCount, 8);
     });
 
     test('toString deve retornar displayName', () {

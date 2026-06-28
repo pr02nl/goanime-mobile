@@ -20,7 +20,6 @@ void main() {
     int? tmdbId = 27205,
     double? score = 8.8,
     List<String> genres = const ['Action', 'Sci-Fi'],
-    bool isCollection = false,
     int availableMovieCount = 1,
     int? year = 2010,
     String? imageUrl,
@@ -33,7 +32,6 @@ void main() {
       genres: genres,
       tmdbId: tmdbId,
       score: score,
-      isCollection: isCollection,
       availableMovieCount: availableMovieCount,
       year: year,
     );
@@ -45,7 +43,6 @@ void main() {
       await repo.saveContent(sample(
         folderName: 'harry_potter',
         displayName: 'Coleção HP',
-        isCollection: true,
         availableMovieCount: 8,
         tmdbId: 12445,
       ));
@@ -155,7 +152,6 @@ void main() {
       await repo.saveContent(
         sample(
           folderName: 'hp',
-          isCollection: true,
           availableMovieCount: 8,
           imageUrl: 'http://img/hp.jpg',
         ),
@@ -169,7 +165,6 @@ void main() {
       expect(stats['total'], 3);
       expect(stats['available'], 3);
       expect(stats['withMetadata'], 2);
-      expect(stats['collections'], 1);
     });
   });
 }

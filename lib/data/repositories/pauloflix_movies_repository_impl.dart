@@ -81,7 +81,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
                 ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
                 : null),
-            isCollection: Value(content.isCollection),
             availableMovieCount: Value(content.availableMovieCount),
             lastSynced: content.lastSynced,
             isAvailable: Value(content.isAvailable),
@@ -103,7 +102,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
                   ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
                   : null),
-              isCollection: Value(content.isCollection),
               availableMovieCount: Value(content.availableMovieCount),
               lastSynced: Value(content.lastSynced),
               isAvailable: Value(content.isAvailable),
@@ -137,7 +135,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
                 ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
                 : null),
-            isCollection: Value(content.isCollection),
             availableMovieCount: Value(content.availableMovieCount),
             lastSynced: content.lastSynced,
             isAvailable: Value(content.isAvailable),
@@ -159,7 +156,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
                   ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
                   : null),
-              isCollection: Value(content.isCollection),
               availableMovieCount: Value(content.availableMovieCount),
               lastSynced: Value(content.lastSynced),
               isAvailable: Value(content.isAvailable),
@@ -193,16 +189,10 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
           ..where(_db.pauloFlixMovies.isAvailable.equals(true) &
               _db.pauloFlixMovies.imageUrl.isNotNull()))
         .getSingle();
-    final collRow = await (_db.selectOnly(_db.pauloFlixMovies)
-          ..addColumns([countExp])
-          ..where(_db.pauloFlixMovies.isAvailable.equals(true) &
-              _db.pauloFlixMovies.isCollection.equals(true)))
-        .getSingle();
     return {
       'total': totalRow.read(countExp) ?? 0,
       'available': availRow.read(countExp) ?? 0,
       'withMetadata': metadataRow.read(countExp) ?? 0,
-      'collections': collRow.read(countExp) ?? 0,
     };
   }
 
@@ -243,7 +233,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               .map((s) => ExternalSubtitleEntry.fromJson(s as Map<String, dynamic>))
               .toList()
           : null,
-      isCollection: row.isCollection,
       availableMovieCount: row.availableMovieCount,
       lastSynced: row.lastSynced,
       isAvailable: row.isAvailable,

@@ -7,7 +7,6 @@ PauloFlixMovie _movie({
   String folderName = '',
   double? score,
   int? year,
-  bool isCollection = false,
   int availableMovieCount = 1,
   List<String> genres = const [],
 }) {
@@ -17,7 +16,6 @@ PauloFlixMovie _movie({
     serverUrl: 'http://server/$displayName/',
     score: score,
     year: year,
-    isCollection: isCollection,
     availableMovieCount: availableMovieCount,
     genres: genres,
   );
@@ -54,7 +52,7 @@ void main() {
       expect(result!.displayName, 'B');
     });
 
-    test('desempata final por availableMovieCount desc (coleção cheia)', () {
+    test('desempata final por availableMovieCount desc', () {
       final movies = [
         _movie(
           displayName: 'A',
@@ -67,7 +65,6 @@ void main() {
           score: 8.0,
           year: 2020,
           availableMovieCount: 5,
-          isCollection: true,
         ),
       ];
       final result = PauloFlixMoviesProvider.pickFeaturedMovie(movies);

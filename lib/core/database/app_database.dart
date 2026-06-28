@@ -85,8 +85,13 @@ class AppDatabase extends _$AppDatabase {
   ///   e `subtitles`). Elimina scraping on-demand para filmes com
   ///   índice atualizado. Sem migration data — o próximo sync
   ///   popula em background.
+  /// * v13 (2026-06-27): remove a coluna `is_collection` de
+  ///   `paulo_flix_movies` — coleções foram eliminadas, cada filme
+  ///   tem entrada própria no JSON index. A coluna orfã existente
+  ///   em bancos legados é removida via `ALTER TABLE ... DROP COLUMN`.
+  ///   Sem migration data — a coluna não era mais usada pelo código.
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -205,6 +210,17 @@ class AppDatabase extends _$AppDatabase {
       );
       await db.customStatement(
         'ALTER TABLE paulo_flix_movies ADD COLUMN subtitles_json TEXT',
+      );
+    }
+
+    // v12 → v13: remove coluna is_collection de paulo_flix_movies.
+    // SQLite DROP COLUMN é suportado desde 3.35.0 (2021-03-12).
+    // A coluna já está removida do código (modelo, repositório,
+    // widgets); esta migration limpa o schema físico.
+    if (from < 13) {
+      final db = m.database as AppDatabase;
+      await db.customStatement(
+        'ALTER TABLE paulo_flix_movies DROP COLUMN is_collection',
       );
     }
 

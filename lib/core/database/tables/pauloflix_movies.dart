@@ -19,14 +19,11 @@ class PauloFlixMovies extends Table {
   IntColumn get runtime => integer().nullable()();
   IntColumn get year => integer().nullable()();
   IntColumn get tmdbId => integer().nullable()();
-  BoolColumn get isCollection =>
-      boolean().withDefault(const Constant(false))();
   IntColumn get availableMovieCount =>
       integer().withDefault(const Constant(0))();
 
   /// URL direta do arquivo de vídeo, vinda do campo `file` do
-  /// `movie_index.json`. `null` para filmes antigos que ainda não
-  /// foram sincronizados com o novo índice.
+  /// `movie_index.json`.
   TextColumn get videoUrl => text().nullable()();
 
   /// JSON dos subtitles externos vindo do campo `subtitles` do
