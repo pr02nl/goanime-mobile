@@ -16,17 +16,26 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../domain/models/anime.dart';
+import '../../../domain/models/episode.dart';
 import '../../../domain/models/pauloflix_movie.dart';
+import '../../../domain/models/paulo_flix_movie_progress_record.dart';
+import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/pagination.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
+import '../../core/widgets/netflix_card.dart';
+import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
 import '../view_models/pauloflix_movies_provider.dart';
+import '../view_models/paulo_flix_movie_continue_watching_viewmodel.dart';
 import '_empty_state.dart';
 import '_movie_hero_banner.dart';
 import '_movie_section.dart';
@@ -182,7 +191,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
               child: MoviesEmptyState(isSyncing: false, onSync: _syncContent),
             )
           else
-            ..._buildContentSlivers(l10n),
+            ..._buildContentSliversWithContinueWatching(context, l10n),
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
@@ -386,6 +395,43 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
     );
   }
 
+  /// Constrói a seção "Continue assistindo" para filmes.
+  ///
+  /// Usa um `ChangeNotifierProvider` local com o
+  /// `PauloFlixMovieContinueWatchingViewModel` e renderiza cards
+  /// dos filmes com progresso parcial.
+  Widget _buildContinueWatchingSection(BuildContext context) {
+    return ChangeNotifierProvider<PauloFlixMovieContinueWatchingViewModel>(
+      create: (ctx) => PauloFlixMovieContinueWatchingViewModel(
+        repository: ctx.read<PauloFlixMovieProgressRepository>(),
+      ),
+      child: Consumer<PauloFlixMovieContinueWatchingViewModel>(
+        builder: (_, vm, _) {
+          if (vm.loading) return const SizedBox.shrink();
+          return _MovieContinueWatchingCarousel(
+            contents: vm.contents,
+            isTV: _isTV,
+          );
+        },
+      ),
+    );
+  }
+
+  /// Retorna os slivers de conteúdo com a seção "Continue assistindo"
+  /// inserida no topo (antes dos carrosséis).
+  List<Widget> _buildContentSliversWithContinueWatching(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    return [
+      // Seção "Continue assistindo" (filmes com progresso parcial)
+      SliverToBoxAdapter(
+        child: _buildContinueWatchingSection(context),
+      ),
+      ..._buildContentSlivers(l10n),
+    ];
+  }
+
   Widget _buildSyncBanner(PauloFlixMoviesProvider provider) {
     return SliverToBoxAdapter(
       child: Container(
@@ -416,6 +462,72 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Carrossel "Continue assistindo" para filmes PauloFlix.
+///
+/// Exibe cards horizontais dos filmes com progresso parcial.
+/// Some completamente quando a lista está vazia.
+class _MovieContinueWatchingCarousel extends StatelessWidget {
+  final List<PauloFlixMovieProgressRecord> contents;
+  final bool isTV;
+
+  const _MovieContinueWatchingCarousel({
+    required this.contents,
+    this.isTV = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (contents.isEmpty) return const SizedBox.shrink();
+
+    return NetflixCarousel(
+      title: 'Continue assistindo',
+      isTV: isTV,
+      items: contents
+          .map(
+            (r) => _buildCard(context, r),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildCard(BuildContext context, PauloFlixMovieProgressRecord record) {
+    return FocusableWidget(
+      onSelect: () => _onTap(context, record),
+      borderRadius: 6,
+      focusPadding: EdgeInsets.zero,
+      child: NetflixCard(
+        imageUrl: record.imageUrl ?? '',
+        title: record.displayName,
+        showTitle: true,
+        showRating: false,
+        isTV: isTV,
+        onTap: () => _onTap(context, record),
+      ),
+    );
+  }
+
+  void _onTap(BuildContext context, PauloFlixMovieProgressRecord record) {
+    context.pushNamed(
+      'player',
+      extra: PlayerRouteData(
+        episode: Episode(
+          number: '1',
+          url: record.videoUrl ?? '',
+        ),
+        animeTitle: record.displayName,
+        isMovie: true,
+        movieFolderName: record.folderName,
+        anime: Anime(
+          name: record.displayName,
+          url: record.serverUrl,
+          source: AnimeSource.pauloFlix,
+          fallbackImageUrl: record.imageUrl,
         ),
       ),
     );

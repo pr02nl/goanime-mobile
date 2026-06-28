@@ -8,6 +8,7 @@ import 'core/database/app_database.dart';
 import 'data/repositories/downloads_repository_impl.dart';
 import 'data/repositories/home_repository_impl.dart';
 import 'data/repositories/paulo_flix_episode_progress_repository_impl.dart';
+import 'data/repositories/paulo_flix_movie_progress_repository_impl.dart';
 import 'data/repositories/pauloflix_movies_repository_impl.dart';
 import 'data/repositories/pauloflix_repository_impl.dart';
 import 'data/repositories/watchlist_repository_impl.dart';
@@ -20,6 +21,7 @@ import 'data/services/paulo_flix_episode_sync_service.dart';
 import 'domain/repositories/downloads_repository.dart';
 import 'domain/repositories/home_repository.dart';
 import 'domain/repositories/paulo_flix_episode_progress_repository.dart';
+import 'domain/repositories/paulo_flix_movie_progress_repository.dart';
 import 'domain/repositories/pauloflix_movies_repository.dart';
 import 'domain/repositories/pauloflix_repository.dart';
 import 'domain/repositories/watchlist_repository.dart';
@@ -89,6 +91,10 @@ class PauloFlixApp extends StatelessWidget {
         // Fase 4 — providers do plano de progresso PauloFlix.
         Provider<PauloFlixEpisodeProgressRepository>(
           create: (_) => PauloFlixEpisodeProgressRepositoryImpl(appDatabase),
+        ),
+        // P1 — progresso de filmes PauloFlix Movies.
+        Provider<PauloFlixMovieProgressRepository>(
+          create: (_) => PauloFlixMovieProgressRepositoryImpl(appDatabase),
         ),
         // O `PauloFlixEpisodeSyncService` é usado em 2 lugares:
         // 1. `PauloFlixEpisodeProgressViewModel` (sync on-demand ao

@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../core/database/app_database.dart';
 import '../../core/utils/genre_codec.dart';
 import '../../domain/models/pauloflix_movie.dart';
+import '../../domain/models/pauloflix_movie_item.dart';
 import '../../domain/repositories/pauloflix_movies_repository.dart';
 
 /// Implementação Drift do `PauloFlixMoviesRepository` (filmes do file server).
@@ -74,6 +77,10 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             runtime: Value(content.runtime),
             year: Value(content.year),
             tmdbId: Value(content.tmdbId),
+            videoUrl: Value(content.videoUrl),
+            subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
+                ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
+                : null),
             isCollection: Value(content.isCollection),
             availableMovieCount: Value(content.availableMovieCount),
             lastSynced: content.lastSynced,
@@ -92,6 +99,10 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               runtime: Value(content.runtime),
               year: Value(content.year),
               tmdbId: Value(content.tmdbId),
+              videoUrl: Value(content.videoUrl),
+              subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
+                  ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
+                  : null),
               isCollection: Value(content.isCollection),
               availableMovieCount: Value(content.availableMovieCount),
               lastSynced: Value(content.lastSynced),
@@ -122,6 +133,10 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             runtime: Value(content.runtime),
             year: Value(content.year),
             tmdbId: Value(content.tmdbId),
+            videoUrl: Value(content.videoUrl),
+            subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
+                ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
+                : null),
             isCollection: Value(content.isCollection),
             availableMovieCount: Value(content.availableMovieCount),
             lastSynced: content.lastSynced,
@@ -140,6 +155,10 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               runtime: Value(content.runtime),
               year: Value(content.year),
               tmdbId: Value(content.tmdbId),
+              videoUrl: Value(content.videoUrl),
+              subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
+                  ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
+                  : null),
               isCollection: Value(content.isCollection),
               availableMovieCount: Value(content.availableMovieCount),
               lastSynced: Value(content.lastSynced),
@@ -218,6 +237,12 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
       runtime: row.runtime,
       year: row.year,
       tmdbId: row.tmdbId,
+      videoUrl: row.videoUrl,
+      subtitles: row.subtitlesJson != null
+          ? (jsonDecode(row.subtitlesJson!) as List)
+              .map((s) => ExternalSubtitleEntry.fromJson(s as Map<String, dynamic>))
+              .toList()
+          : null,
       isCollection: row.isCollection,
       availableMovieCount: row.availableMovieCount,
       lastSynced: row.lastSynced,

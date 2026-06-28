@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 
 import '../../../data/services/pauloflix_movies_service.dart';
 import '../../../domain/models/anime.dart';
@@ -30,7 +29,6 @@ class _PauloFlixMovieDetailScreenState
   // Para filme individual
   String? _movieVideoUrl;
   List<SubtitleTrackInfo> _movieSubtitles = const [];
-  bool _isResolvingSingle = false;
 
   @override
   void initState() {
@@ -43,56 +41,46 @@ class _PauloFlixMovieDetailScreenState
   }
 
   Future<void> _resolveSingleMovie() async {
-    setState(() => _isResolvingSingle = true);
-    try {
-      final file = await PauloFlixMoviesService.fetchMovieFile(
-        widget.content.serverUrl,
-      );
-      if (!mounted) return;
+    if (widget.content.videoUrl != null) {
       setState(() {
-        _movieVideoUrl = file?.videoUrl;
-        _movieSubtitles = file?.subtitles ?? const [];
-        _isResolvingSingle = false;
+        _movieVideoUrl = widget.content.videoUrl;
+        _movieSubtitles = _resolveSubtitlesFromJson(
+          widget.content.subtitles,
+          widget.content.serverUrl,
+        );
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Erro ao localizar vídeo: $e';
-        _isResolvingSingle = false;
-      });
+    } else {
+      // Filme sem `file` no JSON index — sem fallback de scraping.
+      _error = 'Este filme não possui URL de vídeo no índice. '
+          'Execute uma sincronização para atualizar o catálogo.';
     }
   }
 
   Future<void> _loadCollectionChildren() async {
     try {
-      final response = await http
-          .get(Uri.parse(widget.content.serverUrl))
-          .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) {
-        if (!mounted) return;
-        setState(() {
-          _error = 'Falha ao listar coleção (HTTP ${response.statusCode})';
-          _isLoadingCollection = false;
-        });
-        return;
-      }
-
-      final links = _parseLinks(response.body);
-      final subfolders = links
-          .where((l) => l.href.endsWith('/'))
-          .map(
-            (l) => PauloFlixMovieSubfolder(
-              name: l.name,
-              url: '${widget.content.serverUrl}${l.href}',
-            ),
-          )
-          .toList();
+      final result = await PauloFlixMoviesService.inspectFolder(
+        widget.content.folderName,
+        widget.content.serverUrl,
+      );
 
       if (!mounted) return;
-      setState(() {
-        _collectionSubfolders = subfolders;
-        _isLoadingCollection = false;
-      });
+
+      if (result.type == MovieFolderType.collection) {
+        setState(() {
+          _collectionSubfolders = result.subfolders;
+          _isLoadingCollection = false;
+        });
+      } else if (result.type == MovieFolderType.empty) {
+        setState(() {
+          _error = 'Coleção não encontrada ou vazia';
+          _isLoadingCollection = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Esta coleção não contém sub-pastas de filmes';
+          _isLoadingCollection = false;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -100,25 +88,6 @@ class _PauloFlixMovieDetailScreenState
         _isLoadingCollection = false;
       });
     }
-  }
-
-  static List<_LinkEntry> _parseLinks(String htmlBody) {
-    final regExp = RegExp(r'<a href="([^"]+)"[^>]*>([^<]+)</a>');
-    final matches = regExp.allMatches(htmlBody);
-    final entries = <_LinkEntry>[];
-    for (final m in matches) {
-      final href = m.group(1) ?? '';
-      final text = (m.group(2) ?? '').trim();
-      if (href.isEmpty || href == '../' || text.isEmpty || text == '../') {
-        continue;
-      }
-      final rawName = text.endsWith('/')
-          ? text.substring(0, text.length - 1)
-          : text;
-      final name = PauloFlixMoviesService.safeDecodeComponent(rawName);
-      entries.add(_LinkEntry(href: href, name: name));
-    }
-    return entries;
   }
 
   void _openPlayer(
@@ -148,6 +117,7 @@ class _PauloFlixMovieDetailScreenState
         ),
         animeTitle: title,
         isMovie: true,
+        movieFolderName: widget.content.folderName,
         anime: Anime(
           name: title,
           url: widget.content.serverUrl,
@@ -160,6 +130,8 @@ class _PauloFlixMovieDetailScreenState
 
   Future<void> _openSubfolder(PauloFlixMovieSubfolder sub) async {
     try {
+      // Para subpastas (coleções), sempre faz scraping — cada subpasta
+      // é um filme separado que não está no JSON index.
       final file = await PauloFlixMoviesService.fetchMovieFile(sub.url);
       if (!mounted) return;
       if (file != null) {
@@ -196,6 +168,7 @@ class _PauloFlixMovieDetailScreenState
       slivers: [
         _buildAppBar(),
         SliverToBoxAdapter(child: _buildSingleMovieInfo()),
+        if (_error != null) SliverToBoxAdapter(child: _buildError()),
         SliverToBoxAdapter(child: _buildActionButtons()),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
@@ -376,7 +349,7 @@ class _PauloFlixMovieDetailScreenState
   }
 
   Widget _buildActionButtons() {
-    final disabled = _isResolvingSingle || _movieVideoUrl == null;
+    final disabled = _movieVideoUrl == null;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SizedBox(
@@ -389,19 +362,10 @@ class _PauloFlixMovieDetailScreenState
                   widget.content.displayName,
                   subtitles: _movieSubtitles,
                 ),
-          icon: _isResolvingSingle
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Icon(Icons.play_arrow_rounded, size: 28),
-          label: Text(
-            _isResolvingSingle ? 'Localizando vídeo...' : 'Assistir',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          icon: const Icon(Icons.play_arrow_rounded, size: 28),
+          label: const Text(
+            'Assistir',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFDC2626),
@@ -458,6 +422,55 @@ class _PauloFlixMovieDetailScreenState
     );
   }
 
+  /// Mapa de código de idioma do JSON → código ISO para o player.
+  static const Map<String, String> _subtitleLangMap = {
+    'pob': 'pt-BR',
+    'por': 'pt-BR',
+    'pt': 'pt',
+    'eng': 'en',
+    'en': 'en',
+    'spa': 'es',
+    'es': 'es',
+    'fra': 'fr',
+    'fr': 'fr',
+    'deu': 'de',
+    'ger': 'de',
+    'de': 'de',
+    'ita': 'it',
+    'jpn': 'ja',
+  };
+
+  static const Map<String, String> _subtitleDisplayNames = {
+    'pt-BR': 'Português (Brasil)',
+    'pt': 'Português',
+    'en': 'Inglês',
+    'es': 'Espanhol',
+    'fr': 'Francês',
+    'de': 'Alemão',
+    'it': 'Italiano',
+    'ja': 'Japonês',
+  };
+
+  /// Converte [ExternalSubtitleEntry] do JSON index para
+  /// [SubtitleTrackInfo] usado pelo player.
+  ///
+  /// Usado quando o filme já tem `videoUrl` do JSON (sem scraping).
+  static List<SubtitleTrackInfo> _resolveSubtitlesFromJson(
+    List<ExternalSubtitleEntry>? entries,
+    String serverUrl,
+  ) {
+    if (entries == null || entries.isEmpty) return const [];
+    return entries.map((entry) {
+      final langCode = _subtitleLangMap[entry.lang] ?? entry.lang;
+      final displayName = _subtitleDisplayNames[langCode] ?? entry.lang;
+      return SubtitleTrackInfo(
+        url: entry.file, // já é URL absoluta (resolvida em fromMovieIndex)
+        language: langCode,
+        displayName: displayName,
+      );
+    }).toList();
+  }
+
   Widget _buildError() {
     return Center(
       child: Column(
@@ -474,10 +487,4 @@ class _PauloFlixMovieDetailScreenState
       ),
     );
   }
-}
-
-class _LinkEntry {
-  final String href;
-  final String name;
-  const _LinkEntry({required this.href, required this.name});
 }

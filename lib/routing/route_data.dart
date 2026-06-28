@@ -24,7 +24,13 @@ class PlayerRouteData {
   /// `null` para fluxos não-PauloFlix.
   final String? episodeNumber;
 
+  /// `folderName` do filme para salvar progresso.
+  /// `null` para fluxos que não são filmes PauloFlix Movies.
+  final String? movieFolderName;
+
   const PlayerRouteData({
+    this.movieFolderName,
+
     required this.episode,
     required this.animeTitle,
     this.anime,

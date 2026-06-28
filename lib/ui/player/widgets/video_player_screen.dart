@@ -10,10 +10,12 @@ import 'package:provider/provider.dart';
 import '../../../data/services/auth/authenticated_http_client.dart';
 import '../../../data/services/auth/jwt_token_manager.dart';
 import '../../../data/services/episode_progress_service.dart';
+import '../../../data/services/movie_progress_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_episode_record.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
+import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/utils/tv_detector.dart';
@@ -35,6 +37,10 @@ class ModernVideoPlayerScreen extends StatefulWidget {
   /// Número do episódio. `null` para fluxos não-PauloFlix.
   final String? episodeNumber;
 
+  /// `folderName` do filme para salvar progresso (PauloFlix Movies).
+  /// `null` para fluxos que não são filmes.
+  final String? movieFolderName;
+
   const ModernVideoPlayerScreen({
     super.key,
     required this.episode,
@@ -45,6 +51,7 @@ class ModernVideoPlayerScreen extends StatefulWidget {
     this.episodeIndex,
     this.seasonId,
     this.episodeNumber,
+    this.movieFolderName,
   });
 
   @override
@@ -88,13 +95,21 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   StreamSubscription<Tracks>? _tracksSub;
 
   // Progresso PauloFlix (Fase 2). `null` para fluxos não-PauloFlix
-  // (filmes, AnimeFire).
+  // (AnimeFire).
   EpisodeProgressService? _progressService;
 
   /// Repository injetado via `PlayerRouteData` (PauloFlix). Usado pelo
   /// service para gravar progresso e pelo player para ler o estado
   /// salvo.
   PauloFlixEpisodeProgressRepository? _progressRepo;
+
+  // Progresso de filmes PauloFlix Movies (P1). `null` para fluxos
+  // que não são filmes PauloFlix (animes, AnimeFire).
+  MovieProgressService? _movieProgressService;
+
+  /// Repository de progresso de filmes. Lido do Provider quando
+  /// `widget.isMovie && widget.movieFolderName != null`.
+  PauloFlixMovieProgressRepository? _movieProgressRepo;
 
   JwtTokenManager? _jwtTokenManager;
 
@@ -175,6 +190,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     // sem persistência de progresso.
     _progressRepo = widget.seasonId != null && widget.episodeNumber != null
         ? context.read<PauloFlixEpisodeProgressRepository?>()
+        : null;
+    _movieProgressRepo = widget.isMovie && widget.movieFolderName != null
+        ? context.read<PauloFlixMovieProgressRepository?>()
         : null;
     _jwtTokenManager = context.read<JwtTokenManager?>();
     _detectDeviceAndEnterFullscreen();
@@ -304,6 +322,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         getDur: _getCurrentDuration,
       ),
     );
+    unawaited(
+      _flushMovieProgressService(
+        getPos: _getCurrentPosition,
+        getDur: _getCurrentDuration,
+      ),
+    );
     // cleanupAniSkip();
     // skipButtonActiveSegment = null;
     // skipButtonDismissed = false;
@@ -420,6 +444,94 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     await service.flush(getCurrentPosition: getPos, getDuration: getDur);
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // P1: Progresso de filmes (PauloFlix Movies)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Lê o progresso salvo do banco para o filme atual.
+  Future<void> _loadMovieSavedProgress() async {
+    final repo = _movieProgressRepo;
+    final folderName = widget.movieFolderName;
+    if (repo == null || folderName == null) {
+      _movieProgressService = null;
+      _savedPositionSeconds = null;
+      _savedDurationSeconds = null;
+      _savedIsCompleted = false;
+      return;
+    }
+
+    final serverUrl = widget.anime?.url ?? '';
+    final displayName = widget.animeTitle;
+    final imageUrl = widget.anime?.fallbackImageUrl;
+
+    _movieProgressService = MovieProgressService(
+      repository: repo,
+      folderName: folderName,
+      serverUrl: serverUrl,
+      displayName: displayName,
+      imageUrl: imageUrl,
+      initialVideoUrl: _currentEpisode.url,
+    );
+
+    try {
+      final saved = await repo.getProgress(folderName);
+      if (saved != null) {
+        _savedPositionSeconds = saved.positionSeconds;
+        _savedDurationSeconds = saved.durationSeconds;
+        _savedIsCompleted = saved.isCompleted;
+        debugPrint(
+          '[VideoPlayer] Movie saved progress: '
+          'pos=${saved.positionSeconds}s '
+          'dur=${saved.durationSeconds}s '
+          'completed=${saved.isCompleted}',
+        );
+      } else {
+        _savedPositionSeconds = null;
+        _savedDurationSeconds = null;
+        _savedIsCompleted = false;
+      }
+    } catch (e) {
+      debugPrint('[VideoPlayer] Failed to load movie progress: $e');
+      _savedPositionSeconds = null;
+      _savedDurationSeconds = null;
+      _savedIsCompleted = false;
+    }
+  }
+
+  /// Aplica heurística de reset vs retomar para filmes.
+  Future<bool> _maybeResetMovieBeforeOpen() async {
+    final service = _movieProgressService;
+    if (service == null) return false;
+    final pos = _savedPositionSeconds ?? 0;
+    final dur = _savedDurationSeconds ?? 0;
+    return service.prepareResumeOrReset(
+      isCompleted: _savedIsCompleted,
+      positionSeconds: pos,
+      durationSeconds: dur,
+    );
+  }
+
+  /// Inicia o timer de 5s para gravar progresso do filme.
+  void _startMovieProgressService() {
+    final service = _movieProgressService;
+    if (service == null) return;
+    service.start(
+      getCurrentPosition: _getCurrentPosition,
+      getDuration: _getCurrentDuration,
+    );
+    debugPrint('[VideoPlayer] Movie progress service started (timer 5s)');
+  }
+
+  /// Flush do progresso do filme (último save + cancela timer).
+  Future<void> _flushMovieProgressService({
+    required Duration Function() getPos,
+    required Duration Function() getDur,
+  }) async {
+    final service = _movieProgressService;
+    if (service == null) return;
+    await service.flush(getCurrentPosition: getPos, getDuration: getDur);
+  }
+
   /// Closures para o player. `_player` pode ser null durante cleanup.
   Duration _getCurrentPosition() => _player.state.position;
 
@@ -487,7 +599,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
     // Fase 2: lê progresso salvo do banco (PauloFlix) ANTES do setState
     // para já ter a decisão de reset/seek pronta quando o Media abrir.
-    await _loadSavedProgress();
+    if (widget.isMovie && widget.movieFolderName != null) {
+      await _loadMovieSavedProgress();
+    } else {
+      await _loadSavedProgress();
+    }
 
     // Aguarda detecção de TV iniciada em initState. Garante que
     // `_isTVDevice` está populado antes de criar o Player (HW accel,
@@ -605,7 +721,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       // Se retomar: abre do zero e depois faz seek pós-open.
       // `prepareResumeOrReset` é no-op se `_progressService == null`
       // (fluxos não-PauloFlix).
-      final shouldReset = await _maybeResetBeforeOpen();
+      final shouldReset = widget.isMovie
+          ? await _maybeResetMovieBeforeOpen()
+          : await _maybeResetBeforeOpen();
       if (mounted) {
         setState(() {});
       }
@@ -628,6 +746,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       if (!shouldReset &&
           _savedPositionSeconds != null &&
           _savedPositionSeconds! > 0) {
+        debugPrint(
+          '[VideoPlayer] seeking (movie=${widget.isMovie}) '
+          'to ${_savedPositionSeconds}s',
+        );
         await _player.seek(Duration(seconds: _savedPositionSeconds!));
         debugPrint(
           '[VideoPlayer] Resuming at ${_savedPositionSeconds}s '
@@ -636,7 +758,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       }
 
       // Fase 2: inicia o timer de 5s para gravar progresso.
-      _startProgressService();
+      if (widget.isMovie) {
+        _startMovieProgressService();
+      } else {
+        _startProgressService();
+      }
 
       // Espera o media_kit parsear o contêiner e popular as tracks
       // embutidas. O `state.tracks` é populado de forma assíncrona após
@@ -752,6 +878,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     // background. Se falhar, perdemos só este último save (aceitável).
     unawaited(
       _flushProgressService(
+        getPos: _getCurrentPosition,
+        getDur: _getCurrentDuration,
+      ),
+    );
+    unawaited(
+      _flushMovieProgressService(
         getPos: _getCurrentPosition,
         getDur: _getCurrentDuration,
       ),

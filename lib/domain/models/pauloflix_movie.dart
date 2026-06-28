@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import '../../data/models/tmdb_models.dart';
 import '../../data/services/kodi/kodi_nfo_models.dart';
 import '../../data/services/kodi/pauloflix_nfo_enricher.dart';
 import '../../core/utils/genre_codec.dart';
+import 'pauloflix_movie_item.dart';
 
 /// Conteúdo mapeado do PauloFlix Movies com metadados do TMDB.
 ///
@@ -24,6 +27,16 @@ class PauloFlixMovie {
   final bool isCollection;
   final int availableMovieCount;
   final DateTime lastSynced;
+  /// URL direta do arquivo de vídeo, vinda do campo `file` do
+  /// `movie_index.json`. `null` para filmes que ainda dependem de
+  /// scraping on-demand (`fetchMovieFile`).
+  final String? videoUrl;
+
+  /// Legendas externas vindas do campo `subtitles` do `movie_index.json`.
+  /// `null` para filmes que não têm subtitles no JSON index.
+  /// Cada [ExternalSubtitleEntry] já tem [file] como URL absoluta.
+  final List<ExternalSubtitleEntry>? subtitles;
+
   final bool isAvailable;
 
   PauloFlixMovie({
@@ -40,6 +53,8 @@ class PauloFlixMovie {
     this.runtime,
     this.year,
     this.tmdbId,
+    this.videoUrl,
+    this.subtitles,
     this.isCollection = false,
     this.availableMovieCount = 0,
     DateTime? lastSynced,
@@ -124,6 +139,30 @@ class PauloFlixMovie {
       return relative.startsWith('http') ? relative : '$baseHost$relative';
     }
 
+    // Parse `file` — URL direta do vídeo
+    final file = json['file'] as String?;
+    final videoUrl = file != null ? resolveUrl(file) : null;
+
+    // Parse `subtitles` — legendas externas
+    List<ExternalSubtitleEntry>? subtitles;
+    if (json['subtitles'] != null && (json['subtitles'] as List).isNotEmpty) {
+      subtitles = (json['subtitles'] as List)
+          .map((s) => ExternalSubtitleEntry.fromJson(s as Map<String, dynamic>))
+          .toList();
+      // Resolve paths relativos para URLs absolutas
+      for (var i = 0; i < subtitles.length; i++) {
+        final entry = subtitles[i];
+        final resolvedFile = resolveUrl(entry.file);
+        if (resolvedFile != null && resolvedFile != entry.file) {
+          subtitles[i] = ExternalSubtitleEntry(
+            file: resolvedFile,
+            lang: entry.lang,
+            name: entry.name,
+          );
+        }
+      }
+    }
+
     return PauloFlixMovie(
       folderName: path,
       displayName: (json['title'] as String?) ?? path,
@@ -139,6 +178,8 @@ class PauloFlixMovie {
       runtime: json['runtime'] as int?,
       year: json['year'] as int?,
       tmdbId: json['tmdb_id'] as int?,
+      videoUrl: videoUrl,
+      subtitles: subtitles,
       isCollection: (json['is_collection'] as bool?) ?? false,
       availableMovieCount: (json['available_movie_count'] as int?) ?? 1,
     );
@@ -183,6 +224,8 @@ class PauloFlixMovie {
       runtime: null,
       year: nfo.year,
       tmdbId: null,
+      videoUrl: null, // NFO não tem URL de vídeo
+      subtitles: null, // NFO não tem subtitles
       isCollection: false,
       availableMovieCount: 1,
     );
@@ -203,6 +246,10 @@ class PauloFlixMovie {
       'runtime': runtime,
       'year': year,
       'tmdbId': tmdbId,
+      'videoUrl': videoUrl,
+      'subtitles': subtitles != null && subtitles!.isNotEmpty
+          ? jsonEncode(subtitles!.map((s) => s.toJson()).toList())
+          : null,
       'isCollection': isCollection ? 1 : 0,
       'availableMovieCount': availableMovieCount,
       'lastSynced': lastSynced.toIso8601String(),
@@ -222,6 +269,12 @@ class PauloFlixMovie {
       score: (map['score'] as num?)?.toDouble(),
       // Mesma estratégia do PauloFlixContent: tenta JSON, fallback CSV.
       genres: decodeGenresOrFallback(map['genres']),
+      videoUrl: map['videoUrl'] as String?,
+      subtitles: map['subtitles'] != null
+          ? (jsonDecode(map['subtitles'] as String) as List)
+              .map((s) => ExternalSubtitleEntry.fromJson(s as Map<String, dynamic>))
+              .toList()
+          : null,
       releaseDate: map['releaseDate'] as String?,
       runtime: map['runtime'] as int?,
       year: map['year'] as int?,
@@ -264,6 +317,8 @@ class PauloFlixMovie {
     int? runtime,
     int? year,
     int? tmdbId,
+    String? videoUrl,
+    List<ExternalSubtitleEntry>? subtitles,
     bool? isCollection,
     int? availableMovieCount,
     DateTime? lastSynced,
@@ -279,6 +334,8 @@ class PauloFlixMovie {
       description: description ?? this.description,
       score: score ?? this.score,
       genres: genres ?? this.genres,
+      videoUrl: videoUrl ?? this.videoUrl,
+      subtitles: subtitles ?? this.subtitles,
       releaseDate: releaseDate ?? this.releaseDate,
       runtime: runtime ?? this.runtime,
       year: year ?? this.year,

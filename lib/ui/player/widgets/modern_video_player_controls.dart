@@ -221,6 +221,12 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       }
     });
     _errorStreamSub = p.stream.error.listen((error) {
+      if (error.contains('tcp: ffurl_read returned')) {
+        debugPrint(
+          '[ModernVideoPlayerControls] Ignoring network error: $error',
+        );
+        return;
+      }
       if (mounted && error.isNotEmpty) {
         debugPrint('[ModernVideoPlayerControls] Player error: $error');
         setState(() {

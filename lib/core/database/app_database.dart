@@ -4,6 +4,7 @@ import 'connection/connection.dart';
 import 'tables/downloads.dart';
 import 'tables/paulo_flix_episodes.dart';
 import 'tables/paulo_flix_seasons.dart';
+import 'tables/paulo_flix_movie_progress.dart';
 import 'tables/pauloflix_content.dart';
 import 'tables/pauloflix_movies.dart';
 import 'tables/watchlist_items.dart';
@@ -29,6 +30,7 @@ part 'app_database.g.dart';
     PauloFlixMovies,
     PauloFlixSeasons,
     PauloFlixEpisodes,
+    PauloFlixMovieProgress,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -74,8 +76,17 @@ class AppDatabase extends _$AppDatabase {
   ///   `paulo_flix_content` para persistir metadados do JSON index
   ///   (`tv_index.json` / `movie_index.json`). Sem migration data — o
   ///   próximo sync repopula em background.
+  /// * v11 (2026-06-27): adiciona tabela `paulo_flix_movie_progress`
+  ///   para persistir progresso de playback de filmes (P1 do módulo
+  ///   de filmes). Sem migration data — preenchida pelo player.
+  /// * v12 (2026-06-27): adiciona `video_url` e `subtitles_json` em
+  ///   `paulo_flix_movies` para persistir URL direta do vídeo e
+  ///   legendas externas vindas do `movie_index.json` (campos `file`
+  ///   e `subtitles`). Elimina scraping on-demand para filmes com
+  ///   índice atualizado. Sem migration data — o próximo sync
+  ///   popula em background.
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -176,7 +187,28 @@ class AppDatabase extends _$AppDatabase {
       // v9 → v10: adiciona colunas original_title, year, tmdb_id em
       // paulo_flix_content para persistir metadados do JSON index.
       // Sem migration data — o próximo sync repopula em background.
-      if (from < 10) {
+      // v10 → v11: adiciona tabela paulo_flix_movie_progress
+    // para persistir progresso de playback de filmes.
+    if (from < 11) {
+      final db = m.database as AppDatabase;
+      await m.createTable(db.pauloFlixMovieProgress);
+    }
+
+    // v11 → v12: adiciona colunas video_url e subtitles_json em
+    // paulo_flix_movies para persistir URL direta do vídeo e
+    // legendas externas do movie_index.json. Sem migration data —
+    // o próximo sync popula em background.
+    if (from < 12) {
+      final db = m.database as AppDatabase;
+      await db.customStatement(
+        'ALTER TABLE paulo_flix_movies ADD COLUMN video_url TEXT',
+      );
+      await db.customStatement(
+        'ALTER TABLE paulo_flix_movies ADD COLUMN subtitles_json TEXT',
+      );
+    }
+
+    if (from < 10) {
         final db = m.database as AppDatabase;
         await db.customStatement(
           'ALTER TABLE paulo_flix_content '

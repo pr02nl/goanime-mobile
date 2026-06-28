@@ -100,6 +100,7 @@ GoRouter createAppRouter({String? initialError}) {
             isMovie: data.isMovie,
             episodeList: data.episodeList,
             episodeIndex: data.episodeIndex,
+            movieFolderName: data.movieFolderName,
           );
         },
       ),
