@@ -381,9 +381,9 @@ class _PauloFlixMoviesSearchScreenState
   }
 
   // Nota: a busca de filmes intencionalmente NÃO mostra badge
-  // (PauloFlixMoviesBadge / CollectionBadge) — o badge da home sinaliza
-  // origem do conteúdo e natureza (filme vs coleção); em tela de busca
-  // usamos só o card limpo para reduzir ruído visual.
+  // (PauloFlixMoviesBadge) — o badge da home sinaliza a origem do
+  // conteúdo; em tela de busca usamos só o card limpo para reduzir
+  // ruído visual.
   Widget _buildCard(BuildContext context, PauloFlixMovie content) {
     return NetflixCard(
       imageUrl: content.imageUrl ?? '',

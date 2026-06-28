@@ -39,9 +39,7 @@ class MoviesPaginatedGrid extends StatelessWidget {
           isTV: isTV,
           showTitle: true,
           showRating: movie.score != null,
-          overlayWidget: movie.isCollection
-              ? const CollectionBadge()
-              : const PauloFlixMoviesBadge(),
+          overlayWidget: const PauloFlixMoviesBadge(),
           onTap: () {
             context.pushNamed(
               'pauloflix-movie-detail',

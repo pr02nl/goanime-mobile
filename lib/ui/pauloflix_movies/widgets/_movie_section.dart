@@ -49,9 +49,7 @@ class MovieSection extends StatelessWidget {
       isTV: isTV,
       showTitle: true,
       showRating: movie.score != null,
-      overlayWidget: movie.isCollection
-          ? CollectionBadge(fontSize: movie.availableMovieCount > 9 ? 10 : 9)
-          : const PauloFlixMoviesBadge(fontSize: 10),
+      overlayWidget: const PauloFlixMoviesBadge(fontSize: 10),
       onTap: () {
         context.pushNamed('pauloflix-movie-detail', extra: movie);
       },

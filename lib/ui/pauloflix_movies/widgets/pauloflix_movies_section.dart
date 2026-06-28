@@ -45,9 +45,7 @@ class PauloFlixMoviesSection extends StatelessWidget {
           height: cardHeight,
           isTV: isTV,
           onTap: () => onItemTap?.call(content),
-          overlayWidget: content.isCollection
-              ? const CollectionBadge()
-              : const PauloFlixMoviesBadge(),
+          overlayWidget: const PauloFlixMoviesBadge(),
         ),
       ),
       if (onSeeAll != null)
