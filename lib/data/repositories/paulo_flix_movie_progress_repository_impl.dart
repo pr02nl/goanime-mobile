@@ -137,6 +137,19 @@ class PauloFlixMovieProgressRepositoryImpl
     return rows.map(_toDomain).toList();
   }
 
+  @override
+  Stream<List<PauloFlixMovieProgressRecord>> watchAllProgress() {
+    return (_db.select(_db.pauloFlixMovieProgress)
+          ..orderBy([
+            (t) => OrderingTerm(
+                  expression: t.lastWatched,
+                  mode: OrderingMode.desc,
+                ),
+          ]))
+        .watch()
+        .map((rows) => rows.map(_toDomain).toList());
+  }
+
   PauloFlixMovieProgressRecord _toDomain(
     PauloFlixMovieProgressData row,
   ) {

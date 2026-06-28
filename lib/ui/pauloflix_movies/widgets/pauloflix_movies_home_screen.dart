@@ -15,6 +15,8 @@
 /// `flutter-reactivity-gotchas`).
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -71,6 +73,9 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
   /// Mapa folderName → estado de progresso para overlays nos cards.
   Map<String, MovieProgressState> _progressMap = const {};
 
+  /// Subscription para o stream reativo de progresso.
+  StreamSubscription<List<PauloFlixMovieProgressRecord>>? _progressSub;
+
   @override
   void initState() {
     super.initState();
@@ -86,7 +91,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
         provider.syncContent();
       }
 
-      await _loadAllProgress();
+      _subscribeToProgressStream();
 
       final screenWidth =
           WidgetsBinding
@@ -111,24 +116,39 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
     });
   }
 
-  /// Carrega TODO progresso salvo (em andamento + completo) e constrói
-  /// o mapa folderName → MovieProgressState para overlays nos cards.
-  Future<void> _loadAllProgress() async {
+  @override
+  void dispose() {
+    _progressSub?.cancel();
+    _progressSub = null;
+    super.dispose();
+  }
+
+  /// Assina o stream `watchAllProgress()` e reconstrói o mapa
+  /// de progresso a cada emissão. Isso mantém os overlays dos cards
+  /// atualizados reativamente sempre que o progresso muda no banco.
+  void _subscribeToProgressStream() {
     try {
       final repo = context.read<PauloFlixMovieProgressRepository?>();
       if (repo == null) return;
-      final all = await repo.getAllProgress();
-      if (!mounted) return;
-      final map = <String, MovieProgressState>{};
-      for (final p in all) {
-        map[p.folderName] = MovieProgressState(
-          ratio: p.progressRatio,
-          isCompleted: p.isCompleted,
-        );
-      }
-      setState(() => _progressMap = map);
+      _progressSub?.cancel();
+      _progressSub = repo.watchAllProgress().listen(
+        (records) {
+          if (!mounted) return;
+          final map = <String, MovieProgressState>{};
+          for (final p in records) {
+            map[p.folderName] = MovieProgressState(
+              ratio: p.progressRatio,
+              isCompleted: p.isCompleted,
+            );
+          }
+          setState(() => _progressMap = map);
+        },
+        onError: (Object e, StackTrace st) {
+          debugPrint('[MoviesHome] Stream error: $e');
+        },
+      );
     } catch (e) {
-      debugPrint('[MoviesHome] Erro ao carregar progresso: $e');
+      debugPrint('[MoviesHome] Erro ao assinar stream de progresso: $e');
     }
   }
 
