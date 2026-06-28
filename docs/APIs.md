@@ -290,12 +290,147 @@ https://animefire.plus
 
 ---
 
+## 6. Repositórios de Progresso (Internos — Drift)
+
+Os repositórios de progresso são **interfaces internas** implementadas
+sobre Drift (SQLite). A UI consome métodos assíncronos e streams
+reativos para exibir overlays de progresso nos cards sem polling.
+
+---
+
+### PauloFlixEpisodeProgressRepository (Animes)
+
+**Arquivo:** `lib/domain/repositories/paulo_flix_episode_progress_repository.dart`
+
+Responsável pelo progresso de episódios de animes (com seasons e múltiplos
+episódios por temporada).
+
+#### `getStatsForContent(int contentId)`
+```dart
+Future<PauloFlixProgressStats> getStatsForContent(int contentId);
+```
+
+Estatísticas agregadas de UM anime. Única query SQL com `COUNT(*)`
+e `SUM(CASE ...)` nas tabelas `paulo_flix_episodes` +
+`paulo_flix_seasons`. Retorna `PauloFlixProgressStats` com zeros
+se o anime ainda não tem episódios sincronizados.
+
+#### `getProgressStatsForContents(List<int> contentIds)` ⭐
+```dart
+Future<Map<int, PauloFlixProgressStats>> getProgressStatsForContents(
+  List<int> contentIds,
+);
+```
+
+**Batch** — estatísticas de múltiplos animes em UMA query apenas, usando
+`IN` clause parametrizado (`?1, ?2, ...`). Retorna mapa `contentId → stats`.
+Usado pela seção "Continue assistindo" e tela See All para exibir overlays
+nos cards sem N queries individuais.
+
+#### `getInProgressContents({int limit = 12})`
+```dart
+Future<List<PauloFlixContent>> getInProgressContents({int limit = 12});
+```
+
+Lista animes com progresso em andamento, ordenados por `lastWatched DESC`.
+Filtra: `positionSeconds > 0 && !isCompleted`.
+
+#### `watchInProgressContents({int limit = 12})`
+```dart
+Stream<List<PauloFlixContent>> watchInProgressContents({int limit = 12});
+```
+
+**Stream reativa** da lista de animes em andamento. Aciona ao
+adicionar/resetar/assistir episódios. Usado pelo carrossel "Continue
+assistindo" da home para atualizar sem polling.
+
+#### `updateProgress(...)`
+```dart
+Future<void> updateProgress({
+  required int seasonId,
+  required int episodeNumber,
+  required int positionSeconds,
+  int? durationSeconds,
+});
+```
+
+Grava progresso do episódio. Se `positionSeconds / durationSeconds >= 0.9`,
+marca `episode.isCompleted = true` e recalcula `season.isCompleted`
+(cascade). Chamado pelo player a cada 5s + no dispose.
+
+---
+
+### PauloFlixMovieProgressRepository (Filmes)
+
+**Arquivo:** `lib/domain/repositories/paulo_flix_movie_progress_repository.dart`
+
+Responsável pelo progresso de filmes (1 progresso por `folderName`, sem
+seasons/episódios).
+
+#### `updateProgress(...)`
+```dart
+Future<void> updateProgress({
+  required String folderName,
+  required String serverUrl,
+  required String displayName,
+  String? imageUrl,
+  String? videoUrl,
+  required int positionSeconds,
+  int? durationSeconds,
+});
+```
+
+Grava progresso do filme. Se `positionSeconds / durationSeconds >= 0.9`,
+marca `isCompleted = true`. Se o record não existe, cria com metadados.
+
+#### `getAllProgress()`
+```dart
+Future<List<PauloFlixMovieProgressRecord>> getAllProgress();
+```
+
+Retorna TODO progresso salvo (em andamento + completo), sem limite.
+Usado pela home de filmes para construir o mapa `folderName → progress`
+e exibir overlays nos cards.
+
+#### `watchAllProgress()` ⭐
+```dart
+Stream<List<PauloFlixMovieProgressRecord>> watchAllProgress();
+```
+
+**Stream reativa** de TODO progresso salvo. Aciona ao
+adicionar/resetar/assistir filmes. Usado pela home de filmes para
+manter os overlays dos cards atualizados reativamente.
+
+#### `getInProgressMovies({int limit = 12})`
+```dart
+Future<List<PauloFlixMovieProgressRecord>> getInProgressMovies({
+  int limit = 12,
+});
+```
+
+Lista filmes em andamento, ordenados por `lastWatched DESC`.
+Filtra: `positionSeconds > 0 && !isCompleted`.
+
+#### `watchInProgressMovies({int limit = 12})`
+```dart
+Stream<List<PauloFlixMovieProgressRecord>> watchInProgressMovies({
+  int limit = 12,
+});
+```
+
+**Stream reativa** da lista de filmes em andamento. Usado pelo carrossel
+"Continue assistindo" de filmes.
+
+---
+
 ## 📊 Resumo de APIs
 
 | API | Protocolo | Uso Principal | Cache |
 |-----|-----------|---------------|-------|
 | PauloFlix JSON Index (TV) | HTTPS | Sync de shows (fonte primária) | Drift |
 | PauloFlix JSON Index (Movies) | HTTPS | Sync de filmes (fonte primária) | Drift |
+| PauloFlixEpisodeProgressRepository | Drift (SQLite) | Progresso de episódios (animes) | Drift |
+| PauloFlixMovieProgressRepository | Drift (SQLite) | Progresso de filmes | Drift |
 | Jikan | REST | Home/Busca de animes externos | 30 min |
 | AniList | GraphQL | Metadados de animes | N/A |
 | AniSkip | REST | Skip intro/outro | N/A |

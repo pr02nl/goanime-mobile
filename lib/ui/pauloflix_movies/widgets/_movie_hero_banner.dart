@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
+import '../../core/widgets/completed_badge.dart';
 import '../../core/widgets/netflix_hero_card.dart';
 import '../models/movie_progress_state.dart';
 
@@ -65,28 +66,6 @@ class MovieHeroBanner extends StatelessWidget {
 
   /// Badge verde "✓ Completo" no canto superior direito do banner.
   Widget _buildCompletedBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.green.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.5)),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.check_circle, color: Colors.white, size: 16),
-          SizedBox(width: 6),
-          Text(
-            'Completo',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
+    return CompletedBadge.heroBanner();
   }
 }

@@ -46,11 +46,11 @@ abstract class PauloFlixMovieProgressRepository {
     int limit = 12,
   });
 
-  /// Retorna TODO progresso salvo (em andamento + completo), sem limite.
+  /// Retorna o progresso salvo (em andamento + completo), sem limite.
   /// Usado pela home de filmes para exibir overlays nos cards.
   Future<List<PauloFlixMovieProgressRecord>> getAllProgress();
 
-  /// Stream reativa de TODO progresso salvo (em andamento + completo).
+  /// Stream reativa do progresso salvo (em andamento + completo).
   /// Aciona ao adicionar/resetar/assistir filmes.
   /// Usado pela home de filmes para manter overlays atualizados.
   Stream<List<PauloFlixMovieProgressRecord>> watchAllProgress();

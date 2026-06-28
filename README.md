@@ -153,6 +153,12 @@ main.dart → AppDatabase (Drift) + Services (HTTP/JSON index) + Providers (Chan
 ### State Management
 - **Provider** (ChangeNotifier) — padrão da casa
 
+### Shared Widgets (UI)
+- **`ProgressOverlay`** (`lib/ui/core/widgets/progress_overlay.dart`) — overlay de progresso em cards (grid/carrossel). Aceita `ratio`, `isCompleted`, `accentColor` (vermelho para filmes, roxo para animes) e `fractionText` opcional (ex: "3/12"). Unifica 5 implementações anteriormente duplicadas.
+- **`CompletedBadge`** (`lib/ui/core/widgets/completed_badge.dart`) — badge verde "✓ Completo" com 3 variantes: `.cardOverlay()` (cards), `.heroBanner()` (banner hero), `.detailScreen()` (detalhes). Substitui 3 implementações duplicadas.
+
+Veja a [documentação completa](docs/UI.md#progressoverlay) no guia de UI.
+
 ## Android TV Support
 
 PauloFlix supports Android TV with optimized UI for large screens and remote control navigation:

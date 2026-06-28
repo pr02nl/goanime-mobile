@@ -36,6 +36,7 @@ import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
+import '../../core/widgets/progress_overlay.dart';
 import '../models/movie_progress_state.dart';
 import '../view_models/paulo_flix_movie_continue_watching_viewmodel.dart';
 import '../view_models/pauloflix_movies_provider.dart';
@@ -532,7 +533,11 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
     // Overlay: barra de progresso.
     // O stream watchInProgressMovies já garante positionSeconds > 0,
     // então o overlay está sempre presente aqui.
-    final overlay = _ProgressOverlay(ratio: record.progressRatio);
+    final overlay = ProgressOverlay.build(
+      ratio: record.progressRatio,
+      isCompleted: false,
+      accentColor: const Color(0xFFDC2626),
+    );
 
     return FocusableWidget(
       onSelect: () => _onTap(context, record),
@@ -569,26 +574,3 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
   }
 }
 
-/// Barra de progresso horizontal exibida na base do card de filme
-/// no carrossel "Continue assistindo" (quando em andamento).
-class _ProgressOverlay extends StatelessWidget {
-  final double ratio;
-  const _ProgressOverlay({required this.ratio});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 80,
-      height: 4,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(2),
-        child: LinearProgressIndicator(
-          value: ratio,
-          minHeight: 4,
-          backgroundColor: Colors.white.withValues(alpha: 0.2),
-          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFDC2626)),
-        ),
-      ),
-    );
-  }
-}

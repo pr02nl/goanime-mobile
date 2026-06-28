@@ -466,6 +466,61 @@ ContentTypeSelector({
 
 ---
 
+### ProgressOverlay
+Widget de overlay de progresso para cards, unificando a exibição entre filmes (tema vermelho) e animes (tema roxo).
+
+**Arquivo:** `lib/ui/core/widgets/progress_overlay.dart`
+
+**Uso:**
+```dart
+NetflixCard(
+  overlayWidget: ProgressOverlay.build(
+    ratio: 0.5,
+    isCompleted: false,
+    accentColor: Color(0xFFDC2626), // vermelho filmes
+    fractionText: '3/12',            // opcional, usado em animes
+  ),
+)
+```
+
+**Comportamento:**
+| `isCompleted` | `ratio` | Resultado |
+|:---:|:---:|---|
+| `true` | qualquer | Badge verde "✓ Completo" |
+| `false` | `> 0` | Barra de progresso + `fractionText` opcional |
+| `false` | `== 0` | `null` (sem overlay) |
+
+**Cor da barra:** Controlada por `accentColor`. Vermelho (`#DC2626`) para filmes, Roxo (`#6366F1` = `AppColors.primary`) para animes.
+
+**Testes:** `test/ui/core/widgets/progress_overlay_test.dart` — 10 testes cobrindo null, badge, barra, cores, fractionText.
+
+---
+
+### CompletedBadge
+Badge verde "✓ Completo" com 3 variantes pré-definidas.
+
+**Arquivo:** `lib/ui/core/widgets/completed_badge.dart`
+
+**Variantes:**
+| Construtor | Tamanho | Fundo | Borda | Uso |
+|---|---|---|---|---|
+| `.cardOverlay()` | Pequeno (font 9) | Sólido (90%) | Nenhuma | Overlay em cards (`ProgressOverlay`) |
+| `.heroBanner()` | Grande (font 13) | Sólido (90%) | `greenAccent` sutil | Canto do hero banner |
+| `.detailScreen()` | Médio (font 12) | Translúcido (20%) | `green` | Linha de metadados na tela de detalhes |
+
+```dart
+// Card overlay (cards na grid/carrossel)
+CompletedBadge.cardOverlay()
+
+// Hero banner (canto superior direito)
+CompletedBadge.heroBanner()
+
+// Tela de detalhes (ao lado dos metadados)
+CompletedBadge.detailScreen()
+```
+
+---
+
 ### FocusableWidget
 Wrapper genérico para adicionar suporte a D-pad (TV).
 

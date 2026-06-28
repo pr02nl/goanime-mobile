@@ -11,6 +11,7 @@ import '../../../domain/models/pauloflix_movie_item.dart';
 import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
+import '../../core/widgets/completed_badge.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
 
 class PauloFlixMovieDetailScreen extends StatefulWidget {
@@ -295,29 +296,7 @@ class _PauloFlixMovieDetailScreenState
 
   /// Badge verde "✓ Completo" exibido ao lado dos metadados.
   Widget _completionBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.green.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.check_circle, color: Colors.green, size: 14),
-          SizedBox(width: 4),
-          Text(
-            'Completo',
-            style: TextStyle(
-              color: Colors.green,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
+    return CompletedBadge.detailScreen();
   }
 
   /// Barra de progresso horizontal (em andamento).

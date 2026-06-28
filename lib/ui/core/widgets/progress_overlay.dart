@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'completed_badge.dart';
+
 /// Widget de overlay de progresso para cards na grid e carrosséis.
 ///
 /// Unifica a exibição de progresso entre filmes (red theme) e animes
@@ -39,29 +41,7 @@ class ProgressOverlay {
     String? fractionText,
   }) {
     if (isCompleted) {
-      // Badge ✓ verde "Completo".
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.green.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 10),
-            SizedBox(width: 2),
-            Text(
-              'Completo',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      );
+      return CompletedBadge.cardOverlay();
     }
 
     if (ratio > 0) {
