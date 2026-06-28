@@ -168,7 +168,7 @@ class PauloFlixMovie {
       serverUrl: serverUrl,
       imageUrl: resolveUrl(json['poster'] as String?),
       bannerUrl: resolveUrl(json['fanart'] as String?),
-      description: json['description'] as String?,
+      description: json['plot'] as String?,
       score: json['rating'] is num
           ? (json['rating'] as num).toDouble()
           : double.tryParse(json['rating'] as String? ?? ''),

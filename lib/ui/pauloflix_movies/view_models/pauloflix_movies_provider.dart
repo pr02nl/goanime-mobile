@@ -20,17 +20,8 @@ enum PauloFlixMoviesStatus { initial, loading, loaded, error }
 class PauloFlixMoviesProvider extends ChangeNotifier {
   final PauloFlixMoviesRepository _repository;
 
-  /// Enricher NFO (Fase 4 do plano NFO enrichment) — opcional. Quando
-  /// `null` (legacy/tests), `syncContent` usa só TMDB para enriquecer
-  /// filmes. Quando fornecido (`app.dart` injeta via `withServices`),
-  /// `syncContent` tenta NFO primeiro (`movie.nfo`) e cai no TMDB
-  /// só se NFO ausente/inválido.
-  final PauloFlixNfoEnricher? _nfoEnricher;
-
   /// Ctor padrão (compat) — usa um no-op repository.
-  PauloFlixMoviesProvider()
-    : _repository = _NullPauloFlixMoviesRepository(),
-      _nfoEnricher = null;
+  PauloFlixMoviesProvider() : _repository = _NullPauloFlixMoviesRepository();
 
   /// Ctor com repository + services opcionais (testes).
   ///
@@ -40,8 +31,7 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   PauloFlixMoviesProvider.withServices({
     required PauloFlixMoviesRepository repository,
     PauloFlixNfoEnricher? nfoEnricher,
-  }) : _repository = repository,
-       _nfoEnricher = nfoEnricher;
+  }) : _repository = repository;
 
   PauloFlixMoviesStatus _status = PauloFlixMoviesStatus.initial;
   List<PauloFlixMovie> _contents = [];
@@ -87,13 +77,6 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
           _errorMessage = err;
           notifyListeners();
         },
-        // Fase 4 (NFO enrichment) — se o enricher foi injetado via
-        // `withServices`, ele é tentado **antes** do TMDB. Se o
-        // servidor PauloFlix tem `movie.nfo` na pasta do filme, o
-        // `PauloFlixMovie` é construído a partir do NFO. Quando
-        // `null` (legacy/tests), comportamento idêntico ao
-        // pré-Fase 4: só TMDB.
-        enricher: _nfoEnricher,
       );
       if (success) {
         await loadContents();

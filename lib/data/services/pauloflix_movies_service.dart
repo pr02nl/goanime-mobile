@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
 import '../../domain/models/pauloflix_movie.dart';
 import '../../domain/repositories/pauloflix_movies_repository.dart';
-import 'kodi/pauloflix_nfo_enricher.dart';
 
 /// Sincroniza o catálogo do PauloFlix Movies a partir do JSON index
 /// (`movie_index.json`).
@@ -15,13 +14,6 @@ import 'kodi/pauloflix_nfo_enricher.dart';
 ///
 /// O JSON index contém todos os metadados dos filmes (título, ano,
 /// descrição, poster, fanart, gêneros, rating, URL do vídeo, legendas).
-/// TODO é baixado e parseado pelo `syncContent()`, que persiste os dados
-/// no banco via `PauloFlixMoviesRepository`.
-///
-/// **Sem scraping HTML:** TODO o parsing de diretórios HTML foi removido.
-/// Cada filme no JSON tem o campo `file` com a URL direta do vídeo e
-/// `subtitles` com as legendas externas. Filmes sem `file` não podem
-/// ser reproduzidos.
 class PauloFlixMoviesService {
   static const String baseUrl = ApiConstants.moviePauloFlix;
   static const String indexUrl = ApiConstants.movieIndexUrl;
@@ -59,10 +51,6 @@ class PauloFlixMoviesService {
     required PauloFlixMoviesRepository repository,
     void Function(String progress)? onProgress,
     void Function(String error)? onError,
-
-    /// Mantido para compatibilidade de assinatura — **ignorado**.
-    // ignore: avoid_unused_constructor_parameters
-    PauloFlixNfoEnricher? enricher,
   }) async {
     try {
       onProgress?.call('Baixando índice JSON do PauloFlix Movies...');
