@@ -64,7 +64,7 @@ void main() {
 
     test('status inicial deve ser initial', () {
       final provider = PauloFlixProvider.withRepository(
-        FakePauloFlixRepository([]),
+        repository: FakePauloFlixRepository([]),
       );
       expect(provider.status, PauloFlixStatus.initial);
       expect(provider.contents, isEmpty);
@@ -75,7 +75,7 @@ void main() {
 
     test('loadContents deve carregar dados do banco', () async {
       final provider = PauloFlixProvider.withRepository(
-        FakePauloFlixRepository([testAnimes[0], testAnimes[1]]),
+        repository: FakePauloFlixRepository([testAnimes[0], testAnimes[1]]),
       );
 
       await provider.loadContents();
@@ -88,7 +88,7 @@ void main() {
 
     test('loadContents deve lidar com erro do banco', () async {
       final provider = PauloFlixProvider.withRepository(
-        FakePauloFlixRepository([], shouldThrow: true),
+        repository: FakePauloFlixRepository([], shouldThrow: true),
       );
 
       await provider.loadContents();
@@ -99,7 +99,7 @@ void main() {
 
     test('search deve filtrar por displayName', () async {
       final provider = PauloFlixProvider.withRepository(
-        FakePauloFlixRepository([...testAnimes]),
+        repository: FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -112,7 +112,7 @@ void main() {
 
     test('search deve filtrar por genero', () async {
       final provider = PauloFlixProvider.withRepository(
-        FakePauloFlixRepository([...testAnimes]),
+        repository: FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -125,7 +125,7 @@ void main() {
 
     test('search com query vazia deve retornar todos', () async {
       final provider = PauloFlixProvider.withRepository(
-        FakePauloFlixRepository([...testAnimes]),
+        repository: FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -137,7 +137,7 @@ void main() {
 
     test('clearSearch deve restaurar lista completa', () async {
       final provider = PauloFlixProvider.withRepository(
-        FakePauloFlixRepository([...testAnimes]),
+        repository: FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -151,7 +151,7 @@ void main() {
 
     test('getByMalId deve retornar anime correto', () async {
       final provider = PauloFlixProvider.withRepository(
-        FakePauloFlixRepository([...testAnimes]),
+        repository: FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 
@@ -165,7 +165,7 @@ void main() {
 
     test('isAvailableOnPauloFlix deve verificar por nome', () async {
       final provider = PauloFlixProvider.withRepository(
-        FakePauloFlixRepository([...testAnimes]),
+        repository: FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
 

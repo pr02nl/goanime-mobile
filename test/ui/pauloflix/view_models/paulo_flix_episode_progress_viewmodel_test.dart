@@ -3,12 +3,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:goanime/core/database/app_database.dart';
 import 'package:goanime/data/repositories/paulo_flix_episode_progress_repository_impl.dart';
-import 'package:goanime/data/services/paulo_flix_episode_sync_service.dart';
 import 'package:goanime/domain/models/pauloflix_content.dart';
 import 'package:goanime/domain/repositories/paulo_flix_episode_progress_repository.dart';
 import 'package:goanime/ui/pauloflix/view_models/paulo_flix_episode_progress_viewmodel.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 
 /// Testes do `PauloFlixEpisodeProgressViewModel` (Fase 3 do plano
 /// `.hermes/plans/2026-06-22_2230-pauloflix-episodes-progress.md`).
@@ -101,7 +98,6 @@ void main() {
         ),
         repository: repo,
         // syncService é opcional — null = sem HTTP (banco já populado)
-        syncService: null,
       );
 
       await vm.loadSeasons();
@@ -111,67 +107,6 @@ void main() {
       expect(vm.seasons[0].seasonNumber, 1);
       expect(vm.seasons[0].episodeCount, 2);
       expect(vm.status, PauloFlixEpisodeStatus.loaded);
-      vm.dispose();
-    });
-
-    test('loadSeasons chama syncService quando banco vazio', () async {
-      // Sem dados no banco. syncService é mockado para popular.
-      final mockClient = MockClient((req) async {
-        final url = req.url.toString();
-        if (url == 'https://server/SyncTest/') {
-          return http.Response(
-            '<html><body>'
-            '<a href="Season%2001/">Season 01</a>'
-            '<a href="Season%2002/">Season 02</a>'
-            '</body></html>',
-            200,
-          );
-        }
-        if (url == 'https://server/SyncTest/Season%2001/') {
-          return http.Response(
-            '<html><body>'
-            '<a href="S01E01.mkv">S01E01.mkv</a>'
-            '<a href="S01E02.mkv">S01E02.mkv</a>'
-            '</body></html>',
-            200,
-          );
-        }
-        if (url == 'https://server/SyncTest/Season%2002/') {
-          return http.Response(
-            '<html><body>'
-            '<a href="S02E01.mkv">S02E01.mkv</a>'
-            '</body></html>',
-            200,
-          );
-        }
-        return http.Response('Not Found', 404);
-      });
-      final syncService = PauloFlixEpisodeSyncService(
-        repo,
-        httpClient: mockClient,
-      );
-
-      final contentId = await seedContent(db, name: 'SyncTest');
-      final vm = PauloFlixEpisodeProgressViewModel(
-        content: PauloFlixContent(
-          id: contentId,
-          folderName: 'SyncTest',
-          displayName: 'SyncTest',
-          serverUrl: 'https://server/SyncTest/',
-          lastSynced: DateTime.now(),
-        ),
-        repository: repo,
-        syncService: syncService,
-      );
-
-      await vm.loadSeasons();
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-
-      expect(vm.seasons, hasLength(2));
-      expect(vm.seasons[0].seasonNumber, 1);
-      expect(vm.seasons[0].episodeCount, 2);
-      expect(vm.seasons[1].seasonNumber, 2);
-      expect(vm.seasons[1].episodeCount, 1);
       vm.dispose();
     });
   });
@@ -214,7 +149,6 @@ void main() {
           lastSynced: DateTime.now(),
         ),
         repository: repo,
-        syncService: null,
       );
       await vm.loadSeasons();
       await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -253,6 +187,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(vm.isCompletedByIndex, isNotNull);
+      expect(vm.isCompletedByIndex, hasLength(2));
       expect(vm.isCompletedByIndex![0], isTrue);
       expect(
         vm.isCompletedByIndex![1],
@@ -332,7 +267,6 @@ void main() {
           lastSynced: DateTime.now(),
         ),
         repository: repo,
-        syncService: null,
       );
       await vm.loadSeasons();
     });

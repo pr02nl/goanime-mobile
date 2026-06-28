@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../../data/services/paulo_flix_episode_sync_service.dart';
 import '../../../data/services/pauloflix_service.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
@@ -11,34 +10,24 @@ import '../../core/utils/pagination.dart';
 
 enum PauloFlixStatus { initial, loading, loaded, error }
 
-/// Provider da área PauloFlix animes (Fase 3 do plano
-/// `docs/DATABASE_REFACTORING.md`).
+/// Provider da área PauloFlix animes.
 ///
-/// Consome `PauloFlixRepository` (Drift) em vez de
-/// `PauloFlixDatabaseService` (sqlite3 FFI). O `PauloFlixService`
-/// (scraping HTML) ainda existe — este provider delega o sync
-/// para ele e usa o repository como persistência.
+/// Consome `PauloFlixRepository` (Drift). O sync é feito via
+/// `PauloFlixService.syncContent` que lê o JSON index.
 class PauloFlixProvider extends ChangeNotifier {
   final PauloFlixRepository _repository;
   final PauloFlixEpisodeProgressRepository? _episodeProgressRepository;
 
-  /// Ctor padrão — provider sem dependência (cria PauloFlixService
-  /// internamente para o sync; usado em testes/legado).
+  /// Ctor padrão — provider sem dependência (usado em testes/legado).
   PauloFlixProvider()
     : _repository = _NullPauloFlixRepository(),
       _episodeProgressRepository = null;
 
-  /// Ctor com repository (Fase 3) — usado pelo Provider do app.
-  PauloFlixProvider.withRepository(this._repository)
-    : _episodeProgressRepository = null;
-
-  /// Ctor completo (Fase 2) — injeta o sync service para que
-  /// `syncContent` faça o sync completo (shows + seasons + episodes)
-  /// em uma única operação.
-  PauloFlixProvider.withRepositories({
+  /// Ctor com repository — injeta o repositório de progresso para que
+  /// `syncContent` popule seasons/episódios diretamente do JSON index.
+  PauloFlixProvider.withRepository({
     required PauloFlixRepository repository,
-    required PauloFlixEpisodeSyncService episodeSyncService,
-    required PauloFlixEpisodeProgressRepository episodeProgressRepository,
+    PauloFlixEpisodeProgressRepository? episodeProgressRepository,
   }) : _repository = repository,
        _episodeProgressRepository = episodeProgressRepository;
 
@@ -69,21 +58,7 @@ class PauloFlixProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sync com o servidor via `PauloFlixService` (scraping) seguido de
-  /// `saveContent` no repository. Mantido o comportamento do service
-  /// legado.
-  ///
-  /// **Fase 2 (Fase 2 do plano de seasons/episodes progress):**
-  /// quando o provider foi construído via `withRepositories` (com
-  /// episode repository + sync service injetados), o sync também
-  /// sincroniza seasons + episodes de cada show processado via
-  /// `reconcileSeasonEpisodes`. Resultado: o botão "Sincronizar" da
-  /// See All faz TUDO em uma operação — shows, seasons, episodes.
-  ///
-  /// Para ctors legados (`PauloFlixProvider()` ou `withRepository`),
-  /// o sync mostra/episodes só acontece via sync pontual ao entrar
-  /// no anime (lazy fallback — `PauloFlixEpisodeProgressViewModel
-  /// .loadSeasons`).
+  /// Sync com o servidor via `PauloFlixService` (JSON index).
   Future<void> syncContent() async {
     _status = PauloFlixStatus.loading;
     _syncProgress = 'Iniciando sincronização...';
@@ -135,21 +110,6 @@ class PauloFlixProvider extends ChangeNotifier {
     });
   }
 
-  /// Busca no banco (Drift) por `displayName` (LIKE + ESCAPE).
-  ///
-  /// **Quando usar**: telas de busca dedicadas (ex:
-  /// [PauloFlixSearchScreen]) que NÃO querem carregar a lista
-  /// inteira do provider em memória. Query vazia retorna lista
-  /// vazia (não chama SQL).
-  ///
-  /// **Vantagens sobre o [search] legado (in-memory)**:
-  /// - Zero alocação da lista completa do provider.
-  /// - Memória constante: só os resultados da query ficam em RAM.
-  /// - Funciona bem com milhares de itens (SQLite local é rápido
-  ///   para `LIKE` em 10k+ linhas).
-  ///
-  /// O `search` legado é mantido para outros usos (ex: filtro da
-  /// `PauloFlixSeeAllScreen` se aplicável).
   Future<List<PauloFlixContent>> searchByName(String query) async {
     final q = query.trim();
     if (q.isEmpty) return const [];
@@ -167,26 +127,8 @@ class PauloFlixProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  // ───────────────────────────────────────────────────────────────────────
-  // Métodos puros de agrupamento/paginação (testáveis diretamente)
-  //
-  // São `static` para permitir testes sem mockar ChangeNotifier. Mesma
-  // estratégia do `PauloFlixMoviesProvider` e do `applyFilter` da
-  // `PauloFlixSearchScreen`. A UI chama esses métodos em
-  // `initState`/`didChangeDependencies` (snapshot local) para derivar
-  // as seções da tela "Ver Todos".
-  // ───────────────────────────────────────────────────────────────────────
+  // ─── Métodos puros de agrupamento/paginação ───────────────────────────
 
-  /// Escolhe o anime para o hero banner.
-  ///
-  /// Critério: maior [PauloFlixContent.score]. Filmes sem score vão pro
-  /// final. Desempate por `displayName` alfabético (case-insensitive).
-  ///
-  /// **Nota:** Diferente de `PauloFlixMoviesProvider.pickFeaturedMovie`,
-  /// o `PauloFlixContent` não tem `year` nem `availableMovieCount`, então
-  /// o critério é mais simples.
-  ///
-  /// Retorna `null` se [contents] estiver vazia.
   static PauloFlixContent? pickFeaturedContent(
     List<PauloFlixContent> contents,
   ) {
@@ -202,13 +144,6 @@ class PauloFlixProvider extends ChangeNotifier {
     return sorted.first;
   }
 
-  /// Agrupa animes pelos [maxGenres] gêneros com mais animes.
-  ///
-  /// Para cada gênero top, retorna até [perGenre] animes ranqueados por
-  /// score descendente. Animes sem score vão pro final do grupo.
-  ///
-  /// Gêneros com menos de [minPerGenre] animes NÃO aparecem no map
-  /// (heurística do caller para evitar carrosséis de 1 filme).
   static Map<String, List<PauloFlixContent>> groupByTopGenres(
     List<PauloFlixContent> contents, {
     int perGenre = 12,
@@ -216,7 +151,6 @@ class PauloFlixProvider extends ChangeNotifier {
   }) {
     if (contents.isEmpty) return const {};
 
-    // 1. Conta animes por gênero.
     final genreCount = <String, int>{};
     for (final c in contents) {
       for (final g in c.genres) {
@@ -225,13 +159,11 @@ class PauloFlixProvider extends ChangeNotifier {
       }
     }
 
-    // 2. Top N gêneros por contagem.
     final topGenres =
         genreCount.entries.where((e) => e.value >= minPerGenre).toList()
           ..sort((a, b) => b.value.compareTo(a.value));
     final selected = topGenres.map((e) => e.key).toList();
 
-    // 3. Para cada gênero top, filtra e ranqueia.
     final result = <String, List<PauloFlixContent>>{};
     for (final g in selected) {
       final filtered = contents.where((c) => c.genres.contains(g)).toList()
@@ -241,11 +173,6 @@ class PauloFlixProvider extends ChangeNotifier {
     return result;
   }
 
-  /// Pagina animes em ordem alfabética para o grid "Todos os Animes".
-  ///
-  /// Espelha [PauloFlixMoviesProvider.paginateByLetter] mas opera sobre
-  /// [PauloFlixContent]. Mesma lógica de sort com sentinela `~` para
-  /// garantir que "#" fique no fim.
   static PaginationResult<PauloFlixContent> paginateByLetter(
     List<PauloFlixContent> contents, {
     int perPage = 24,
@@ -258,7 +185,6 @@ class PauloFlixProvider extends ChangeNotifier {
       );
     }
 
-    // 1. Ordena alfabeticamente, "#" no fim.
     final sorted = [...contents]
       ..sort((a, b) {
         final aKey = _sortKey(a.displayName);
@@ -270,14 +196,12 @@ class PauloFlixProvider extends ChangeNotifier {
         );
       });
 
-    // 2. Pagina.
     final pages = <List<PauloFlixContent>>[];
     for (var i = 0; i < sorted.length; i += perPage) {
       final end = i + perPage > sorted.length ? sorted.length : i + perPage;
       pages.add(sorted.sublist(i, end));
     }
 
-    // 3. Mapeia letra → primeira página onde aparece.
     final letterToPageIndex = <String, int>{};
     final availableLetters = <String>[];
     for (var i = 0; i < pages.length; i++) {
@@ -302,7 +226,6 @@ class PauloFlixProvider extends ChangeNotifier {
     );
   }
 
-  /// Helper privado: normaliza o primeiro caractere de [name].
   static String _normalizeFirstChar(String name) {
     if (name.isEmpty) return '#';
     final first = name[0].toUpperCase();
@@ -310,7 +233,6 @@ class PauloFlixProvider extends ChangeNotifier {
     return isLetter ? first : '#';
   }
 
-  /// Helper privado: retorna a chave de ordenação. "#" vira "~" (0x7E).
   static String _sortKey(String name) {
     final first = _normalizeFirstChar(name);
     return first == '#' ? '~' : first;
@@ -339,8 +261,7 @@ class PauloFlixProvider extends ChangeNotifier {
   }
 }
 
-/// Fallback no-op para o ctor sem dependência. Mantém PauloFlixProvider
-/// funcionando em testes/legado até que o app use `withRepository`.
+/// Fallback no-op para o ctor sem dependência.
 class _NullPauloFlixRepository implements PauloFlixRepository {
   @override
   Future<List<PauloFlixContent>> getAll() async => [];

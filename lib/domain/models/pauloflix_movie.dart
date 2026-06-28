@@ -2,8 +2,6 @@ import 'dart:convert';
 
 import '../../core/utils/genre_codec.dart';
 import '../../data/models/tmdb_models.dart';
-import '../../data/services/kodi/kodi_nfo_models.dart';
-import '../../data/services/kodi/pauloflix_nfo_enricher.dart';
 import 'pauloflix_movie_item.dart';
 
 /// Conteúdo mapeado do PauloFlix Movies com metadados do TMDB.
@@ -29,13 +27,10 @@ class PauloFlixMovie {
   final DateTime lastSynced;
 
   /// URL direta do arquivo de vídeo, vinda do campo `file` do
-  /// `movie_index.json`. `null` para filmes que ainda dependem de
-  /// scraping on-demand (`fetchMovieFile`).
+  /// `movie_index.json`.
   final String? videoUrl;
 
   /// Legendas externas vindas do campo `subtitles` do `movie_index.json`.
-  /// `null` para filmes que não têm subtitles no JSON index.
-  /// Cada [ExternalSubtitleEntry] já tem [file] como URL absoluta.
   final List<ExternalSubtitleEntry>? subtitles;
 
   final bool isAvailable;
@@ -62,18 +57,6 @@ class PauloFlixMovie {
   }) : lastSynced = lastSynced ?? DateTime.now();
 
   /// Cria a partir de dados do TMDB (filme individual).
-  ///
-  /// **Heurística de resolução de gêneros:**
-  /// 1. Se [tmdb.genres] está populado (endpoint `/movie/{id}`),
-  ///    usa os nomes diretamente.
-  /// 2. Se [tmdb.genres] está vazio (endpoint `/search/movie`, que só
-  ///    retorna `genre_ids`) e [genreIdToName] é fornecido, traduz
-  ///    cada `genre_id` em nome via o mapa.
-  /// 3. Caso contrário, `genres` fica vazio.
-  ///
-  /// O [genreIdToName] é populado pelo [TmdbService.getGenres] a partir
-  /// do endpoint `/genre/movie/list` (cacheado na tabela `tmdb_genres`).
-  /// Sem ele, filmes vindos do search ficam sem gêneros.
   factory PauloFlixMovie.fromTmdb({
     required String folderName,
     required String serverUrl,
@@ -117,14 +100,6 @@ class PauloFlixMovie {
 
   /// Cria a partir do JSON index do servidor PauloFlix
   /// (`movie_index.json`).
-  ///
-  /// O JSON já contém todos os metadados disponíveis (título, ano,
-  /// descrição, poster, fanart, gêneros, etc.), eliminando a
-  /// necessidade de scraping HTML + chamadas à TMDB.
-  ///
-  /// [baseHost] é o host sem path (ex: `https://media.oliveira.braga.nom.br`).
-  /// Os paths relativos do JSON (`/movies/.../poster.jpg`) são
-  /// resolvidos para URLs absolutas automaticamente.
   factory PauloFlixMovie.fromMovieIndex({
     required Map<String, dynamic> json,
     required String baseHost,
@@ -138,17 +113,14 @@ class PauloFlixMovie {
       return relative.startsWith('http') ? relative : '$baseHost$relative';
     }
 
-    // Parse `file` — URL direta do vídeo
     final file = json['file'] as String?;
     final videoUrl = file != null ? resolveUrl(file) : null;
 
-    // Parse `subtitles` — legendas externas
     List<ExternalSubtitleEntry>? subtitles;
     if (json['subtitles'] != null && (json['subtitles'] as List).isNotEmpty) {
       subtitles = (json['subtitles'] as List)
           .map((s) => ExternalSubtitleEntry.fromJson(s as Map<String, dynamic>))
           .toList();
-      // Resolve paths relativos para URLs absolutas
       for (var i = 0; i < subtitles.length; i++) {
         final entry = subtitles[i];
         final resolvedFile = resolveUrl(entry.file);
@@ -193,51 +165,6 @@ class PauloFlixMovie {
     );
   }
 
-  /// Cria a partir de um `KodiShowNfo` parseado de `movie.nfo` (Fase 4 do
-  /// plano NFO enrichment). É a fonte **primária** de metadados quando o
-  /// servidor PauloFlix tem `movie.nfo` na pasta do filme — nesse caso,
-  /// o fallback TMDB **não** é chamado.
-  ///
-  /// **Campos não disponíveis no NFO:** `releaseDate` (NFO de movie tem
-  /// `<premiered>` mas não estamos parseando nesta versão), `runtime`,
-  /// `tmdbId` (vínculo com TMDB não está no NFO). Esses campos ficam
-  /// `null` — se o caller quiser, pode enriquecer com TMDB depois.
-  ///
-  /// **Resolução de URLs de imagem:** [nfo] pode conter URLs absolutas
-  /// (`http://...`) ou paths relativos (`poster.jpg`). O
-  /// `PauloFlixNfoEnricher.resolveThumbUrl` cuida de juntar com
-  /// [serverUrl] (e aplicar URL-encoding nos paths relativos).
-  factory PauloFlixMovie.fromNfo({
-    required String folderName,
-    required String serverUrl,
-    required KodiShowNfo nfo,
-    String? fallbackPosterUrl,
-    String? fallbackFanartUrl,
-  }) {
-    return PauloFlixMovie(
-      folderName: folderName,
-      displayName: nfo.title ?? folderName,
-      serverUrl: serverUrl,
-      imageUrl: nfo.posterThumb != null
-          ? PauloFlixNfoEnricher.resolveThumbUrl(serverUrl, nfo.posterThumb!)
-          : fallbackPosterUrl,
-      bannerUrl: nfo.fanartThumb != null
-          ? PauloFlixNfoEnricher.resolveThumbUrl(serverUrl, nfo.fanartThumb!)
-          : fallbackFanartUrl,
-      description: nfo.plot,
-      score: nfo.rating,
-      genres: nfo.genres,
-      // Campos que NFO não cobre nesta versão — ficam null.
-      releaseDate: null,
-      runtime: null,
-      year: nfo.year,
-      tmdbId: null,
-      videoUrl: null, // NFO não tem URL de vídeo
-      subtitles: null, // NFO não tem subtitles
-      availableMovieCount: 1,
-    );
-  }
-
   Map<String, dynamic> toMap() {
     return {
       'folderName': folderName,
@@ -247,7 +174,6 @@ class PauloFlixMovie {
       'bannerUrl': bannerUrl,
       'description': description,
       'score': score,
-      // JSON (não CSV): preserva vírgulas dentro de nomes de gênero.
       'genres': encodeGenres(genres),
       'releaseDate': releaseDate,
       'runtime': runtime,
@@ -273,7 +199,6 @@ class PauloFlixMovie {
       bannerUrl: map['bannerUrl'] as String?,
       description: map['description'] as String?,
       score: (map['score'] as num?)?.toDouble(),
-      // Mesma estratégia do PauloFlixContent: tenta JSON, fallback CSV.
       genres: decodeGenresOrFallback(map['genres']),
       videoUrl: map['videoUrl'] as String?,
       subtitles: map['subtitles'] != null
@@ -307,11 +232,6 @@ class PauloFlixMovie {
   @override
   String toString() => 'PauloFlixMovie($displayName)';
 
-  /// Cria uma cópia deste filme substituindo os campos fornecidos.
-  /// Campos não fornecidos mantêm o valor original.
-  ///
-  /// Usado pela migração leve em `_repopulateMissingGenres` para
-  /// atualizar apenas `genres` mantendo todo o resto.
   PauloFlixMovie copyWith({
     String? folderName,
     String? displayName,

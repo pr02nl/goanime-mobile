@@ -102,7 +102,7 @@ void main() {
   group('PauloFlixProvider.searchByName (delega ao repository)', () {
     test('query vazia retorna lista vazia (sem chamar SQL)', () async {
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository([...testAnimes]),
+        repository: _FakePauloFlixRepository([...testAnimes]),
       );
       final result = await provider.searchByName('');
       expect(result, isEmpty);
@@ -110,7 +110,7 @@ void main() {
 
     test('query com whitespace só retorna lista vazia', () async {
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository([...testAnimes]),
+        repository: _FakePauloFlixRepository([...testAnimes]),
       );
       final result = await provider.searchByName('   ');
       expect(result, isEmpty);
@@ -118,7 +118,7 @@ void main() {
 
     test('busca por nome é case-insensitive (via SQL LIKE)', () async {
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository(
+        repository: _FakePauloFlixRepository(
           [...testAnimes],
           searchByNameFilter: (q) async => fakeSqlFilter(testAnimes, q),
         ),
@@ -133,7 +133,7 @@ void main() {
       // faz isso). Aqui validamos que o repository (faked) lida com
       // ambas as variações via LIKE case-insensitive.
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository(
+        repository: _FakePauloFlixRepository(
           [...testAnimes],
           searchByNameFilter: (q) async => fakeSqlFilter(testAnimes, q),
         ),
@@ -148,7 +148,7 @@ void main() {
 
     test('busca por gênero retorna animes do gênero', () async {
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository(
+        repository: _FakePauloFlixRepository(
           [...testAnimes],
           searchByNameFilter: (q) async => fakeSqlFilter(testAnimes, q),
         ),
@@ -160,7 +160,7 @@ void main() {
 
     test('busca por substring do nome funciona (match parcial)', () async {
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository(
+        repository: _FakePauloFlixRepository(
           [...testAnimes],
           searchByNameFilter: (q) async => fakeSqlFilter(testAnimes, q),
         ),
@@ -173,7 +173,7 @@ void main() {
     test('busca por gênero compartilhado retorna múltiplos animes', () async {
       // "action" está em Naruto, One Piece e Shingeki no Kyojin
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository(
+        repository: _FakePauloFlixRepository(
           [...testAnimes],
           searchByNameFilter: (q) async => fakeSqlFilter(testAnimes, q),
         ),
@@ -184,7 +184,7 @@ void main() {
 
     test('busca sem matches retorna lista vazia', () async {
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository(
+        repository: _FakePauloFlixRepository(
           [...testAnimes],
           searchByNameFilter: (q) async => fakeSqlFilter(testAnimes, q),
         ),
@@ -195,7 +195,7 @@ void main() {
 
     test('busca não muta a lista do provider (imutabilidade)', () async {
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository([...testAnimes]),
+        repository: _FakePauloFlixRepository([...testAnimes]),
       );
       await provider.loadContents();
       final before = provider.contents.length;
@@ -210,7 +210,7 @@ void main() {
       'loadContents popula contents e search() filtra o estado global',
       () async {
         final provider = PauloFlixProvider.withRepository(
-          _FakePauloFlixRepository([...testAnimes]),
+          repository: _FakePauloFlixRepository([...testAnimes]),
         );
         await provider.loadContents();
         expect(provider.contents, hasLength(3));
@@ -229,7 +229,7 @@ void main() {
       'carga inicial do provider retorna a lista completa (3 animes)',
       () async {
         final provider = PauloFlixProvider.withRepository(
-          _FakePauloFlixRepository([...testAnimes]),
+          repository: _FakePauloFlixRepository([...testAnimes]),
         );
         await provider.loadContents();
         expect(provider.contents, hasLength(3));
@@ -248,7 +248,7 @@ void main() {
     tester,
   ) async {
     final provider = PauloFlixProvider.withRepository(
-      _FakePauloFlixRepository([]),
+      repository: _FakePauloFlixRepository([]),
     );
     await provider.loadContents();
 
@@ -273,7 +273,7 @@ void main() {
     'PauloFlixSearchScreen mostra empty state "Digite para buscar" sem query',
     (tester) async {
       final provider = PauloFlixProvider.withRepository(
-        _FakePauloFlixRepository([]),
+        repository: _FakePauloFlixRepository([]),
       );
       await provider.loadContents();
 
