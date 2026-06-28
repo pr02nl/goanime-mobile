@@ -107,178 +107,215 @@ void main() {
   // Fluxo completo
   // ═══════════════════════════════════════════════════════════════════════
 
-  test('Fluxo completo: sync → ler progresso → salvar → reabrir → retomar',
-      () async {
-    // ─── PASSO 1: Sync JSON index ──────────────────────────────────────
-    await runSync();
+  test(
+    'Fluxo completo: sync → ler progresso → salvar → reabrir → retomar',
+    () async {
+      // ─── PASSO 1: Sync JSON index ──────────────────────────────────────
+      await runSync();
 
-    // Verifica que o show foi salvo
-    final all = await repo.getAll();
-    expect(all, hasLength(1));
-    expect(all.first.displayName, 'Naruto');
+      // Verifica que o show foi salvo
+      final all = await repo.getAll();
+      expect(all, hasLength(1));
+      expect(all.first.displayName, 'Naruto');
 
-    // Verifica que a season foi salva
-    final seasons = await episodeRepo.getSeasonsForContent(contentId);
-    expect(seasons, hasLength(1));
-    expect(seasons.first.seasonNumber, 1);
+      // Verifica que a season foi salva
+      final seasons = await episodeRepo.getSeasonsForContent(contentId);
+      expect(seasons, hasLength(1));
+      expect(seasons.first.seasonNumber, 1);
 
-    // Verifica que os episódios foram salvos
-    final episodes = await episodeRepo.getEpisodesForSeason(seasonId);
-    expect(episodes, hasLength(2));
-    expect(episodes[0].episodeNumber, 1);
-    expect(episodes[0].title, 'Entrada: Naruto Uzumaki!');
-    expect(episodes[0].videoUrl,
-        '$_baseHost/tvshows/Naruto/Season%2001/S01E01.mkv');
-    expect(episodes[0].positionSeconds, 0); // nunca assistido
-    expect(episodes[0].isCompleted, false);
-    expect(episodes[1].episodeNumber, 2);
+      // Verifica que os episódios foram salvos
+      final episodes = await episodeRepo.getEpisodesForSeason(seasonId);
+      expect(episodes, hasLength(2));
+      expect(episodes[0].episodeNumber, 1);
+      expect(episodes[0].title, 'Entrada: Naruto Uzumaki!');
+      expect(
+        episodes[0].videoUrl,
+        '$_baseHost/tvshows/Naruto/Season%2001/S01E01.mkv',
+      );
+      expect(episodes[0].positionSeconds, 0); // nunca assistido
+      expect(episodes[0].isCompleted, false);
+      expect(episodes[1].episodeNumber, 2);
 
-    // ─── PASSO 2: Abrir player (ler progresso salvo) ───────────────────
-    // Simula o que o player faz em _loadSavedProgress()
-    final ep1Record = episodes.firstWhere((e) => e.episodeNumber == 1);
-    expect(ep1Record.positionSeconds, 0, reason: 'progresso inicial = 0');
-    expect(ep1Record.isCompleted, false);
+      // ─── PASSO 2: Abrir player (ler progresso salvo) ───────────────────
+      // Simula o que o player faz em _loadSavedProgress()
+      final ep1Record = episodes.firstWhere((e) => e.episodeNumber == 1);
+      expect(ep1Record.positionSeconds, 0, reason: 'progresso inicial = 0');
+      expect(ep1Record.isCompleted, false);
 
-    // Simula a decisão de reset/retomar (primeira vez = sem progresso)
-    final service = EpisodeProgressService(
-      repo: episodeRepo,
-      seasonId: seasonId,
-      episodeNumber: 1,
-    );
+      // Simula a decisão de reset/retomar (primeira vez = sem progresso)
+      final service = EpisodeProgressService(
+        repo: episodeRepo,
+        seasonId: seasonId,
+        episodeNumber: 1,
+      );
 
-    // Primeira abertura: sem progresso salvo → ratio 0/1440 < 0.1
-    // → reseta (idempotente: já está em 0, sem side effect)
-    final shouldReset1 = await service.prepareResumeOrReset(
-      isCompleted: false,
-      positionSeconds: 0,
-      durationSeconds: 1440,
-    );
-    expect(shouldReset1, isTrue,
-        reason: 'ratio 0/1440 = 0 < 0.1 → reseta (já está em 0)');
+      // Primeira abertura: sem progresso salvo → ratio 0/1440 < 0.1
+      // → reseta (idempotente: já está em 0, sem side effect)
+      final shouldReset1 = await service.prepareResumeOrReset(
+        isCompleted: false,
+        positionSeconds: 0,
+        durationSeconds: 1440,
+      );
+      expect(
+        shouldReset1,
+        isTrue,
+        reason: 'ratio 0/1440 = 0 < 0.1 → reseta (já está em 0)',
+      );
 
-    // ─── PASSO 3: Salvar progresso durante playback ────────────────────
-    // Simula o timer de 5s do EpisodeProgressService._save()
-    // O usuário assistiu até 300s (5 min de 24 min)
-    await episodeRepo.updateProgress(
-      seasonId: seasonId,
-      episodeNumber: 1,
-      positionSeconds: 300,
-      durationSeconds: 1440,
-    );
+      // ─── PASSO 3: Salvar progresso durante playback ────────────────────
+      // Simula o timer de 5s do EpisodeProgressService._save()
+      // O usuário assistiu até 300s (5 min de 24 min)
+      await episodeRepo.updateProgress(
+        seasonId: seasonId,
+        episodeNumber: 1,
+        positionSeconds: 300,
+        durationSeconds: 1440,
+      );
 
-    // Verifica que o progresso foi salvo
-    var updatedEps = await episodeRepo.getEpisodesForSeason(seasonId);
-    var updatedEp1 = updatedEps.firstWhere((e) => e.episodeNumber == 1);
-    expect(updatedEp1.positionSeconds, 300);
-    expect(updatedEp1.isCompleted, false,
-        reason: '300/1440 ≈ 21% → não completou');
+      // Verifica que o progresso foi salvo
+      final updatedEps = await episodeRepo.getEpisodesForSeason(seasonId);
+      final updatedEp1 = updatedEps.firstWhere((e) => e.episodeNumber == 1);
+      expect(updatedEp1.positionSeconds, 300);
+      expect(
+        updatedEp1.isCompleted,
+        false,
+        reason: '300/1440 ≈ 21% → não completou',
+      );
 
-    // ─── PASSO 4: Reabrir e retomar ────────────────────────────────────
-    // Simula o que o player faz na segunda abertura
-    // Lê o progresso salvo (como _loadSavedProgress faz)
-    final savedEps = await episodeRepo.getEpisodesForSeason(seasonId);
-    final saved = savedEps.firstWhere((e) => e.episodeNumber == 1);
+      // ─── PASSO 4: Reabrir e retomar ────────────────────────────────────
+      // Simula o que o player faz na segunda abertura
+      // Lê o progresso salvo (como _loadSavedProgress faz)
+      final savedEps = await episodeRepo.getEpisodesForSeason(seasonId);
+      final saved = savedEps.firstWhere((e) => e.episodeNumber == 1);
 
-    expect(saved.positionSeconds, 300,
-        reason: 'progresso recuperado do banco');
-    expect(saved.durationSeconds, 1440);
-    expect(saved.isCompleted, false);
+      expect(
+        saved.positionSeconds,
+        300,
+        reason: 'progresso recuperado do banco',
+      );
+      expect(saved.durationSeconds, 1440);
+      expect(saved.isCompleted, false);
 
-    // Decide se deve resetar ou retomar
-    // ratio = 300/1440 ≈ 0.21 → >= 0.1 → NÃO reseta → retoma
-    final service2 = EpisodeProgressService(
-      repo: episodeRepo,
-      seasonId: seasonId,
-      episodeNumber: 1,
-    );
-    final shouldReset2 = await service2.prepareResumeOrReset(
-      isCompleted: saved.isCompleted,
-      positionSeconds: saved.positionSeconds,
-      durationSeconds: saved.durationSeconds!,
-    );
+      // Decide se deve resetar ou retomar
+      // ratio = 300/1440 ≈ 0.21 → >= 0.1 → NÃO reseta → retoma
+      final service2 = EpisodeProgressService(
+        repo: episodeRepo,
+        seasonId: seasonId,
+        episodeNumber: 1,
+      );
+      final shouldReset2 = await service2.prepareResumeOrReset(
+        isCompleted: saved.isCompleted,
+        positionSeconds: saved.positionSeconds,
+        durationSeconds: saved.durationSeconds!,
+      );
 
-    expect(shouldReset2, isFalse,
-        reason: '21% ≥ 10% → deve retomar (não resetar)');
-    // O player fará: if (!shouldReset2 && pos > 0) → player.seek(300s)
-    // Isso é a retomada correta!
+      expect(
+        shouldReset2,
+        isFalse,
+        reason: '21% ≥ 10% → deve retomar (não resetar)',
+      );
+      // O player fará: if (!shouldReset2 && pos > 0) → player.seek(300s)
+      // Isso é a retomada correta!
 
-    // ─── PASSO 5: Assistir até o fim e reabrir ─────────────────────────
-    // Usuário termina o episódio (90%+)
-    await episodeRepo.updateProgress(
-      seasonId: seasonId,
-      episodeNumber: 1,
-      positionSeconds: 1400,
-      durationSeconds: 1440,
-    );
+      // ─── PASSO 5: Assistir até o fim e reabrir ─────────────────────────
+      // Usuário termina o episódio (90%+)
+      await episodeRepo.updateProgress(
+        seasonId: seasonId,
+        episodeNumber: 1,
+        positionSeconds: 1400,
+        durationSeconds: 1440,
+      );
 
-    // Verifica que foi marcado como completo
-    var finalEps = await episodeRepo.getEpisodesForSeason(seasonId);
-    var finalEp1 = finalEps.firstWhere((e) => e.episodeNumber == 1);
-    expect(finalEp1.isCompleted, true,
-        reason: '1400/1440 ≈ 97% ≥ 90% → completou');
+      // Verifica que foi marcado como completo
+      final finalEps = await episodeRepo.getEpisodesForSeason(seasonId);
+      final finalEp1 = finalEps.firstWhere((e) => e.episodeNumber == 1);
+      expect(
+        finalEp1.isCompleted,
+        true,
+        reason: '1400/1440 ≈ 97% ≥ 90% → completou',
+      );
 
-    // Season 1: só tem episódio 1 completo (ep 2 ainda não)
-    var finalSeason = (await episodeRepo.getSeasonsForContent(contentId)).first;
-    expect(finalSeason.isCompleted, false,
-        reason: 'só 1/2 episódios completo → season não completa');
+      // Season 1: só tem episódio 1 completo (ep 2 ainda não)
+      final finalSeason = (await episodeRepo.getSeasonsForContent(
+        contentId,
+      )).first;
+      expect(
+        finalSeason.isCompleted,
+        false,
+        reason: 'só 1/2 episódios completo → season não completa',
+      );
 
-    // ─── PASSO 6: Reabrir episódio completo → reset (reassistir) ───────
-    final service3 = EpisodeProgressService(
-      repo: episodeRepo,
-      seasonId: seasonId,
-      episodeNumber: 1,
-    );
-    final shouldReset3 = await service3.prepareResumeOrReset(
-      isCompleted: true,
-      positionSeconds: 1400,
-      durationSeconds: 1440,
-    );
+      // ─── PASSO 6: Reabrir episódio completo → reset (reassistir) ───────
+      final service3 = EpisodeProgressService(
+        repo: episodeRepo,
+        seasonId: seasonId,
+        episodeNumber: 1,
+      );
+      final shouldReset3 = await service3.prepareResumeOrReset(
+        isCompleted: true,
+        positionSeconds: 1400,
+        durationSeconds: 1440,
+      );
 
-    expect(shouldReset3, isTrue,
-        reason: 'isCompleted=true → deve resetar (reassistir)');
+      expect(
+        shouldReset3,
+        isTrue,
+        reason: 'isCompleted=true → deve resetar (reassistir)',
+      );
 
-    // Verifica que o reset zerou o progresso
-    var afterReset = await episodeRepo.getEpisodesForSeason(seasonId);
-    var afterResetEp1 = afterReset.firstWhere((e) => e.episodeNumber == 1);
-    expect(afterResetEp1.positionSeconds, 0,
-        reason: 'reset zerou positionSeconds');
-    expect(afterResetEp1.isCompleted, false,
-        reason: 'reset zerou isCompleted');
-  });
+      // Verifica que o reset zerou o progresso
+      final afterReset = await episodeRepo.getEpisodesForSeason(seasonId);
+      final afterResetEp1 = afterReset.firstWhere((e) => e.episodeNumber == 1);
+      expect(
+        afterResetEp1.positionSeconds,
+        0,
+        reason: 'reset zerou positionSeconds',
+      );
+      expect(
+        afterResetEp1.isCompleted,
+        false,
+        reason: 'reset zerou isCompleted',
+      );
+    },
+  );
 
   test(
-      'Fluxo: começar episódio e fechar rápido (<10%) → reabrir começa do zero',
-      () async {
-    await runSync();
+    'Fluxo: começar episódio e fechar rápido (<10%) → reabrir começa do zero',
+    () async {
+      await runSync();
 
-    // Usuário abre, assiste 30s de um episódio de 24min (≈2%) e fecha
-    await episodeRepo.updateProgress(
-      seasonId: seasonId,
-      episodeNumber: 1,
-      positionSeconds: 30,
-      durationSeconds: 1440,
-    );
+      // Usuário abre, assiste 30s de um episódio de 24min (≈2%) e fecha
+      await episodeRepo.updateProgress(
+        seasonId: seasonId,
+        episodeNumber: 1,
+        positionSeconds: 30,
+        durationSeconds: 1440,
+      );
 
-    // Reabre: ratio = 30/1440 ≈ 0.02 < 0.1 → reseta (começa do zero)
-    final service = EpisodeProgressService(
-      repo: episodeRepo,
-      seasonId: seasonId,
-      episodeNumber: 1,
-    );
-    final shouldReset = await service.prepareResumeOrReset(
-      isCompleted: false,
-      positionSeconds: 30,
-      durationSeconds: 1440,
-    );
+      // Reabre: ratio = 30/1440 ≈ 0.02 < 0.1 → reseta (começa do zero)
+      final service = EpisodeProgressService(
+        repo: episodeRepo,
+        seasonId: seasonId,
+        episodeNumber: 1,
+      );
+      final shouldReset = await service.prepareResumeOrReset(
+        isCompleted: false,
+        positionSeconds: 30,
+        durationSeconds: 1440,
+      );
 
-    expect(shouldReset, isTrue,
-        reason: '2% < 10% → deve resetar (começar do zero)');
+      expect(
+        shouldReset,
+        isTrue,
+        reason: '2% < 10% → deve resetar (começar do zero)',
+      );
 
-    // Verifica que o progresso foi zerado
-    final episodes = await episodeRepo.getEpisodesForSeason(seasonId);
-    final ep1 = episodes.firstWhere((e) => e.episodeNumber == 1);
-    expect(ep1.positionSeconds, 0, reason: 'reset zerou posição');
-  });
+      // Verifica que o progresso foi zerado
+      final episodes = await episodeRepo.getEpisodesForSeason(seasonId);
+      final ep1 = episodes.firstWhere((e) => e.episodeNumber == 1);
+      expect(ep1.positionSeconds, 0, reason: 'reset zerou posição');
+    },
+  );
 
   test('Fluxo: completar todos episódios → season fica completa', () async {
     await runSync();
@@ -305,8 +342,11 @@ void main() {
 
     // Season completa (2/2)
     season = (await episodeRepo.getSeasonsForContent(contentId)).first;
-    expect(season.isCompleted, true,
-        reason: '2/2 episódios completos → season completa');
+    expect(
+      season.isCompleted,
+      true,
+      reason: '2/2 episódios completos → season completa',
+    );
 
     // Reabre a season → todos os episódios estão completos
     final episodes = await episodeRepo.getEpisodesForSeason(seasonId);
