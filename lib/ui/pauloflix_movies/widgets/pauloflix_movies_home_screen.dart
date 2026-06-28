@@ -21,8 +21,8 @@ import 'package:provider/provider.dart';
 
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
-import '../../../domain/models/pauloflix_movie.dart';
 import '../../../domain/models/paulo_flix_movie_progress_record.dart';
+import '../../../domain/models/pauloflix_movie.dart';
 import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../routing/route_data.dart';
@@ -34,8 +34,8 @@ import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
-import '../view_models/pauloflix_movies_provider.dart';
 import '../view_models/paulo_flix_movie_continue_watching_viewmodel.dart';
+import '../view_models/pauloflix_movies_provider.dart';
 import '_empty_state.dart';
 import '_movie_hero_banner.dart';
 import '_movie_section.dart';
@@ -204,6 +204,9 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
       );
       slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
     }
+    slivers.add(
+      SliverToBoxAdapter(child: _buildContinueWatchingSection(context)),
+    );
 
     // 2. Mais bem avaliados.
     if (_topRated.isNotEmpty) {
@@ -403,13 +406,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
     BuildContext context,
     AppLocalizations l10n,
   ) {
-    return [
-      // Seção "Continue assistindo" (filmes com progresso parcial)
-      SliverToBoxAdapter(
-        child: _buildContinueWatchingSection(context),
-      ),
-      ..._buildContentSlivers(l10n),
-    ];
+    return _buildContentSlivers(l10n);
   }
 
   Widget _buildSyncBanner(PauloFlixMoviesProvider provider) {
@@ -468,11 +465,7 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
     return NetflixCarousel(
       title: 'Continue assistindo',
       isTV: isTV,
-      items: contents
-          .map(
-            (r) => _buildCard(context, r),
-          )
-          .toList(),
+      items: contents.map((r) => _buildCard(context, r)).toList(),
     );
   }
 
@@ -496,10 +489,7 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
     context.pushNamed(
       'player',
       extra: PlayerRouteData(
-        episode: Episode(
-          number: '1',
-          url: record.videoUrl ?? '',
-        ),
+        episode: Episode(number: '1', url: record.videoUrl ?? ''),
         animeTitle: record.displayName,
         isMovie: true,
         movieFolderName: record.folderName,
