@@ -257,7 +257,7 @@ class _PauloFlixMoviesSearchScreenState
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(
-                    color: Color(0xFFDC2626),
+                    color: AppColors.moviesAccent,
                     width: 2,
                   ),
                 ),
@@ -323,7 +323,7 @@ class _PauloFlixMoviesSearchScreenState
             const SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
-                child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+                child: CircularProgressIndicator(color: AppColors.moviesAccent),
               ),
             )
           else if (_isEmptyResultState())

@@ -94,6 +94,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   StreamSubscription? _completedSub;
   StreamSubscription<Tracks>? _tracksSub;
 
+  /// Subscription do listener de tracks para debug/logging (linha ~310 em
+  /// `_initializeVideoPlayer`). Mantida separada de `_tracksSub` porque
+  /// `_waitForEmbeddedSubtitleTracks` sobrescreve `_tracksSub` com uma
+  /// subscription local (completer + timeout).
+  StreamSubscription<Tracks>? _debugTracksSub;
+
   // Progresso PauloFlix (Fase 2). `null` para fluxos não-PauloFlix
   // (AnimeFire).
   EpisodeProgressService? _progressService;
@@ -589,7 +595,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     }
 
     // Get notified as [Stream]:
-    _player.stream.tracks.listen((event) {
+    _debugTracksSub?.cancel();
+    _debugTracksSub = _player.stream.tracks.listen((event) {
       videos = event.video;
       audios = event.audio;
       subtitles = event.subtitle;
@@ -637,9 +644,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       _completedSub = _player.stream.completed.listen((completed) {
         debugPrint('[VideoPlayer] Completed: $completed');
       });
-
-      // Open the media with headers
-      debugPrint('[VideoPlayer] Opening media URL: $resolvedVideoUrl');
 
       // Extract referer from URL for CDN compatibility
       final uri = Uri.parse(resolvedVideoUrl);
@@ -699,9 +703,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       final shouldReset = widget.isMovie
           ? await _maybeResetMovieBeforeOpen()
           : await _maybeResetBeforeOpen();
-      if (mounted) {
-        setState(() {});
-      }
       try {
         final media = Media(resolvedVideoUrl, httpHeaders: mergedHeaders);
         await _player.open(media, play: false);
@@ -714,29 +715,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         final media = Media(resolvedVideoUrl);
         await _player.open(media, play: false);
         debugPrint('[VideoPlayer] Media opened (no headers fallback, paused)');
-      }
-
-      // Fase 2: se não resetou, faz seek para a posição salva.
-      // libmpv exige seek APÓS Media.open — antes é no-op.
-      if (!shouldReset &&
-          _savedPositionSeconds != null &&
-          _savedPositionSeconds! > 0) {
-        debugPrint(
-          '[VideoPlayer] seeking (movie=${widget.isMovie}) '
-          'to ${_savedPositionSeconds}s',
-        );
-        await _player.seek(Duration(seconds: _savedPositionSeconds!));
-        debugPrint(
-          '[VideoPlayer] Resuming at ${_savedPositionSeconds}s '
-          '(of ${_savedDurationSeconds ?? "?"}s)',
-        );
-      }
-
-      // Fase 2: inicia o timer de 5s para gravar progresso.
-      if (widget.isMovie) {
-        _startMovieProgressService();
-      } else {
-        _startProgressService();
       }
 
       // Espera o media_kit parsear o contêiner e popular as tracks
@@ -800,6 +778,32 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       //   return;
       // }
 
+      // Fase 2: seek para a posição salva APÓS o vídeo estar carregado.
+      // Buscar antes do tracks.firstWhere resolver faz o seek ser perdido
+      // porque o libmpv ainda não conhece a duração do arquivo — o seek
+      // é aplicado contra um arquivo de duração zero e depois sobrescrito
+      // quando o demuxer termina de carregar o metadado.
+      if (!shouldReset &&
+          _savedPositionSeconds != null &&
+          _savedPositionSeconds! > 0) {
+        debugPrint(
+          '[VideoPlayer] Resuming at ${_savedPositionSeconds}s '
+          '(of ${_savedDurationSeconds ?? "?"}s) '
+          '— seeking after video tracks ready',
+        );
+        await _player.seek(Duration(seconds: _savedPositionSeconds!));
+      }
+
+      // Fase 2: inicia o timer de 5s para gravar progresso.
+      // Iniciar APÓS o seek garante que a posição salva no primeiro tick
+      // reflete a posição correta (não o pulo do seek que zera e depois
+      // vai para a posição salva).
+      if (widget.isMovie) {
+        _startMovieProgressService();
+      } else {
+        _startProgressService();
+      }
+
       // Video is ready — start playback now
       await _player.play();
       debugPrint('[VideoPlayer] Playback started');
@@ -836,9 +840,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     await _playingSub?.cancel();
     await _completedSub?.cancel();
     await _tracksSub?.cancel();
+    await _debugTracksSub?.cancel();
     _playingSub = null;
     _completedSub = null;
     _tracksSub = null;
+    _debugTracksSub = null;
 
     _currentVideoHeaders = null;
   }
@@ -869,6 +875,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     _playingSub?.cancel();
     _completedSub?.cancel();
     _tracksSub?.cancel();
+    _debugTracksSub?.cancel();
 
     // Cleanup assíncrono em background (não pode await no dispose)
     _player.dispose();

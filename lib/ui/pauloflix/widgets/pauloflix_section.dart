@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/see_all_card.dart';
 
 // Cor identidade PauloFlix animes (índigo)
-const _kPauloFlixColor = Color(0xFF6366F1);
+const _kPauloFlixColor = AppColors.animeAccent;
 
 class PauloFlixSection extends StatelessWidget {
   final String title;

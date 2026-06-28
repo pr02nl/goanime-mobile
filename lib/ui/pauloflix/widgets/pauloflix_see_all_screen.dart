@@ -71,7 +71,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   Map<int, PauloFlixProgressStats> _statsById = const {};
 
   // Cor de destaque da seção: roxo PauloFlix Animes.
-  static const Color _accentColor = Color(0xFF6366F1);
+  static const Color _accentColor = AppColors.animeAccent;
 
   @override
   void initState() {
@@ -406,7 +406,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  colors: [AppColors.animeAccent, Color(0xFF8B5CF6)],
                 ),
                 borderRadius: BorderRadius.circular(6),
               ),
@@ -429,10 +429,10 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+          color: AppColors.animeAccent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+            color: AppColors.animeAccent.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -509,10 +509,10 @@ class _EmptyState extends StatelessWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                color: AppColors.animeAccent.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                  color: AppColors.animeAccent.withValues(alpha: 0.3),
                   width: 2,
                 ),
               ),

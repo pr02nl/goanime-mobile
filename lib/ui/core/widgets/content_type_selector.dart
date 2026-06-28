@@ -39,7 +39,7 @@ class ContentTypeSelector extends StatelessWidget {
             label: 'Filmes',
             icon: Icons.movie_outlined,
             active: selected == ContentType.movie,
-            accent: const Color(0xFFDC2626),
+            accent: AppColors.moviesAccent,
             onTap: () => onChanged(ContentType.movie),
           ),
         ],

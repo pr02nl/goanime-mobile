@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
@@ -9,7 +10,7 @@ import '../../core/widgets/pauloflix_movies_badge.dart';
 import '../../core/widgets/see_all_card.dart';
 
 // Cor identidade PauloFlix filmes (vermelho)
-const _kMoviesColor = Color(0xFFDC2626);
+const _kMoviesColor = AppColors.moviesAccent;
 
 class PauloFlixMoviesSection extends StatelessWidget {
   final String title;

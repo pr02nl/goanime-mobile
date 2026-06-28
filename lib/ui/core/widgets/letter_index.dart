@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../themes/app_colors.dart';
 import '../utils/responsive.dart';
 import 'focusable_widget.dart';
 
@@ -35,7 +36,7 @@ class LetterIndex extends StatelessWidget {
     required this.availableLetters,
     required this.activeLetter,
     required this.onLetterSelected,
-    this.accentColor = const Color(0xFFDC2626),
+    this.accentColor = AppColors.moviesAccent,
   });
 
   static const List<String> _allLetters = [

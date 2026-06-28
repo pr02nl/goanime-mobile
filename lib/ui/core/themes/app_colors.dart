@@ -69,6 +69,10 @@ class AppColors {
   static const Color cloudTag = Color(0xFF4CAF50); // Green 500
   static const Color liveIndicator = Color(0xFFFF5252); // Red A200
 
+  // Content-type Accent Colors
+  static const Color moviesAccent = Color(0xFFDC2626); // Vermelho filmes
+  static const Color animeAccent = Color(0xFF6366F1); // Roxo animes
+
   // Gradient Presets
   static const List<Color> primaryGradient = [
     Color(0xFF00BCD4), // Cyan

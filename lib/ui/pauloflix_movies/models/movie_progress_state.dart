@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/themes/app_colors.dart';
 import '../../core/widgets/completed_badge.dart';
 import '../../core/widgets/progress_overlay.dart';
 
@@ -40,7 +41,7 @@ class MovieProgressState {
       return ProgressOverlay.build(
         ratio: progress.ratio,
         isCompleted: false,
-        accentColor: const Color(0xFFDC2626),
+        accentColor: AppColors.moviesAccent,
       );
     }
     return null;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/themes/app_colors.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// Estado vazio unificado para a home de filmes.
@@ -32,10 +33,10 @@ class MoviesEmptyState extends StatelessWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+                color: AppColors.moviesAccent.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+                  color: AppColors.moviesAccent.withValues(alpha: 0.3),
                   width: 2,
                 ),
               ),
@@ -66,14 +67,14 @@ class MoviesEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 28),
             if (isSyncing)
-              const CircularProgressIndicator(color: Color(0xFFDC2626))
+              const CircularProgressIndicator(color: AppColors.moviesAccent)
             else
               ElevatedButton.icon(
                 onPressed: onSync,
                 icon: const Icon(Icons.sync),
                 label: Text(l10n.syncMovies),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
+                  backgroundColor: AppColors.moviesAccent,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 28,

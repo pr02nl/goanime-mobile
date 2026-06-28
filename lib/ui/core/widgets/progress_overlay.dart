@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../themes/app_colors.dart';
 import 'completed_badge.dart';
 
 /// Widget de overlay de progresso para cards na grid e carrosséis.
@@ -37,7 +38,7 @@ class ProgressOverlay {
   static Widget? build({
     required double ratio,
     required bool isCompleted,
-    Color accentColor = const Color(0xFFDC2626),
+    Color accentColor = AppColors.moviesAccent,
     String? fractionText,
   }) {
     if (isCompleted) {

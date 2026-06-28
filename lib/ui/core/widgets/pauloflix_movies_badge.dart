@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../themes/app_colors.dart';
+
 /// Badge "PauloFlix" com cor vermelho-cinema para diferenciar dos animes.
 class PauloFlixMoviesBadge extends StatelessWidget {
   final double fontSize;
@@ -18,12 +20,12 @@ class PauloFlixMoviesBadge extends StatelessWidget {
           padding ?? const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+          colors: [AppColors.moviesAccent, Color(0xFFEF4444)],
         ),
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+            color: AppColors.moviesAccent.withValues(alpha: 0.3),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

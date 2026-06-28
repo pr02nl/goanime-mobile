@@ -224,7 +224,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
             const SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
-                child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+                child: CircularProgressIndicator(color: AppColors.moviesAccent),
               ),
             )
           else if (contents.isEmpty)
@@ -326,7 +326,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
                 const Icon(
                   Icons.movie_filter,
                   size: 22,
-                  color: Color(0xFFDC2626),
+                  color: AppColors.moviesAccent,
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -398,7 +398,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
               height: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Color(0xFFDC2626),
+                color: AppColors.moviesAccent,
               ),
             ),
           )
@@ -475,10 +475,10 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFDC2626).withValues(alpha: 0.1),
+          color: AppColors.moviesAccent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+            color: AppColors.moviesAccent.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -488,7 +488,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Color(0xFFDC2626),
+                color: AppColors.moviesAccent,
               ),
             ),
             const SizedBox(width: 12),
@@ -536,7 +536,7 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
     final overlay = ProgressOverlay.build(
       ratio: record.progressRatio,
       isCompleted: false,
-      accentColor: const Color(0xFFDC2626),
+      accentColor: AppColors.moviesAccent,
     );
 
     return FocusableWidget(

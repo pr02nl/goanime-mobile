@@ -271,10 +271,10 @@ class _PauloFlixMovieDetailScreenState
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDC2626).withValues(alpha: 0.2),
+                        color: AppColors.moviesAccent.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+                          color: AppColors.moviesAccent.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Text(
@@ -308,7 +308,7 @@ class _PauloFlixMovieDetailScreenState
           children: [
             const Icon(
               Icons.play_circle_outline,
-              color: Color(0xFFDC2626),
+              color: AppColors.moviesAccent,
               size: 14,
             ),
             const SizedBox(width: 4),
@@ -325,7 +325,7 @@ class _PauloFlixMovieDetailScreenState
             value: _progressRatio,
             minHeight: 4,
             backgroundColor: Colors.white.withValues(alpha: 0.1),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFDC2626)),
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.moviesAccent),
           ),
         ),
       ],
@@ -354,7 +354,7 @@ class _PauloFlixMovieDetailScreenState
           style: ElevatedButton.styleFrom(
             backgroundColor: _isCompleted
                 ? Colors.green
-                : const Color(0xFFDC2626),
+                : AppColors.moviesAccent,
             foregroundColor: Colors.white,
             disabledBackgroundColor: Colors.white12,
             padding: const EdgeInsets.symmetric(vertical: 16),

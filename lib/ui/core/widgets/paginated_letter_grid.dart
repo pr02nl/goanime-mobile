@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../themes/app_colors.dart';
 import '../utils/pagination.dart';
 import '../utils/responsive.dart';
 import 'letter_index.dart';
@@ -47,7 +48,7 @@ class PaginatedLetterGrid<T> extends StatefulWidget {
     required this.cardBuilder,
     required this.nameOf,
     this.isTV = false,
-    this.accentColor = const Color(0xFFDC2626),
+    this.accentColor = AppColors.moviesAccent,
   });
 
   @override

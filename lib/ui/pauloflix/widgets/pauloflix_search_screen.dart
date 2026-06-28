@@ -36,7 +36,7 @@ class PauloFlixSearchScreen extends StatefulWidget {
 }
 
 class _PauloFlixSearchScreenState extends State<PauloFlixSearchScreen> {
-  static const Color _accentColor = Color(0xFF6366F1);
+  static const Color _accentColor = AppColors.animeAccent;
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode(

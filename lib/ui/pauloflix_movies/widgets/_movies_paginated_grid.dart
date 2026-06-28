@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
+import '../../core/themes/app_colors.dart';
 import '../../core/utils/pagination.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/paginated_letter_grid.dart';
@@ -32,7 +33,7 @@ class MoviesPaginatedGrid extends StatelessWidget {
     return PaginatedLetterGrid<PauloFlixMovie>(
       pagination: pagination,
       isTV: isTV,
-      accentColor: const Color(0xFFDC2626),
+      accentColor: AppColors.moviesAccent,
       nameOf: (m) => m.displayName,
       cardBuilder: (context, movie) {
         final progress = progressMap?[movie.folderName];
