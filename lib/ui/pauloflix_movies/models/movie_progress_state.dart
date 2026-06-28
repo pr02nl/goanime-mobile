@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/completed_badge.dart';
 import '../../core/widgets/progress_overlay.dart';
 
 /// Estado de progresso de um filme para exibição visual na grid.
@@ -27,14 +28,21 @@ class MovieProgressState {
 
   /// Constrói o widget de overlay de progresso para cards.
   ///
-  /// Retorna um badge verde ✓ se completo, uma barra vermelha se
-  /// em andamento, ou `null` se nunca assistido.
+  /// Retorna um badge verde ✓ se completo (via `CompletedBadge.cardOverlay()`),
+  /// uma barra vermelha se em andamento (via `ProgressOverlay.build()`), ou
+  /// `null` se nunca assistido.
   static Widget? buildOverlayWidget(MovieProgressState? progress) {
     if (progress == null) return null;
-    return ProgressOverlay.build(
-      ratio: progress.ratio,
-      isCompleted: progress.isCompleted,
-      accentColor: const Color(0xFFDC2626),
-    );
+    if (progress.isCompleted) {
+      return CompletedBadge.cardOverlay();
+    }
+    if (progress.ratio > 0) {
+      return ProgressOverlay.build(
+        ratio: progress.ratio,
+        isCompleted: false,
+        accentColor: const Color(0xFFDC2626),
+      );
+    }
+    return null;
   }
 }

@@ -247,6 +247,13 @@ class _ContractStub implements PauloFlixEpisodeProgressRepository {
   }
 
   @override
+  Future<Map<int, PauloFlixProgressStats>> getProgressStatsForContents(
+    List<int> contentIds,
+  ) async {
+    return {};
+  }
+
+  @override
   Future<PauloFlixProgressStats> getStatsForContent(int contentId) async {
     final row = await _db.customSelect(
       'SELECT '
