@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../data/services/pauloflix_movies_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/pauloflix_movie.dart';
@@ -22,9 +21,7 @@ class PauloFlixMovieDetailScreen extends StatefulWidget {
 
 class _PauloFlixMovieDetailScreenState
     extends State<PauloFlixMovieDetailScreen> {
-  bool _isLoadingCollection = true;
   String? _error;
-  List<PauloFlixMovieSubfolder> _collectionSubfolders = [];
 
   // Para filme individual
   String? _movieVideoUrl;
@@ -33,60 +30,19 @@ class _PauloFlixMovieDetailScreenState
   @override
   void initState() {
     super.initState();
-    if (widget.content.isCollection) {
-      _loadCollectionChildren();
-    } else {
-      _resolveSingleMovie();
-    }
+    _resolveSingleMovie();
   }
 
-  Future<void> _resolveSingleMovie() async {
+  void _resolveSingleMovie() {
     if (widget.content.videoUrl != null) {
-      setState(() {
-        _movieVideoUrl = widget.content.videoUrl;
-        _movieSubtitles = _resolveSubtitlesFromJson(
-          widget.content.subtitles,
-          widget.content.serverUrl,
-        );
-      });
-    } else {
-      // Filme sem `file` no JSON index — sem fallback de scraping.
-      _error = 'Este filme não possui URL de vídeo no índice. '
-          'Execute uma sincronização para atualizar o catálogo.';
-    }
-  }
-
-  Future<void> _loadCollectionChildren() async {
-    try {
-      final result = await PauloFlixMoviesService.inspectFolder(
-        widget.content.folderName,
+      _movieVideoUrl = widget.content.videoUrl;
+      _movieSubtitles = _resolveSubtitlesFromJson(
+        widget.content.subtitles,
         widget.content.serverUrl,
       );
-
-      if (!mounted) return;
-
-      if (result.type == MovieFolderType.collection) {
-        setState(() {
-          _collectionSubfolders = result.subfolders;
-          _isLoadingCollection = false;
-        });
-      } else if (result.type == MovieFolderType.empty) {
-        setState(() {
-          _error = 'Coleção não encontrada ou vazia';
-          _isLoadingCollection = false;
-        });
-      } else {
-        setState(() {
-          _error = 'Esta coleção não contém sub-pastas de filmes';
-          _isLoadingCollection = false;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Erro ao carregar coleção: $e';
-        _isLoadingCollection = false;
-      });
+    } else {
+      _error = 'Este filme não possui URL de vídeo no índice. '
+          'Execute uma sincronização para atualizar o catálogo.';
     }
   }
 
@@ -128,113 +84,19 @@ class _PauloFlixMovieDetailScreenState
     );
   }
 
-  Future<void> _openSubfolder(PauloFlixMovieSubfolder sub) async {
-    try {
-      // Para subpastas (coleções), sempre faz scraping — cada subpasta
-      // é um filme separado que não está no JSON index.
-      final file = await PauloFlixMoviesService.fetchMovieFile(sub.url);
-      if (!mounted) return;
-      if (file != null) {
-        _openPlayer(
-          file.videoUrl,
-          file.cleanedName.isEmpty ? sub.name : file.cleanedName,
-          subtitles: file.subtitles,
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nenhum arquivo de vídeo encontrado')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erro: $e')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: widget.content.isCollection
-          ? _buildCollectionView()
-          : _buildSingleMovieView(),
-    );
-  }
-
-  Widget _buildSingleMovieView() {
-    return CustomScrollView(
-      slivers: [
-        _buildAppBar(),
-        SliverToBoxAdapter(child: _buildSingleMovieInfo()),
-        if (_error != null) SliverToBoxAdapter(child: _buildError()),
-        SliverToBoxAdapter(child: _buildActionButtons()),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-      ],
-    );
-  }
-
-  Widget _buildCollectionView() {
-    return CustomScrollView(
-      slivers: [
-        _buildAppBar(),
-        if (_isLoadingCollection)
-          const SliverFillRemaining(
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (_error != null)
-          SliverFillRemaining(child: _buildError())
-        else if (_collectionSubfolders.isEmpty)
-          SliverFillRemaining(
-            child: Center(
-              child: Text(
-                'Coleção vazia',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-              ),
-            ),
-          )
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate((context, i) {
-              final sub = _collectionSubfolders[i];
-              return _buildSubfolderTile(sub);
-            }, childCount: _collectionSubfolders.length),
-          ),
-        const SliverToBoxAdapter(child: SizedBox(height: 32)),
-      ],
-    );
-  }
-
-  Widget _buildSubfolderTile(PauloFlixMovieSubfolder sub) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      leading: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: const Color(0xFF06B6D4).withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(
-          Icons.movie_outlined,
-          color: Color(0xFF06B6D4),
-          size: 28,
-        ),
+      body: CustomScrollView(
+        slivers: [
+          _buildAppBar(),
+          SliverToBoxAdapter(child: _buildMovieInfo()),
+          if (_error != null) SliverToBoxAdapter(child: _buildError()),
+          SliverToBoxAdapter(child: _buildActionButtons()),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
       ),
-      title: Text(
-        sub.name,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      trailing: const Icon(
-        Icons.play_circle_outline,
-        color: Color(0xFFDC2626),
-        size: 32,
-      ),
-      onTap: () => _openSubfolder(sub),
     );
   }
 
@@ -282,7 +144,7 @@ class _PauloFlixMovieDetailScreenState
     );
   }
 
-  Widget _buildSingleMovieInfo() {
+  Widget _buildMovieInfo() {
     final c = widget.content;
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -293,10 +155,7 @@ class _PauloFlixMovieDetailScreenState
             spacing: 8,
             runSpacing: 8,
             children: [
-              if (c.isCollection)
-                const CollectionBadge(fontSize: 12)
-              else
-                const PauloFlixMoviesBadge(fontSize: 12),
+              const PauloFlixMoviesBadge(fontSize: 12),
               if (c.score != null) _ratingBadge(c.score!),
               if (c.year != null) _metaChip(c.year!.toString()),
               if (c.runtime != null) _metaChip('${c.runtime} min'),
@@ -453,8 +312,6 @@ class _PauloFlixMovieDetailScreenState
 
   /// Converte [ExternalSubtitleEntry] do JSON index para
   /// [SubtitleTrackInfo] usado pelo player.
-  ///
-  /// Usado quando o filme já tem `videoUrl` do JSON (sem scraping).
   static List<SubtitleTrackInfo> _resolveSubtitlesFromJson(
     List<ExternalSubtitleEntry>? entries,
     String serverUrl,
