@@ -138,65 +138,72 @@ Serviço de sincronização de **filmes PauloFlix**.
 https://media.oliveira.braga.nom.br/movies/
 ```
 
-### Sincronização via JSON Index
+### Sincronização via JSON Index (única fonte)
 
 **Endpoint:** `GET /movies/movie_index.json`
 
-Mesmo padrão do `PauloFlixService`. O JSON index (`movie_index.json`) contém metadados completos de todos os filmes, eliminando a necessidade de scraping HTML + TMDB.
+O JSON index (`movie_index.json`) é a **única fonte** de dados. Todo scraping HTML foi removido — cada filme no JSON tem URL direta do vídeo (`file`) e legendas (`subtitles`).
 
 **Estrutura do JSON index:**
 ```json
 {
   "movies": [
     {
-      "path": "A Origem (2010)",
-      "title": "A Origem",
+      "path": "2012 (2009)",
+      "title": "2012",
       "description": "...",
-      "poster": "/movies/A Origem (2010)/poster.jpg",
-      "fanart": "/movies/A Origem (2010)/fanart.jpg",
-      "genres": ["Ação", "Ficção Científica"],
-      "rating": 8.8,
-      "year": 2010,
-      "release_date": "2010-07-16",
-      "runtime": 148,
-      "tmdb_id": 27205,
-      "is_collection": false,
-      "available_movie_count": 1
+      "poster": "/movies/2012 (2009)/poster.jpg",
+      "fanart": "/movies/2012 (2009)/fanart.jpg",
+      "genres": ["Ação", "Aventura"],
+      "rating": 5.8,
+      "year": 2009,
+      "release_date": "2009-11-13",
+      "runtime": 158,
+      "tmdb_id": 14161,
+      "available_movie_count": 1,
+
+      "file": "/movies/2012 (2009)/2012.2009.1080p.mp4",
+      "subtitles": [
+        { "file": "/movies/2012 (2009)/sub.srt", "lang": "pob", "name": "sub.srt" },
+        { "file": "/movies/2012 (2009)/eng.srt", "lang": "eng", "name": "eng.srt" }
+      ]
     }
   ]
 }
 ```
 
-### Vantagens sobre o fluxo TMDB
+### Vantagens sobre o fluxo legado
 
-| Aspecto | Antes (HTML + TMDB) | Agora (JSON Index) |
-|---------|--------------------|--------------------|
-| Requisições | N scraping HTML + N TMDB (rate limited 50 req/s) | 1 GET do JSON index |
-| API key | Necessária (TMDB v3) | Não precisa |
-| Metadados | Parciais (dependia de match TMDB) | Completos (pré-resolvidos) |
-| Velocidade | Minutos (200+ filmes × TMDB rate limit) | Segundos |
+| Aspecto | Antes (HTML scraping + TMDB) | Agora (JSON Index) |
+|---------|------------------------------|--------------------|
+| Requisições | N scraping HTML + N TMDB (rate limited) | 1 GET do JSON index |
+| URL do vídeo | Scraping on-demand (`inspectFolder`) | Direto do campo `file` |
+| Legendas | Scraping + ranking por filename | Direto do campo `subtitles` |
+| API key TMDB | Necessária | Não precisa |
+| Metadados | Parciais (dependia de match) | Completos (pré-resolvidos) |
+| Velocidade | Minutos (200+ filmes × rate limit) | Segundos |
+| Manutenção | 2 implementações de parse HTML | Zero parsing HTML |
 
-### Métodos Principais
+### Métodos
+
+#### `configure(http.Client client)`
+Injeta o HTTP client com autenticação JWT. Chamado **uma vez** no boot do app (`main.dart`).
 
 #### `syncContent({repository, onProgress, onError})`
-Sincronização completa de todos os filmes a partir do JSON index:
+Único método público. Sincronização completa de todos os filmes:
 1. GET `movie_index.json`
 2. Converte JSON para `List<PauloFlixMovie>` via `fromMovieIndex()`
-3. Salva em batch no banco via `repository.saveBatch()`
-4. Marca como indisponível filmes que sumiram do servidor
+   - `file` → `videoUrl` (URL absoluta via `baseHost`)
+   - `subtitles[]` → `subtitles` (cada `file` resolvido para URL absoluta)
+3. Salva em batch no banco via `repository.saveBatch()` (UPSERT)
+4. Marca filmes que sumiram do servidor como indisponíveis
 
-#### `inspectFolder(folderName, folderUrl)`
-Scraping on-demand de uma pasta de filme (usado pela tela de detalhe). Detecta:
-- Filme individual (contém `.mkv`/`.mp4`)
-- Coleção (contém sub-pastas com vídeos)
-- Vazio (marcado como indisponível)
-- Extrai arquivos de legenda `.srt` (prioridade PT-BR)
-
-#### `cleanTitleForTmdb(String folderName)`
-Limpa nome de pasta para busca TMDB (mantido para compatibilidade — não usado no sync principal).
-
-#### `fetchMovieFile(String folderUrl)`
-Retorna `PauloFlixMovieFile?` com URL do vídeo e legendas da pasta.
+> **Métodos removidos** (scraping eliminado):
+> - ~~`inspectFolder()`~~ — não há mais scraping de diretórios HTML
+> - ~~`fetchMovieFile()`~~ — URL do vídeo vem do `file` no JSON
+> - ~~`cleanTitleForTmdb()`~~ — metadados vêm do JSON, não do TMDB
+> - ~~`safeDecodeComponent()`~~ — não há mais parsing de listing HTML
+> - ~~Classes auxiliares~~ — `_LinkEntry`, `_DetectedImages` removidas
 
 ---
 
@@ -459,7 +466,7 @@ Wrapper `http.Client` que injeta `Authorization: Bearer <JWT>` em toda request.
 | Service | Camada | Tecnologia | Persiste? |
 |---------|--------|-----------|-----------|
 | `PauloFlixService` | Sync | HTTP + JSON index + HTML scraping (on-demand) | Via `PauloFlixRepository` (Drift) |
-| `PauloFlixMoviesService` | Sync | HTTP + JSON index + HTML scraping (on-demand) | Via `PauloFlixMoviesRepository` (Drift) |
+| `PauloFlixMoviesService` | Sync | HTTP + JSON index (única fonte) | Via `PauloFlixMoviesRepository` (Drift) |
 | `PauloFlixEpisodeSyncService` | Sync | HTTP + HTML scraping + NFO | Via `PauloFlixEpisodeProgressRepository` (Drift) |
 | `PauloFlixNfoEnricher` | Sync | HTTP | Não |
 | `DownloadService` | Streaming | HTTP + Drift (fila + persistência) | Via `DownloadsRepository` (Drift) |

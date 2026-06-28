@@ -141,7 +141,9 @@ factory PauloFlixContent.fromNfo({
 
 ## PauloFlixMovie
 
-Modelo de filme PauloFlix (pode ser filme individual ou coleção).
+Modelo de filme PauloFlix. Cada filme é individual (não há mais coleções).
+A URL direta do vídeo vem do campo `file` do JSON index, eliminando
+qualquer necessidade de scraping HTML.
 
 > **Fábricas:**
 > - `fromMovieIndex()` — fonte **primária** (JSON index)
@@ -152,18 +154,26 @@ Modelo de filme PauloFlix (pode ser filme individual ou coleção).
 ```dart
 class PauloFlixMovie {
   final int? id;
-  final String folderName;
-  final String displayName;
-  final String serverUrl;
-  final String? imageUrl, bannerUrl, description;
-  final double? score;
-  final List<String> genres;
+  final String folderName;          // path no JSON index
+  final String displayName;         // title
+  final String serverUrl;           // URL da pasta no servidor
+  final String? imageUrl;           // Poster (resolvido via baseHost)
+  final String? bannerUrl;          // Fanart
+  final String? description;
+  final double? score;              // rating
+  final List<String> genres;        // JSON array no banco
   final String? releaseDate;
   final int? runtime, year, tmdbId;
-  final bool isCollection;
   final int availableMovieCount;
   final DateTime lastSynced;
   final bool isAvailable;
+
+  /// URL direta do vídeo, do campo `file` do `movie_index.json`.
+  final String? videoUrl;
+
+  /// Legendas externas do campo `subtitles` do JSON index.
+  /// Cada [ExternalSubtitleEntry] já tem URL absoluta.
+  final List<ExternalSubtitleEntry>? subtitles;
 }
 ```
 
@@ -177,7 +187,26 @@ factory PauloFlixMovie.fromMovieIndex({
 - `path` → `folderName`
 - `title`, `description`, `poster`, `fanart`, `genres[]`
 - `year`, `release_date`, `runtime`, `tmdb_id`
-- `is_collection`, `available_movie_count`
+- **`file`** → `videoUrl` (URL absoluta via `baseHost`)
+- **`subtitles[]`** → `subtitles` (cada `file` resolvido para URL absoluta)
+- `available_movie_count`
+
+### ExternalSubtitleEntry
+Representação bruta de legenda vinda do `movie_index.json`:
+```dart
+class ExternalSubtitleEntry {
+  final String file;  // URL absoluta do .srt (resolvida em fromMovieIndex)
+  final String lang;  // Código do servidor: "pob", "eng", "spa"...
+  final String name;  // Nome do arquivo: "sub.srt"
+}
+```
+Conteúdo do `movie_index.json`:
+```json
+{"file": "/movies/.../sub.srt", "lang": "pob", "name": "sub.srt"}
+```
+A resolução para `SubtitleTrackInfo` (usado pelo player) é feita na
+`_resolveSubtitlesFromJson()` do `PauloFlixMovieDetailScreen`, que mapeia
+`pob` → `pt-BR`, `eng` → `en`, etc.
 
 ---
 
