@@ -1,21 +1,15 @@
 /// Utilitários de encoding/decoding de URLs.
 ///
 /// Centraliza o helper defensivo [safeDecodeComponent] usado pelos
-/// services PauloFlix (PauloFlixService, PauloFlixMoviesService,
-/// PauloFlixEpisodeSyncService) para evitar `ArgumentError` em
-/// pastas/arquivos cujo nome contém `%` literal seguido de caracteres
-/// não-hexadecimais (e.g. `100% completo`).
+/// services PauloFlix (PauloFlixService, PauloFlixMoviesService) para
+/// evitar `ArgumentError` em pastas/arquivos cujo nome contém `%`
+/// literal seguido de caracteres não-hexadecimais (e.g. `100% completo`).
 ///
-/// Foi extraído para cá na Fase 8 do plano NFO Enrichment V2
-/// (`.hermes/plans/2026-06-23_225500-pauloflix-nfo-enrichment-v2.md`)
-/// para eliminar a duplicação entre 3 services e servir de ponto único
-/// para testes unitários.
-///
-/// **Decoding de NFOs:** [decodeResponseBody] resolve o problema de
-/// NFOs do Kodi salvos em Latin-1/Windows-1252 (acentos do PT-BR
+/// **Decoding de respostas:** [decodeResponseBody] resolve o problema de
+/// respostas HTTP salvos em Latin-1/Windows-1252 (acentos do PT-BR
 /// quebrados). O `package:http` decodifica o body como Latin-1 por
 /// default se o Content-Type não especifica charset, o que quebra
-/// NFOs UTF-8 sem header correto. Esta função detecta o encoding
+/// UTF-8 sem header correto. Esta função detecta o encoding
 /// real (BOM, declaration XML, ou Content-Type) e re-decodifica.
 library;
 
@@ -223,7 +217,7 @@ String? detectXmlCharset(
 /// 4. Fallback UTF-8 (default HTTP/1.1 + padrão Kodi NFO).
 ///
 /// **Reencoda** o resultado para UTF-8 normalizado, garantindo que
-/// o `KodiNfoParser` (Fase 1) sempre receba uma String UTF-8
+/// o parser downstream sempre receba uma String UTF-8
 /// (que é o que o `xml` package assume por default).
 String decodeResponseBody(
   List<int> bodyBytes, {

@@ -226,7 +226,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Upserts de baixo nível (usados pelo PauloFlixEpisodeSyncService)
+  // Upserts de baixo nível (usados pelo sync do JSON index)
   // ═══════════════════════════════════════════════════════════════════════
 
   @override
@@ -329,9 +329,7 @@ class PauloFlixEpisodeProgressRepositoryImpl
     // Mesma semântica do thumbnailUrl aplicada à description (Fase 10):
     // description == null → Value.absent() (preserva valor anterior);
     // description != null → Value(description) (sobrescreve com a
-    // plot nova do NFO). O enricher `fetchEpisodeNfos` retorna mapa
-    // com TODOS os episode numbers (mesmo os sem NFO, plot = null);
-    // o caller (syncSeasonEpisodes) propaga `null` e cai no
+    // plot nova do JSON index). O caller propaga `null` e cai no
     // `Value.absent()` → row antigo com description NÃO é sobrescrito
     // com null em re-syncs.
     final descValue = description == null

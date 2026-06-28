@@ -95,7 +95,7 @@ abstract class PauloFlixEpisodeProgressRepository {
   Stream<List<PauloFlixEpisodeRecord>> watchEpisodesForSeason(int seasonId);
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Upserts de baixo nível (usados pelo PauloFlixEpisodeSyncService)
+  // Upserts de baixo nível (usados pelo sync do JSON index)
   // ═══════════════════════════════════════════════════════════════════════
 
   /// Insere ou atualiza uma season. Se já existir (mesmo
@@ -108,7 +108,8 @@ abstract class PauloFlixEpisodeProgressRepository {
   /// no banco NÃO é tocado (preserva valor anterior). Para sobrescrever
   /// com null explícito, ver [PauloFlixEpisodeProgressRepositoryImpl].
   ///
-  /// Chamado por `PauloFlixEpisodeSyncService` durante o sync on-demand.
+  /// Chamado por `PauloFlixService.syncContent` durante o sync
+  /// via JSON index.
   Future<int> upsertSeason({
     required int contentId,
     required int seasonNumber,
@@ -148,7 +149,8 @@ abstract class PauloFlixEpisodeProgressRepository {
   ///   a ausência via mapa com `plot = null` e o repo não tocará
   ///   na coluna.
   ///
-  /// Chamado por `PauloFlixEpisodeSyncService` durante o sync on-demand.
+  /// Chamado por `PauloFlixService.syncContent` durante o sync
+  /// via JSON index.
   Future<void> upsertEpisode({
     required int seasonId,
     required int episodeNumber,
@@ -181,7 +183,7 @@ abstract class PauloFlixEpisodeProgressRepository {
   /// Atualiza `episodeCount` e `lastSynced` da season.
   ///
   /// **NÃO** sobrescreve `isCompleted` (preservado).
-  /// Chamado por `PauloFlixEpisodeSyncService` após o upsert dos
+  /// Chamado por `PauloFlixService.syncContent` após o upsert dos
   /// episodes para persistir o total descoberto.
   Future<void> updateSeasonCount(int seasonId, int count);
 

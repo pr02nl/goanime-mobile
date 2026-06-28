@@ -15,8 +15,6 @@ import 'package:goanime/domain/repositories/paulo_flix_episode_progress_reposito
 /// - `getStatsForContent` retorna totais corretos
 /// - `getInProgressContents` filtra + ordena + respeita isAvailable
 /// - Streams emitem ao mudar dados
-/// - `syncSeasonEpisodes` faz upsert preservando progresso (sem HTTP real
-///   — testado no service, Fase 1.4)
 void main() {
   setUpAll(() {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;

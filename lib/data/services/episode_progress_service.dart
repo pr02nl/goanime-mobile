@@ -10,12 +10,18 @@ import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 /// ## Por que "Service" (e não "Recorder" no nome) e por que em `data/services/`?
 ///
 /// Seguindo o padrão do projeto:
-/// - `PauloFlixEpisodeSyncService` (sync HTTP)
 /// - `DownloadService` (downloads locais)
 /// - `TmdbService` (cache de gêneros)
 /// - **Nomenclatura**: todos terminam em `Service` (sem "Recorder"/"Manager"/"Helper" no nome).
 /// - **Localização**: `lib/data/services/` — services de I/O e persistência.
 ///   Nada de UI aqui; o player **consome** este service via injeção.
+///
+/// ## Sync de episódios
+///
+/// O sync de seasons/episódios agora é feito pelo JSON index
+/// (`PauloFlixService.syncContent`), substituindo o scraping HTML
+/// e parsing de NFO que eram feitos pelo `PauloFlixEpisodeSyncService`
+/// (removido).
 ///
 /// ## Responsabilidades
 ///

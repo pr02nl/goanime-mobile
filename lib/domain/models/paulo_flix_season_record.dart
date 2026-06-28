@@ -92,7 +92,7 @@ class PauloFlixSeasonRecord {
   }
 
   /// Cache de `COUNT(episodes)` — atualizado pelo
-  /// `syncSeasonEpisodes` após o upsert dos episodes.
+  /// `PauloFlixService.syncContent` após o upsert dos episodes.
   /// Default 0 (season recém-inserida ainda sem episodes).
   final int episodeCount;
 

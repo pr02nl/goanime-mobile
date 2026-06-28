@@ -48,11 +48,11 @@ void main() async {
 
   // ═══════════════════════════════════════════════════════════════════════
   // JWT manager — DEVE ser inicializado ANTES dos services que vão usá-lo
-  // (DownloadService, PauloFlixEpisodeSyncService). Em produção, o
-  // base64 da chave privada está embutido no APK; em dev com placeholder,
-  // o initialize() falha e os services caem no fallback http.Client()
-  // (sem auth) — PauloFlix retorna 401 mas o app continua funcionando
-  // com outros sources.
+  // (DownloadService, PauloFlixService, PauloFlixMoviesService). Em
+  // produção, o base64 da chave privada está embutido no APK; em dev com
+  // placeholder, o initialize() falha e os services caem no fallback
+  // http.Client() (sem auth) — PauloFlix retorna 401 mas o app continua
+  // funcionando com outros sources.
   // ═══════════════════════════════════════════════════════════════════════
   final jwtManager = JwtTokenManager();
   // ignore: avoid_print
@@ -102,8 +102,8 @@ void main() async {
   }
 
   // Injeta o client nos services estáticos PauloFlix.
-  // O PauloFlixEpisodeSyncService já aceita client via ctor (criado
-  // em app.dart) e não precisa de configure.
+  // O client é passado via `configure()` para PauloFlixService e
+  // PauloFlixMoviesService.
   if (authClient != null) {
     PauloFlixService.configure(authClient);
     PauloFlixMoviesService.configure(authClient);

@@ -1,8 +1,7 @@
 // Testes de integração do `PauloFlixMoviesService.syncContent()`.
 //
 // Estratégia: HTTP mockado com `MockClient` + banco Drift em memória
-// (`AppDatabase.forTesting(NativeDatabase.memory())`), mesmo padrão
-// do `PauloFlixNfoEnricher` test.
+// (`AppDatabase.forTesting(NativeDatabase.memory())`).
 //
 // Cobre:
 //   - sync bem-sucedido com movie_index.json real (2 filmes)

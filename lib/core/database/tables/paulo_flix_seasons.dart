@@ -22,11 +22,10 @@ import 'pauloflix_content.dart';
 /// sempre que um episódio muda de estado (insert/update/reset). Não é
 /// editada diretamente — sempre vai de `false → true` (ou vice-versa) via
 /// recompute.
-///
-/// ## `episodeCount` é denormalizado propositalmente
-///
-/// Cache de `COUNT(episodes)` para evitar JOIN na UI. Atualizado no
-/// `syncSeasonEpisodes` após o upsert dos episodes.
+///  /// ## `episodeCount` é denormalizado propositalmente
+  ///
+  /// Cache de `COUNT(episodes)` para evitar JOIN na UI. Atualizado no
+  /// `PauloFlixService.syncContent` após o upsert dos episodes.
 class PauloFlixSeasons extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get contentId => integer().references(

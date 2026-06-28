@@ -27,12 +27,11 @@ import 'paulo_flix_seasons.dart';
 ///
 /// Usado pelo `getInProgressContents` para ordenar a home (mais recente
 /// primeiro) e pelo `watchInProgressContents` para emitir quando muda.
-///
-/// ## `uniqueKeys: [seasonId, episodeNumber]`
-///
-/// Permite re-sync sem duplicar: scrape do mesmo ep 2x = mesma linha,
-/// atualizada (MAS `positionSeconds`/`isCompleted` são preservados —
-/// ver `syncSeasonEpisodes` no repository).
+///  /// ## `uniqueKeys: [seasonId, episodeNumber]`
+  ///
+  /// Permite re-sync sem duplicar: scrape do mesmo ep 2x = mesma linha,
+  /// atualizada (MAS `positionSeconds`/`isCompleted` são preservados —
+  /// ver `PauloFlixService.syncContent` no repository).
 class PauloFlixEpisodes extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get seasonId => integer().references(
@@ -45,8 +44,8 @@ class PauloFlixEpisodes extends Table {
   TextColumn get videoUrl => text()();
 
   /// URL absoluta do thumbnail do episode (servidor PauloFlix).
-  /// Populada pelo `PauloFlixNfoEnricher` durante o sync, lendo o
-  /// padrão Kodi `S01E001-thumb.jpg` na pasta da season.
+  /// Populada pelo `PauloFlixService.syncContent` durante o sync,
+  /// lendo o campo `thumb` do JSON index.
   ///
   /// Nullable porque:
   /// 1. Pasta de season pode não ter thumb (mostra placeholder).
@@ -114,9 +113,8 @@ class PauloFlixEpisodes extends Table {
 
   /// Rating / nota do episode (0.0-10.0).
   ///
-  /// **Fase N+7 —扩e schema NFO V2:** vem de `<rating>` no
-  /// `S\d+E\d+\.nfo` (ex: `7.3`). Diferente do `KodiShowNfo.rating`
-  /// (que é da série inteira) — este é a nota do episode
+  /// **Fase N+7 —扩e:** vem do campo `nfo.rating` no JSON index.
+  /// Diferente do rating da série inteira — este é a nota do episode
   /// específico.
   ///
   /// Migração v8→v9 adicionou a coluna mas rows antigos ficam
