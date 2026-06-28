@@ -470,6 +470,11 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
   }
 
   Widget _buildCard(BuildContext context, PauloFlixMovieProgressRecord record) {
+    // Overlay: barra de progresso.
+    // O stream watchInProgressMovies já garante positionSeconds > 0,
+    // então o overlay está sempre presente aqui.
+    final overlay = _ProgressOverlay(ratio: record.progressRatio);
+
     return FocusableWidget(
       onSelect: () => _onTap(context, record),
       borderRadius: 6,
@@ -480,6 +485,7 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
         showTitle: true,
         showRating: false,
         isTV: isTV,
+        overlayWidget: overlay,
         onTap: () => _onTap(context, record),
       ),
     );
@@ -498,6 +504,30 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
           url: record.serverUrl,
           source: AnimeSource.pauloFlix,
           fallbackImageUrl: record.imageUrl,
+        ),
+      ),
+    );
+  }
+}
+
+/// Barra de progresso horizontal exibida na base do card de filme
+/// no carrossel "Continue assistindo" (quando em andamento).
+class _ProgressOverlay extends StatelessWidget {
+  final double ratio;
+  const _ProgressOverlay({required this.ratio});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 80,
+      height: 4,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: LinearProgressIndicator(
+          value: ratio,
+          minHeight: 4,
+          backgroundColor: Colors.white.withValues(alpha: 0.2),
+          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFDC2626)),
         ),
       ),
     );

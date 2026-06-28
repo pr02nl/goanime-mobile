@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
+import '../../../domain/models/paulo_flix_movie_progress_record.dart';
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../../domain/models/pauloflix_movie_item.dart';
+import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
@@ -28,10 +31,26 @@ class _PauloFlixMovieDetailScreenState
   String? _movieVideoUrl;
   List<SubtitleTrackInfo> _movieSubtitles = const [];
 
+  // Progresso do filme
+  PauloFlixMovieProgressRecord? _progress;
+
   @override
   void initState() {
     super.initState();
     _resolveSingleMovie();
+    _loadProgress();
+  }
+
+  Future<void> _loadProgress() async {
+    try {
+      final repo = context.read<PauloFlixMovieProgressRepository?>();
+      if (repo != null && mounted) {
+        final progress = await repo.getProgress(widget.content.folderName);
+        if (mounted) setState(() => _progress = progress);
+      }
+    } catch (e) {
+      debugPrint('[MovieDetail] Erro ao carregar progresso: $e');
+    }
   }
 
   void _resolveSingleMovie() {
@@ -42,7 +61,8 @@ class _PauloFlixMovieDetailScreenState
         widget.content.serverUrl,
       );
     } else {
-      _error = 'Este filme não possui URL de vídeo no índice. '
+      _error =
+          'Este filme não possui URL de vídeo no índice. '
           'Execute uma sincronização para atualizar o catálogo.';
     }
   }
@@ -83,6 +103,29 @@ class _PauloFlixMovieDetailScreenState
         ),
       ),
     );
+  }
+
+  // ─── Getters de estado do progresso ────────────────────────────────
+
+  bool get _isCompleted => _progress?.isCompleted ?? false;
+
+  bool get _isInProgress {
+    if (_progress == null) return false;
+    return _progress!.positionSeconds > 0 && !_progress!.isCompleted;
+  }
+
+  double get _progressRatio => _progress?.progressRatio ?? 0.0;
+
+  String get _buttonLabel {
+    if (_isCompleted) return 'Reassistir';
+    if (_isInProgress) return 'Continuar';
+    return 'Assistir';
+  }
+
+  IconData get _buttonIcon {
+    if (_isCompleted) return Icons.replay_rounded;
+    if (_isInProgress) return Icons.play_arrow_rounded;
+    return Icons.play_arrow_rounded;
   }
 
   @override
@@ -195,8 +238,15 @@ class _PauloFlixMovieDetailScreenState
               if (c.score != null) _ratingBadge(c.score!),
               if (c.year != null) _metaChip(c.year!.toString()),
               if (c.runtime != null) _metaChip('${c.runtime} min'),
+              // Badge de completado
+              if (_isCompleted) _completionBadge(),
             ],
           ),
+          // Barra de progresso (se em andamento)
+          if (_isInProgress) ...[
+            const SizedBox(height: 12),
+            _buildProgressBar(),
+          ],
           const SizedBox(height: 16),
           if ((c.description ?? '').isNotEmpty)
             Text(
@@ -243,6 +293,66 @@ class _PauloFlixMovieDetailScreenState
     );
   }
 
+  /// Badge verde "✓ Completo" exibido ao lado dos metadados.
+  Widget _completionBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, color: Colors.green, size: 14),
+          SizedBox(width: 4),
+          Text(
+            'Completo',
+            style: TextStyle(
+              color: Colors.green,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Barra de progresso horizontal (em andamento).
+  Widget _buildProgressBar() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.play_circle_outline,
+              color: Color(0xFFDC2626),
+              size: 14,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '${(_progressRatio * 100).toStringAsFixed(0)}% assistido',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: LinearProgressIndicator(
+            value: _progressRatio,
+            minHeight: 4,
+            backgroundColor: Colors.white.withValues(alpha: 0.1),
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFDC2626)),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildActionButtons() {
     final disabled = _movieVideoUrl == null;
     return Padding(
@@ -257,13 +367,15 @@ class _PauloFlixMovieDetailScreenState
                   widget.content.displayName,
                   subtitles: _movieSubtitles,
                 ),
-          icon: const Icon(Icons.play_arrow_rounded, size: 28),
-          label: const Text(
-            'Assistir',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          icon: Icon(_buttonIcon, size: 28),
+          label: Text(
+            _buttonLabel,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFDC2626),
+            backgroundColor: _isCompleted
+                ? Colors.green
+                : const Color(0xFFDC2626),
             foregroundColor: Colors.white,
             disabledBackgroundColor: Colors.white12,
             padding: const EdgeInsets.symmetric(vertical: 16),
