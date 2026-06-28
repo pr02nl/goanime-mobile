@@ -37,6 +37,7 @@ import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
+import '../../core/widgets/progress_overlay.dart';
 
 class PauloFlixContinueWatchingSection extends StatelessWidget {
   /// Lista de animes em andamento. Quando vazia, a section some.
@@ -107,71 +108,19 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
   Widget? _buildProgressOverlay(PauloFlixProgressStats? stats) {
     if (stats == null) return null;
 
-    if (stats.isAnimeCompleted) {
-      // Badge ✓ verde.
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.green.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 10),
-            SizedBox(width: 2),
-            Text(
-              'Completo',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    final hasProgress = stats.isAnimeCompleted ||
+        stats.isAnimeInProgress ||
+        stats.completedEpisodes > 0;
+    if (!hasProgress) return null;
 
-    if (stats.isAnimeInProgress || stats.completedEpisodes > 0) {
-      // Barra de progresso com texto "3/12".
-      final ratio = stats.progressRatio;
-      final children = <Widget>[
-        SizedBox(
-          width: 70,
-          height: 4,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: 4,
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
-          ),
-        ),
-      ];
-      if (stats.totalEpisodes > 0) {
-        children.addAll([
-          const SizedBox(height: 2),
-          Text(
-            '${stats.completedEpisodes}/${stats.totalEpisodes}',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 8,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ]);
-      }
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: children,
-      );
-    }
-
-    return null;
+    return ProgressOverlay.build(
+      ratio: stats.progressRatio,
+      isCompleted: stats.isAnimeCompleted,
+      accentColor: AppColors.primary,
+      fractionText: stats.totalEpisodes > 0
+          ? '${stats.completedEpisodes}/${stats.totalEpisodes}'
+          : null,
+    );
   }
 }
 

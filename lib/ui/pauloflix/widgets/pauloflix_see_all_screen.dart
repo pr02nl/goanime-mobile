@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../domain/models/paulo_flix_progress_stats.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
@@ -35,6 +36,7 @@ import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/paginated_letter_grid.dart';
+import '../../core/widgets/progress_overlay.dart';
 import '../view_models/paulo_flix_continue_watching_viewmodel.dart';
 import '../view_models/pauloflix_provider.dart';
 import '_anime_hero_banner.dart';
@@ -64,6 +66,10 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   PauloFlixContent? _featured;
   int _snapshotHash = 0;
 
+  /// Mapa contentId → stats de progresso para todos os animes.
+  /// Usado para overlays no grid e carrosséis.
+  Map<int, PauloFlixProgressStats> _statsById = const {};
+
   // Cor de destaque da seção: roxo PauloFlix Animes.
   static const Color _accentColor = Color(0xFF6366F1);
 
@@ -83,6 +89,9 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
           provider.syncContent();
         }
       }
+
+      // Carrega stats de progresso para overlays nos cards.
+      await _loadAllStats();
 
       final screenWidth =
           WidgetsBinding
@@ -105,6 +114,43 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
         });
       }
     });
+  }
+
+  /// Carrega stats de progresso para todos os animes (usado para
+  /// overlays nos cards do grid e carrosséis).
+  Future<void> _loadAllStats() async {
+    try {
+      final repo = context.read<PauloFlixEpisodeProgressRepository>();
+      final ids = _allContents.map((c) => c.id).whereType<int>().toList();
+      if (ids.isEmpty) return;
+      final stats = await repo.getProgressStatsForContents(ids);
+      if (mounted) setState(() => _statsById = stats);
+    } catch (e) {
+      debugPrint('[SeeAll] Erro ao carregar stats: $e');
+    }
+  }
+
+  /// Constrói o overlay de progresso para cards baseado nos stats.
+  /// Badge ✓ verde se completo, barra roxa + "3/12" se em andamento.
+  Widget? _buildProgressOverlay(PauloFlixContent content) {
+    final id = content.id;
+    if (id == null) return null;
+    final stats = _statsById[id];
+    if (stats == null) return null;
+
+    final hasProgress = stats.isAnimeCompleted ||
+        stats.isAnimeInProgress ||
+        stats.completedEpisodes > 0;
+    if (!hasProgress) return null;
+
+    return ProgressOverlay.build(
+      ratio: stats.progressRatio,
+      isCompleted: stats.isAnimeCompleted,
+      accentColor: _accentColor,
+      fractionText: stats.totalEpisodes > 0
+          ? '${stats.completedEpisodes}/${stats.totalEpisodes}'
+          : null,
+    );
   }
 
   /// Memoiza o snapshot derivado. Recomputa apenas se o conteúdo mudou
@@ -214,6 +260,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             width: 140,
             height: 220,
             isTV: _isTV,
+            overlayWidget: _buildProgressOverlay(anime),
             onTap: () {
               context.pushNamed('pauloflix-episodes', extra: anime);
             },
@@ -244,6 +291,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             width: 140,
             height: 220,
             isTV: _isTV,
+            overlayWidget: _buildProgressOverlay(anime),
             onTap: () {
               context.pushNamed('pauloflix-episodes', extra: anime);
             },
@@ -305,6 +353,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
                 width: 140,
                 height: 220,
                 isTV: _isTV,
+                overlayWidget: _buildProgressOverlay(content),
                 onTap: () {
                   context.pushNamed('pauloflix-episodes', extra: content);
                 },
