@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/anime.dart';
@@ -101,40 +102,61 @@ class _PauloFlixMovieDetailScreenState
   }
 
   Widget _buildAppBar() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final hasBanner = (widget.content.bannerUrl ?? '').isNotEmpty;
+
     return SliverAppBar(
-      expandedHeight: 280,
+      expandedHeight: 220,
       pinned: true,
-      backgroundColor: AppColors.background,
+      stretch: true,
       flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          widget.content.displayName,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
         background: Stack(
           fit: StackFit.expand,
           children: [
-            if ((widget.content.bannerUrl ?? '').isNotEmpty)
-              Image.network(
-                widget.content.bannerUrl!,
+            if (hasBanner)
+              CachedNetworkImage(
+                imageUrl: widget.content.bannerUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, e, s) => Container(color: AppColors.surface),
+                placeholder: (context, url) => Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [colorScheme.primary, colorScheme.secondary],
+                    ),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [colorScheme.primary, colorScheme.secondary],
+                    ),
+                  ),
+                ),
               )
             else
-              Container(color: AppColors.surface),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 120,
-                decoration: const BoxDecoration(
+              Container(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, AppColors.background],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [colorScheme.primary, colorScheme.secondary],
                   ),
+                ),
+              ),
+            // Overlay Gradient
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.7),
+                  ],
                 ),
               ),
             ),
@@ -146,11 +168,25 @@ class _PauloFlixMovieDetailScreenState
 
   Widget _buildMovieInfo() {
     final c = widget.content;
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Título
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              c.displayName,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           Wrap(
             spacing: 8,
             runSpacing: 8,
