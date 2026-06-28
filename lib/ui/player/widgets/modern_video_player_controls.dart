@@ -227,6 +227,18 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         );
         return;
       }
+      if (error.contains('tcp: Connection reset by peer')) {
+        debugPrint(
+          '[ModernVideoPlayerControls] Ignoring network error: $error',
+        );
+        return;
+      }
+      if (error.contains('Error number -138 occurred')) {
+        debugPrint(
+          '[ModernVideoPlayerControls] Ignoring network error: $error',
+        );
+        return;
+      }
       if (mounted && error.isNotEmpty) {
         debugPrint('[ModernVideoPlayerControls] Player error: $error');
         setState(() {
