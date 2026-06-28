@@ -158,8 +158,10 @@ void main() {
           baseHost: baseHost,
         );
 
-        expect(movie.videoUrl,
-            '$baseHost/movies/2012 (2009)/2012.2009.1080p.mp4');
+        expect(
+          movie.videoUrl,
+          '$baseHost/movies/2012 (2009)/2012.2009.1080p.mp4',
+        );
         expect(movie.folderName, '2012 (2009)');
         expect(movie.displayName, '2012');
         expect(movie.subtitles, isNull);
@@ -189,18 +191,24 @@ void main() {
           baseHost: baseHost,
         );
 
-        expect(movie.videoUrl,
-            '$baseHost/movies/2012 (2009)/2012.2009.1080p.mp4');
+        expect(
+          movie.videoUrl,
+          '$baseHost/movies/2012 (2009)/2012.2009.1080p.mp4',
+        );
         expect(movie.subtitles, isNotNull);
         expect(movie.subtitles!.length, 2);
 
-        expect(movie.subtitles![0].file,
-            '$baseHost/movies/2012 (2009)/sub.srt');
+        expect(
+          movie.subtitles![0].file,
+          '$baseHost/movies/2012 (2009)/sub.srt',
+        );
         expect(movie.subtitles![0].lang, 'pob');
         expect(movie.subtitles![0].name, 'sub.srt');
 
-        expect(movie.subtitles![1].file,
-            '$baseHost/movies/2012 (2009)/eng.srt');
+        expect(
+          movie.subtitles![1].file,
+          '$baseHost/movies/2012 (2009)/eng.srt',
+        );
         expect(movie.subtitles![1].lang, 'eng');
         expect(movie.subtitles![1].name, 'eng.srt');
       });
@@ -253,9 +261,7 @@ void main() {
         expect(movie.subtitles, isNull);
       });
 
-      test(
-          'nao deve modificar file quando ja e URL absoluta',
-          () async {
+      test('nao deve modificar file quando ja e URL absoluta', () async {
         final json = <String, dynamic>{
           'path': 'Inception',
           'title': 'Inception',
