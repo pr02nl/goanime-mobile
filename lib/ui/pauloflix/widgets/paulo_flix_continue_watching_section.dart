@@ -31,6 +31,7 @@ library;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../../domain/models/paulo_flix_progress_stats.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
@@ -48,11 +49,16 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
   /// `NetflixCard` para ajuste de tamanho.
   final bool isTV;
 
+  /// Mapa `contentId → stats` para overlays de progresso nos cards.
+  /// Quando vazio, nenhum overlay é exibido.
+  final Map<int, PauloFlixProgressStats> statsById;
+
   const PauloFlixContinueWatchingSection({
     super.key,
     required this.contents,
     this.onContentTap,
     this.isTV = false,
+    this.statsById = const {},
   });
 
   @override
@@ -73,9 +79,12 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
     );
   }
 
-  /// Constrói um `NetflixCard` para 1 anime. Usa `FocusableWidget`
-  /// (skill `flutter-reactivity-gotchas` #14) para suportar D-pad na TV.
+  /// Constrói um `NetflixCard` para 1 anime com overlay de progresso.
   Widget _buildCard(BuildContext context, PauloFlixContent content) {
+    final overlay = content.id != null
+        ? _buildProgressOverlay(statsById[content.id!])
+        : null;
+
     return FocusableWidget(
       onSelect: () => onContentTap?.call(content),
       borderRadius: 6,
@@ -83,46 +92,89 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
       child: NetflixCard(
         imageUrl: content.imageUrl ?? '',
         title: content.displayName,
-        // `overlayWidget` é onde o NetflixCard aceita widgets extras
-        // sobre a imagem — usaremos no futuro para mostrar
-        // "Xmin restantes" ou barra de progresso do anime.
-        // Por enquanto fica sem (a barra de progresso está no card
-        // de episode, não no card de anime).
         showTitle: true,
-        showRating: false, // PauloFlix não tem rating por anime
+        showRating: false,
         isTV: isTV,
+        overlayWidget: overlay,
         onTap: () => onContentTap?.call(content),
-        // `width`/`height` default do NetflixCard (120x180 mobile,
-        // 160x240 TV). Não precisa customizar aqui.
       ),
     );
   }
-}
 
-/// Placeholder para futuras extensões (barra de progresso do anime
-/// no card). Mantido aqui para documentar a intenção.
-@visibleForTesting
-class ContinueWatchingCardOverlay extends StatelessWidget {
-  final double progress;
-  const ContinueWatchingCardOverlay({super.key, required this.progress});
+  /// Constrói o overlay de progresso baseado nos stats.
+  /// Badge ✓ verde se completo, barra de progresso se em andamento,
+  /// ou `null` se sem dados.
+  Widget? _buildProgressOverlay(PauloFlixProgressStats? stats) {
+    if (stats == null) return null;
 
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: LinearProgressIndicator(
-        value: progress,
-        minHeight: 3,
-        backgroundColor: Colors.white.withValues(alpha: 0.2),
-        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-      ),
-    );
+    if (stats.isAnimeCompleted) {
+      // Badge ✓ verde.
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle, color: Colors.white, size: 10),
+            SizedBox(width: 2),
+            Text(
+              'Completo',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (stats.isAnimeInProgress || stats.completedEpisodes > 0) {
+      // Barra de progresso com texto "3/12".
+      final ratio = stats.progressRatio;
+      final children = <Widget>[
+        SizedBox(
+          width: 70,
+          height: 4,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 4,
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ),
+      ];
+      if (stats.totalEpisodes > 0) {
+        children.addAll([
+          const SizedBox(height: 2),
+          Text(
+            '${stats.completedEpisodes}/${stats.totalEpisodes}',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ]);
+      }
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: children,
+      );
+    }
+
+    return null;
   }
 }
 
-// CachedNetworkImage importado para uso futuro (quando quisermos mostrar
-// a imagem com fade-in). Mantido para evitar warning de unused.
+// CachedNetworkImage importado para uso futuro.
 // ignore: unused_element
 const _kKeepImports = CachedNetworkImage;

@@ -60,6 +60,14 @@ abstract class PauloFlixEpisodeProgressRepository {
   /// Retorna zeros se o anime ainda não tem episodes sincronizados.
   Future<PauloFlixProgressStats> getStatsForContent(int contentId);
 
+  /// Estatísticas agregadas de múltiplos animes em lote.
+  /// Retorna um mapa `contentId → stats` para todos os IDs informados.
+  /// Usado pela seção "Continue assistindo" para mostrar overlays
+  /// de progresso nos cards sem N queries individuais.
+  Future<Map<int, PauloFlixProgressStats>> getProgressStatsForContents(
+    List<int> contentIds,
+  );
+
   // ═══════════════════════════════════════════════════════════════════════
   // Continue assistindo (decisão 8 — home + see all)
   // ═══════════════════════════════════════════════════════════════════════

@@ -427,6 +427,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
           if (vm.loading) return const SizedBox.shrink();
           return PauloFlixContinueWatchingSection(
             contents: vm.contents,
+            statsById: vm.statsById,
             isTV: _isTV,
             onContentTap: _onContinueWatchingTap,
           );

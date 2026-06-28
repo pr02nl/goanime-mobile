@@ -300,6 +300,7 @@ class _HomeScreenState extends State<HomeScreen>
           if (vm.loading) return const SizedBox.shrink();
           return PauloFlixContinueWatchingSection(
             contents: vm.contents,
+            statsById: vm.statsById,
             isTV: isTV,
             onContentTap: (c) => _onContinueWatchingTap(c),
           );

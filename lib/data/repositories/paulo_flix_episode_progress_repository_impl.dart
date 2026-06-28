@@ -92,6 +92,43 @@ class PauloFlixEpisodeProgressRepositoryImpl
   }
 
   @override
+  Future<Map<int, PauloFlixProgressStats>> getProgressStatsForContents(
+    List<int> contentIds,
+  ) async {
+    if (contentIds.isEmpty) return const {};
+    // Constrói placeholders (?1, ?2, ...) para IN clause.
+    final placeholders =
+        contentIds.asMap().entries.map((e) => '?${e.key + 1}').join(', ');
+    final variables =
+        contentIds.map((id) => Variable.withInt(id)).toList();
+
+    final rows = await _db
+        .customSelect(
+          'SELECT s.content_id AS cid, '
+          '  COUNT(*) AS total, '
+          '  COALESCE(SUM(CASE WHEN e.is_completed = 1 THEN 1 ELSE 0 END), 0) '
+          '    AS completed, '
+          '  COALESCE(SUM(CASE WHEN e.position_seconds > 0 AND e.is_completed = 0 '
+          '           THEN 1 ELSE 0 END), 0) AS in_progress '
+          'FROM paulo_flix_episodes e '
+          'INNER JOIN paulo_flix_seasons s ON e.season_id = s.id '
+          'WHERE s.content_id IN ($placeholders) '
+          'GROUP BY s.content_id',
+          variables: variables,
+          readsFrom: {_db.pauloFlixEpisodes, _db.pauloFlixSeasons},
+        )
+        .get();
+    return {
+      for (final row in rows)
+        row.read<int>('cid'): PauloFlixProgressStats(
+          totalEpisodes: row.read<int>('total'),
+          completedEpisodes: row.read<int>('completed'),
+          inProgressEpisodes: row.read<int>('in_progress'),
+        ),
+    };
+  }
+
+  @override
   Future<PauloFlixProgressStats> getStatsForContent(int contentId) async {
     // 1 query agregada com COALESCE — SUM retorna NULL em conjunto vazio,
     // e `row.read<int>()` quebra com cast de NULL.

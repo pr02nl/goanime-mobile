@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../domain/models/paulo_flix_progress_stats.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 
@@ -27,6 +28,7 @@ class PauloFlixContinueWatchingViewModel extends ChangeNotifier {
   StreamSubscription<List<PauloFlixContent>>? _sub;
 
   List<PauloFlixContent> _contents = const [];
+  Map<int, PauloFlixProgressStats> _statsById = const {};
   bool _loading = true;
   bool _disposed = false;
 
@@ -44,16 +46,37 @@ class PauloFlixContinueWatchingViewModel extends ChangeNotifier {
     );
   }
 
-  void _onUpdate(List<PauloFlixContent> next) {
+  Future<void> _onUpdate(List<PauloFlixContent> next) async {
     if (_disposed) return;
     _contents = next;
     _loading = false;
+    // Notifica imediatamente com a lista atualizada (conteúdos que
+    // saíram da lista somem da UI sem delay).
     notifyListeners();
+
+    // Busca stats em lote para todos os conteúdos com ID conhecido.
+    final ids = next.map((c) => c.id).whereType<int>().toList();
+    if (ids.isNotEmpty) {
+      try {
+        _statsById = await _repository.getProgressStatsForContents(ids);
+      } catch (e) {
+        debugPrint('[ContinueWatching] Erro ao buscar stats: $e');
+        _statsById = const {};
+      }
+    } else {
+      _statsById = const {};
+    }
+
+    if (!_disposed) notifyListeners();
   }
 
   /// Lista de animes com episodes parciais (ordenados por
   /// `MAX(lastWatched) DESC`).
   List<PauloFlixContent> get contents => _contents;
+
+  /// Mapa `contentId → stats` de progresso para cada anime.
+  /// Usado pela section para exibir overlays nos cards.
+  Map<int, PauloFlixProgressStats> get statsById => _statsById;
 
   /// `true` antes do primeiro evento do stream (banco ainda não
   /// consultado). Após o primeiro emit, fica `false` mesmo se a
