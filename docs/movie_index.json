@@ -10,14 +10,16 @@
       "year": "2009",
       "rating": 5.9,
       "plot": "Bilhões de habitantes da Terra não estão cientes de que o planeta tem uma data de expiração. Com os avisos de um cientista norte-americano, os líderes mundiais começam os preparativos secretos para a sobrevivência de alguns membros da sociedade. Quando o cataclisma global finalmente ocorre, o fracassado escritor Jackson Curtis tenta levar sua família para um lugar seguro quando o mundo começa a desmoronar.",
-      "genre": [
-        "Ficção científica"
-      ],
+      "genre": ["Ficção científica"],
       "director": "Roland Emmerich",
       "tmdb_id": 0,
       "poster": "/movies/2012 (2009)/poster.jpg",
       "fanart": "/movies/2012 (2009)/fanart.jpg",
       "file": "/movies/2012 (2009)/2012.2009.Open.Matte.1080p.WEBRip.x265.10bit-KONTRAST.mp4",
+      "subtitles": [
+        {"file": "/movies/2012 (2009)/2012.por.srt", "lang": "por", "name": "Português"},
+        {"file": "/movies/2012 (2009)/2012.eng.srt", "lang": "eng", "name": "English"}
+      ],
       "nfo": {
         "title": "2012",
         "originaltitle": "2012",
@@ -42,9 +44,7 @@
       "year": "1997",
       "rating": 5.3,
       "plot": "Um espião internacional faz parceria com um extravagante traficante de armas para escapar de uma colônia penal e salvar sua família.",
-      "genre": [
-        "Ficção científica"
-      ],
+      "genre": ["Ficção científica"],
       "director": "徐克",
       "tmdb_id": 0,
       "poster": "/movies/A Colonia (1997)/poster.jpg",
@@ -64,6 +64,36 @@
         "votes": "839",
         "runtime": "93",
         "studio": "One Story Pictures"
+      }
+    },
+    {
+      "title": "Interestelar",
+      "original_title": "Interstellar",
+      "sort_title": "Interestelar",
+      "path": "Interestelar (2014)",
+      "year": "2014",
+      "rating": 8.7,
+      "plot": "As reservas naturais da Terra estão chegando ao fim e um grupo de astronautas recebe a missão de verificar possíveis planetas para receber a população mundial, possibilitando a continuação da espécie. Cooper é chamado para liderar o grupo e aceita a missão sabendo que nunca mais verá seus filhos. Ao lado de Brand, Jenkins e um robô, eles seguirão em busca de um novo lar.",
+      "genre": ["Ficção científica", "Aventura", "Drama"],
+      "director": "Christopher Nolan",
+      "tmdb_id": 157336,
+      "poster": "/movies/Interestelar (2014)/poster.jpg",
+      "fanart": "/movies/Interestelar (2014)/fanart.jpg",
+      "file": "/movies/Interestelar (2014)/Interstellar.2014.1080p.WEBRip.x265.mkv",
+      "nfo": {
+        "title": "Interestelar",
+        "originaltitle": "Interstellar",
+        "sorttitle": "Interestelar",
+        "plot": "As reservas naturais da Terra estão chegando ao fim...",
+        "outline": "As reservas naturais da Terra estão chegando ao fim...",
+        "year": "2014",
+        "aired": "2014-11-06",
+        "director": "Christopher Nolan",
+        "genre": "Ficção científica, Aventura, Drama",
+        "rating": "8.7",
+        "votes": "22000",
+        "runtime": "169",
+        "studio": "Paramount Pictures"
       }
     }
   ]

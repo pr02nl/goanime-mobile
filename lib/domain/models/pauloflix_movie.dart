@@ -1,9 +1,9 @@
 import 'dart:convert';
 
+import '../../core/utils/genre_codec.dart';
 import '../../data/models/tmdb_models.dart';
 import '../../data/services/kodi/kodi_nfo_models.dart';
 import '../../data/services/kodi/pauloflix_nfo_enricher.dart';
-import '../../core/utils/genre_codec.dart';
 import 'pauloflix_movie_item.dart';
 
 /// Conteúdo mapeado do PauloFlix Movies com metadados do TMDB.
@@ -27,6 +27,7 @@ class PauloFlixMovie {
   final int? tmdbId;
   final int availableMovieCount;
   final DateTime lastSynced;
+
   /// URL direta do arquivo de vídeo, vinda do campo `file` do
   /// `movie_index.json`. `null` para filmes que ainda dependem de
   /// scraping on-demand (`fetchMovieFile`).
@@ -171,8 +172,8 @@ class PauloFlixMovie {
       score: json['rating'] is num
           ? (json['rating'] as num).toDouble()
           : double.tryParse(json['rating'] as String? ?? ''),
-      genres: json['genres'] != null
-          ? List<String>.from(json['genres'] as List)
+      genres: json['genre'] != null
+          ? List<String>.from(json['genre'] as List)
           : [],
       releaseDate: json['release_date'] as String?,
       runtime: json['runtime'] is int
@@ -277,8 +278,11 @@ class PauloFlixMovie {
       videoUrl: map['videoUrl'] as String?,
       subtitles: map['subtitles'] != null
           ? (jsonDecode(map['subtitles'] as String) as List)
-              .map((s) => ExternalSubtitleEntry.fromJson(s as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (s) =>
+                      ExternalSubtitleEntry.fromJson(s as Map<String, dynamic>),
+                )
+                .toList()
           : null,
       releaseDate: map['releaseDate'] as String?,
       runtime: map['runtime'] as int?,
