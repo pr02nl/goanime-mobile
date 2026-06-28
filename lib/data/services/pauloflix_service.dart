@@ -333,7 +333,9 @@ class PauloFlixService {
                 aired: ep['aired'] != null
                     ? DateTime.tryParse(ep['aired'] as String)
                     : null,
-                rating: (ep['rating'] as num?)?.toDouble(),
+                rating: ep['rating'] is num
+                    ? (ep['rating'] as num).toDouble()
+                    : double.tryParse(ep['rating'] as String? ?? ''),
                 runtime: runtime,
               );
             }

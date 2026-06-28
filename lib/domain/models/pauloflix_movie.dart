@@ -168,17 +168,27 @@ class PauloFlixMovie {
       imageUrl: resolveUrl(json['poster'] as String?),
       bannerUrl: resolveUrl(json['fanart'] as String?),
       description: json['description'] as String?,
-      score: (json['rating'] as num?)?.toDouble(),
+      score: json['rating'] is num
+          ? (json['rating'] as num).toDouble()
+          : double.tryParse(json['rating'] as String? ?? ''),
       genres: json['genres'] != null
           ? List<String>.from(json['genres'] as List)
           : [],
       releaseDate: json['release_date'] as String?,
-      runtime: json['runtime'] as int?,
-      year: json['year'] as int?,
-      tmdbId: json['tmdb_id'] as int?,
+      runtime: json['runtime'] is int
+          ? json['runtime'] as int
+          : int.tryParse(json['runtime'] as String? ?? ''),
+      year: json['year'] is int
+          ? json['year'] as int
+          : int.tryParse(json['year'] as String? ?? ''),
+      tmdbId: json['tmdb_id'] is int
+          ? json['tmdb_id'] as int
+          : int.tryParse(json['tmdb_id'] as String? ?? ''),
       videoUrl: videoUrl,
       subtitles: subtitles,
-      availableMovieCount: (json['available_movie_count'] as int?) ?? 1,
+      availableMovieCount: json['available_movie_count'] is int
+          ? json['available_movie_count'] as int
+          : int.tryParse(json['available_movie_count'] as String? ?? '') ?? 1,
     );
   }
 

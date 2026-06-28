@@ -314,6 +314,94 @@ void main() {
         expect(decoded.length, 1);
         expect(decoded[0]['lang'], 'pob');
       });
+
+      test('deve parsear year como string do JSON index', () async {
+        final json = <String, dynamic>{
+          'path': '2012 (2009)',
+          'title': '2012',
+          'year': '2009',
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.year, 2009);
+      });
+
+      test('deve parsear year como int do JSON index', () async {
+        final json = <String, dynamic>{
+          'path': '2024 (2024)',
+          'title': '2024',
+          'year': 2024,
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.year, 2024);
+      });
+
+      test('deve manter year null quando ausente', () async {
+        final json = <String, dynamic>{
+          'path': 'NoYear',
+          'title': 'No Year',
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.year, isNull);
+      });
+
+      test('deve parsear rating como double do JSON index', () async {
+        final json = <String, dynamic>{
+          'path': 'Test',
+          'title': 'Test',
+          'rating': 5.9,
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.score, 5.9);
+      });
+
+      test('deve parsear rating como string do JSON index', () async {
+        final json = <String, dynamic>{
+          'path': 'Test',
+          'title': 'Test',
+          'rating': '5.9',
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.score, 5.9);
+      });
+
+      test('deve manter score null quando rating ausente', () async {
+        final json = <String, dynamic>{
+          'path': 'Test',
+          'title': 'Test',
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.score, isNull);
+      });
     });
   });
 }

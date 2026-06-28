@@ -152,7 +152,9 @@ class PauloFlixContent {
         json['banner'] as String? ?? json['fanart'] as String?,
       ),
       description: json['description'] as String?,
-      score: (json['rating'] as num?)?.toDouble(),
+      score: json['rating'] is num
+          ? (json['rating'] as num).toDouble()
+          : double.tryParse(json['rating'] as String? ?? ''),
       genres: json['genre'] != null
           ? List<String>.from(json['genre'] as List)
           : [],
