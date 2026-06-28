@@ -5,7 +5,7 @@ import '../../../domain/models/pauloflix_movie.dart';
 import '../../core/utils/pagination.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/paginated_letter_grid.dart';
-import '../../core/widgets/pauloflix_movies_badge.dart';
+import '../models/movie_progress_state.dart';
 
 /// Wrapper sobre [PaginatedLetterGrid] específico para [PauloFlixMovie].
 /// Fixa a cor de destaque (vermelho PauloFlix Movies) e o builder
@@ -16,10 +16,15 @@ class MoviesPaginatedGrid extends StatelessWidget {
   final PaginationResult<PauloFlixMovie> pagination;
   final bool isTV;
 
+  /// Mapa folderName → estado de progresso. Usado para exibir overlay
+  /// de completado ou barra de progresso nos cards.
+  final Map<String, MovieProgressState>? progressMap;
+
   const MoviesPaginatedGrid({
     super.key,
     required this.pagination,
     required this.isTV,
+    this.progressMap,
   });
 
   @override
@@ -30,6 +35,8 @@ class MoviesPaginatedGrid extends StatelessWidget {
       accentColor: const Color(0xFFDC2626),
       nameOf: (m) => m.displayName,
       cardBuilder: (context, movie) {
+        final progress = progressMap?[movie.folderName];
+        final overlay = MovieProgressState.buildOverlayWidget(progress);
         return NetflixCard(
           imageUrl: movie.imageUrl ?? '',
           title: movie.displayName,
@@ -39,7 +46,7 @@ class MoviesPaginatedGrid extends StatelessWidget {
           isTV: isTV,
           showTitle: true,
           showRating: movie.score != null,
-          overlayWidget: const PauloFlixMoviesBadge(),
+          overlayWidget: overlay,
           onTap: () {
             context.pushNamed(
               'pauloflix-movie-detail',
@@ -50,4 +57,5 @@ class MoviesPaginatedGrid extends StatelessWidget {
       },
     );
   }
+
 }

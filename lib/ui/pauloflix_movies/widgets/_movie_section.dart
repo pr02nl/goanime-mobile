@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
-import '../../core/widgets/pauloflix_movies_badge.dart';
+import '../models/movie_progress_state.dart';
 
 /// Carrossel horizontal padronizado para uma seção de filmes.
 ///
@@ -19,6 +19,10 @@ class MovieSection extends StatelessWidget {
   final bool isTV;
   final double cardHeight;
 
+  /// Mapa folderName → estado de progresso. Usado para exibir overlay
+  /// de completado ou barra de progresso nos cards.
+  final Map<String, MovieProgressState>? progressMap;
+
   const MovieSection({
     super.key,
     required this.title,
@@ -26,6 +30,7 @@ class MovieSection extends StatelessWidget {
     required this.isTV,
     this.icon,
     this.cardHeight = 220,
+    this.progressMap,
   });
 
   @override
@@ -40,6 +45,8 @@ class MovieSection extends StatelessWidget {
   }
 
   Widget _buildCard(BuildContext context, PauloFlixMovie movie) {
+    final progress = progressMap?[movie.folderName];
+    final overlay = MovieProgressState.buildOverlayWidget(progress);
     return NetflixCard(
       imageUrl: movie.imageUrl ?? '',
       title: movie.displayName,
@@ -49,10 +56,11 @@ class MovieSection extends StatelessWidget {
       isTV: isTV,
       showTitle: true,
       showRating: movie.score != null,
-      overlayWidget: const PauloFlixMoviesBadge(fontSize: 10),
+      overlayWidget: overlay,
       onTap: () {
         context.pushNamed('pauloflix-movie-detail', extra: movie);
       },
     );
   }
+
 }

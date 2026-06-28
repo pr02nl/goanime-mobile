@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
 import '../../core/widgets/netflix_hero_card.dart';
+import '../models/movie_progress_state.dart';
 
 /// Hero banner que destaca um filme/coleção no topo da home.
 ///
@@ -15,11 +16,16 @@ class MovieHeroBanner extends StatelessWidget {
   final bool isTV;
   final double height;
 
+  /// Estado de progresso do filme (completo, em andamento ou nulo).
+  /// Quando completo, exibe badge ✓ no banner.
+  final MovieProgressState? progress;
+
   const MovieHeroBanner({
     super.key,
     required this.movie,
     required this.isTV,
     this.height = 420,
+    this.progress,
   });
 
   @override
@@ -29,13 +35,23 @@ class MovieHeroBanner extends StatelessWidget {
 
     return SizedBox(
       height: height,
-      child: NetflixHeroCard(
-        imageUrl: imageUrl,
-        title: movie.displayName,
-        description: movie.description,
-        height: height,
-        isTV: isTV,
-        onPlay: () => _openDetail(context),
+      child: Stack(
+        children: [
+          NetflixHeroCard(
+            imageUrl: imageUrl,
+            title: movie.displayName,
+            description: movie.description,
+            height: height,
+            isTV: isTV,
+            onPlay: () => _openDetail(context),
+          ),
+          if (progress != null && progress!.isCompleted)
+            Positioned(
+              top: 16,
+              right: 16,
+              child: _buildCompletedBadge(),
+            ),
+        ],
       ),
     );
   }
@@ -44,6 +60,33 @@ class MovieHeroBanner extends StatelessWidget {
     context.pushNamed(
       'pauloflix-movie-detail',
       extra: movie,
+    );
+  }
+
+  /// Badge verde "✓ Completo" no canto superior direito do banner.
+  Widget _buildCompletedBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.5)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, color: Colors.white, size: 16),
+          SizedBox(width: 6),
+          Text(
+            'Completo',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -124,6 +124,19 @@ class PauloFlixMovieProgressRepositoryImpl
         .map((rows) => rows.map(_toDomain).toList());
   }
 
+  @override
+  Future<List<PauloFlixMovieProgressRecord>> getAllProgress() async {
+    final rows = await (_db.select(_db.pauloFlixMovieProgress)
+          ..orderBy([
+            (t) => OrderingTerm(
+                  expression: t.lastWatched,
+                  mode: OrderingMode.desc,
+                ),
+          ]))
+        .get();
+    return rows.map(_toDomain).toList();
+  }
+
   PauloFlixMovieProgressRecord _toDomain(
     PauloFlixMovieProgressData row,
   ) {

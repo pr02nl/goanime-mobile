@@ -34,6 +34,7 @@ import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
+import '../models/movie_progress_state.dart';
 import '../view_models/paulo_flix_movie_continue_watching_viewmodel.dart';
 import '../view_models/pauloflix_movies_provider.dart';
 import '_empty_state.dart';
@@ -67,6 +68,9 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
   PauloFlixMovie? _featured;
   int _snapshotHash = 0;
 
+  /// Mapa folderName → estado de progresso para overlays nos cards.
+  Map<String, MovieProgressState> _progressMap = const {};
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +85,8 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
         _checkedInitialSync = true;
         provider.syncContent();
       }
+
+      await _loadAllProgress();
 
       final screenWidth =
           WidgetsBinding
@@ -103,6 +109,27 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
         });
       }
     });
+  }
+
+  /// Carrega TODO progresso salvo (em andamento + completo) e constrói
+  /// o mapa folderName → MovieProgressState para overlays nos cards.
+  Future<void> _loadAllProgress() async {
+    try {
+      final repo = context.read<PauloFlixMovieProgressRepository?>();
+      if (repo == null) return;
+      final all = await repo.getAllProgress();
+      if (!mounted) return;
+      final map = <String, MovieProgressState>{};
+      for (final p in all) {
+        map[p.folderName] = MovieProgressState(
+          ratio: p.progressRatio,
+          isCompleted: p.isCompleted,
+        );
+      }
+      setState(() => _progressMap = map);
+    } catch (e) {
+      debugPrint('[MoviesHome] Erro ao carregar progresso: $e');
+    }
   }
 
   /// Memoiza o snapshot derivado. Recomputa apenas se o conteúdo mudou
@@ -197,9 +224,14 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
 
     // 1. Hero banner.
     if (_featured != null) {
+      final featuredProgress = _progressMap[_featured!.folderName];
       slivers.add(
         SliverToBoxAdapter(
-          child: MovieHeroBanner(movie: _featured!, isTV: _isTV),
+          child: MovieHeroBanner(
+            movie: _featured!,
+            isTV: _isTV,
+            progress: featuredProgress,
+          ),
         ),
       );
       slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
@@ -217,6 +249,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
             icon: Icons.star,
             movies: _topRated,
             isTV: _isTV,
+            progressMap: _progressMap,
           ),
         ),
       );
@@ -231,6 +264,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
             icon: Icons.new_releases,
             movies: _recent,
             isTV: _isTV,
+            progressMap: _progressMap,
           ),
         ),
       );
@@ -246,6 +280,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
             icon: _iconForGenre(entry.key),
             movies: entry.value,
             isTV: _isTV,
+            progressMap: _progressMap,
           ),
         ),
       );
@@ -285,7 +320,11 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          MoviesPaginatedGrid(pagination: _pagination, isTV: _isTV),
+          MoviesPaginatedGrid(
+            pagination: _pagination,
+            isTV: _isTV,
+            progressMap: _progressMap,
+          ),
         ],
       ),
     );
