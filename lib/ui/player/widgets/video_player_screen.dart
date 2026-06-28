@@ -272,31 +272,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     return isTV;
   }
 
-  @override
-  void didUpdateWidget(covariant ModernVideoPlayerScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final previousKey = _buildEpisodeKey(oldWidget);
-    final nextKey = _buildEpisodeKey(widget);
-
-    if (previousKey != nextKey) {
-      debugPrint(
-        '[VideoPlayer] 🔄 Episode context changed: $previousKey → $nextKey',
-      );
-      debugPrint('[VideoPlayer] Reinitializing player for new episode...');
-
-      // Force a clean reinitialization
-      // cleanupAniSkip();
-      // skipButtonActiveSegment = null;
-      // skipButtonDismissed = false;
-      // lastAutoHideTime = null;
-      // skipTimes = null;
-      // showSkipButton = false;
-      // skipButtonLabel = '';
-
-      _initializeVideoPlayer();
-    }
-  }
-
   void _goToNextEpisode() {
     if (!_hasNextEpisode) return;
     final nextIndex = _currentEpisodeIndex! + 1;
