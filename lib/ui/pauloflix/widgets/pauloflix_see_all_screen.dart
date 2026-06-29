@@ -138,7 +138,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     final stats = _statsById[id];
     if (stats == null) return null;
 
-    final hasProgress = stats.isAnimeCompleted ||
+    final hasProgress =
+        stats.isAnimeCompleted ||
         stats.isAnimeInProgress ||
         stats.completedEpisodes > 0;
     if (!hasProgress) return null;
@@ -233,11 +234,11 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   }
 
   List<Widget> _buildContentSlivers(AppLocalizations l10n) {
-    final slivers = <Widget>[];
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
+    final sectionHeight = cardHeight + 60;
 
-    // 0. Continue assistindo (Fase 5.3) — topo da See All.
-    // Some automaticamente via `SizedBox.shrink()` quando vazia.
-    slivers.add(SliverToBoxAdapter(child: _buildContinueWatchingSection()));
+    final slivers = <Widget>[];
 
     // 1. Hero banner.
     if (_featured != null) {
@@ -249,6 +250,10 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
     }
 
+    // 0. Continue assistindo (Fase 5.3) — topo da See All.
+    // Some automaticamente via `SizedBox.shrink()` quando vazia.
+    slivers.add(SliverToBoxAdapter(child: _buildContinueWatchingSection()));
+
     // 2. Mais bem avaliados.
     if (_topRated.isNotEmpty) {
       final items = [
@@ -257,8 +262,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             imageUrl: anime.imageUrl ?? '',
             title: anime.displayName,
             rating: anime.score,
-            width: 140,
-            height: 220,
+            width: cardWidth,
+            height: cardHeight,
             isTV: _isTV,
             overlayWidget: _buildProgressOverlay(anime),
             onTap: () {
@@ -271,7 +276,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
         SliverToBoxAdapter(
           child: NetflixCarousel(
             title: l10n.sectionTopRated,
-            height: 220,
+            height: sectionHeight,
             isTV: _isTV,
             items: items,
           ),
@@ -288,8 +293,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             imageUrl: anime.imageUrl ?? '',
             title: anime.displayName,
             rating: anime.score,
-            width: 140,
-            height: 220,
+            width: cardWidth,
+            height: cardHeight,
             isTV: _isTV,
             overlayWidget: _buildProgressOverlay(anime),
             onTap: () {
@@ -302,7 +307,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
         SliverToBoxAdapter(
           child: NetflixCarousel(
             title: entry.key,
-            height: 220,
+            height: sectionHeight,
             isTV: _isTV,
             items: items,
           ),
@@ -350,8 +355,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
                 imageUrl: content.imageUrl ?? '',
                 title: content.displayName,
                 rating: content.score,
-                width: 140,
-                height: 220,
                 isTV: _isTV,
                 overlayWidget: _buildProgressOverlay(content),
                 onTap: () {

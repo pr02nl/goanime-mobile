@@ -18,7 +18,7 @@ class NetflixCarousel extends StatefulWidget {
     super.key,
     required this.title,
     required this.items,
-    this.height,
+    this.height = 250,
     this.showTitle = true,
     this.isTV = false,
     this.trailing,
