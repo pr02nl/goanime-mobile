@@ -69,6 +69,9 @@ class AnimeResultCard extends StatelessWidget {
                       ? CachedNetworkImage(
                           imageUrl: anime.imageUrl,
                           fit: BoxFit.cover,
+                          memCacheWidth: 160,
+                          memCacheHeight: 220,
+                          filterQuality: FilterQuality.medium,
                           placeholder: (context, url) => Center(
                             child: CircularProgressIndicator(
                               strokeWidth: 2,

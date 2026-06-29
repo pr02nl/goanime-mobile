@@ -285,6 +285,9 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
                             width: 60,
                             height: 85,
                             fit: BoxFit.cover,
+                            memCacheWidth: 120,
+                            memCacheHeight: 170,
+                            filterQuality: FilterQuality.medium,
                             placeholder: (context, url) => Container(
                               width: 60,
                               height: 85,

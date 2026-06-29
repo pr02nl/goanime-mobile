@@ -111,6 +111,9 @@ class AnimeDetailScreen extends StatelessWidget {
                                 width: 100,
                                 height: 145,
                                 fit: BoxFit.cover,
+                                memCacheWidth: 200,
+                                memCacheHeight: 290,
+                                filterQuality: FilterQuality.medium,
                                 placeholder: (context, url) => Container(
                                   width: 100,
                                   height: 145,

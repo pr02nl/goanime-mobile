@@ -101,6 +101,9 @@ class EpisodeListCard extends StatelessWidget {
                     fit: BoxFit.cover,
                     width: double.infinity,
                     height: double.infinity,
+                    memCacheWidth: 240,
+                    memCacheHeight: 160,
+                    filterQuality: FilterQuality.medium,
                     placeholder: (context, url) => Container(
                       decoration: BoxDecoration(
                         gradient: AppColors.getPrimaryGradient(),

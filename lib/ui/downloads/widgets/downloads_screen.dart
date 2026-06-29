@@ -258,6 +258,9 @@ class _DownloadCard extends StatelessWidget {
                 width: 80,
                 height: 120,
                 fit: BoxFit.cover,
+                memCacheWidth: 160,
+                memCacheHeight: 240,
+                filterQuality: FilterQuality.medium,
                 placeholder: (context, url) => Container(
                   color: AppColors.surface,
                   child: const Center(child: CircularProgressIndicator()),
@@ -477,6 +480,9 @@ class _AnimeDownloadGroupState extends State<_AnimeDownloadGroup> {
                       width: 60,
                       height: 90,
                       fit: BoxFit.cover,
+                      memCacheWidth: 120,
+                      memCacheHeight: 180,
+                      filterQuality: FilterQuality.medium,
                       placeholder: (context, url) => Container(
                         color: AppColors.background,
                         child: const Center(child: CircularProgressIndicator()),
