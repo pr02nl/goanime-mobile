@@ -1,10 +1,9 @@
 import 'package:drift/drift.dart';
 
-/// Tabela de filmes PauloFlix Movies (file server + TMDB).
+/// Tabela de filmes PauloFlix Movies (file server).
 ///
-/// Substitui a tabela `pauloflix_movies` SQLite gerenciada por
-/// `PauloFlixMoviesDatabaseService`. `genresJson` armazena a lista como
-/// JSON (mesma justificativa da tabela `PauloFlixContent`).
+/// `genresJson` armazena a lista como JSON em vez de CSV para evitar
+/// bugs com gêneros que contêm vírgula (ex. "Sci-Fi", "Slice of Life").
 class PauloFlixMovies extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get folderName => text().unique()();

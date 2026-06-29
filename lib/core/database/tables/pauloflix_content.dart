@@ -2,14 +2,13 @@ import 'package:drift/drift.dart';
 
 /// Tabela de animes PauloFlix (file server local).
 ///
-/// Substitui a tabela `pauloflix_content` SQLite gerenciada por
-/// `PauloFlixDatabaseService`. `genresJson` armazena a lista como JSON
-/// (corrige o bug do CSV que quebra com gêneros que contêm vírgula, ex.
-/// "Sci-Fi", "Slice of Life").
+/// `genresJson` armazena a lista como JSON em vez de CSV para evitar
+/// bugs com gêneros que contêm vírgula (ex. "Sci-Fi", "Slice of Life").
 ///
 /// **Campos extended (originalTitle, year, tmdbId):** populados a partir
-/// do JSON index (`tv_index.json` / `movie_index.json`) durante o sync.
-/// Persistidos no SQLite para consulta offline.
+/// do JSON index (`tv_index.json`) durante o sync via
+/// `PauloFlixService.syncContent`. Persistidos no SQLite para consulta
+/// offline.
 class PauloFlixContent extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get folderName => text().unique()();
