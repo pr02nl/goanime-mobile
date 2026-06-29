@@ -24,6 +24,7 @@ import 'package:goanime/data/services/pauloflix_service.dart';
 import 'package:goanime/domain/repositories/paulo_flix_episode_progress_repository.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// JSON index real de exemplo (estilo tv_index.json),
 /// com 2 shows, cada um com seasons e episódios.
@@ -147,8 +148,44 @@ const _jsonWithoutShows = '''{
   "total_shows": 0
 }''';
 
+/// JSON com campo `nfo` ausente ou com tipo inválido.
+const _jsonWithInvalidNfo = '''{
+  "updated_at": "2026-06-27T13:53:47.099092+00:00",
+  "total_shows": 1,
+  "shows": [
+    {
+      "title": "Invalid NFO",
+      "path": "Invalid NFO",
+      "poster": "/tvshows/Invalid NFO/poster.jpg",
+      "fanart": "/tvshows/Invalid NFO/fanart.jpg",
+      "seasons": [
+        {
+          "season": 1,
+          "folderName": "Season 01",
+          "episodes": [
+            {
+              "episode": 1,
+              "title": "Episode 1",
+              "file": "/tvshows/Invalid NFO/Season%2001/S01E01.mkv",
+              "nfo": "not-a-map"
+            },
+            {
+              "episode": 2,
+              "title": "Episode 2",
+              "file": "/tvshows/Invalid NFO/Season%2001/S01E02.mkv"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}''';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() {
+    SharedPreferences.setMockInitialValues({});
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   });
 
@@ -166,6 +203,8 @@ void main() {
   tearDown(() async {
     // Restaura o client default para não vazar mock entre testes
     PauloFlixService.configure(http.Client());
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('last_tv_index_updated_at');
   });
 
   group('PauloFlixService.syncContent — shows', () {
@@ -202,89 +241,99 @@ void main() {
       // --- Show 1: "Dan Da Dan" ---
       final show1 = all.firstWhere((s) => s.folderName == 'Dan Da Dan');
       expect(show1.displayName, 'Dan Da Dan');
-      expect(show1.imageUrl,
-          'https://media.oliveira.braga.nom.br/tvshows/Dan Da Dan/poster.jpg');
-      expect(show1.bannerUrl,
-          'https://media.oliveira.braga.nom.br/tvshows/Dan Da Dan/fanart.jpg');
+      expect(
+        show1.imageUrl,
+        'https://media.oliveira.braga.nom.br/tvshows/Dan Da Dan/poster.jpg',
+      );
+      expect(
+        show1.bannerUrl,
+        'https://media.oliveira.braga.nom.br/tvshows/Dan Da Dan/fanart.jpg',
+      );
       expect(show1.isAvailable, isTrue);
 
       // --- Show 2: "One Piece" ---
       final show2 = all.firstWhere((s) => s.folderName == 'One Piece');
       expect(show2.displayName, 'One Piece');
-      expect(show2.imageUrl,
-          'https://media.oliveira.braga.nom.br/tvshows/One Piece/poster.jpg');
+      expect(
+        show2.imageUrl,
+        'https://media.oliveira.braga.nom.br/tvshows/One Piece/poster.jpg',
+      );
       expect(show2.isAvailable, isTrue);
     });
 
-    test('sync popula seasons + episódios (quando episodeRepository é fornecido)',
-        () async {
-      final mockClient = MockClient((request) async {
-        return http.Response(
-          _tvIndexJson,
-          200,
-          headers: {'content-type': 'application/json'},
+    test(
+      'sync popula seasons + episódios (quando episodeRepository é fornecido)',
+      () async {
+        final mockClient = MockClient((request) async {
+          return http.Response(
+            _tvIndexJson,
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        PauloFlixService.configure(mockClient);
+
+        final result = await PauloFlixService.syncContent(
+          repository: repo,
+          episodeRepository: episodeRepo,
         );
-      });
-      PauloFlixService.configure(mockClient);
 
-      final result = await PauloFlixService.syncContent(
-        repository: repo,
-        episodeRepository: episodeRepo,
-      );
+        expect(result, isTrue);
 
-      expect(result, isTrue);
+        // Verifica shows no banco
+        final all = await repo.getAll();
+        expect(all, hasLength(2));
 
-      // Verifica shows no banco
-      final all = await repo.getAll();
-      expect(all, hasLength(2));
+        // --- Dan Da Dan: 2 seasons ---
+        final ddd = all.firstWhere((s) => s.folderName == 'Dan Da Dan');
+        final dddSeasons = await episodeRepo.getSeasonsForContent(ddd.id!);
+        expect(dddSeasons, hasLength(2));
+        expect(dddSeasons[0].seasonNumber, 1);
+        expect(dddSeasons[0].displayName, 'Season 01');
+        expect(dddSeasons[1].seasonNumber, 2);
+        expect(dddSeasons[1].displayName, 'Season 02');
 
-      // --- Dan Da Dan: 2 seasons ---
-      final ddd = all.firstWhere((s) => s.folderName == 'Dan Da Dan');
-      final dddSeasons =
-          await episodeRepo.getSeasonsForContent(ddd.id!);
-      expect(dddSeasons, hasLength(2));
-      expect(dddSeasons[0].seasonNumber, 1);
-      expect(dddSeasons[0].displayName, 'Season 01');
-      expect(dddSeasons[1].seasonNumber, 2);
-      expect(dddSeasons[1].displayName, 'Season 02');
+        // Episódios da Season 1 do Dan Da Dan
+        final s1Eps = await episodeRepo.getEpisodesForSeason(dddSeasons[0].id!);
+        expect(s1Eps, hasLength(2));
+        expect(s1Eps[0].episodeNumber, 1);
+        expect(s1Eps[0].title, 'É assim que o amor começa, tá ligado?');
+        expect(
+          s1Eps[0].videoUrl,
+          'https://media.oliveira.braga.nom.br/tvshows/Dan Da Dan/Season%2001/S01E01.mkv',
+        );
+        expect(
+          s1Eps[0].thumbnailUrl,
+          'https://media.oliveira.braga.nom.br/tvshows/Dan Da Dan/Season%2001/S01E01-thumb.jpg',
+        );
+        expect(s1Eps[0].description, 'Momo Ayase acha ridículo...');
+        expect(s1Eps[0].rating, closeTo(8.462, 0.001));
+        expect(s1Eps[1].episodeNumber, 2);
+        expect(s1Eps[1].title, 'Lutando contra extraterrestres');
+        expect(s1Eps[1].rating, closeTo(8.1, 0.001));
 
-      // Episódios da Season 1 do Dan Da Dan
-      final s1Eps = await episodeRepo.getEpisodesForSeason(dddSeasons[0].id!);
-      expect(s1Eps, hasLength(2));
-      expect(s1Eps[0].episodeNumber, 1);
-      expect(s1Eps[0].title, 'É assim que o amor começa, tá ligado?');
-      expect(s1Eps[0].videoUrl,
-          'https://media.oliveira.braga.nom.br/tvshows/Dan Da Dan/Season%2001/S01E01.mkv');
-      expect(s1Eps[0].thumbnailUrl,
-          'https://media.oliveira.braga.nom.br/tvshows/Dan Da Dan/Season%2001/S01E01-thumb.jpg');
-      expect(s1Eps[0].description, 'Momo Ayase acha ridículo...');
-      expect(s1Eps[0].rating, closeTo(8.462, 0.001));
-      expect(s1Eps[1].episodeNumber, 2);
-      expect(s1Eps[1].title, 'Lutando contra extraterrestres');
-      expect(s1Eps[1].rating, closeTo(8.1, 0.001));
+        // Episódios da Season 2 do Dan Da Dan (1 ep, sem metadata)
+        final s2Eps = await episodeRepo.getEpisodesForSeason(dddSeasons[1].id!);
+        expect(s2Eps, hasLength(1));
+        expect(s2Eps[0].episodeNumber, 1);
+        expect(s2Eps[0].title, 'Novo arco começa');
+        expect(s2Eps[0].description, isNull);
+        expect(s2Eps[0].thumbnailUrl, isNull);
 
-      // Episódios da Season 2 do Dan Da Dan (1 ep, sem metadata)
-      final s2Eps = await episodeRepo.getEpisodesForSeason(dddSeasons[1].id!);
-      expect(s2Eps, hasLength(1));
-      expect(s2Eps[0].episodeNumber, 1);
-      expect(s2Eps[0].title, 'Novo arco começa');
-      expect(s2Eps[0].description, isNull);
-      expect(s2Eps[0].thumbnailUrl, isNull);
+        // --- One Piece: 1 season, 2 episódios ---
+        final op = all.firstWhere((s) => s.folderName == 'One Piece');
+        final opSeasons = await episodeRepo.getSeasonsForContent(op.id!);
+        expect(opSeasons, hasLength(1));
+        expect(opSeasons[0].seasonNumber, 1);
 
-      // --- One Piece: 1 season, 2 episódios ---
-      final op = all.firstWhere((s) => s.folderName == 'One Piece');
-      final opSeasons =
-          await episodeRepo.getSeasonsForContent(op.id!);
-      expect(opSeasons, hasLength(1));
-      expect(opSeasons[0].seasonNumber, 1);
-
-      final opEps = await episodeRepo.getEpisodesForSeason(opSeasons[0].id!);
-      expect(opEps, hasLength(2));
-      expect(opEps[0].episodeNumber, 1);
-      expect(opEps[0].title, 'Eu sou Luffy');
-      expect(opEps[1].episodeNumber, 2);
-      expect(opEps[1].title, 'O grande espadachim');
-    });
+        final opEps = await episodeRepo.getEpisodesForSeason(opSeasons[0].id!);
+        expect(opEps, hasLength(2));
+        expect(opEps[0].episodeNumber, 1);
+        expect(opEps[0].title, 'Eu sou Luffy');
+        expect(opEps[1].episodeNumber, 2);
+        expect(opEps[1].title, 'O grande espadachim');
+      },
+    );
 
     test('sem episodeRepository → NÃO popula seasons/episódios', () async {
       final mockClient = MockClient((request) async {
@@ -306,9 +355,42 @@ void main() {
 
       // Nenhuma season/episódio foi criada
       final ddd = all.firstWhere((s) => s.folderName == 'Dan Da Dan');
-      final seasons =
-          await episodeRepo.getSeasonsForContent(ddd.id!);
+      final seasons = await episodeRepo.getSeasonsForContent(ddd.id!);
       expect(seasons, isEmpty);
+    });
+
+    test('nfo ausente ou com tipo inválido não quebra o sync', () async {
+      final mockClient = MockClient((request) async {
+        return http.Response(
+          _jsonWithInvalidNfo,
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      PauloFlixService.configure(mockClient);
+
+      final result = await PauloFlixService.syncContent(
+        repository: repo,
+        episodeRepository: episodeRepo,
+      );
+
+      expect(result, isTrue);
+
+      final all = await repo.getAll();
+      expect(all, hasLength(1));
+
+      final show = all.first;
+      final seasons = await episodeRepo.getSeasonsForContent(show.id!);
+      expect(seasons, hasLength(1));
+
+      final episodes = await episodeRepo.getEpisodesForSeason(
+        seasons.first.id!,
+      );
+      expect(episodes, hasLength(2));
+      expect(episodes.first.originalTitle, isNull);
+      expect(episodes.first.runtime, isNull);
+      expect(episodes.last.originalTitle, isNull);
+      expect(episodes.last.runtime, isNull);
     });
 
     test('HTTP 404 retorna false e chama onError', () async {
@@ -376,8 +458,7 @@ void main() {
 
       // Primeiro sync
       await PauloFlixService.syncContent(repository: repo);
-      final firstId =
-          (await repo.getByFolderName('Dan Da Dan'))!.id;
+      final firstId = (await repo.getByFolderName('Dan Da Dan'))!.id;
 
       // Segundo sync (mesmo JSON)
       await PauloFlixService.syncContent(repository: repo);
@@ -434,10 +515,7 @@ void main() {
       expect(all, hasLength(1));
 
       // Callback de progresso menciona shows removidos
-      expect(
-        progressMessages.any((m) => m.contains('removidos')),
-        isTrue,
-      );
+      expect(progressMessages.any((m) => m.contains('removidos')), isTrue);
     });
   });
 }

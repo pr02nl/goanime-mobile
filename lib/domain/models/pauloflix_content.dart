@@ -95,7 +95,7 @@ class PauloFlixContent {
       bannerUrl: resolveUrl(
         json['banner'] as String? ?? json['fanart'] as String?,
       ),
-      description: json['description'] as String?,
+      description: json['plot'] as String?,
       score: json['rating'] is num
           ? (json['rating'] as num).toDouble()
           : double.tryParse(json['rating'] as String? ?? ''),

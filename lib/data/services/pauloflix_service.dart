@@ -337,7 +337,10 @@ class PauloFlixService {
               }
 
               // NFO V2 fields extras
-              final nfoJson = ep['nfo'] as Map<String, dynamic>?;
+              final dynamic rawNfo = ep['nfo'];
+              final Map<String, dynamic>? nfoJson = rawNfo is Map
+                  ? Map<String, dynamic>.from(rawNfo)
+                  : null;
               final int? runtime;
               if (nfoJson?['runtime'] != null) {
                 runtime = int.tryParse(nfoJson!['runtime'].toString());
