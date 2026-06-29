@@ -35,7 +35,6 @@ import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
-import '../../core/widgets/pauloflix_movies_badge.dart';
 import '../../core/widgets/progress_overlay.dart';
 import '../models/movie_progress_state.dart';
 import '../view_models/paulo_flix_movie_continue_watching_viewmodel.dart';
@@ -218,7 +217,6 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(l10n, isSyncing),
           if (isSyncing && provider.syncProgress.isNotEmpty)
             _buildSyncBanner(provider),
           if (contents.isEmpty && isSyncing)
@@ -382,51 +380,6 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
     'landscape': IconData(0xe564, fontFamily: 'MaterialIcons'),
     'movie_outlined': IconData(0xe02c, fontFamily: 'MaterialIcons'),
   };
-
-  // ─── AppBar + Sync banner ──────────────────────────────────────────
-
-  Widget _buildAppBar(AppLocalizations l10n, bool isSyncing) {
-    return SliverAppBar(
-      expandedHeight: 110,
-      pinned: true,
-      backgroundColor: AppColors.background,
-      actions: [
-        if (isSyncing)
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.moviesAccent,
-              ),
-            ),
-          ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 14),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const PauloFlixMoviesBadge(
-              fontSize: 13,
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              l10n.movies,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   /// Constrói a seção "Continue assistindo" para filmes.
   ///
