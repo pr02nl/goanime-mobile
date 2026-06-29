@@ -48,6 +48,11 @@ class SidebarState extends State<Sidebar> {
   /// FocusNodes por item — permite focar o item da rota ativa de fora.
   late final List<FocusNode> _itemFocusNodes;
 
+  /// Último índice focado. Usado pelo post-frame callback do `_onItemFocus`
+  /// para verificar se o foco mudou desde o agendamento — se sim, o callback
+  /// é um re-foco obsoleto e não deve roubar o foco de volta.
+  int _lastFocusedIndex = -1;
+
   static const double _collapsedWidth = 72.0;
   static const double _expandedWidth = 220.0;
 
@@ -138,22 +143,16 @@ class SidebarState extends State<Sidebar> {
   /// porque o `FocusableWidget` da nova rota pode roubar foco
   /// durante a transição.
   void _onItemFocus(int index) {
-    // No-op: ↑↓ não dispara navegação. Apenas garante que o foco
-    // permanece no item da sidebar mesmo se a árvore tentar roubá-lo.
-    //
-    // IMPORTANTE: o post-frame callback aqui é o que pode estar
-    // causando o bug de "foco preso na sidebar". Quando o usuário
-    // aperta → e _closeSidebar roda, o post-frame deste _onItemFocus
-    // (agendado NA EXPANSÃO) pode rodar DEPOIS do _restoreContentFocus
-    // e roubar o foco de volta para o item.
-    //
-    // Para evitar isso, verificamos se a sidebar ainda está aberta
-    // no momento do callback — se não, deixamos o foco ir.
+    // Atualiza o último índice focado — usado pelo post-frame callback
+    // para detectar callbacks obsoletos.
+    _lastFocusedIndex = index;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Só re-foca se (a) ainda estamos no shell e (b) a sidebar
-      // está aberta. Se a sidebar foi fechada entre o agendamento
-      // e a execução do callback, NÃO rouba o foco de volta.
+      // Se o foco já mudou para outro item desde o agendamento,
+      // este callback é obsoleto — não rouba o foco de volta.
+      if (_lastFocusedIndex != index) return;
+      // Se a sidebar foi fechada, não re-foca.
       if (!widget.expanded) return;
       if (_itemFocusNodes[index].hasFocus) return;
       _itemFocusNodes[index].requestFocus();

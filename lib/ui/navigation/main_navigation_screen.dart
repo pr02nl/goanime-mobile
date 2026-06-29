@@ -45,7 +45,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final FocusScopeNode _contentScopeNode = FocusScopeNode();
   FocusNode? _lastContentFocusNode;
 
-  /// Debounce do botão Back (HardwareKeyboard + PopScope podem disparar).
+  /// Flag que indica que o diálogo de saída está aberto — evita re-entrada
+  /// no HardwareKeyboard handler enquanto o diálogo está visível.
+  bool _isDialogShowing = false;
+
+  /// Debounce do botão Back: HardwareKeyboard e PopScope podem disparar
+  /// para o mesmo evento (conhecido em alguns firmwares Android TV).
   DateTime? _lastBackTime;
 
   bool _isWideScreen(BuildContext context) =>
@@ -186,31 +191,34 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   // Botão Back (ponto 4)
   // ───────────────────────────────────────────────────────────────────────
 
-  bool _shellHasFocus() {
-    final sidebar = _sidebarKey.currentState;
-    return (sidebar?.hasFocus ?? false) || _contentScopeNode.hasFocus;
-  }
-
   bool _onHardwareKey(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     if (event.logicalKey != LogicalKeyboardKey.goBack) return false;
-    // Só trata Back no layout largo (TV/desktop) e quando o shell está ativo
-    // (não intercepta em telas de detalhe pushed fora do shell).
-    final views = WidgetsBinding.instance.platformDispatcher.views;
-    if (views.isEmpty) return false;
-    final view = views.first;
-    final screenWidth = view.physicalSize.width / view.devicePixelRatio;
-    if (screenWidth < Responsive.phoneMaxWidth) return false;
-    if (!_shellHasFocus()) return false;
+    if (!mounted) return false;
+
+    // Só trata Back no layout largo (TV/desktop).
+    if (!_isWideScreen(context)) return false;
+
+    // Se um diálogo está aberto em cima do shell, não consome o evento —
+    // deixa o próprio diálogo ou o sistema lidar com o Back.
+    if (_isDialogShowing) return false;
+
+    // Se há rotas empilhadas (ex.: player, configurações pushed),
+    // não consome — deixa o sistema popar a rota do topo.
+    final router = GoRouter.of(context);
+    if (router.canPop()) return false;
+
     _onBackButton();
     return true; // consome → suprime o system pop
   }
 
   void _onBackButton() {
+    // Debounce: HardwareKeyboard + PopScope podem disparar juntos no mesmo
+    // frame em alguns firmwares Android TV, causando double-fire.
     final now = DateTime.now();
     if (_lastBackTime != null &&
         now.difference(_lastBackTime!) < const Duration(milliseconds: 300)) {
-      return; // debounce: HardwareKeyboard + PopScope podem disparar juntos
+      return;
     }
     _lastBackTime = now;
     if (_sidebarOpen) {
@@ -221,6 +229,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   Future<void> _showExitDialog() async {
+    // Marca que o diálogo está aberto para o HardwareKeyboard handler não
+    // tentar processar Back enquanto o diálogo estiver visível.
+    _isDialogShowing = true;
+
     final shouldExit = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -249,13 +261,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ],
       ),
     );
-    if (mounted) {
-      if (shouldExit == true) {
-        SystemNavigator.pop();
-      } else {
-        _closeSidebar();
-      }
+
+    // Nota: o diálogo com barrierDismissible:false só fecha via botões
+    // (Sim/Não) ou sistema Back. Quando o usuário pressiona Back no
+    // controle remoto, o sistema fecha o diálogo e shouldExit é null.
+    // Neste caso mantemos a sidebar aberta.
+    if (!mounted) return;
+
+    _isDialogShowing = false;
+
+    if (shouldExit == true) {
+      SystemNavigator.pop();
+    } else if (shouldExit == false) {
+      // Usuário clicou "Não" → fecha a sidebar para continuar navegando.
+      _closeSidebar();
     }
+    // Se shouldExit é null (diálogo foi fechado via Back do sistema),
+    // apenas mantém a sidebar aberta — o usuário ainda está nela.
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -265,46 +287,47 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   /// True se [node] é o item selecionável mais à esquerda na sua linha
   /// (mesma banda vertical) dentro do conteúdo. Rect-based e síncrono —
   /// não depende de `requestFocus` (que é assíncrono).
+  ///
+  /// Para evitar falsos positivos com múltiplos carrosséis na mesma
+  /// faixa vertical, filtra os descendentes pelo mesmo [Scrollable]
+  /// horizontal do nó atual (se aplicável).
   bool _isAtLeftEdge(FocusNode node) {
-    debugPrint(
-      '[SIDEBAR] _isAtLeftEdge — '
-      'contextNull=${node.context == null}, '
-      'rect=${node.rect}, '
-      'rectIsZero=${node.rect == Rect.zero}, '
-      'nearestScope=${node.nearestScope != null}, '
-      'primaryFocus=$node',
-    );
     if (node.context == null || node.rect == Rect.zero) return true;
     final scope = node.nearestScope;
     if (scope == null) return true;
     final sidebar = _sidebarKey.currentState;
+
+    // Descobre o Scrollable horizontal do nó atual (se estiver num carrossel).
+    final ScrollableState? currentScrollable =
+        node.context != null
+            ? Scrollable.maybeOf(node.context!, axis: Axis.horizontal)
+            : null;
+
     final descendants = scope.traversalDescendants.where((n) {
       if (!n.canRequestFocus || n.skipTraversal) return false;
       if (n.context == null || n.rect == Rect.zero) return false;
       if (sidebar?.containsNode(n) ?? false) return false; // exclui sidebar
+      // Se o nó atual está num Scrollable horizontal, filtra apenas
+      // nós do MESMO carrossel (mesmo Scrollable). Isso evita que
+      // itens de carrosséis diferentes na mesma banda Y interfiram.
+      if (currentScrollable != null) {
+        return Scrollable.maybeOf(n.context!, axis: Axis.horizontal) ==
+            currentScrollable;
+      }
       return true;
     }).toList();
-    debugPrint(
-      '[SIDEBAR] _isAtLeftEdge — descendants count: ${descendants.length}',
-    );
     if (descendants.isEmpty) return true;
     // Mesma linha = sobreposição vertical (band) com o nó atual.
     final band = node.rect;
     final sameRow = descendants.where((n) {
       return !(n.rect.bottom < band.top || n.rect.top > band.bottom);
     }).toList();
-    debugPrint('[SIDEBAR] _isAtLeftEdge — sameRow count: ${sameRow.length}');
     if (sameRow.isEmpty) return true;
     double minDx = sameRow.first.rect.center.dx;
     for (final n in sameRow) {
       if (n.rect.center.dx < minDx) minDx = n.rect.center.dx;
     }
-    final result = node.rect.center.dx <= minDx + 0.5;
-    debugPrint(
-      '[SIDEBAR] _isAtLeftEdge — result: $result '
-      '(node.dx=${node.rect.center.dx}, minDx=$minDx)',
-    );
-    return result;
+    return node.rect.center.dx <= minDx + 0.5;
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -321,7 +344,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       // Mobile: comportamento legado (canPop na root).
       canPop: isWide ? false : location == '/',
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && isWide) _onBackButton();
+        // Fallback para dispositivos onde o HardwareKeyboard não captura
+        // o Back (alguns firmwares Android TV). Só processa se o
+        // HardwareKeyboard NÃO consumiu o evento — verificado pelas
+        // mesmas guards: sem diálogo aberto, sem rotas empilhadas.
+        if (didPop || !isWide) return;
+        if (_isDialogShowing) return;
+        final router = GoRouter.of(context);
+        if (router.canPop()) return;
+        _onBackButton();
       },
       child: isWide
           ? _buildWideLayout(context, location)
@@ -398,18 +429,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ação de borda: ← no edge do conteúdo abre sidebar; → na sidebar fecha
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Intercepta [DirectionalFocusIntent] (gerado por FocusableWidget ao
-/// mapear setas):
-///
-/// * **←** na sidebar → no-op (sidebar já está no edge esquerdo).
-/// * **←** no conteúdo no edge → [onLeftEdge] (abre sidebar).
-/// * **←** no conteúdo no meio → move dentro do conteúdo (default).
-/// * **→** na sidebar → [onRightEdgeFromSidebar] (fecha sidebar + restaura foco).
-/// * **→** no conteúdo → move dentro do conteúdo (default).
-/// * **↑↓** → default (move dentro da sidebar via `_SidebarTraversalPolicy`
-///   ou dentro do conteúdo).
+// ─────────────────────────────────────────────────────────────────────────────  /// Intercepta [DirectionalFocusIntent] (gerado por FocusableWidget ao
+  /// mapear setas):
+  ///
+  /// * **←** na sidebar → no-op (sidebar já está no edge esquerdo).
+  /// * **←** no conteúdo no edge → [onLeftEdge] (abre sidebar).
+  /// * **←** no conteúdo no meio → move dentro do conteúdo (default).
+  /// * **→** na sidebar → [onRightEdgeFromSidebar] (fecha sidebar + restaura foco).
+  /// * **→** no conteúdo → move dentro do conteúdo (default).
+  /// * **↑↓** → default (move dentro da sidebar via `_SidebarTraversalPolicy`
+  ///   ou dentro do conteúdo).
 class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
   final bool Function(FocusNode) isInSidebar;
   final bool Function(FocusNode) isAtLeftEdge;
@@ -426,27 +455,25 @@ class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
   @override
   void invoke(DirectionalFocusIntent intent) {
     final node = primaryFocus;
-    debugPrint(
-      '[SIDEBAR] _SidebarEdgeAction.invoke — '
-      'direction=${intent.direction}, '
-      'primaryFocus=$node, '
-      'inSidebar=${node != null ? isInSidebar(node) : "N/A"}',
-    );
     if (intent.direction == TraversalDirection.left) {
       if (node != null && isInSidebar(node)) return; // sidebar: ← no-op
       if (node != null && isAtLeftEdge(node)) {
         onLeftEdge();
       } else {
-        DirectionalFocusAction().invoke(intent); // move ← no conteúdo
+        // move ← no conteúdo via traversal padrão
+        DirectionalFocusAction().invoke(intent);
       }
     } else if (intent.direction == TraversalDirection.right) {
       if (node != null && isInSidebar(node)) {
         onRightEdgeFromSidebar(); // fecha sidebar
       } else {
-        DirectionalFocusAction().invoke(intent); // move → no conteúdo
+        // move → no conteúdo via traversal padrão
+        DirectionalFocusAction().invoke(intent);
       }
     } else {
-      DirectionalFocusAction().invoke(intent); // ↑↓ default
+      // ↑↓ default — deixa o traversal padrão gerenciar
+      // (sidebar usa _SidebarTraversalPolicy, conteúdo usa o padrão)
+      DirectionalFocusAction().invoke(intent);
     }
   }
 }
