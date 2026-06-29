@@ -368,35 +368,31 @@ class _EpisodesList extends StatelessWidget {
     final season = vm.selectedSeason;
     final records = vm.episodes;
     final scrapings = vm.scrapingEpisodesForSelected;
-    return SliverToBoxAdapter(
-      child: FocusTraversalGroup(
-        policy: _VerticalClampedTraversalPolicy(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var index = 0; index < records.length; index++)
-              Padding(
-                padding: EdgeInsets.only(
-                  bottom: index == records.length - 1 ? 0 : 8,
-                ),
-                child: PauloflixEpisodeCard(
-                  episode: scrapings[index],
-                  seasonNumber: season?.seasonNumber ?? 1,
-                  positionSeconds: records[index].positionSeconds,
-                  durationSeconds: records[index].durationSeconds,
-                  isCompleted: records[index].isCompleted,
-                  thumbnailUrl: records[index].thumbnailUrl,
-                  originalTitle: records[index].originalTitle,
-                  outline: records[index].outline,
-                  aired: records[index].aired,
-                  rating: records[index].rating,
-                  runtime: records[index].runtime,
-                  isTV: isTV,
-                  onTap: () => _playEpisode(context, records[index], index),
-                ),
-              ),
-          ],
-        ),
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: index == records.length - 1 ? 0 : 8,
+            ),
+            child: PauloflixEpisodeCard(
+              episode: scrapings[index],
+              seasonNumber: season?.seasonNumber ?? 1,
+              positionSeconds: records[index].positionSeconds,
+              durationSeconds: records[index].durationSeconds,
+              isCompleted: records[index].isCompleted,
+              thumbnailUrl: records[index].thumbnailUrl,
+              originalTitle: records[index].originalTitle,
+              outline: records[index].outline,
+              aired: records[index].aired,
+              rating: records[index].rating,
+              runtime: records[index].runtime,
+              isTV: isTV,
+              onTap: () => _playEpisode(context, records[index], index),
+            ),
+          );
+        },
+        childCount: records.length,
       ),
     );
   }
@@ -439,59 +435,4 @@ class _EpisodesList extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Focus traversal policies
-// ─────────────────────────────────────────────────────────────────────────────
 
-class _VerticalClampedTraversalPolicy extends WidgetOrderTraversalPolicy {
-  @override
-  bool inDirection(FocusNode currentNode, TraversalDirection direction) {
-    if (direction == TraversalDirection.down) {
-      return _handleDown(currentNode);
-    }
-    return super.inDirection(currentNode, direction);
-  }
-
-  bool _handleDown(FocusNode currentNode) {
-    final scope = currentNode.nearestScope!;
-    final FocusNode? focusedChild = scope.focusedChild;
-    if (focusedChild == null) return false;
-
-    final List<FocusNode> columnNodes = scope.traversalDescendants
-        .where(
-          (FocusNode n) =>
-              n.canRequestFocus &&
-              !n.skipTraversal &&
-              n.context != null &&
-              _sameColumn(n, focusedChild),
-        )
-        .toList();
-
-    if (columnNodes.isEmpty) return false;
-
-    columnNodes.sort((a, b) => a.rect.center.dy.compareTo(b.rect.center.dy));
-
-    final int idx = columnNodes.indexOf(focusedChild);
-    if (idx < 0) return false;
-
-    if (idx < columnNodes.length - 1) {
-      _requestFocusInDirection(columnNodes[idx + 1]);
-    } else {
-      _requestFocusInDirection(focusedChild);
-    }
-    return true;
-  }
-
-  bool _sameColumn(FocusNode node, FocusNode focusedChild) {
-    final a = node.rect;
-    final b = focusedChild.rect;
-    return a.left < b.right && a.right > b.left;
-  }
-
-  void _requestFocusInDirection(FocusNode target) {
-    requestFocusCallback(
-      target,
-      alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-    );
-  }
-}
