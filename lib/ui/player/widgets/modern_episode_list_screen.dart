@@ -28,11 +28,21 @@ class ModernEpisodeListScreen extends StatefulWidget {
 
 class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
     with SingleTickerProviderStateMixin {
+  static const int _chunkSize = 30;
+
+  final ScrollController _scrollController = ScrollController();
+
   List<Episode> _episodes = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  int _totalEpisodes = 0;
+  int _currentChunk = 0;
   String? _errorMessage;
   late AnimationController _animationController;
   bool _isGridView = false;
+
+  /// Cache dos episódios completos (sem thumbnails) para batch download.
+  List<Episode>? _allEpisodes;
 
   @override
   void initState() {
@@ -48,26 +58,58 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
       duration: const Duration(milliseconds: 300),
     );
     _animationController.forward();
-    _loadEpisodes();
+
+    _scrollController.addListener(_onScroll);
+    _loadInitialChunk();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadEpisodes() async {
+  /// Callback do ScrollController: detecta quando o usuário está próximo
+  /// do final da lista para carregar o próximo bloco.
+  void _onScroll() {
+    if (_isLoadingMore) return;
+    if (_episodes.length >= _totalEpisodes && _totalEpisodes > 0) return;
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    // Pré-carrega quando faltam 5 itens (aproximadamente 1 tela) para o fim.
+    if (maxScroll - currentScroll < 600) {
+      _loadMoreEpisodes();
+    }
+  }
+
+  /// Carrega o primeiro bloco de episódios e já exibe a UI.
+  Future<void> _loadInitialChunk() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final episodes = await AnimeService.getAnimeEpisodes(widget.anime);
+      // Parseia a lista completa (cacheada, sem thumbnails).
+      final allEpisodes = await AnimeService.getAnimeEpisodeList(widget.anime);
+      _allEpisodes = allEpisodes;
+      _totalEpisodes = allEpisodes.length;
+
+      // Carrega o primeiro bloco com thumbnails.
+      final result = await AnimeService.getAnimeEpisodesChunk(
+        widget.anime,
+        chunkIndex: 0,
+        chunkSize: _chunkSize,
+      );
+      _currentChunk = 0;
+
       if (mounted) {
         setState(() {
-          _episodes = episodes;
+          _episodes = result.episodes;
+          _totalEpisodes = result.total;
           _isLoading = false;
         });
       }
@@ -77,6 +119,36 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
           _errorMessage = e.toString();
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  /// Carrega o próximo bloco de episódios e adiciona à lista.
+  Future<void> _loadMoreEpisodes() async {
+    if (_isLoadingMore) return;
+    if (_episodes.length >= _totalEpisodes) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final nextChunk = _currentChunk + 1;
+      final result = await AnimeService.getAnimeEpisodesChunk(
+        widget.anime,
+        chunkIndex: nextChunk,
+        chunkSize: _chunkSize,
+      );
+      _currentChunk = nextChunk;
+
+      if (mounted) {
+        setState(() {
+          _episodes.addAll(result.episodes);
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[ModernEpisodeListScreen] Error loading more: $e');
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
       }
     }
   }
@@ -108,7 +180,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
         animeId: widget.anime.url,
         animeName: widget.anime.name,
         thumbnailUrl: widget.anime.imageUrl,
-        episodes: _episodes.map((e) {
+        episodes: (_allEpisodes ?? _episodes).map((e) {
           final episodeNumber = extractEpisodeNumber(
             e.number,
           );
@@ -144,8 +216,14 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
             SliverToBoxAdapter(child: _buildErrorState())
           else if (_episodes.isEmpty)
             SliverToBoxAdapter(child: _buildEmptyState())
-          else
-            _isGridView ? _buildGridView() : _buildListView(),
+          else ...[
+            if (_isGridView)
+              _buildGridView()
+            else
+              _buildListView(),
+            if (_isLoadingMore)
+              SliverToBoxAdapter(child: _buildLoadingMoreIndicator()),
+          ],
         ],
       ),
     );
@@ -334,7 +412,11 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
           // Stats Row
           Row(
             children: [
-              _buildStatItem(Icons.tv, '${_episodes.length} eps', Colors.blue),
+              _buildStatItem(
+                Icons.tv,
+                _totalEpisodes > 0 ? '$_totalEpisodes eps' : '${_episodes.length} eps',
+                Colors.blue,
+              ),
               const SizedBox(width: 16),
               if (anime.status != null)
                 _buildStatItem(Icons.info_outline, anime.status!, Colors.green),
@@ -579,7 +661,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _loadEpisodes,
+              onPressed: _loadInitialChunk,
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
               style: ElevatedButton.styleFrom(
@@ -592,6 +674,19 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingMoreIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
     );

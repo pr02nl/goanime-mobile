@@ -51,7 +51,15 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
   StreamSubscription<List<PauloFlixEpisodeRecord>>? _episodesSub;
 
   /// Cache dos episodes da season selecionada (atualizado pelo stream).
+  /// Limitado a 3 seasons para evitar crescimento infinito — seasons mais
+  /// antigas são removidas quando o limite é excedido.
   final Map<int, List<PauloFlixEpisodeRecord>> _episodesBySeason = {};
+
+  /// Máximo de seasons cacheadas em `_episodesBySeason`.
+  static const int _maxCachedSeasons = 3;
+
+  /// Ordem de acesso das seasons (para evict LRU).
+  final List<int> _seasonAccessOrder = [];
 
   // ─── Getters ────────────────────────────────────────────────────────
 
@@ -206,16 +214,31 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
     _safeNotify();
   }
 
+  void _evictOldestSeason() {
+    while (_episodesBySeason.length >= _maxCachedSeasons) {
+      final oldest = _seasonAccessOrder.removeAt(0);
+      _episodesBySeason.remove(oldest);
+    }
+  }
+
   void _loadEpisodesForSelected() {
     final season = selectedSeason;
     if (season == null || season.id == null) return;
 
-    if (_episodesBySeason.containsKey(season.id)) {
+    final seasonId = season.id!;
+
+    // Atualiza ordem de acesso (LRU).
+    _seasonAccessOrder.remove(seasonId);
+    _seasonAccessOrder.add(seasonId);
+
+    if (_episodesBySeason.containsKey(seasonId)) {
       _safeNotify();
       return;
     }
 
-    final seasonId = season.id!;
+    // Evita cache infinito — remove a season mais antiga se exceder limite.
+    _evictOldestSeason();
+
     _episodesSub?.cancel();
     _episodesSub = _repository.watchEpisodesForSeason(seasonId).listen((eps) {
       _episodesBySeason[seasonId] = eps;
@@ -239,6 +262,7 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _seasonAccessOrder.clear();
     _seasonsSub?.cancel();
     _seasonsSub = null;
     _episodesSub?.cancel();

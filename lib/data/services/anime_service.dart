@@ -17,6 +17,16 @@ class AnimeService {
   static const String _googleVideoUserAgent =
       'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1';
 
+  /// HTTP client injetável para testes.
+  /// Quando `null`, usa `http.get()` diretamente.
+  static http.Client? _client;
+
+  /// Injeta um client HTTP (usado em testes com `MockClient`).
+  /// Passe `http.Client()` no `tearDown` para restaurar o real.
+  static void configure(http.Client? client) {
+    _client = client;
+  }
+
   static Future<List<Anime>> searchAnime(String animeName) async {
     try {
       debugPrint('[AnimeService] Searching in AnimeFire: $animeName');
@@ -118,6 +128,172 @@ class AnimeService {
     }
   }
 
+  // ─── Paginação incremental ─────────────────────────────────────────
+
+  /// Limite máximo de animes cacheados. Acima disso, o mais antigo
+  /// (LRU) é evictado automaticamente.
+  static const int _maxCacheEntries = 20;
+
+  /// Cache do parse HTML do AnimeFire por URL do anime.
+  /// Populado por [getAnimeEpisodeList]; evita re-parses.
+  static final Map<String, _ParsedAnimeList> _parseCache = {};
+
+  /// Ordem de acesso LRU. URLs no início são as mais antigas;
+  /// no fim, as mais recentes.
+  static final List<String> _cacheAccessOrder = [];
+
+  /// Tamanho padrão de cada bloco de episódios.
+  static const int _defaultChunkSize = 30;
+
+  /// Limpa o cache de parse (útil em forceRefresh).
+  static void clearParseCache() {
+    _parseCache.clear();
+    _cacheAccessOrder.clear();
+  }
+
+  /// Remove a entrada mais antiga do cache (LRU).
+  static void _evictOldestCache() {
+    while (_parseCache.length > _maxCacheEntries && _cacheAccessOrder.isNotEmpty) {
+      final oldest = _cacheAccessOrder.removeAt(0);
+      _parseCache.remove(oldest);
+    }
+  }
+
+  /// Atualiza a ordem de acesso LRU para a [url].
+  /// Move a URL para o fim da lista (mais recente).
+  static void _touchCache(String url) {
+    _cacheAccessOrder.remove(url);
+    _cacheAccessOrder.add(url);
+  }
+
+  /// Retorna a lista COMPLETA de episódios SEM thumbnails específicos
+  /// (usa [anime.imageUrl] como fallback). O parse HTML é cacheado para
+  /// evitar refetch.
+  ///
+  /// [forceRefresh] força o re-parse mesmo se cache existir.
+  static Future<List<Episode>> getAnimeEpisodeList(
+    Anime anime, {
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh && _parseCache.containsKey(anime.url)) {
+      _touchCache(anime.url);
+      return _parseCache[anime.url]!.episodes
+          .map((e) => Episode(number: e.number, url: e.url, thumbnail: anime.imageUrl))
+          .toList();
+    }
+
+    // Se for refresh, remove do LRU para reinserir como recente.
+    if (forceRefresh) {
+      _cacheAccessOrder.remove(anime.url);
+    }
+
+    debugPrint('[AnimeFire] Parsing episode list for: ${anime.name}');
+
+    final client = _client ?? http.Client();
+    try {
+      final response = await client
+          .get(Uri.parse(anime.url))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to get episodes: ${response.statusCode}');
+      }
+
+      final document = html_parser.parse(response.body);
+      final episodeElements = document.querySelectorAll(
+        'a.lEp.epT.divNumEp.smallbox.px-2.mx-1.text-left.d-flex',
+      );
+
+      final List<Episode> tempEpisodes = [];
+      for (final element in episodeElements) {
+        final number = element.text.trim();
+        final url = element.attributes['href'] ?? '';
+        if (number.isNotEmpty && url.isNotEmpty) {
+          tempEpisodes.add(Episode(number: number, url: url));
+        }
+      }
+
+      _parseCache[anime.url] = _ParsedAnimeList(
+        episodes: tempEpisodes,
+        animeName: anime.name,
+        malId: anime.malId?.toString(),
+        anilistId: anime.anilistId?.toString(),
+      );
+      _touchCache(anime.url);
+      _evictOldestCache();
+
+      return tempEpisodes
+          .map((e) => Episode(number: e.number, url: e.url, thumbnail: anime.imageUrl))
+          .toList();
+    } finally {
+      if (_client == null) client.close();
+    }
+  }
+
+  /// Carrega um bloco de episódios com thumbnails específicos.
+  ///
+  /// O primeiro carregamento faz o parse HTML completo (cacheado), mas
+  /// só busca thumbnails para o bloco solicitado. Blocos subsequentes
+  /// usam o cache e buscam thumbnails apenas para os episódios do bloco.
+  ///
+  /// Retorna uma tupla com: (episódios do bloco, total de episódios).
+  static Future<({List<Episode> episodes, int total})> getAnimeEpisodesChunk(
+    Anime anime, {
+    int chunkIndex = 0,
+    int chunkSize = _defaultChunkSize,
+    bool forceRefresh = false,
+  }) async {
+    // Parse ou obtém do cache.
+    final allEpisodes = await getAnimeEpisodeList(anime, forceRefresh: forceRefresh);
+    final total = allEpisodes.length;
+
+    final start = chunkIndex * chunkSize;
+    if (start >= total) {
+      return (episodes: const <Episode>[], total: total);
+    }
+
+    final end = (start + chunkSize) > total ? total : start + chunkSize;
+    final chunk = allEpisodes.sublist(start, end);
+
+    // Busca thumbnails APENAS para este bloco.
+    final episodeNumbers = <int>[];
+    for (final ep in chunk) {
+      final match = RegExp(r'\d+').firstMatch(ep.number);
+      if (match != null) {
+        final num = int.tryParse(match.group(0)!);
+        if (num != null) episodeNumbers.add(num);
+      }
+    }
+
+    if (episodeNumbers.isNotEmpty) {
+      final cached = _parseCache[anime.url];
+      final thumbnails = await EpisodeThumbnailService.batchGetThumbnails(
+        animeTitle: cached?.animeName ?? anime.name,
+        episodeNumbers: episodeNumbers,
+        malId: cached?.malId ?? anime.malId?.toString(),
+        anilistId: cached?.anilistId ?? anime.anilistId?.toString(),
+      );
+
+      final result = <Episode>[];
+      for (var i = 0; i < chunk.length; i++) {
+        final epNum = i < episodeNumbers.length ? episodeNumbers[i] : null;
+        final thumbnail = (epNum != null && thumbnails.containsKey(epNum))
+            ? thumbnails[epNum]
+            : anime.imageUrl;
+        result.add(Episode(
+          number: chunk[i].number,
+          url: chunk[i].url,
+          thumbnail: thumbnail,
+        ));
+      }
+      return (episodes: result, total: total);
+    }
+
+    return (episodes: chunk, total: total);
+  }
+
+  /// Mantido para compatibilidade: carrega TODOS os episódios de uma vez
+  /// com thumbnails (comportamento original).
   static Future<List<Episode>> getAnimeEpisodes(Anime anime) async {
     try {
       debugPrint(
@@ -135,13 +311,15 @@ class AnimeService {
     }
   }
 
-  /// Busca episódios do AnimeFire
+  /// Busca episódios do AnimeFire (ORIGINAL — mantido para compatibilidade
+  /// com scripts/ferramentas que carregam tudo de uma vez).
   static Future<List<Episode>> _getEpisodesFromAnimeFire(Anime anime) async {
+    final client = _client ?? http.Client();
     try {
       debugPrint('[AnimeFire] Fetching episodes for: ${anime.name}');
       debugPrint('[AnimeFire] Anime thumbnail: ${anime.imageUrl}');
 
-      final response = await http
+      final response = await client
           .get(Uri.parse(anime.url))
           .timeout(const Duration(seconds: 10));
 
@@ -223,6 +401,8 @@ class AnimeService {
     } catch (e) {
       debugPrint('[AnimeFire] Get episodes error: $e');
       throw Exception('Error getting episodes from AnimeFire: $e');
+    } finally {
+      if (_client == null) client.close();
     }
   }
 
@@ -535,7 +715,7 @@ class AnimeService {
   ) {
     debugPrint('Parsing batchexecute response...');
 
-    // Format: )]}\'\n{length}\n[["wrb.fr","WcwnYd","json_string",...]]
+    // Format: )]}'\n{length}\n[["wrb.fr","WcwnYd","json_string",...]]
     final lines = content.split('\n');
     if (lines.length < 3) {
       debugPrint('Unexpected batchexecute response format');
@@ -913,4 +1093,21 @@ class AnimeService {
   static String _treatAnimeName(String animeName) {
     return animeName.toLowerCase().replaceAll(' ', '-');
   }
+}
+
+/// Cache interno do parse HTML do AnimeFire.
+/// Armazena os episódios parseados + metadados para evitar re-parsing
+/// e re-busca de thumbnails nas chamadas paginadas.
+class _ParsedAnimeList {
+  final List<Episode> episodes;
+  final String animeName;
+  final String? malId;
+  final String? anilistId;
+
+  const _ParsedAnimeList({
+    required this.episodes,
+    required this.animeName,
+    this.malId,
+    this.anilistId,
+  });
 }

@@ -100,6 +100,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   /// subscription local (completer + timeout).
   StreamSubscription<Tracks>? _debugTracksSub;
 
+  /// `true` após a primeira configuração das subscrições persistentes
+  /// (`_debugTracksSub`, `_playingSub`, `_completedSub`). Evita recriar
+  /// essas subs a cada `_replaceEpisode()`.
+  bool _streamSubsReady = false;
+
   // Progresso PauloFlix (Fase 2). `null` para fluxos não-PauloFlix
   // (AnimeFire).
   EpisodeProgressService? _progressService;
@@ -287,7 +292,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     _replaceEpisode(nextEpisode);
   }
 
-  /// Troca o episódio atual no widget e dispara reinitialização.
+  /// Troca o episódio atual e reabre a mídia sem recriar as subs
+  /// persistentes (_debugTracksSub, _playingSub, _completedSub).
+  /// A primeira chamada vai para `_initializeVideoPlayer` que
+  /// configura as subs uma vez; as chamadas seguintes pulam o setup.
   void _replaceEpisode(Episode newEpisode) {
     if (!mounted) return;
     setState(() {
@@ -513,6 +521,51 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     await service.flush(getCurrentPosition: getPos, getDuration: getDur);
   }
 
+  /// Configura as stream subscriptions persistentes uma ÚNICA vez.
+  /// Chamado na primeira execução de `_initializeVideoPlayer`.
+  /// Em trocas de episódio (`_replaceEpisode`), o guard `_streamSubsReady`
+  /// impede que sejam recriadas.
+  void _ensurePersistentSubscriptions() {
+    if (_streamSubsReady) return;
+    _streamSubsReady = true;
+
+    debugPrint('[VideoPlayer] Setting up persistent stream subscriptions');
+
+    // Tracks de áudio/vídeo/legenda (debug + áudio PT-BR).
+    _debugTracksSub = _player.stream.tracks.listen((event) {
+      videos = event.video;
+      audios = event.audio;
+      subtitles = event.subtitle;
+      if (audios == null || audios!.isEmpty) return;
+      for (final st in audios!) {
+        if (st.language != null && st.language!.toLowerCase() == 'por') {
+          audiosBr = st;
+          return;
+        }
+        debugPrint('audios language: ${st.language}');
+      }
+    });
+
+    // Debug: estado de playing.
+    _playingSub = _player.stream.playing.listen((playing) {
+      debugPrint('[VideoPlayer] Playing state: $playing');
+    });
+
+    // Debug: completed.
+    _completedSub = _player.stream.completed.listen((completed) {
+      debugPrint('[VideoPlayer] Completed: $completed');
+    });
+  }
+
+  /// Limpa apenas subs específicas do episódio atual (embedded tracks).
+  /// Não mexe nas subs persistentes (`_playingSub`, `_completedSub`,
+  /// `_debugTracksSub`) — evita recriá-las a cada troca de episódio.
+  Future<void> _cleanupEpisodeSubs() async {
+    await _tracksSub?.cancel();
+    _tracksSub = null;
+    _currentVideoHeaders = null;
+  }
+
   /// Closures para o player. `_player` pode ser null durante cleanup.
   Duration _getCurrentPosition() => _player.state.position;
 
@@ -594,30 +647,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       await tvFuture;
     }
 
-    // Get notified as [Stream]:
-    _debugTracksSub?.cancel();
-    _debugTracksSub = _player.stream.tracks.listen((event) {
-      videos = event.video;
-      audios = event.audio;
-      subtitles = event.subtitle;
-      if (audios == null || audios!.isEmpty) {
-        return;
-      }
-      for (final st in audios!) {
-        if (st.language != null && st.language!.toLowerCase() == 'por') {
-          audiosBr = st;
-          return;
-        }
-        debugPrint('audios language: ${st.language}');
-      }
-    });
+    // Configura subs persistentes uma ÚNICA vez (não recria a cada
+    // _replaceEpisode).
+    _ensurePersistentSubscriptions();
 
     try {
-      await _cleanupControllers();
-      // if (!isActiveEpisode(episodeKey)) {
-      //   debugPrint('[VideoPlayer] Initialization aborted (episode changed).');
-      //   return;
-      // }
+      // Limpa apenas subs específicas do episódio anterior (embedded
+      // tracks). Não mexe em _debugTracksSub, _playingSub, _completedSub.
+      await _cleanupEpisodeSubs();
 
       String resolvedVideoUrl;
 
@@ -634,16 +671,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
             onTimeout: () => debugPrint('[VideoPlayer] Surface init timeout'),
           );
 
-      // Listen to player streams (debug logging).
-      _playingSub?.cancel();
-      _playingSub = _player.stream.playing.listen((playing) {
-        debugPrint('[VideoPlayer] Playing state: $playing');
-      });
-
-      _completedSub?.cancel();
-      _completedSub = _player.stream.completed.listen((completed) {
-        debugPrint('[VideoPlayer] Completed: $completed');
-      });
+      // Subs persistentes (_playingSub, _completedSub) já foram
+      // configuradas por _ensurePersistentSubscriptions() — não recriar.
 
       // Extract referer from URL for CDN compatibility
       final uri = Uri.parse(resolvedVideoUrl);
@@ -763,7 +792,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       // This prevents audio playing before the video surface is ready.
       // We listen to the tracks stream which fires when the video track
       // is parsed (contains video dimensions).
-      await _player.stream.tracks
+      await      _player.stream.tracks
           .firstWhere((tracks) => tracks.video.isNotEmpty)
           .timeout(
             const Duration(seconds: 15),
@@ -772,11 +801,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
               return const Tracks();
             },
           );
-
-      // if (!isActiveEpisode(episodeKey)) {
-      //   debugPrint('[VideoPlayer] Controller init ignored (episode changed).');
-      //   return;
-      // }
 
       // Fase 2: seek para a posição salva APÓS o vídeo estar carregado.
       // Buscar antes do tracks.firstWhere resolver faz o seek ser perdido
@@ -831,23 +855,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     }
   }
 
-  Future<void> _cleanupControllers() async {
-    // positionTimer?.cancel();
-    // skipButtonAutoHideTimer?.cancel();
 
-    // Cancela stream subscriptions para que listeners não disparem
-    // setState em State desmontada após troca rápida de episódio.
-    await _playingSub?.cancel();
-    await _completedSub?.cancel();
-    await _tracksSub?.cancel();
-    await _debugTracksSub?.cancel();
-    _playingSub = null;
-    _completedSub = null;
-    _tracksSub = null;
-    _debugTracksSub = null;
-
-    _currentVideoHeaders = null;
-  }
 
   @override
   void dispose() {

@@ -297,4 +297,171 @@ void main() {
       expect(vm.selectedSeasonIndex, 1);
     });
   });
+
+  group('PauloFlixEpisodeProgressViewModel — LRU cache', () {
+    /// Cria 4 seasons no banco, cada uma com 1 episode.
+    Future<void> seedSeasons(
+      AppDatabase db,
+      int contentId,
+    ) async {
+      for (var s = 1; s <= 4; s++) {
+        final seasonId = await db
+            .into(db.pauloFlixSeasons)
+            .insert(
+              PauloFlixSeasonsCompanion.insert(
+                contentId: contentId,
+                seasonNumber: s,
+                displayName: 'S${s.toString().padLeft(2, '0')}',
+                folderName: 'S${s.toString().padLeft(2, '0')}',
+                episodeCount: const Value(1),
+                lastSynced: DateTime.now(),
+              ),
+            );
+        await db
+            .into(db.pauloFlixEpisodes)
+            .insert(
+              PauloFlixEpisodesCompanion.insert(
+                seasonId: seasonId,
+                episodeNumber: 1,
+                title: 'ep$s',
+                videoUrl: 'https://server/s$s/ep1.mkv',
+                lastSynced: DateTime.now(),
+              ),
+            );
+      }
+    }
+
+    late AppDatabase db;
+    late PauloFlixEpisodeProgressRepository repo;
+    late int contentId;
+    late PauloFlixEpisodeProgressViewModel vm;
+
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      repo = PauloFlixEpisodeProgressRepositoryImpl(db);
+      contentId = await db
+          .into(db.pauloFlixContent)
+          .insert(
+            PauloFlixContentCompanion.insert(
+              folderName: 'LRUTest',
+              displayName: 'LRUTest',
+              serverUrl: 'https://server/LRUTest/',
+              lastSynced: DateTime.now(),
+            ),
+          );
+      await seedSeasons(db, contentId);
+
+      vm = PauloFlixEpisodeProgressViewModel(
+        content: PauloFlixContent(
+          id: contentId,
+          folderName: 'LRUTest',
+          displayName: 'LRUTest',
+          serverUrl: 'https://server/LRUTest/',
+          lastSynced: DateTime.now(),
+        ),
+        repository: repo,
+      );
+      await vm.loadSeasons();
+      // Aguarda o stream de seasons emitir.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.seasons, hasLength(4));
+    });
+
+    tearDown(() async {
+      vm.dispose();
+      await db.close();
+    });
+
+    test('quando 4a season é acessada, a mais antiga é evictada (FIFO)',
+        () async {
+      // Seleciona seasons 0, 1, 2 (cache com 3 entries: 0, 1, 2).
+      vm.selectSeason(0);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 0 deve ter episodes');
+
+      vm.selectSeason(1);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 1 deve ter episodes');
+
+      vm.selectSeason(2);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 2 deve ter episodes');
+
+      // Season 3 → cache cheio (3/3). Season 0 deve ser evictada.
+      vm.selectSeason(3);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 3 deve ter episodes');
+
+      // Volta para season 0 — deve recarregar (cache miss).
+      vm.selectSeason(0);
+      // Imediatamente após selecionar, o cache da season 0 está vazio
+      // (foi evictado). O stream está sendo assinado de novo.
+      expect(vm.episodes, isEmpty, reason: 'season 0 foi evictada');
+
+      // Aguarda o stream emitir os episodes.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 0 recarregada via stream');
+    });
+
+    test('re-acessar season atualiza ordem LRU (mais recente não é evictada)',
+        () async {
+      // Seleciona seasons 0, 1, 2.
+      vm.selectSeason(0);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 0 carregada');
+
+      vm.selectSeason(1);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 1 carregada');
+
+      vm.selectSeason(2);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 2 carregada');
+
+      // Re-acessa season 0 → agora ordem é: 1, 2, 0.
+      vm.selectSeason(0);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 0 re-acessada');
+
+      // Season 3 → deve evictar season 1 (a mais antiga), não season 0.
+      vm.selectSeason(3);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 3 carregada');
+
+      // Season 1 deve ter sido evictada.
+      vm.selectSeason(1);
+      expect(
+        vm.episodes,
+        isEmpty,
+        reason:
+            'season 1 foi evictada (era a mais antiga após re-acesso da 0)',
+      );
+
+      // Season 0 ainda deve estar em cache (foi re-acessada).
+      vm.selectSeason(0);
+      expect(
+        vm.episodes,
+        isNotEmpty,
+        reason: 'season 0 ainda está em cache (re-acessada antes do evict)',
+      );
+    });
+
+    test('dispose limpa cache e ordem de acesso', () async {
+      vm.selectSeason(0);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(vm.episodes, isNotEmpty, reason: 'season 0 carregada');
+
+      vm.dispose();
+
+      // Após dispose, notifyListeners não dispara, mas o cache interno
+      // foi limpo. Verificamos que não há exceção e que dispose não
+      // lança erro.
+      // Nota: o cache é privado, mas o comportamento correto é:
+      // - _episodesBySeason.clear() foi chamado
+      // - _seasonAccessOrder.clear() foi chamado
+      // - As subs foram canceladas
+      // O teste verifica que dispose não lança exceção.
+      expect(vm.episodes, isEmpty, reason: 'episodes limpo após dispose');
+    });
+  });
 }

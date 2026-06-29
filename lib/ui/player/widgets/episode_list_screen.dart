@@ -23,8 +23,15 @@ class EpisodeListScreen extends StatefulWidget {
 }
 
 class _EpisodeListScreenState extends State<EpisodeListScreen> {
+  static const int _chunkSize = 30;
+
+  final ScrollController _scrollController = ScrollController();
+
   List<Episode> _episodes = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  int _totalEpisodes = 0;
+  int _currentChunk = 0;
   String? _errorMessage;
 
   @override
@@ -36,26 +43,93 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
       'AniList ID: ${widget.anime.anilistId}, '
       'MAL ID: ${widget.anime.malId}',
     );
-    _loadEpisodes();
+    _scrollController.addListener(_onScroll);
+    _loadInitialChunk();
   }
 
-  Future<void> _loadEpisodes() async {
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Callback do ScrollController: carrega mais episódios quando o usuário
+  /// está próximo do final da lista.
+  void _onScroll() {
+    if (_isLoadingMore) return;
+    if (_episodes.length >= _totalEpisodes && _totalEpisodes > 0) return;
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll < 600) {
+      _loadMoreEpisodes();
+    }
+  }
+
+  /// Carrega o primeiro bloco de episódios.
+  Future<void> _loadInitialChunk() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final episodes = await AnimeService.getAnimeEpisodes(widget.anime);
-      setState(() {
-        _episodes = episodes;
-        _isLoading = false;
-      });
+      // Parseia lista completa (cacheada, sem thumbnails).
+      final allEpisodes = await AnimeService.getAnimeEpisodeList(widget.anime);
+      _totalEpisodes = allEpisodes.length;
+
+      // Carrega primeiro bloco com thumbnails.
+      final result = await AnimeService.getAnimeEpisodesChunk(
+        widget.anime,
+        chunkIndex: 0,
+        chunkSize: _chunkSize,
+      );
+      _currentChunk = 0;
+
+      if (mounted) {
+        setState(() {
+          _episodes = result.episodes;
+          _totalEpisodes = result.total;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Carrega o próximo bloco de episódios.
+  Future<void> _loadMoreEpisodes() async {
+    if (_isLoadingMore || _episodes.length >= _totalEpisodes) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final nextChunk = _currentChunk + 1;
+      final result = await AnimeService.getAnimeEpisodesChunk(
+        widget.anime,
+        chunkIndex: nextChunk,
+        chunkSize: _chunkSize,
+      );
+      _currentChunk = nextChunk;
+
+      if (mounted) {
+        setState(() {
+          _episodes.addAll(result.episodes);
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[EpisodeListScreen] Error loading more episodes: $e');
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
     }
   }
 
@@ -66,6 +140,7 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
 
     return Scaffold(
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           SliverAppBar(
             expandedHeight: 180,
@@ -116,6 +191,8 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
                 }, childCount: _episodes.length),
               ),
             ),
+          if (_isLoadingMore)
+            SliverToBoxAdapter(child: _buildLoadingMoreIndicator()),
         ],
       ),
     );
@@ -419,7 +496,7 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
           ),
           const SizedBox(height: 16),
           FilledButton.tonalIcon(
-            onPressed: _loadEpisodes,
+            onPressed: _loadInitialChunk,
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: const Text(
               'Tentar novamente',
@@ -476,9 +553,26 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
     );
   }
 
+  Widget _buildLoadingMoreIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEpisodesHeader(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final loadedCount = _episodes.length;
+    final displayText = _totalEpisodes > loadedCount
+        ? '$loadedCount / $_totalEpisodes episódio${_totalEpisodes == 1 ? '' : 's'}'
+        : '$_totalEpisodes episódio${_totalEpisodes == 1 ? '' : 's'}';
 
     return Container(
       key: const ValueKey('episode-header'),
@@ -498,7 +592,7 @@ class _EpisodeListScreenState extends State<EpisodeListScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              '${_episodes.length} episódio${_episodes.length == 1 ? '' : 's'}',
+              displayText,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
