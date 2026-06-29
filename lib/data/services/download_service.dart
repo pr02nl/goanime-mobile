@@ -10,16 +10,21 @@ import '../../core/database/tables/downloads.dart'
 import 'anime_service.dart';
 import '../../domain/repositories/downloads_repository.dart';
 
-// Os enums `DownloadQuality` e `DownloadStatus` são importados de
-// `tables/downloads.dart` (definidos lá para uso com Drift `intEnum<>`).
-// `DownloadItem` (modelo de domínio, manual) é importado de
-// `download_service.dart`. Ambos compartilham os mesmos enums via
-// import.
-
 // Re-exporta os enums para o código que ainda importa daqui
 // (ex: downloads_screen.dart, episode_grid_card.dart).
 export '../../core/database/tables/downloads.dart'
     show DownloadQuality, DownloadStatus;
+
+/// Intervalo mínimo entre notificações de progresso (em ms).
+/// Evita sobrecarregar a UI com dezenas de rebuilds por segundo
+/// durante downloads rápidos.
+const int _kProgressThrottleMs = 500;
+
+// Os enums `DownloadQuality` e `DownloadStatus` são importados de
+// `tables/downloads.dart` (definidos lá para uso com Drift `intEnum<>`).
+// `DownloadItem` (modelo de domínio, manual) é importado de
+// `download_service.dart`. Ambos compartilham os mesmos enums via
+// import e re-export.
 
 /// Download item model
 class DownloadItem {
@@ -157,22 +162,66 @@ class DownloadService extends ChangeNotifier {
   int _maxConcurrentDownloads = 3;
   int _activeDownloadCount = 0;
 
+  // Cache de listas computadas
+  List<DownloadItem>? _cachedActive;
+  List<DownloadItem>? _cachedCompleted;
+  bool _cacheDirty = true;
+
+  /// Timestamp da última notificação (throttle de progresso).
+  int _lastNotifyMs = 0;
+
   List<DownloadItem> get downloads => _downloads.values.toList();
-  List<DownloadItem> get activeDownloads => _downloads.values
-      .where(
-        (d) =>
-            d.status == DownloadStatus.downloading ||
-            d.status == DownloadStatus.queued,
-      )
-      .toList();
-  List<DownloadItem> get completedDownloads => _downloads.values
-      .where((d) => d.status == DownloadStatus.completed)
-      .toList();
+
+  List<DownloadItem> get activeDownloads {
+    if (_cacheDirty || _cachedActive == null) {
+      _cachedActive = _downloads.values
+          .where(
+            (d) =>
+                d.status == DownloadStatus.downloading ||
+                d.status == DownloadStatus.queued,
+          )
+          .toList();
+    }
+    return _cachedActive!;
+  }
+
+  List<DownloadItem> get completedDownloads {
+    if (_cacheDirty || _cachedCompleted == null) {
+      _cachedCompleted = _downloads.values
+          .where((d) => d.status == DownloadStatus.completed)
+          .toList();
+    }
+    return _cachedCompleted!;
+  }
+
+  /// Invalida os caches e notifica ouvintes.
+  void _markDirty() {
+    _cacheDirty = true;
+  }
+
+  /// Notifica ouvintes com throttle de progresso.
+  /// [force] ignora o throttle (usado para mudanças de estado que não
+  /// são apenas progresso: completed, failed, paused, etc.).
+  void _notify([bool force = false]) {
+    if (force) {
+      _markDirty();
+      notifyListeners();
+      return;
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastNotifyMs < _kProgressThrottleMs) {
+      return; // Throttled — não notifica ainda
+    }
+    _lastNotifyMs = now;
+    _markDirty();
+    notifyListeners();
+  }
 
   int get maxConcurrentDownloads => _maxConcurrentDownloads;
   set maxConcurrentDownloads(int value) {
     _maxConcurrentDownloads = value.clamp(1, 5);
-    notifyListeners();
+    _notify(true);
   }
 
   /// Initialize the download service — carrega os downloads do Drift
@@ -189,7 +238,7 @@ class DownloadService extends ChangeNotifier {
         _downloads[download.id] = reset;
       }
     }
-    notifyListeners();
+    _notify(true);
   }
 
   /// Add a download to the queue
@@ -232,7 +281,7 @@ class DownloadService extends ChangeNotifier {
     _downloads[id] = download;
     await _repository.save(download);
 
-    notifyListeners();
+    _notify(true);
     _processQueue();
 
     return id;
@@ -296,7 +345,7 @@ class DownloadService extends ChangeNotifier {
     _activeDownloadCount++;
     _downloads[id] = download.copyWith(status: DownloadStatus.downloading);
     await _repository.save(_downloads[id]!);
-    notifyListeners();
+    _notify(true);
 
     try {
       // Check if this is an AllAnime episode (videoUrl is just episode number)
@@ -337,7 +386,7 @@ class DownloadService extends ChangeNotifier {
       _activeDownloadCount--;
       _downloadClients[id]?.close();
       _downloadClients.remove(id);
-      notifyListeners();
+      _notify(true);
       _processQueue();
     }
   }
@@ -412,7 +461,7 @@ class DownloadService extends ChangeNotifier {
     // Set filePath immediately so cancel/retry can clean up partial file
     _downloads[id] = _downloads[id]!.copyWith(filePath: filePath);
     await _repository.save(_downloads[id]!);
-    notifyListeners();
+    _notify(true);
 
     // Create HTTP client (injetado em produção com AuthenticatedHttpClient)
     final client = _httpClient ?? http.Client();
@@ -471,10 +520,10 @@ class DownloadService extends ChangeNotifier {
           totalBytes: totalBytes > 0 ? totalBytes : bytesDownloaded,
         );
 
-        // Notify UI every 256KB
+        // Notify UI with throttle (max every 500ms) instead of every 256KB
         if (bytesDownloaded - lastNotificationBytes >= notificationInterval) {
           lastNotificationBytes = bytesDownloaded;
-          notifyListeners();
+          _notify();
         }
 
         // Save to DB and log every 1MB or 1%
@@ -505,7 +554,7 @@ class DownloadService extends ChangeNotifier {
         completedAt: DateTime.now(),
       );
       await _repository.save(_downloads[id]!);
-      notifyListeners();
+      _notify(true);
     } catch (e) {
       rethrow;
     }
@@ -520,7 +569,7 @@ class DownloadService extends ChangeNotifier {
 
     _downloads[id] = download.copyWith(status: DownloadStatus.paused);
     await _repository.save(_downloads[id]!);
-    notifyListeners();
+    _notify(true);
   }
 
   /// Resume a download
@@ -532,7 +581,7 @@ class DownloadService extends ChangeNotifier {
 
     _downloads[id] = download.copyWith(status: DownloadStatus.queued);
     await _repository.save(_downloads[id]!);
-    notifyListeners();
+    _notify(true);
     _processQueue();
   }
 
@@ -555,7 +604,7 @@ class DownloadService extends ChangeNotifier {
       }
     }
 
-    notifyListeners();
+    _notify(true);
   }
 
   /// Retry a failed download
@@ -572,7 +621,7 @@ class DownloadService extends ChangeNotifier {
       bytesDownloaded: 0,
     );
     await _repository.save(_downloads[id]!);
-    notifyListeners();
+    _notify(true);
     _processQueue();
   }
 
@@ -599,7 +648,7 @@ class DownloadService extends ChangeNotifier {
     // Remove from database via repository
     await _repository.delete(id);
     _downloads.remove(id);
-    notifyListeners();
+    _notify(true);
   }
 
   /// Clear all completed downloads

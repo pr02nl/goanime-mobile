@@ -124,108 +124,106 @@ class _DownloadsScreenState extends State<DownloadsScreen>
   }
 }
 
-/// Active downloads tab
+/// Active downloads tab — usa context.select para só reconstruir
+/// quando a lista de downloads ativos muda.
 class _ActiveDownloadsTab extends StatelessWidget {
   const _ActiveDownloadsTab();
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DownloadService>(
-      builder: (context, downloadService, _) {
-        final activeDownloads = downloadService.activeDownloads;
+    final activeDownloads = context.select<DownloadService, List<DownloadItem>>(
+      (ds) => ds.activeDownloads,
+    );
 
-        if (activeDownloads.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.download_outlined,
-                  size: 64,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  AppLocalizations.of(context).noActiveDownloads,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
+    if (activeDownloads.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.download_outlined,
+              size: 64,
+              color: AppColors.textSecondary,
             ),
-          );
-        }
+            const SizedBox(height: 16),
+            Text(
+              AppLocalizations.of(context).noActiveDownloads,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: activeDownloads.length,
-          itemBuilder: (context, index) {
-            final download = activeDownloads[index];
-            return _DownloadCard(download: download, isActive: true);
-          },
-        );
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: activeDownloads.length,
+      itemBuilder: (context, index) {
+        final download = activeDownloads[index];
+        return _DownloadCard(download: download, isActive: true);
       },
     );
   }
 }
 
-/// Completed downloads tab
+/// Completed downloads tab — usa context.select para só reconstruir
+/// quando a lista de downloads completos muda.
 class _CompletedDownloadsTab extends StatelessWidget {
   const _CompletedDownloadsTab();
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DownloadService>(
-      builder: (context, downloadService, _) {
-        final completedDownloads = downloadService.completedDownloads;
+    final completedDownloads = context.select<DownloadService, List<DownloadItem>>(
+      (ds) => ds.completedDownloads,
+    );
 
-        if (completedDownloads.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.check_circle_outline,
-                  size: 64,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  AppLocalizations.of(context).noCompletedDownloads,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
+    if (completedDownloads.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.check_circle_outline,
+              size: 64,
+              color: AppColors.textSecondary,
             ),
-          );
-        }
+            const SizedBox(height: 16),
+            Text(
+              AppLocalizations.of(context).noCompletedDownloads,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-        // Group by anime
-        final Map<String, List<DownloadItem>> groupedDownloads = {};
-        for (final download in completedDownloads) {
-          groupedDownloads
-              .putIfAbsent(download.animeId, () => [])
-              .add(download);
-        }
+    // Group by anime
+    final Map<String, List<DownloadItem>> groupedDownloads = {};
+    for (final download in completedDownloads) {
+      groupedDownloads
+          .putIfAbsent(download.animeId, () => [])
+          .add(download);
+    }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: groupedDownloads.length,
-          itemBuilder: (context, index) {
-            final animeId = groupedDownloads.keys.elementAt(index);
-            final episodes = groupedDownloads[animeId]!;
-            episodes.sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: groupedDownloads.length,
+      itemBuilder: (context, index) {
+        final animeId = groupedDownloads.keys.elementAt(index);
+        final episodes = groupedDownloads[animeId]!;
+        episodes.sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
 
-            return _AnimeDownloadGroup(
-              animeId: animeId,
-              animeName: episodes.first.animeName,
-              thumbnailUrl: episodes.first.thumbnailUrl,
-              episodes: episodes,
-            );
-          },
+        return _AnimeDownloadGroup(
+          animeId: animeId,
+          animeName: episodes.first.animeName,
+          thumbnailUrl: episodes.first.thumbnailUrl,
+          episodes: episodes,
         );
       },
     );

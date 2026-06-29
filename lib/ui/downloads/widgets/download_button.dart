@@ -27,74 +27,73 @@ class DownloadButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DownloadService>(
-      builder: (context, downloadService, _) {
-        final downloadId = '${animeId}_$episodeNumber';
-        final download = downloadService.getDownload(downloadId);
-
-        if (download == null) {
-          // Not downloaded - show download button
-          return IconButton(
-            icon: const Icon(Icons.download, color: AppColors.textSecondary),
-            onPressed: () => _startDownload(context, downloadService),
-          );
-        }
-
-        // Show status based on download state
-        switch (download.status) {
-          case DownloadStatus.downloading:
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                CircularProgressIndicator(
-                  value: download.progress,
-                  strokeWidth: 2,
-                  valueColor: const AlwaysStoppedAnimation(AppColors.accent),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.pause,
-                    size: 16,
-                    color: AppColors.accent,
-                  ),
-                  onPressed: () => downloadService.pauseDownload(downloadId),
-                ),
-              ],
-            );
-
-          case DownloadStatus.paused:
-            return IconButton(
-              icon: const Icon(Icons.play_arrow, color: AppColors.accent),
-              onPressed: () => downloadService.resumeDownload(downloadId),
-            );
-
-          case DownloadStatus.queued:
-            return const IconButton(
-              icon: Icon(Icons.schedule, color: AppColors.textSecondary),
-              onPressed: null,
-            );
-
-          case DownloadStatus.completed:
-            return IconButton(
-              icon: const Icon(Icons.check_circle, color: Colors.green),
-              onPressed: () =>
-                  _showDownloadOptions(context, downloadService, downloadId),
-            );
-
-          case DownloadStatus.failed:
-            return IconButton(
-              icon: const Icon(Icons.error, color: Colors.red),
-              onPressed: () => downloadService.retryDownload(downloadId),
-            );
-
-          case DownloadStatus.cancelled:
-            return IconButton(
-              icon: const Icon(Icons.download, color: AppColors.textSecondary),
-              onPressed: () => _startDownload(context, downloadService),
-            );
-        }
-      },
+    final downloadId = '${animeId}_$episodeNumber';
+    final download = context.select<DownloadService, DownloadItem?>(
+      (ds) => ds.getDownload(downloadId),
     );
+    final downloadService = context.read<DownloadService>();
+
+    if (download == null) {
+      // Not downloaded - show download button
+      return IconButton(
+        icon: const Icon(Icons.download, color: AppColors.textSecondary),
+        onPressed: () => _startDownload(context, downloadService),
+      );
+    }
+
+    // Show status based on download state
+    switch (download.status) {
+      case DownloadStatus.downloading:
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            CircularProgressIndicator(
+              value: download.progress,
+              strokeWidth: 2,
+              valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+            ),
+            IconButton(
+              icon: const Icon(
+                Icons.pause,
+                size: 16,
+                color: AppColors.accent,
+              ),
+              onPressed: () => downloadService.pauseDownload(downloadId),
+            ),
+          ],
+        );
+
+      case DownloadStatus.paused:
+        return IconButton(
+          icon: const Icon(Icons.play_arrow, color: AppColors.accent),
+          onPressed: () => downloadService.resumeDownload(downloadId),
+        );
+
+      case DownloadStatus.queued:
+        return const IconButton(
+          icon: Icon(Icons.schedule, color: AppColors.textSecondary),
+          onPressed: null,
+        );
+
+      case DownloadStatus.completed:
+        return IconButton(
+          icon: const Icon(Icons.check_circle, color: Colors.green),
+          onPressed: () =>
+              _showDownloadOptions(context, downloadService, downloadId),
+        );
+
+      case DownloadStatus.failed:
+        return IconButton(
+          icon: const Icon(Icons.error, color: Colors.red),
+          onPressed: () => downloadService.retryDownload(downloadId),
+        );
+
+      case DownloadStatus.cancelled:
+        return IconButton(
+          icon: const Icon(Icons.download, color: AppColors.textSecondary),
+          onPressed: () => _startDownload(context, downloadService),
+        );
+    }
   }
 
   Future<void> _startDownload(

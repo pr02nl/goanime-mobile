@@ -14,6 +14,43 @@ import '../../core/themes/app_colors.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/widgets/focusable_widget.dart';
 
+/// Badge de download que só reconstrói quando o status do download
+/// deste episódio específico muda.
+class _DownloadBadge extends StatelessWidget {
+  final String animeTitle;
+  final String episodeNumber;
+
+  const _DownloadBadge({
+    required this.animeTitle,
+    required this.episodeNumber,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final downloadId = '${animeTitle}_$episodeNumber';
+    final download = context.select<DownloadService, DownloadItem?>(
+      (ds) => ds.getDownload(downloadId),
+    );
+
+    if (download?.status == DownloadStatus.completed) {
+      return Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Icon(
+          Icons.download_done,
+          color: Colors.white,
+          size: 14,
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+
 /// Card de episódio exibido em modo grid (grade).
 class EpisodeGridCard extends StatelessWidget {
   final Episode episode;
@@ -130,34 +167,15 @@ class EpisodeGridCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // Download status badge (top-left)
+              // Download status badge (top-left) — usa context.select
+              // para só reconstruir quando o status do download deste
+              // episódio específico mudar.
               Positioned(
                 top: 8,
                 left: 8,
-                child: Consumer<DownloadService>(
-                  builder: (context, downloadService, _) {
-                    final episodeNumber = extractEpisodeNumber(
-                      episode.number,
-                    );
-                    final downloadId = '${animeTitle}_$episodeNumber';
-                    final download = downloadService.getDownload(downloadId);
-
-                    if (download?.status == DownloadStatus.completed) {
-                      return Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(
-                          Icons.download_done,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
+                child: _DownloadBadge(
+                  animeTitle: animeTitle,
+                  episodeNumber: extractEpisodeNumber(episode.number),
                 ),
               ),
 

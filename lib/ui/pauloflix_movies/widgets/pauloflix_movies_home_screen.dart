@@ -365,21 +365,16 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
   /// Constrói a seção "Continue assistindo" para filmes.
   ///
   /// Usa um `ChangeNotifierProvider` local com o
-  /// `PauloFlixMovieContinueWatchingViewModel` e renderiza cards
-  /// dos filmes com progresso parcial.
+  /// `PauloFlixMovieContinueWatchingViewModel` e `_MovieContinueWatchingConsumer`
+  /// (que usa `context.select` em vez de `Consumer` para evitar rebuilds
+  /// desnecessários).
   Widget _buildContinueWatchingSection(BuildContext context) {
     return ChangeNotifierProvider<PauloFlixMovieContinueWatchingViewModel>(
       create: (ctx) => PauloFlixMovieContinueWatchingViewModel(
         repository: ctx.read<PauloFlixMovieProgressRepository>(),
       ),
-      child: Consumer<PauloFlixMovieContinueWatchingViewModel>(
-        builder: (_, vm, _) {
-          if (vm.loading) return const SizedBox.shrink();
-          return _MovieContinueWatchingCarousel(
-            contents: vm.contents,
-            isTV: _isTV,
-          );
-        },
+      child: _MovieContinueWatchingConsumer(
+        isTV: _isTV,
       ),
     );
   }
@@ -425,6 +420,34 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Substitui `Consumer<PauloFlixMovieContinueWatchingViewModel>` por
+/// `context.select` para evitar rebuilds desnecessários.
+///
+/// `loading` e `contents` são selecionados independentemente, então
+/// o carrossel só reconstrói quando a lista de fato muda.
+class _MovieContinueWatchingConsumer extends StatelessWidget {
+  final bool isTV;
+
+  const _MovieContinueWatchingConsumer({required this.isTV});
+
+  @override
+  Widget build(BuildContext context) {
+    final loading = context.select<PauloFlixMovieContinueWatchingViewModel, bool>(
+      (vm) => vm.loading,
+    );
+    if (loading) return const SizedBox.shrink();
+
+    final contents = context.select<PauloFlixMovieContinueWatchingViewModel, List<PauloFlixMovieProgressRecord>>(
+      (vm) => vm.contents,
+    );
+
+    return _MovieContinueWatchingCarousel(
+      contents: contents,
+      isTV: isTV,
     );
   }
 }

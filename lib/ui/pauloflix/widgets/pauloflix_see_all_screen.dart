@@ -369,27 +369,18 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
 
   /// Fase 5.3 — Seção "Continue assistindo" no topo da See All.
   ///
-  /// Encapsula o `ChangeNotifierProvider` + `Consumer` para que o
-  /// `PauloFlixContinueWatchingViewModel` viva dentro do `SliverToBoxAdapter`
-  /// e suma naturalmente quando vazio
-  /// (`PauloFlixContinueWatchingSection` retorna `SizedBox.shrink()`).
+  /// Encapsula o `ChangeNotifierProvider` + `_ContinueWatchingConsumer`
+  /// (que usa `context.select` em vez de `Consumer` para evitar rebuilds
+  /// desnecessários) para que o `PauloFlixContinueWatchingViewModel` viva
+  /// dentro do `SliverToBoxAdapter` e suma naturalmente quando vazio.
   Widget _buildContinueWatchingSection() {
     return ChangeNotifierProvider<PauloFlixContinueWatchingViewModel>(
       create: (ctx) => PauloFlixContinueWatchingViewModel(
         repository: ctx.read<PauloFlixEpisodeProgressRepository>(),
       ),
-      child: Consumer<PauloFlixContinueWatchingViewModel>(
-        builder: (_, vm, _) {
-          // Esconde enquanto carrega (evita flash de "vazio" antes do
-          // primeiro evento do stream).
-          if (vm.loading) return const SizedBox.shrink();
-          return PauloFlixContinueWatchingSection(
-            contents: vm.contents,
-            statsById: vm.statsById,
-            isTV: _isTV,
-            onContentTap: _onContinueWatchingTap,
-          );
-        },
+      child: _ContinueWatchingConsumer(
+        isTV: _isTV,
+        onContentTap: _onContinueWatchingTap,
       ),
     );
   }
@@ -398,6 +389,48 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   /// Usa o mesmo `pushNamed` do hero banner e dos cards da grid.
   void _onContinueWatchingTap(PauloFlixContent content) {
     context.pushNamed('pauloflix-episode-list', extra: content);
+  }
+}
+
+// ─── Continue Watching Consumer ──────────────────────────────────────
+
+/// Substitui `Consumer<PauloFlixContinueWatchingViewModel>` por
+/// `context.select` para evitar rebuilds desnecessários.
+///
+/// Cada propriedade (`loading`, `contents`, `statsById`) é selecionada
+/// independentemente, então mudanças em `statsById` (carregadas após
+/// a lista) não reconstroem a seção inteira.
+class _ContinueWatchingConsumer extends StatelessWidget {
+  final bool isTV;
+  final void Function(PauloFlixContent content)? onContentTap;
+
+  const _ContinueWatchingConsumer({
+    required this.isTV,
+    this.onContentTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final loading = context.select<PauloFlixContinueWatchingViewModel, bool>(
+      (vm) => vm.loading,
+    );
+    // Esconde enquanto carrega (evita flash de "vazio" antes do
+    // primeiro evento do stream).
+    if (loading) return const SizedBox.shrink();
+
+    final contents = context.select<PauloFlixContinueWatchingViewModel, List<PauloFlixContent>>(
+      (vm) => vm.contents,
+    );
+    final statsById = context.select<PauloFlixContinueWatchingViewModel, Map<int, PauloFlixProgressStats>>(
+      (vm) => vm.statsById,
+    );
+
+    return PauloFlixContinueWatchingSection(
+      contents: contents,
+      statsById: statsById,
+      isTV: isTV,
+      onContentTap: onContentTap,
+    );
   }
 }
 
