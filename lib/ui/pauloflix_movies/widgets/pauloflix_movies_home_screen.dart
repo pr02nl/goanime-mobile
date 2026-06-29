@@ -86,7 +86,8 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
       await provider.loadContents();
       if (!mounted) return;
 
-      // Primeira abertura: TMDB não configurado OU banco vazio → sincronizar.
+      // Sync automático em background — o service verifica o
+      // `updated_at` do JSON index e pula se nada mudou.
       if (!_checkedInitialSync) {
         _checkedInitialSync = true;
         provider.syncContent();
@@ -401,17 +402,6 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
                 color: AppColors.moviesAccent,
               ),
             ),
-          )
-        else
-          FocusableWidget(
-            onSelect: _syncContent,
-            borderRadius: 24,
-            focusPadding: EdgeInsets.zero,
-            child: IconButton(
-              icon: const Icon(Icons.sync),
-              tooltip: l10n.sync,
-              onPressed: _syncContent,
-            ),
           ),
       ],
       flexibleSpace: FlexibleSpaceBar(
@@ -573,4 +563,3 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
     );
   }
 }
-

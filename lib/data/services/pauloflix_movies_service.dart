@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../domain/models/pauloflix_movie.dart';
@@ -17,6 +18,10 @@ import '../../domain/repositories/pauloflix_movies_repository.dart';
 class PauloFlixMoviesService {
   static const String baseUrl = ApiConstants.moviePauloFlix;
   static const String indexUrl = ApiConstants.movieIndexUrl;
+
+  /// Chave SharedPreferences para armazenar o `updated_at` do último
+  /// JSON index de filmes baixado.
+  static const String _lastUpdatedAtKey = 'last_movie_index_updated_at';
 
   /// Host base sem path — usado para resolver paths relativos do JSON.
   static const String _baseHost = 'https://media.oliveira.braga.nom.br';
@@ -44,6 +49,9 @@ class PauloFlixMoviesService {
   ///   eliminando chamadas HTTP externas e rate limiting.
   /// - **Sem TTL:** o JSON é fonte da verdade — cada sync processa
   ///   todos os filmes e atualiza o banco via `DoUpdate` (UPSERT real).
+  /// - **Verificação de `updated_at`:** antes de processar, compara o
+  ///   campo `updated_at` do JSON com o último valor salvo em
+  ///   SharedPreferences. Se igual, pula o processamento.
   ///
   /// [enricher] e o fluxo TMDB são mantidos apenas para compatibilidade
   /// de assinatura — são **ignorados** neste sync.
@@ -64,6 +72,20 @@ class PauloFlixMoviesService {
       }
 
       final Map<String, dynamic> data = jsonDecode(response.body);
+
+      // ─── Verificação rápida de updated_at ───────────────────────
+      final serverUpdatedAt = data['updated_at'] as String?;
+      if (serverUpdatedAt != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final lastUpdatedAt = prefs.getString(_lastUpdatedAtKey);
+        if (serverUpdatedAt == lastUpdatedAt) {
+          debugPrint(
+            '[PauloFlix Movies] Índice não mudou desde a última sync — pulando.',
+          );
+          return true;
+        }
+      }
+
       final List<dynamic> moviesJson = data['movies'] as List<dynamic>;
 
       if (moviesJson.isEmpty) {
@@ -104,6 +126,13 @@ class PauloFlixMoviesService {
       }
 
       final totalAvailable = existingContent.length - removedPaths.length;
+
+      // Salva o updated_at para pular syncs futuros se nada mudou.
+      if (serverUpdatedAt != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_lastUpdatedAtKey, serverUpdatedAt);
+      }
+
       onProgress?.call('Sincronização completa: $totalAvailable filmes');
       return true;
     } catch (e) {

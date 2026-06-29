@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/url_codec.dart';
@@ -14,6 +15,11 @@ import '../../domain/repositories/pauloflix_repository.dart';
 class PauloFlixService {
   static const String baseUrl = ApiConstants.animePauloFlix;
   static const String indexUrl = ApiConstants.tvIndexUrl;
+
+  /// Chave SharedPreferences para armazenar o `updated_at` do último
+  /// JSON index baixado. Se o servidor retornar o mesmo valor, o sync
+  /// é pulado (evita processamento desnecessário do lado do cliente).
+  static const String _lastUpdatedAtKey = 'last_tv_index_updated_at';
 
   /// Host base sem path — usado para resolver paths relativos do JSON.
   static const String _baseHost = 'https://media.oliveira.braga.nom.br';
@@ -199,6 +205,10 @@ class PauloFlixService {
   /// - **Sync de episódios integrado:** quando [episodeRepository] é
   ///   fornecido, o sync popula seasons/episódios diretamente do JSON,
   ///   sem scraping adicional.
+  /// - **Verificação de `updated_at`:** antes de processar, compara o
+  ///   campo `updated_at` do JSON com o último valor salvo em
+  ///   SharedPreferences. Se igual, pula o processamento (economiza
+  ///   CPU e banda em aberturas frequentes do app).
   static Future<bool> syncContent({
     required PauloFlixRepository repository,
     void Function(String progress)? onProgress,
@@ -225,6 +235,20 @@ class PauloFlixService {
       }
 
       final Map<String, dynamic> data = jsonDecode(response.body);
+
+      // ─── Verificação rápida de updated_at ───────────────────────
+      final serverUpdatedAt = data['updated_at'] as String?;
+      if (serverUpdatedAt != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final lastUpdatedAt = prefs.getString(_lastUpdatedAtKey);
+        if (serverUpdatedAt == lastUpdatedAt) {
+          debugPrint(
+            '[PauloFlix] Índice não mudou desde a última sync — pulando.',
+          );
+          return true;
+        }
+      }
+
       final List<dynamic> showsJson = data['shows'] as List<dynamic>;
 
       if (showsJson.isEmpty) {
@@ -360,6 +384,13 @@ class PauloFlixService {
       }
 
       final totalAvailable = existingContent.length - removedPaths.length;
+
+      // Salva o updated_at para pular syncs futuros se nada mudou.
+      if (serverUpdatedAt != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_lastUpdatedAtKey, serverUpdatedAt);
+      }
+
       onProgress?.call('Sincronização completa: $totalAvailable shows');
       return true;
     } catch (e) {

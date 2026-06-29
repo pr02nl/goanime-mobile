@@ -47,9 +47,9 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _checkPauloFlixSync() async {
     final provider = context.read<PauloFlixProvider>();
     await provider.loadContents();
-    if (provider.contents.isEmpty) {
-      provider.syncContent();
-    }
+    // Sync automático — o service verifica o `updated_at` do JSON
+    // index e pula o processamento se nada mudou no servidor.
+    provider.syncContent();
   }
 
   @override

@@ -32,7 +32,6 @@ import '../../core/themes/app_colors.dart';
 import '../../core/utils/pagination.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
-import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/paginated_letter_grid.dart';
@@ -82,12 +81,11 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       await provider.loadContents();
       if (!mounted) return;
 
-      // Primeira abertura: banco vazio → sincronizar.
+      // Sync automático em background — o service verifica o
+      // `updated_at` do JSON index e pula se nada mudou.
       if (!_checkedInitialSync) {
         _checkedInitialSync = true;
-        if (provider.contents.isEmpty) {
-          provider.syncContent();
-        }
+        provider.syncContent();
       }
 
       // Carrega stats de progresso para overlays nos cards.
@@ -192,10 +190,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     _pagination = PauloFlixProvider.paginateByLetter(_allContents, perPage: 24);
   }
 
-  void _syncContent() {
-    context.read<PauloFlixProvider>().syncContent();
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -210,7 +204,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(l10n, isSyncing),
           if (isSyncing && provider.syncProgress.isNotEmpty)
             _buildSyncBanner(provider),
           if (contents.isEmpty && isSyncing)
@@ -322,6 +315,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   }
 
   Widget _buildAllAnimesSection(AppLocalizations l10n) {
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
     return Padding(
       padding: const EdgeInsets.only(top: 24),
       child: Column(
@@ -355,6 +350,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
                 imageUrl: content.imageUrl ?? '',
                 title: content.displayName,
                 rating: content.score,
+                width: cardWidth,
+                height: cardHeight,
                 isTV: _isTV,
                 overlayWidget: _buildProgressOverlay(content),
                 onTap: () {
@@ -364,64 +361,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             },
           ),
         ],
-      ),
-    );
-  }
-
-  // ─── AppBar + Sync banner ──────────────────────────────────────────
-
-  Widget _buildAppBar(AppLocalizations l10n, bool isSyncing) {
-    return SliverAppBar(
-      expandedHeight: 120,
-      pinned: true,
-      backgroundColor: AppColors.background,
-      actions: [
-        if (isSyncing)
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: _accentColor,
-              ),
-            ),
-          )
-        else
-          FocusableWidget(
-            onSelect: _syncContent,
-            borderRadius: 24,
-            focusPadding: EdgeInsets.zero,
-            child: IconButton(
-              icon: const Icon(Icons.sync),
-              tooltip: l10n.sync,
-              onPressed: _syncContent,
-            ),
-          ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 14),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.animeAccent, Color(0xFF8B5CF6)],
-                ),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Icon(Icons.dns, color: Colors.white, size: 14),
-            ),
-            const SizedBox(width: 6),
-            const Text(
-              'PauloFlix',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
       ),
     );
   }
