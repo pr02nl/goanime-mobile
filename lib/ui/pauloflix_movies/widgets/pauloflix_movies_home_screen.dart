@@ -185,9 +185,15 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final provider = context.watch<PauloFlixMoviesProvider>();
-    final contents = provider.contents;
-    final isSyncing = provider.isSyncing;
+    final contents = context.select<PauloFlixMoviesProvider, List<PauloFlixMovie>>(
+      (p) => p.contents,
+    );
+    final isSyncing = context.select<PauloFlixMoviesProvider, bool>(
+      (p) => p.isSyncing,
+    );
+    final syncProgress = context.select<PauloFlixMoviesProvider, String>(
+      (p) => p.syncProgress,
+    );
 
     // Memoiza as seções se o conteúdo mudou.
     _ensureSnapshotBuilt(contents);
@@ -196,8 +202,8 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          if (isSyncing && provider.syncProgress.isNotEmpty)
-            _buildSyncBanner(provider),
+          if (isSyncing && syncProgress.isNotEmpty)
+            _buildSyncBanner(syncProgress),
           if (contents.isEmpty && isSyncing)
             const SliverFillRemaining(
               hasScrollBody: false,
@@ -387,7 +393,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
     return _buildContentSlivers(l10n);
   }
 
-  Widget _buildSyncBanner(PauloFlixMoviesProvider provider) {
+  Widget _buildSyncBanner(String syncProgress) {
     return SliverToBoxAdapter(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -412,7 +418,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                provider.syncProgress,
+                syncProgress,
                 style: const TextStyle(color: Colors.white, fontSize: 13),
               ),
             ),

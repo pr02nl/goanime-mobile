@@ -175,9 +175,15 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final provider = context.watch<PauloFlixProvider>();
-    final contents = provider.contents;
-    final isSyncing = provider.isSyncing;
+    final contents = context.select<PauloFlixProvider, List<PauloFlixContent>>(
+      (p) => p.contents,
+    );
+    final isSyncing = context.select<PauloFlixProvider, bool>(
+      (p) => p.isSyncing,
+    );
+    final syncProgress = context.select<PauloFlixProvider, String>(
+      (p) => p.syncProgress,
+    );
 
     // Memoiza as seções se o conteúdo mudou.
     _ensureSnapshotBuilt(contents);
@@ -186,8 +192,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          if (isSyncing && provider.syncProgress.isNotEmpty)
-            _buildSyncBanner(provider),
+          if (isSyncing && syncProgress.isNotEmpty)
+            _buildSyncBanner(syncProgress),
           if (contents.isEmpty && isSyncing)
             const SliverFillRemaining(
               hasScrollBody: false,
@@ -326,7 +332,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     );
   }
 
-  Widget _buildSyncBanner(PauloFlixProvider provider) {
+  Widget _buildSyncBanner(String syncProgress) {
     return SliverToBoxAdapter(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -351,7 +357,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                provider.syncProgress,
+                syncProgress,
                 style: const TextStyle(color: Colors.white, fontSize: 13),
               ),
             ),

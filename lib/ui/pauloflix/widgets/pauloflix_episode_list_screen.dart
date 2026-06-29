@@ -7,7 +7,10 @@ import 'package:provider/provider.dart';
 
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
+import '../../../domain/models/paulo_flix_episode_record.dart';
+import '../../../domain/models/paulo_flix_season_record.dart';
 import '../../../domain/models/pauloflix_content.dart';
+import '../../../domain/models/pauloflix_models.dart' as scraping;
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../routing/route_data.dart';
@@ -41,7 +44,27 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<PauloFlixEpisodeProgressViewModel>();
+    final content = context.select<PauloFlixEpisodeProgressViewModel, PauloFlixContent>(
+      (vm) => vm.content,
+    );
+    final isLoading = context.select<PauloFlixEpisodeProgressViewModel, bool>(
+      (vm) => vm.isLoading,
+    );
+    final hasSeasons = context.select<PauloFlixEpisodeProgressViewModel, bool>(
+      (vm) => vm.hasSeasons,
+    );
+    final errorMessage = context.select<PauloFlixEpisodeProgressViewModel, String?>(
+      (vm) => vm.errorMessage,
+    );
+    final scrapingSeasons = context.select<PauloFlixEpisodeProgressViewModel, List<scraping.PauloFlixSeason>>(
+      (vm) => vm.scrapingSeasons,
+    );
+    final selectedSeasonIndex = context.select<PauloFlixEpisodeProgressViewModel, int>(
+      (vm) => vm.selectedSeasonIndex,
+    );
+    final isCompletedByIndex = context.select<PauloFlixEpisodeProgressViewModel, Map<int, bool>?>(
+      (vm) => vm.isCompletedByIndex,
+    );
     final isTV = MediaQuery.of(context).size.width > 1200;
 
     return Scaffold(
@@ -49,37 +72,37 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         title: Text(
-          vm.content.displayName,
+          content.displayName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
       ),
       body: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _HeroBanner(content: vm.content)),
+          SliverToBoxAdapter(child: _HeroBanner(content: content)),
 
-          SliverToBoxAdapter(child: _InfoPanel(content: vm.content)),
+          SliverToBoxAdapter(child: _InfoPanel(content: content)),
 
-          if (!vm.isLoading && vm.hasSeasons)
+          if (!isLoading && hasSeasons)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: PauloflixSeasonSelector(
-                  seasons: vm.scrapingSeasons,
-                  selectedIndex: vm.selectedSeasonIndex,
-                  onSeasonSelected: (index) => vm.selectSeason(index),
-                  isCompletedByIndex: vm.isCompletedByIndex,
+                  seasons: scrapingSeasons,
+                  selectedIndex: selectedSeasonIndex,
+                  onSeasonSelected: (index) => context.read<PauloFlixEpisodeProgressViewModel>().selectSeason(index),
+                  isCompletedByIndex: isCompletedByIndex,
                 ),
               ),
             ),
 
-          if (vm.isLoading)
+          if (isLoading)
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),
             )
-          else if (vm.errorMessage != null)
+          else if (errorMessage != null)
             SliverFillRemaining(
-              child: _ErrorState(errorMessage: vm.errorMessage!),
+              child: _ErrorState(errorMessage: errorMessage),
             )
           else
             SliverPadding(
@@ -103,22 +126,25 @@ class _HeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<PauloFlixEpisodeProgressViewModel>();
+    final heroUrl = context.select<PauloFlixEpisodeProgressViewModel, String?>(
+      (vm) => vm.selectedSeasonHeroUrl,
+    );
     final isTV = MediaQuery.of(context).size.width > 1200;
     final heroHeight = isTV ? 350.0 : 280.0;
 
     return SizedBox(
       height: heroHeight,
       child: NetflixHeroCard(
-        imageUrl: vm.selectedSeasonHeroUrl ?? '',
+        imageUrl: heroUrl ?? '',
         title: content.displayName,
         showTitle: false,
         height: heroHeight,
         isTV: isTV,
         onPlay: () {
-          final episodes = vm.episodes;
-          if (episodes.isNotEmpty) {
-            _playEpisode(context, episodes.first, 0);
+          final vm = context.read<PauloFlixEpisodeProgressViewModel>();
+          final playEpisodes = vm.episodes;
+          if (playEpisodes.isNotEmpty) {
+            _playEpisode(context, playEpisodes.first, 0);
           }
         },
       ),
@@ -172,7 +198,12 @@ class _InfoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<PauloFlixEpisodeProgressViewModel>();
+    final hasSeasons = context.select<PauloFlixEpisodeProgressViewModel, bool>(
+      (vm) => vm.hasSeasons,
+    );
+    final seasonCount = context.select<PauloFlixEpisodeProgressViewModel, int>(
+      (vm) => vm.seasons.length,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -210,7 +241,7 @@ class _InfoPanel extends StatelessWidget {
                   ),
                 ),
               ],
-              if (vm.hasSeasons) ...[
+              if (hasSeasons) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -222,7 +253,7 @@ class _InfoPanel extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '${vm.seasons.length} ${vm.seasons.length == 1 ? 'temporada' : 'temporadas'}',
+                    '$seasonCount ${seasonCount == 1 ? 'temporada' : 'temporadas'}',
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                 ),
@@ -341,9 +372,17 @@ class _EpisodesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<PauloFlixEpisodeProgressViewModel>();
+    final records = context.select<PauloFlixEpisodeProgressViewModel, List<PauloFlixEpisodeRecord>>(
+      (vm) => vm.episodes,
+    );
+    final season = context.select<PauloFlixEpisodeProgressViewModel, PauloFlixSeasonRecord?>(
+      (vm) => vm.selectedSeason,
+    );
+    final scrapings = context.select<PauloFlixEpisodeProgressViewModel, List<scraping.PauloFlixEpisode>>(
+      (vm) => vm.scrapingEpisodesForSelected,
+    );
 
-    if (vm.episodes.isEmpty) {
+    if (records.isEmpty) {
       return const SliverFillRemaining(
         child: Center(
           child: Column(
@@ -365,9 +404,6 @@ class _EpisodesList extends StatelessWidget {
       );
     }
 
-    final season = vm.selectedSeason;
-    final records = vm.episodes;
-    final scrapings = vm.scrapingEpisodesForSelected;
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
