@@ -90,13 +90,40 @@ class AppDatabase extends _$AppDatabase {
   ///   tem entrada própria no JSON index. A coluna orfã existente
   ///   em bancos legados é removida via `ALTER TABLE ... DROP COLUMN`.
   ///   Sem migration data — a coluna não era mais usada pelo código.
+  /// * v14 (2026-06-29): adiciona 3 índices no banco para otimizar
+  ///   as queries identificadas na auditoria de performance:
+  ///   - `idx_episodes_in_progress` em `paulo_flix_episodes`
+  ///     (`is_completed`, `position_seconds`, `last_watched`)
+  ///     → cobre a query "Continue assistindo" (full scan evitado).
+  ///   - `idx_episodes_season_completed` em `paulo_flix_episodes`
+  ///     (`season_id`, `is_completed`)
+  ///     → cobre `_recomputeSeasonCompleted` (2 full scans evitados).
+  ///   - `idx_content_available` em `paulo_flix_content`
+  ///     (`is_available`)
+  ///     → cobre o filtro de disponibilidade nos JOINs da home.
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
+      // Cria os índices customizados que não fazem parte das definições
+      // de tabela Drift (@Index). Novas instalações também precisam
+      // deles — só m.createAll() não é suficiente.
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_episodes_in_progress '
+        'ON paulo_flix_episodes('
+        'is_completed, position_seconds, last_watched)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_episodes_season_completed '
+        'ON paulo_flix_episodes(season_id, is_completed)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_content_available '
+        'ON paulo_flix_content(is_available)',
+      );
       // A lógica de importação dos bancos legados roda na Fase 2
       // (ver `docs/DATABASE_REFACTORING.md` §3).
     },
@@ -221,6 +248,26 @@ class AppDatabase extends _$AppDatabase {
       final db = m.database as AppDatabase;
       await db.customStatement(
         'ALTER TABLE paulo_flix_movies DROP COLUMN is_collection',
+      );
+    }
+
+    // v13 → v14: adiciona 3 índices para otimizar queries.
+    // `CREATE INDEX IF NOT EXISTS` é seguro para re-execução
+    // (caso a migration interrompa no meio).
+    if (from < 14) {
+      final db = m.database as AppDatabase;
+      await db.customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_episodes_in_progress '
+        'ON paulo_flix_episodes('
+        'is_completed, position_seconds, last_watched)',
+      );
+      await db.customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_episodes_season_completed '
+        'ON paulo_flix_episodes(season_id, is_completed)',
+      );
+      await db.customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_content_available '
+        'ON paulo_flix_content(is_available)',
       );
     }
 
