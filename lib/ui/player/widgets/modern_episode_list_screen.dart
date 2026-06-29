@@ -27,7 +27,9 @@ class ModernEpisodeListScreen extends StatefulWidget {
 }
 
 class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
-    with SingleTickerProviderStateMixin, EpisodeListPaginationMixin<ModernEpisodeListScreen> {
+    with
+        SingleTickerProviderStateMixin,
+        EpisodeListPaginationMixin<ModernEpisodeListScreen> {
   @override
   Anime get anime => widget.anime;
 
@@ -84,9 +86,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
         animeName: anime.name,
         thumbnailUrl: anime.imageUrl,
         episodes: (allEpisodes ?? episodes).map((e) {
-          final episodeNumber = extractEpisodeNumber(
-            e.number,
-          );
+          final episodeNumber = extractEpisodeNumber(e.number);
           return {
             'number': episodeNumber,
             'title': 'Episode ${extractEpisodeNumber(e.number)}',
@@ -120,10 +120,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
           else if (episodes.isEmpty)
             SliverToBoxAdapter(child: _buildEmptyState())
           else ...[
-            if (_isGridView)
-              _buildGridView()
-            else
-              _buildListView(),
+            if (_isGridView) _buildGridView() else _buildListView(),
             if (isLoadingMore)
               SliverToBoxAdapter(child: buildLoadingMoreIndicator()),
           ],
@@ -316,7 +313,9 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
             children: [
               _buildStatItem(
                 Icons.tv,
-                totalEpisodes > 0 ? '$totalEpisodes eps' : '${episodes.length} eps',
+                totalEpisodes > 0
+                    ? '$totalEpisodes eps'
+                    : '${episodes.length} eps',
                 Colors.blue,
               ),
               const SizedBox(width: 16),
@@ -516,12 +515,12 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
   Widget _buildLoadingState() {
     return Container(
       padding: const EdgeInsets.all(48),
-      child: Center(
+      child: const Center(
         child: Column(
           children: [
-            const CircularProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 16),
-            const Text(
+            CircularProgressIndicator(color: AppColors.primary),
+            SizedBox(height: 16),
+            Text(
               'Loading episodes...',
               style: TextStyle(color: Colors.white70),
             ),
@@ -545,7 +544,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
             const SizedBox(height: 16),
             const Text(
               'Error loading episodes',
-              style: const TextStyle(color: Colors.white, fontSize: 18),
+              style: TextStyle(color: Colors.white, fontSize: 18),
             ),
             const SizedBox(height: 8),
             Text(
