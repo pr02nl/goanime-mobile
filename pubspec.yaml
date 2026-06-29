@@ -71,8 +71,6 @@ dependencies:
   # (ex: EpisodeProgressRecorder). Re-declarado aqui (também em overrides)
   # para que `flutter analyze` aceite sem warn de depend_on_referenced_packages.
   meta: ^1.17.0
-  # Bottom navigation bar
-  bottom_navy_bar: ^6.1.0
   # Ionicons icons
   # ionicons removed - using Material Icons instead
   # Lucide icons

@@ -23,8 +23,8 @@ class PauloFlixMoviesService {
   /// JSON index de filmes baixado.
   static const String _lastUpdatedAtKey = 'last_movie_index_updated_at';
 
-  /// Host base sem path — usado para resolver paths relativos do JSON.
-  static const String _baseHost = 'https://media.oliveira.braga.nom.br';
+  /// Host base — centralizado em [ApiConstants.mediaBaseHost].
+  static String get _baseHost => ApiConstants.mediaBaseHost;
 
   /// HTTP client injetável (default: `http.Client()`, injetado por
   /// [configure] com `AuthenticatedHttpClient`).

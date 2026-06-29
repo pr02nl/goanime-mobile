@@ -20,4 +20,8 @@ class ApiConstants {
       'https://media.oliveira.braga.nom.br/tvshows/tv_index.json';
   static const String movieIndexUrl =
       'https://media.oliveira.braga.nom.br/movies/movie_index.json';
+
+  /// Host base do servidor de mídia — usado para resolver paths
+  /// relativos nos JSON index (`tv_index.json`, `movie_index.json`).
+  static const String mediaBaseHost = 'https://media.oliveira.braga.nom.br';
 }

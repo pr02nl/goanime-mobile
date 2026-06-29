@@ -1,14 +1,16 @@
 import 'package:drift/drift.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/database/drift_utils.dart';
 import '../../core/utils/genre_codec.dart';
 import '../../domain/models/pauloflix_content.dart';
 import '../../domain/repositories/pauloflix_repository.dart';
 
 /// Implementação Drift do `PauloFlixRepository` (animes do file server).
 ///
-/// Substitui `PauloFlixDatabaseService` (sqlite3 FFI). Os dois coexistem
-/// durante a Fase 3; Fase 4 remove o service legado.
+/// Usa [DriftUtils] para `searchByName`, `markAsUnavailable`, `getStats`.
+/// Mantém localmente `getAll`, `getByFolderName`, `watch` (tipados com
+/// Drift, preservando reatividade) e `saveContent`/`saveBatch`.
 class PauloFlixRepositoryImpl implements PauloFlixRepository {
   final AppDatabase _db;
   PauloFlixRepositoryImpl(this._db);
@@ -24,20 +26,12 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
 
   @override
   Future<List<PauloFlixContent>> searchByName(String query) async {
-    // Drift `like()` não tem parâmetro `escape`, então usamos `customSelect`
-    // com SQL puro e `ESCAPE '\'` explícito — o que garante que `%` e `_`
-    // no termo de busca sejam tratados como literais.
-    final escaped = _escapeLike(query);
-    final pattern = '%$escaped%';
-    final rows = await _db.customSelect(
-      'SELECT * FROM paulo_flix_content '
-      "WHERE display_name LIKE ?1 ESCAPE '\\' "
-      'AND is_available = 1 '
-      'ORDER BY display_name',
-      variables: [Variable.withString(pattern)],
-      readsFrom: {_db.pauloFlixContent},
-    ).get();
-    return rows.map((r) => _toDomain(_db.pauloFlixContent.map(r.data))).toList();
+    return DriftUtils.searchByName(
+      _db,
+      'paulo_flix_content',
+      query,
+      (data) => _toDomain(_db.pauloFlixContent.map(data)),
+    );
   }
 
   @override
@@ -116,10 +110,6 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
 
   @override
   Future<void> saveBatch(List<PauloFlixContent> contents) async {
-    // Mesmo rationale de `saveContent`: UPSERT real via `DoUpdate` para
-    // preservar o `id` em re-syncs (a FK cascade de seasons depende
-    // disso). Ver bloco de comentário em `saveContent` para o histórico
-    // completo do bug.
     await _db.batch((batch) {
       for (final content in contents) {
         batch.insert(
@@ -171,31 +161,12 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
 
   @override
   Future<void> markAsUnavailable(String folderName) async {
-    await (_db.update(_db.pauloFlixContent)
-          ..where((t) => t.folderName.equals(folderName)))
-        .write(const PauloFlixContentCompanion(isAvailable: Value(false)));
+    await DriftUtils.markAsUnavailable(_db, 'paulo_flix_content', folderName);
   }
 
   @override
   Future<Map<String, int>> getStats() async {
-    final totalExp = _db.pauloFlixContent.id.count();
-    final totalRow = await (_db.selectOnly(_db.pauloFlixContent)
-          ..addColumns([totalExp]))
-        .getSingle();
-    final availRow = await (_db.selectOnly(_db.pauloFlixContent)
-          ..addColumns([totalExp])
-          ..where(_db.pauloFlixContent.isAvailable.equals(true)))
-        .getSingle();
-    final metadataRow = await (_db.selectOnly(_db.pauloFlixContent)
-          ..addColumns([totalExp])
-          ..where(_db.pauloFlixContent.isAvailable.equals(true) &
-              _db.pauloFlixContent.imageUrl.isNotNull()))
-        .getSingle();
-    return {
-      'total': totalRow.read(totalExp) ?? 0,
-      'available': availRow.read(totalExp) ?? 0,
-      'withMetadata': metadataRow.read(totalExp) ?? 0,
-    };
+    return DriftUtils.getStats(_db, 'paulo_flix_content');
   }
 
   @override
@@ -207,12 +178,7 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
         .map((rows) => rows.map(_toDomain).toList());
   }
 
-  // ---- helpers -----------------------------------------------------------
-
-  String _escapeLike(String q) => q
-      .replaceAll(r'\', r'\\')
-      .replaceAll('%', r'\%')
-      .replaceAll('_', r'\_');
+  // ── helpers ──────────────────────────────────────────────────────
 
   PauloFlixContent _toDomain(PauloFlixContentData row) {
     return PauloFlixContent(

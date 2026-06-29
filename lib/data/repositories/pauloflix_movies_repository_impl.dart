@@ -3,12 +3,17 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../core/database/app_database.dart';
+import '../../core/database/drift_utils.dart';
 import '../../core/utils/genre_codec.dart';
 import '../../domain/models/pauloflix_movie.dart';
 import '../../domain/models/pauloflix_movie_item.dart';
 import '../../domain/repositories/pauloflix_movies_repository.dart';
 
 /// Implementação Drift do `PauloFlixMoviesRepository` (filmes do file server).
+///
+/// Usa [DriftUtils] para `searchByName`, `markAsUnavailable`, `getStats`.
+/// Mantém localmente `getAll`, `getByFolderName`, `watch` (tipados com
+/// Drift, preservando reatividade) e `saveContent`/`saveBatch`.
 class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
   final AppDatabase _db;
   PauloFlixMoviesRepositoryImpl(this._db);
@@ -24,17 +29,12 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
 
   @override
   Future<List<PauloFlixMovie>> searchByName(String query) async {
-    final escaped = _escapeLike(query);
-    final pattern = '%$escaped%';
-    final rows = await _db.customSelect(
-      'SELECT * FROM paulo_flix_movies '
-      "WHERE display_name LIKE ?1 ESCAPE '\\' "
-      'AND is_available = 1 '
-      'ORDER BY display_name',
-      variables: [Variable.withString(pattern)],
-      readsFrom: {_db.pauloFlixMovies},
-    ).get();
-    return rows.map((r) => _toDomain(_db.pauloFlixMovies.map(r.data))).toList();
+    return DriftUtils.searchByName(
+      _db,
+      'paulo_flix_movies',
+      query,
+      (data) => _toDomain(_db.pauloFlixMovies.map(data)),
+    );
   }
 
   @override
@@ -57,12 +57,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
 
   @override
   Future<void> saveContent(PauloFlixMovie content) async {
-    // **UPSERT real (Drift `DoUpdate`)** sobre `folderName` (UNIQUE).
-    // Ver `PauloFlixRepositoryImpl.saveContent` para o rationale
-    // completo — `InsertMode.insertOrReplace` faz DELETE+INSERT, troca
-    // o `id` e quebra as FKs em cascade. Aqui não há `paulo_flix_movies`
-    // com FKs cascade saindo no momento, mas a mesma semântica é
-    // correta (evita re-sincronizações "perderem" o id do filme).
     await _db.into(_db.pauloFlixMovies).insert(
           PauloFlixMoviesCompanion.insert(
             folderName: content.folderName,
@@ -113,7 +107,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
 
   @override
   Future<void> saveBatch(List<PauloFlixMovie> contents) async {
-    // Ver `PauloFlixRepositoryImpl.saveBatch` para o rationale.
     await _db.batch((batch) {
       for (final content in contents) {
         batch.insert(
@@ -169,31 +162,12 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
 
   @override
   Future<void> markAsUnavailable(String folderName) async {
-    await (_db.update(_db.pauloFlixMovies)
-          ..where((t) => t.folderName.equals(folderName)))
-        .write(const PauloFlixMoviesCompanion(isAvailable: Value(false)));
+    await DriftUtils.markAsUnavailable(_db, 'paulo_flix_movies', folderName);
   }
 
   @override
   Future<Map<String, int>> getStats() async {
-    final countExp = _db.pauloFlixMovies.id.count();
-    final totalRow = await (_db.selectOnly(_db.pauloFlixMovies)
-          ..addColumns([countExp]))
-        .getSingle();
-    final availRow = await (_db.selectOnly(_db.pauloFlixMovies)
-          ..addColumns([countExp])
-          ..where(_db.pauloFlixMovies.isAvailable.equals(true)))
-        .getSingle();
-    final metadataRow = await (_db.selectOnly(_db.pauloFlixMovies)
-          ..addColumns([countExp])
-          ..where(_db.pauloFlixMovies.isAvailable.equals(true) &
-              _db.pauloFlixMovies.imageUrl.isNotNull()))
-        .getSingle();
-    return {
-      'total': totalRow.read(countExp) ?? 0,
-      'available': availRow.read(countExp) ?? 0,
-      'withMetadata': metadataRow.read(countExp) ?? 0,
-    };
+    return DriftUtils.getStats(_db, 'paulo_flix_movies');
   }
 
   @override
@@ -205,12 +179,7 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
         .map((rows) => rows.map(_toDomain).toList());
   }
 
-  // ---- helpers -----------------------------------------------------------
-
-  String _escapeLike(String q) => q
-      .replaceAll(r'\', r'\\')
-      .replaceAll('%', r'\%')
-      .replaceAll('_', r'\_');
+  // ── helpers ──────────────────────────────────────────────────────
 
   PauloFlixMovie _toDomain(PauloFlixMovy row) {
     return PauloFlixMovie(

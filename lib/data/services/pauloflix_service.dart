@@ -21,8 +21,8 @@ class PauloFlixService {
   /// é pulado (evita processamento desnecessário do lado do cliente).
   static const String _lastUpdatedAtKey = 'last_tv_index_updated_at';
 
-  /// Host base sem path — usado para resolver paths relativos do JSON.
-  static const String _baseHost = 'https://media.oliveira.braga.nom.br';
+  /// Host base — centralizado em [ApiConstants.mediaBaseHost].
+  static String get _baseHost => ApiConstants.mediaBaseHost;
 
   /// HTTP client usado pelas chamadas estáticas.
   /// Inicializado por [configure] no startup do app com o
