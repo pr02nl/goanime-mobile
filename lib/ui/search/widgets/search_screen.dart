@@ -33,6 +33,10 @@ class _SearchScreenState extends State<SearchScreen>
   late AnimationController _animationController;
   Timer? _debounce;
 
+  /// Flag lazy: `_loadRecentSearches` (3 chamadas API) só dispara
+  /// na primeira vez que a seção de histórico renderiza, não em init.
+  bool _recentSearchesLoaded = false;
+
   List<String> _searchHistory = [];
   List<String> _suggestions = [];
   List<JikanAnime> _trendingAnimes = [];
@@ -117,7 +121,9 @@ class _SearchScreenState extends State<SearchScreen>
     _detectTVMode();
     _loadSearchHistory();
     _loadTrendingAnimes();
-    _loadRecentSearches();
+    // _loadRecentSearches é lazy: dispara só na primeira vez que
+    // _buildHistoryAndTrending renderiza (evita 3 chamadas API
+    // ao abrir a tela antes do usuário digitar).
 
     _searchController.addListener(_onSearchChanged);
   }
@@ -501,6 +507,12 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildHistoryAndTrending() {
     final l10n = AppLocalizations.of(context);
+    // Lazy load: dispara _loadRecentSearches (3 chamadas API) só
+    // na primeira vez que esta seção é renderizada.
+    if (!_recentSearchesLoaded) {
+      _recentSearchesLoaded = true;
+      _loadRecentSearches();
+    }
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
