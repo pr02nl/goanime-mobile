@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -154,7 +153,6 @@ class DownloadService extends ChangeNotifier {
   final DownloadsRepository _repository;
 
   final Map<String, DownloadItem> _downloads = {};
-  final Map<String, StreamSubscription> _activeDownloads = {};
   final Map<String, http.Client> _downloadClients = {};
   int _maxConcurrentDownloads = 3;
   int _activeDownloadCount = 0;
@@ -337,7 +335,6 @@ class DownloadService extends ChangeNotifier {
       await _repository.save(_downloads[id]!);
     } finally {
       _activeDownloadCount--;
-      _activeDownloads.remove(id);
       _downloadClients[id]?.close();
       _downloadClients.remove(id);
       notifyListeners();
@@ -706,7 +703,6 @@ class DownloadService extends ChangeNotifier {
       client.close();
     }
     _downloadClients.clear();
-    _activeDownloads.clear();
     super.dispose();
   }
 }
