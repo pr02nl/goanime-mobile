@@ -7,12 +7,15 @@ library;
 /// funcionava bem com pouca mídia disponível.
 ///
 /// Layout:
-/// * Título + contagem total + setas ◀ ▶ (no `trailing` do
-///   [NetflixCarousel]).
+/// * Título + contagem total no cabeçalho do [NetflixCarousel].
 /// * Corpo: [NetflixCarousel] com os cards da página atual (10 itens
-///   por página). Herda o `_ClampedTraversalPolicy` que prende o foco
-///   em navegação horizontal ← →.
-/// * Indicador "Pág. X de Y" abaixo do carrossel.
+///   por página), mais cards de navegação "Anterior" e "Próximo" nas
+///   pontas. Herda o `_ClampedTraversalPolicy` que prende o foco em
+///   navegação horizontal ← →.
+/// * Cards de navegação: saturados no centro da página, ao chegar na
+///   ponta o usuário vê o card "Próximo →" ou "← Anterior" e
+///   Enter/Select troca de página.
+/// * Indicador "Pág. X de Y" abaixo do carrossel (não-focusável).
 ///
 /// Uso:
 /// ```dart
@@ -63,15 +66,15 @@ class _PaginatedAlphabeticalCarouselState<T>
   int get _totalPages =>
       widget.items.isEmpty ? 1 : (widget.items.length / widget.pageSize).ceil();
 
-  List<T> get _currentPageItems {
+  bool get _hasPrev => _currentPage > 0;
+  bool get _hasNext => _currentPage < _totalPages - 1;
+
+  List<T> _currentPageItems() {
     final start = _currentPage * widget.pageSize;
     final end = (start + widget.pageSize).clamp(0, widget.items.length);
     if (start >= widget.items.length) return [];
     return widget.items.sublist(start, end);
   }
-
-  bool get _hasPrev => _currentPage > 0;
-  bool get _hasNext => _currentPage < _totalPages - 1;
 
   void _prevPage() {
     if (!_hasPrev) return;
@@ -84,8 +87,7 @@ class _PaginatedAlphabeticalCarouselState<T>
   }
 
   @override
-  void didUpdateWidget(
-      covariant PaginatedAlphabeticalCarousel<T> oldWidget) {
+  void didUpdateWidget(covariant PaginatedAlphabeticalCarousel<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.items.length != oldWidget.items.length) {
       final maxPage = _totalPages - 1;
@@ -101,12 +103,48 @@ class _PaginatedAlphabeticalCarouselState<T>
 
     final cardWidth = Responsive.getHorizontalListItemWidth(context);
 
-    final items = _currentPageItems.map((item) {
-      return SizedBox(
-        width: cardWidth,
-        child: widget.cardBuilder(context, item),
+    // Constrói os cards dos itens da página atual
+    final carouselItems = <Widget>[
+      ..._currentPageItems().map((item) {
+        return SizedBox(
+          width: cardWidth,
+          child: widget.cardBuilder(context, item),
+        );
+      }),
+    ];
+
+    // Insere card "Anterior" no início se houver página anterior
+    if (_hasPrev) {
+      carouselItems.insert(
+        0,
+        SizedBox(
+          width: cardWidth,
+          child: _NavCard(
+            icon: Icons.chevron_left,
+            label: 'Anterior',
+            accentColor: widget.accentColor,
+            isTV: widget.isTV,
+            onTap: _prevPage,
+          ),
+        ),
       );
-    }).toList();
+    }
+
+    // Insere card "Próximo" no final se houver próxima página
+    if (_hasNext) {
+      carouselItems.add(
+        SizedBox(
+          width: cardWidth,
+          child: _NavCard(
+            icon: Icons.chevron_right,
+            label: 'Próximo',
+            accentColor: widget.accentColor,
+            isTV: widget.isTV,
+            onTap: _nextPage,
+          ),
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,14 +153,8 @@ class _PaginatedAlphabeticalCarouselState<T>
         NetflixCarousel(
           title: widget.title,
           isTV: widget.isTV,
-          items: items,
-          trailing: _PageArrows(
-            hasPrev: _hasPrev,
-            hasNext: _hasNext,
-            accentColor: widget.accentColor,
-            onPrev: _prevPage,
-            onNext: _nextPage,
-          ),
+          items: carouselItems,
+          // Sem trailing — navegação via cards dentro do carrossel
         ),
         const SizedBox(height: 8),
         Center(
@@ -150,59 +182,65 @@ class _PaginatedAlphabeticalCarouselState<T>
   }
 }
 
-/// Setas ◀ ▶ para navegação entre páginas.
-class _PageArrows extends StatelessWidget {
-  final bool hasPrev;
-  final bool hasNext;
+/// Card tipo NetflixCard que funciona como botão de navegação entre
+/// páginas. Exibe um ícone (seta) + rótulo centralizado.
+class _NavCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
   final Color accentColor;
-  final VoidCallback onPrev;
-  final VoidCallback onNext;
+  final bool isTV;
+  final VoidCallback onTap;
 
-  const _PageArrows({
-    required this.hasPrev,
-    required this.hasNext,
+  const _NavCard({
+    required this.icon,
+    required this.label,
     required this.accentColor,
-    required this.onPrev,
-    required this.onNext,
+    required this.isTV,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FocusableWidget(
-          onSelect: hasPrev ? onPrev : null,
-          borderRadius: 20,
-          focusPadding: EdgeInsets.zero,
-          child: AnimatedOpacity(
-            opacity: hasPrev ? 1.0 : 0.3,
-            duration: const Duration(milliseconds: 200),
-            child: IconButton(
-              icon: const Icon(Icons.chevron_left),
-              color: hasPrev ? accentColor : Colors.white38,
-              tooltip: 'Página anterior',
-              onPressed: hasPrev ? onPrev : null,
+    final cardHeight = Responsive.getCardHeightSync(context);
+
+    return FocusableWidget(
+      onSelect: onTap,
+      focusPadding: EdgeInsets.zero,
+      focusScale: 1.0,
+      borderRadius: 6,
+      child: Container(
+        height: cardHeight,
+        decoration: BoxDecoration(
+          color: accentColor.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: accentColor.withValues(alpha: 0.25),
+            width: 1,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: onTap,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: accentColor, size: 32),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: accentColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(width: 4),
-        FocusableWidget(
-          onSelect: hasNext ? onNext : null,
-          borderRadius: 20,
-          focusPadding: EdgeInsets.zero,
-          child: AnimatedOpacity(
-            opacity: hasNext ? 1.0 : 0.3,
-            duration: const Duration(milliseconds: 200),
-            child: IconButton(
-              icon: const Icon(Icons.chevron_right),
-              color: hasNext ? accentColor : Colors.white38,
-              tooltip: 'Próxima página',
-              onPressed: hasNext ? onNext : null,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
