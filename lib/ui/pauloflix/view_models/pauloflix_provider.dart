@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../data/services/image_precache_service.dart';
 import '../../../data/services/pauloflix_service.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
@@ -72,6 +73,8 @@ class PauloFlixProvider extends ChangeNotifier {
     try {
       _contents = await _repository.getAll();
       _status = PauloFlixStatus.loaded;
+
+      _precacheImages();
     } catch (e) {
       _errorMessage = 'Erro ao carregar conteúdo: $e';
       _status = PauloFlixStatus.error;
@@ -263,6 +266,13 @@ class PauloFlixProvider extends ChangeNotifier {
       (c) =>
           c.displayName.toLowerCase() == animeName.toLowerCase() ||
           c.folderName.toLowerCase() == animeName.toLowerCase(),
+    );
+  }
+
+  /// Pré-carrega imagens dos cards em background após o load.
+  void _precacheImages() {
+    ImagePrecacheService.prefetchImages(
+      _contents.map((c) => c.imageUrl ?? ''),
     );
   }
 }
