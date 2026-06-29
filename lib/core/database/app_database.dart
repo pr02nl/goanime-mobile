@@ -101,8 +101,25 @@ class AppDatabase extends _$AppDatabase {
   ///   - `idx_content_available` em `paulo_flix_content`
   ///     (`is_available`)
   ///     → cobre o filtro de disponibilidade nos JOINs da home.
+  /// * v15 (2026-06-29): adiciona 4 índices compostos para otimizar
+  ///   queries frequentes identificadas na auditoria:
+  ///   - `idx_seasons_content` em `paulo_flix_seasons`
+  ///     (`content_id`, `season_number`)
+  ///     → cobre `getSeasonsForContent` (WHERE content_id + ORDER BY
+  ///       season_number sem full scan).
+  ///   - `idx_episodes_season_number` em `paulo_flix_episodes`
+  ///     (`season_id`, `episode_number`)
+  ///     → cobre `getEpisodesForSeason` (WHERE season_id + ORDER BY
+  ///       episode_number sem full scan).
+  ///   - `idx_content_search` em `paulo_flix_content`
+  ///     (`is_available`, `display_name`)
+  ///     → cobre `searchByName` (filtro de disponibilidade + LIKE
+  ///       em display_name + ORDER BY display_name).
+  ///   - `idx_movies_search` em `paulo_flix_movies`
+  ///     (`is_available`, `display_name`)
+  ///     → cobre `searchByName` em filmes (mesmo padrão).
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -123,6 +140,22 @@ class AppDatabase extends _$AppDatabase {
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_content_available '
         'ON paulo_flix_content(is_available)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_seasons_content '
+        'ON paulo_flix_seasons(content_id, season_number)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_episodes_season_number '
+        'ON paulo_flix_episodes(season_id, episode_number)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_content_search '
+        'ON paulo_flix_content(is_available, display_name)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_movies_search '
+        'ON paulo_flix_movies(is_available, display_name)',
       );
       // A lógica de importação dos bancos legados roda na Fase 2
       // (ver `docs/DATABASE_REFACTORING.md` §3).
@@ -268,6 +301,26 @@ class AppDatabase extends _$AppDatabase {
       await db.customStatement(
         'CREATE INDEX IF NOT EXISTS idx_content_available '
         'ON paulo_flix_content(is_available)',
+      );
+    }
+
+    if (from < 15) {
+      final db = m.database as AppDatabase;
+      await db.customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_seasons_content '
+        'ON paulo_flix_seasons(content_id, season_number)',
+      );
+      await db.customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_episodes_season_number '
+        'ON paulo_flix_episodes(season_id, episode_number)',
+      );
+      await db.customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_content_search '
+        'ON paulo_flix_content(is_available, display_name)',
+      );
+      await db.customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_movies_search '
+        'ON paulo_flix_movies(is_available, display_name)',
       );
     }
 

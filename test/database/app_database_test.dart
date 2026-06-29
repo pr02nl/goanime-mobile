@@ -31,8 +31,8 @@ void main() {
       expect(result.read<int>('v'), 1);
     });
 
-    test('expõe as 7 tabelas esperadas com schemaVersion = 14', () {
-      expect(db.schemaVersion, 14);
+    test('expõe as 7 tabelas esperadas com schemaVersion = 15', () {
+      expect(db.schemaVersion, 15);
       // 7 tabelas: 4 legadas + tmdb_genres + paulo_flix_seasons +
       // paulo_flix_episodes (Fase 0 do plano de progresso).
       expect(db.allTables.length, 7);
