@@ -15,6 +15,46 @@ class EpisodeThumbnailService {
   static const String _jikanApiBase = ApiConstants.jikanBaseUrl;
   static const String _anilistGraphQL = ApiConstants.anilistBaseUrl;
 
+  // ─── Cache LRU ───────────────────────────────────────────────────
+
+  /// Limite máximo de animes com thumbnails cacheados.
+  static const int _maxCacheEntries = 30;
+
+  /// Cache de thumbnails por chave (`animeTitle|malId|anilistId`).
+  /// O valor é o `Map<int, String>` retornado por [batchGetThumbnails].
+  static final Map<String, Map<int, String>> _thumbnailCache = {};
+
+  /// Ordem de acesso LRU. Chaves no início são as mais antigas.
+  static final List<String> _thumbnailCacheOrder = [];
+
+  /// Limpa o cache de thumbnails (útil em forceRefresh ou testes).
+  static void clearThumbnailCache() {
+    _thumbnailCache.clear();
+    _thumbnailCacheOrder.clear();
+  }
+
+  /// Constrói a chave de cache para [batchGetThumbnails].
+  static String _buildCacheKey({
+    required String animeTitle,
+    String? malId,
+    String? anilistId,
+  }) => '$animeTitle|${malId ?? ''}|${anilistId ?? ''}';
+
+  /// Move a chave para o fim da ordem LRU (mais recente).
+  static void _touchCache(String key) {
+    _thumbnailCacheOrder.remove(key);
+    _thumbnailCacheOrder.add(key);
+  }
+
+  /// Remove a entrada mais antiga do cache se exceder o limite.
+  static void _evictOldest() {
+    while (_thumbnailCache.length > _maxCacheEntries &&
+        _thumbnailCacheOrder.isNotEmpty) {
+      final oldest = _thumbnailCacheOrder.removeAt(0);
+      _thumbnailCache.remove(oldest);
+    }
+  }
+
   /// Fetch episode thumbnail from multiple sources
   static Future<String?> getEpisodeThumbnail({
     required String animeTitle,
@@ -174,7 +214,11 @@ class EpisodeThumbnailService {
     }
   }
 
-  /// Batch fetch thumbnails for multiple episodes (more efficient)
+  /// Batch fetch thumbnails for multiple episodes (more efficient).
+  ///
+  /// O resultado é cacheado por (animeTitle, malId, anilistId).
+  /// Chamadas subsequentes para o mesmo anime retornam do cache,
+  /// evitando requisições HTTP desnecessárias.
   static Future<Map<int, String>> batchGetThumbnails({
     required String animeTitle,
     required List<int> episodeNumbers,
@@ -184,6 +228,32 @@ class EpisodeThumbnailService {
     debugPrint(
       '[EpisodeThumbnail] Batch fetching ${episodeNumbers.length} thumbnails for "$animeTitle"',
     );
+
+    // Cache LRU: verifica se já temos thumbnails para este anime.
+    final cacheKey = _buildCacheKey(
+      animeTitle: animeTitle,
+      malId: malId,
+      anilistId: anilistId,
+    );
+    if (_thumbnailCache.containsKey(cacheKey)) {
+      _touchCache(cacheKey);
+      final cached = _thumbnailCache[cacheKey]!;
+      // Filtra apenas os episódios solicitados.
+      final result = <int, String>{};
+      for (final ep in episodeNumbers) {
+        if (cached.containsKey(ep)) {
+          result[ep] = cached[ep]!;
+        }
+      }
+      if (result.isNotEmpty) {
+        debugPrint(
+          '[EpisodeThumbnail] Cache hit for "$animeTitle" — ${result.length} thumbnails',
+        );
+        return result;
+      }
+      // Cache existe mas não tem os episódios solicitados — continua
+      // para buscar (pode acontecer com episódios novos).
+    }
 
     final Map<int, String> thumbnails = {};
 
@@ -272,6 +342,18 @@ class EpisodeThumbnailService {
     debugPrint(
       '[EpisodeThumbnail] Total: ${thumbnails.length}/${episodeNumbers.length} thumbnails found',
     );
+
+    // Armazena no cache LRU (merge: preserva episódios cacheados
+    // anteriormente, evitando trashing em chamadas parciais).
+    if (thumbnails.isNotEmpty) {
+      _thumbnailCache[cacheKey] = {
+        ...?_thumbnailCache[cacheKey],
+        ...thumbnails,
+      };
+      _touchCache(cacheKey);
+      _evictOldest();
+    }
+
     return thumbnails;
   }
 
