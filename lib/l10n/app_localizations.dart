@@ -173,6 +173,10 @@ class AppLocalizations {
       locale.languageCode == 'pt' ? 'Sincronizar Filmes' : 'Sync Movies';
   String get syncContent =>
       locale.languageCode == 'pt' ? 'Sincronizar Conteúdo' : 'Sync Content';
+  String get syncing =>
+      locale.languageCode == 'pt' ? 'Sincronizando' : 'Syncing';
+  String get syncAll =>
+      locale.languageCode == 'pt' ? 'Sincronizar Tudo' : 'Sync All';
   String get tmdbNotConfigured => locale.languageCode == 'pt'
       ? 'TMDB não configurado. Vá em Configurações → API Keys para adicionar a chave.'
       : 'TMDB not configured. Go to Settings → API Keys to add the key.';

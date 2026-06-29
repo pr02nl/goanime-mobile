@@ -6,6 +6,8 @@ import '../../core/themes/app_colors.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/view_models/locale_viewmodel.dart';
 import '../../core/widgets/focusable_widget.dart';
+import '../../pauloflix/view_models/pauloflix_provider.dart';
+import '../../pauloflix_movies/view_models/pauloflix_movies_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback? onBackPressed;
@@ -18,6 +20,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isTV = false;
+  bool _isSyncing = false;
 
   @override
   void initState() {
@@ -129,6 +132,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
               ],
+            ),
+          ),
+
+          SizedBox(height: isTV ? 28 : 20),
+
+          // Sync Section
+          _buildSectionCard(
+            context,
+            title: l10n.syncContent,
+            icon: Icons.sync,
+            iconColor: AppColors.primary,
+            isTV: isTV,
+            child: Padding(
+              padding: EdgeInsets.all(isTV ? 24 : 16),
+              child: _buildSyncAllButton(
+                context,
+                isTV: isTV,
+                syncing: _isSyncing,
+                onTap: _syncNow,
+              ),
             ),
           ),
 
@@ -306,6 +329,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return InkWell(onTap: onTap, child: content);
+  }
+
+  void _syncNow() {
+    if (_isSyncing) return;
+    setState(() => _isSyncing = true);
+
+    final pauloFlixProvider = context.read<PauloFlixProvider>();
+    final pauloFlixMoviesProvider = context.read<PauloFlixMoviesProvider>();
+    final l10n = AppLocalizations.of(context);
+
+    Future(() async {
+      try {
+        await pauloFlixProvider.syncContent();
+      } catch (e) {
+        debugPrint('[BackgroundSync] Erro no sync de animes: $e');
+      }
+      try {
+        await pauloFlixMoviesProvider.syncContent();
+      } catch (e) {
+        debugPrint('[BackgroundSync] Erro no sync de filmes: $e');
+      }
+      if (mounted) {
+        setState(() => _isSyncing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.syncContent),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    });
+  }
+
+  Widget _buildSyncAllButton(
+    BuildContext context, {
+    required bool isTV,
+    required bool syncing,
+    required VoidCallback onTap,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final content = Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: isTV ? 28 : 20,
+        vertical: isTV ? 20 : 16,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(isTV ? 16 : 12),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (syncing)
+            SizedBox(
+              width: isTV ? 28 : 22,
+              height: isTV ? 28 : 22,
+              child: const CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: AppColors.primary,
+              ),
+            )
+          else
+            Icon(
+              Icons.sync,
+              color: AppColors.primary,
+              size: isTV ? 28 : 22,
+            ),
+          SizedBox(width: isTV ? 12 : 8),
+          Text(
+            syncing
+                ? '${l10n.syncing}...'
+                : l10n.syncAll,
+            style: TextStyle(
+              color: AppColors.primary,
+              fontSize: isTV ? 18 : 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (isTV) {
+      return FocusableWidget(
+        onSelect: syncing ? null : onTap,
+        borderRadius: 12,
+        child: content,
+      );
+    }
+
+    return InkWell(onTap: syncing ? null : onTap, child: content);
   }
 
   Widget _buildTVModeSection({required bool isTV}) {
