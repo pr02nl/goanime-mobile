@@ -51,47 +51,49 @@ class _WatchlistScreenState extends State<WatchlistScreen>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     final l10n = AppLocalizations.of(context);
-    return Consumer<WatchlistViewModel>(
-      builder: (context, vm, _) {
-        final watchlist = vm.animes;
-        final isLoading = vm.isLoading;
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(
-            backgroundColor: AppColors.surface,
-            elevation: 0,
-            title: Row(
-              children: [
-                const Icon(Icons.bookmark, color: AppColors.primary, size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  l10n.watchlist,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+    final watchlist = context.select<WatchlistViewModel, List<WatchlistAnime>>(
+      (vm) => vm.animes,
+    );
+    final isLoading = context.select<WatchlistViewModel, bool>(
+      (vm) => vm.isLoading,
+    );
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        title: Row(
+          children: [
+            const Icon(Icons.bookmark, color: AppColors.primary, size: 28),
+            const SizedBox(width: 12),
+            Text(
+              l10n.watchlist,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            actions: [
-              if (watchlist.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.delete_sweep, color: Colors.white70),
-                  tooltip: l10n.clearWatchlist,
-                  onPressed: () => _showClearDialog(),
-                ),
-            ],
-          ),
-          body: isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                )
-              : watchlist.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: () =>
-                      context.read<WatchlistViewModel>().loadWatchlist(),
+          ],
+        ),
+        actions: [
+          if (watchlist.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep, color: Colors.white70),
+              tooltip: l10n.clearWatchlist,
+              onPressed: () => _showClearDialog(),
+            ),
+        ],
+      ),
+      body: isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
+          : watchlist.isEmpty
+          ? _buildEmptyState()
+          : RefreshIndicator(
+              onRefresh: () =>
+                  context.read<WatchlistViewModel>().loadWatchlist(),
                   color: AppColors.primary,
                   backgroundColor: AppColors.surface,
                   child: GridView.builder(
@@ -112,8 +114,6 @@ class _WatchlistScreenState extends State<WatchlistScreen>
                     },
                   ),
                 ),
-        );
-      },
     );
   }
 
