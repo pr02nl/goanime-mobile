@@ -23,7 +23,6 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
 
   PauloFlixMoviesStatus _status = PauloFlixMoviesStatus.initial;
   List<PauloFlixMovie> _contents = [];
-  List<PauloFlixMovie> _filteredContents = [];
   String? _errorMessage;
   String _syncProgress = '';
   Timer? _searchDebounce;
@@ -31,8 +30,22 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   /// `null` = última sync foi bem-sucedida; `String` = mensagem do erro.
   String? _lastSyncError;
 
+  /// Query de busca ativa. Vazio = sem filtro.
+  String _searchQuery = '';
+
   PauloFlixMoviesStatus get status => _status;
-  List<PauloFlixMovie> get contents => _filteredContents;
+
+  /// Retorna a lista completa ou filtrada conforme _searchQuery.
+  /// Evita manter `_filteredContents` duplicada em memória.
+  List<PauloFlixMovie> get contents {
+    if (_searchQuery.isEmpty) return _contents;
+    final q = _searchQuery.toLowerCase();
+    return _contents.where((c) {
+      return c.displayName.toLowerCase().contains(q) ||
+          c.genres.any((g) => g.toLowerCase().contains(q));
+    }).toList();
+  }
+
   String? get errorMessage => _errorMessage;
   String get syncProgress => _syncProgress;
   bool get isSyncing => _status == PauloFlixMoviesStatus.loading;
@@ -50,7 +63,6 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _contents = await _repository.getAll();
-      _filteredContents = _contents;
       _status = PauloFlixMoviesStatus.loaded;
     } catch (e) {
       _errorMessage = 'Erro ao carregar filmes: $e';
@@ -97,15 +109,7 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   void search(String query) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      final q = query.toLowerCase().trim();
-      if (q.isEmpty) {
-        _filteredContents = _contents;
-      } else {
-        _filteredContents = _contents.where((c) {
-          return c.displayName.toLowerCase().contains(q) ||
-              c.genres.any((g) => g.toLowerCase().contains(q));
-        }).toList();
-      }
+      _searchQuery = query;
       notifyListeners();
     });
   }
@@ -264,7 +268,7 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   }
 
   void clearSearch() {
-    _filteredContents = _contents;
+    _searchQuery = '';
     notifyListeners();
   }
 }

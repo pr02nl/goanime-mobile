@@ -7,9 +7,10 @@ class PerformanceConfig {
 
   /// Inicializa configurações de performance
   static void init() {
-    // Aumenta o limite de cache de imagens para 200MB
-    PaintingBinding.instance.imageCache.maximumSize = 500;
-    PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200MB
+    // Limite de cache de imagens: 50MB (reduzido de 200MB para evitar
+    // consumo excessivo de RAM em dispositivos com 2-4GB).
+    PaintingBinding.instance.imageCache.maximumSize = 200;
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50MB
   }
 
   /// Limpa cache de imagens se necessário (para liberar memória)

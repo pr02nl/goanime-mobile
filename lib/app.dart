@@ -159,6 +159,10 @@ class _BackgroundSyncWrapper extends StatefulWidget {
 
 class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
   Timer? _syncTimer;
+  AppLifecycleListener? _lifecycleListener;
+
+  /// `true` quando o app está em background — o timer não deve disparar.
+  bool _paused = false;
 
   @override
   void initState() {
@@ -170,12 +174,41 @@ class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
     // E a cada 30 minutos após isso.
     _syncTimer = Timer.periodic(
       const Duration(minutes: 30),
-      (_) => _syncNow(),
+      (_) {
+        if (!_paused) _syncNow();
+      },
+    );
+
+    // Pausa o timer quando o app vai para background (economiza CPU,
+    // rede e memória — o GC pode coletar objetos do sync anterior).
+    _lifecycleListener = AppLifecycleListener(
+      onPause: () {
+        _paused = true;
+        _syncTimer?.cancel();
+        _syncTimer = null;
+        debugPrint('[BackgroundSync] App paused — timer cancelado.');
+      },
+      onResume: () {
+        _paused = false;
+        // Re-cria o timer ao voltar para foreground.
+        _syncTimer?.cancel();
+        _syncTimer = Timer.periodic(
+          const Duration(minutes: 30),
+          (_) {
+            if (!_paused) _syncNow();
+          },
+        );
+        // Dispara um sync imediato ao retornar.
+        _syncNow();
+        debugPrint('[BackgroundSync] App resumed — timer reiniciado.');
+      },
     );
   }
 
   @override
   void dispose() {
+    _lifecycleListener?.dispose();
+    _lifecycleListener = null;
     _syncTimer?.cancel();
     _syncTimer = null;
     super.dispose();

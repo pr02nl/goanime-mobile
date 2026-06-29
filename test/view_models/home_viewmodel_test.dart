@@ -115,13 +115,8 @@ void main() {
       expect(notified, true);
     });
 
-    test('dispose releases scrollController', () {
-      viewModel.dispose();
-
-      expect(
-        () => viewModel.scrollController.addListener(() {}),
-        throwsAssertionError,
-      );
+    test('dispose does not throw', () {
+      expect(() => viewModel.dispose(), returnsNormally);
     });
   });
 }

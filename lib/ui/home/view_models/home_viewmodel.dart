@@ -6,7 +6,6 @@ import '../../../domain/repositories/home_repository.dart';
 
 class HomeViewModel extends ChangeNotifier {
   final HomeRepository _repository;
-  final ScrollController scrollController = ScrollController();
 
   HomeViewModel({HomeRepository? repository})
     : _repository = repository ?? HomeRepositoryImpl();
@@ -52,9 +51,5 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  @override
-  void dispose() {
-    scrollController.dispose();
-    super.dispose();
-  }
+
 }

@@ -148,36 +148,44 @@ class PauloFlixService {
     }
   }
 
+  // RegExps estáticos — recriá-los a cada chamada aloca memória
+  // desnecessariamente no GC.
+  static final _seasonPattern1 = RegExp(
+    r'Season\s+(\d+)',
+    caseSensitive: false,
+  );
+  static final _seasonPattern2 = RegExp(r'\bS(\d+)\b');
+  static final _seasonPattern3 = RegExp(
+    r'Temporada\s+(\d+)',
+    caseSensitive: false,
+  );
+  static final _episodePatternFull = RegExp(
+    r'S\d+E(\d+)(?:\s*-\s*(.+))?\.(mkv|mp4|avi|webm|mov|flv|wmv|m4v)$',
+    caseSensitive: false,
+  );
+  static final _episodePatternSimple = RegExp(r'E(\d+)');
+
   static int? _extractSeasonNumber(String name) {
-    final seasonMatch = RegExp(
-      r'Season\s+(\d+)',
-      caseSensitive: false,
-    ).firstMatch(name);
+    final seasonMatch = _seasonPattern1.firstMatch(name);
     if (seasonMatch != null) return int.tryParse(seasonMatch.group(1)!);
 
-    final sMatch = RegExp(r'\bS(\d+)\b').firstMatch(name);
+    final sMatch = _seasonPattern2.firstMatch(name);
     if (sMatch != null) return int.tryParse(sMatch.group(1)!);
 
-    final ptMatch = RegExp(
-      r'Temporada\s+(\d+)',
-      caseSensitive: false,
-    ).firstMatch(name);
+    final ptMatch = _seasonPattern3.firstMatch(name);
     if (ptMatch != null) return int.tryParse(ptMatch.group(1)!);
 
     return null;
   }
 
   static _EpisodeInfo? _extractEpisodeInfo(String filename) {
-    final match = RegExp(
-      r'S\d+E(\d+)(?:\s*-\s*(.+))?\.(mkv|mp4|avi|webm|mov|flv|wmv|m4v)$',
-      caseSensitive: false,
-    ).firstMatch(filename);
+    final match = _episodePatternFull.firstMatch(filename);
     if (match != null) {
       final number = int.tryParse(match.group(1)!);
       final title = match.group(2)?.trim() ?? 'Episode ${match.group(1)}';
       if (number != null) return _EpisodeInfo(number: number, title: title);
     }
-    final simpleMatch = RegExp(r'E(\d+)').firstMatch(filename);
+    final simpleMatch = _episodePatternSimple.firstMatch(filename);
     if (simpleMatch != null) {
       final number = int.tryParse(simpleMatch.group(1)!);
       if (number != null) {
@@ -284,18 +292,31 @@ class PauloFlixService {
         onProgress?.call('Marcando ${removedPaths.length} shows removidos...');
       }
 
+      // Antes de salvar, constrói um mapa path→id dos dados já existentes.
+      // Após o `saveBatch` com `DoUpdate`, itens já existentes mantêm seu
+      // `id` original — apenas os novos precisam ser relidos.
+      final existingIds = <String, int>{};
+      for (final c in existingContent) {
+        if (c.id != null) existingIds[c.folderName] = c.id!;
+      }
+
       // Salva todos os shows (DoUpdate lida com conflitos)
       onProgress?.call('Salvando ${contents.length} shows no banco...');
       await repository.saveBatch(contents);
 
+      // Busca IDs apenas para shows novos (não estavam em existingIds).
+      final updatedIds = <String, int>{...existingIds};
+      for (final path in currentPaths.difference(existingPaths)) {
+        final found = await repository.getByFolderName(path);
+        if (found?.id != null) updatedIds[path] = found!.id!;
+      }
+
       // Se temos repositório de episódios, popula seasons/episódios do JSON
       if (episodeRepository != null) {
-        final saved = await _loadSavedContentsWithIds(
-          repository,
-          contents.map((c) => c.folderName).toList(),
-        );
+        for (final content in contents) {
+          final contentId = updatedIds[content.folderName];
+          if (contentId == null) continue;
 
-        for (final content in saved) {
           final json = showJsonByPath[content.folderName];
           if (json == null) continue;
 
@@ -314,7 +335,7 @@ class PauloFlixService {
             final displayName = folderName;
 
             final seasonId = await episodeRepository.upsertSeason(
-              contentId: content.id!,
+              contentId: contentId,
               seasonNumber: seasonNumber,
               displayName: displayName,
               folderName: folderName,
@@ -370,14 +391,35 @@ class PauloFlixService {
         }
       }
 
-      // Dispara callback onContentSynced (se caller ainda quiser)
+      // Dispara callback onContentSynced (se caller ainda quiser).
+      // Usa o mesmo `updatedIds` — sem getAll() adicional.
       if (onContentSynced != null) {
-        final saved = await _loadSavedContentsWithIds(
-          repository,
-          contents.map((c) => c.folderName).toList(),
-        );
-        for (final c in saved) {
-          await onContentSynced(c);
+        for (final content in contents) {
+          final id = updatedIds[content.folderName];
+          if (id != null) {
+            // Cria um PauloFlixContent com o id preenchido
+            final saved = PauloFlixContent(
+              id: id,
+              folderName: content.folderName,
+              displayName: content.displayName,
+              serverUrl: content.serverUrl,
+              imageUrl: content.imageUrl,
+              bannerUrl: content.bannerUrl,
+              description: content.description,
+              score: content.score,
+              genres: content.genres,
+              status: content.status,
+              episodeCount: content.episodeCount,
+              malId: content.malId,
+              anilistId: content.anilistId,
+              originalTitle: content.originalTitle,
+              year: content.year,
+              tmdbId: content.tmdbId,
+              lastSynced: content.lastSynced,
+              isAvailable: content.isAvailable,
+            );
+            await onContentSynced(saved);
+          }
         }
       }
 
@@ -401,20 +443,6 @@ class PauloFlixService {
       onError?.call('Erro na sincronização: $e');
       return false;
     }
-  }
-
-  /// Relê do banco os `PauloFlixContent` pelos folderNames recém
-  /// inseridos, retornando-os com `id` preenchido.
-  static Future<List<PauloFlixContent>> _loadSavedContentsWithIds(
-    PauloFlixRepository repository,
-    List<String> folderNames,
-  ) async {
-    final all = await repository.getAll();
-    final byFolder = {for (final c in all) c.folderName: c};
-    return [
-      for (final name in folderNames)
-        if (byFolder.containsKey(name)) byFolder[name]!,
-    ];
   }
 }
 

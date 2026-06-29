@@ -56,7 +56,9 @@ class _HomeScreenState extends State<HomeScreen>
         color: AppColors.primary,
         backgroundColor: AppColors.surface,
         child: CustomScrollView(
-          controller: viewModel.scrollController,
+          // scrollController removido — otimização de memória
+          // O ScrollView gerencia o scroll nativamente sem necessidade
+          // de um controller externo no HomeViewModel.
           slivers: [
             if (viewModel.seasonAnimes.isNotEmpty)
               SliverToBoxAdapter(

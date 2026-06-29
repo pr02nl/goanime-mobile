@@ -33,7 +33,6 @@ class PauloFlixProvider extends ChangeNotifier {
 
   PauloFlixStatus _status = PauloFlixStatus.initial;
   List<PauloFlixContent> _contents = [];
-  List<PauloFlixContent> _filteredContents = [];
   String? _errorMessage;
   String _syncProgress = '';
   Timer? _searchDebounce;
@@ -41,8 +40,23 @@ class PauloFlixProvider extends ChangeNotifier {
   /// `null` = última sync foi bem-sucedida; `String` = mensagem do erro.
   String? _lastSyncError;
 
+  /// Query de busca ativa. `null` ou vazio = sem filtro.
+  String _searchQuery = '';
+
   PauloFlixStatus get status => _status;
-  List<PauloFlixContent> get contents => _filteredContents;
+
+  /// Retorna a lista completa ou filtrada conforme _searchQuery.
+  /// Evita manter `_filteredContents` duplicada em memória.
+  List<PauloFlixContent> get contents {
+    if (_searchQuery.isEmpty) return _contents;
+    final q = _searchQuery.toLowerCase();
+    return _contents.where(
+      (c) =>
+          c.displayName.toLowerCase().contains(q) ||
+          c.genres.any((g) => g.toLowerCase().contains(q)),
+    ).toList();
+  }
+
   String? get errorMessage => _errorMessage;
   String get syncProgress => _syncProgress;
   bool get isSyncing => _status == PauloFlixStatus.loading;
@@ -60,7 +74,6 @@ class PauloFlixProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _contents = await _repository.getAll();
-      _filteredContents = _contents;
       _status = PauloFlixStatus.loaded;
     } catch (e) {
       _errorMessage = 'Erro ao carregar conteúdo: $e';
@@ -109,18 +122,7 @@ class PauloFlixProvider extends ChangeNotifier {
   void search(String query) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      final searchQuery = query.toLowerCase();
-      if (searchQuery.isEmpty) {
-        _filteredContents = _contents;
-      } else {
-        _filteredContents = _contents
-            .where(
-              (c) =>
-                  c.displayName.toLowerCase().contains(searchQuery) ||
-                  c.genres.any((g) => g.toLowerCase().contains(searchQuery)),
-            )
-            .toList();
-      }
+      _searchQuery = query;
       notifyListeners();
     });
   }
@@ -254,7 +256,7 @@ class PauloFlixProvider extends ChangeNotifier {
   }
 
   void clearSearch() {
-    _filteredContents = _contents;
+    _searchQuery = '';
     notifyListeners();
   }
 
