@@ -48,7 +48,6 @@ class PauloFlixSeeAllScreen extends StatefulWidget {
 }
 
 class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
-  bool _checkedInitialSync = false;
   bool _isTV = false;
 
   // ─── Snapshot derivado (memoizado por hash do conteúdo) ─────────────
@@ -73,13 +72,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       final provider = context.read<PauloFlixProvider>();
       await provider.loadContents();
       if (!mounted) return;
-
-      // Sync automático em background — o service verifica o
-      // `updated_at` do JSON index e pula se nada mudou.
-      if (!_checkedInitialSync) {
-        _checkedInitialSync = true;
-        provider.syncContent();
-      }
 
       // Carrega stats de progresso para overlays nos cards.
       await _loadAllStats();
@@ -178,7 +170,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       perGenre: 12,
       minPerGenre: 3,
     );
-
   }
 
   @override
@@ -307,9 +298,10 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
 
   Widget _buildAllAnimesSection(AppLocalizations l10n) {
     final sorted = [..._allContents]
-      ..sort((a, b) => a.displayName.toLowerCase().compareTo(
-            b.displayName.toLowerCase(),
-          ));
+      ..sort(
+        (a, b) =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+      );
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),

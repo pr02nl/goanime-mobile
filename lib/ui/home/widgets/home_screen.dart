@@ -34,7 +34,6 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _detectTVMode();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPauloFlixSync());
   }
 
   Future<void> _detectTVMode() async {
@@ -42,14 +41,6 @@ class _HomeScreenState extends State<HomeScreen>
     if (mounted) {
       context.read<HomeViewModel>().setTVMode(isTV);
     }
-  }
-
-  Future<void> _checkPauloFlixSync() async {
-    final provider = context.read<PauloFlixProvider>();
-    await provider.loadContents();
-    // Sync automático — o service verifica o `updated_at` do JSON
-    // index e pula o processamento se nada mudou no servidor.
-    provider.syncContent();
   }
 
   @override
