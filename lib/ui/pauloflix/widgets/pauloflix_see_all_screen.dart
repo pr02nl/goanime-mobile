@@ -29,12 +29,11 @@ import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
-import '../../core/utils/pagination.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
-import '../../core/widgets/paginated_letter_grid.dart';
+import '../../core/widgets/paginated_alphabetical_carousel.dart';
 import '../../core/widgets/progress_overlay.dart';
 import '../view_models/paulo_flix_continue_watching_viewmodel.dart';
 import '../view_models/pauloflix_provider.dart';
@@ -54,12 +53,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
 
   // ─── Snapshot derivado (memoizado por hash do conteúdo) ─────────────
   List<PauloFlixContent> _allContents = const [];
-  PaginationResult<PauloFlixContent> _pagination =
-      const PaginationResult<PauloFlixContent>(
-        pages: [],
-        letterToPageIndex: {},
-        availableLetters: [],
-      );
   List<PauloFlixContent> _topRated = const [];
   Map<String, List<PauloFlixContent>> _byGenre = const {};
   PauloFlixContent? _featured;
@@ -186,8 +179,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       minPerGenre: 3,
     );
 
-    // 4. Paginação (24/página).
-    _pagination = PauloFlixProvider.paginateByLetter(_allContents, perPage: 24);
   }
 
   @override
@@ -315,52 +306,30 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   }
 
   Widget _buildAllAnimesSection(AppLocalizations l10n) {
-    final cardWidth = Responsive.getHorizontalListItemWidth(context);
-    final cardHeight = Responsive.getCardHeightSync(context);
+    final sorted = [..._allContents]
+      ..sort((a, b) => a.displayName.toLowerCase().compareTo(
+            b.displayName.toLowerCase(),
+          ));
+
     return Padding(
       padding: const EdgeInsets.only(top: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                const Icon(Icons.tv, size: 22, color: _accentColor),
-                const SizedBox(width: 8),
-                Text(
-                  '${l10n.sectionAllAnimes} (${_allContents.length})',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          PaginatedLetterGrid<PauloFlixContent>(
-            pagination: _pagination,
+      child: PaginatedAlphabeticalCarousel<PauloFlixContent>(
+        title: '${l10n.sectionAllAnimes} (${_allContents.length})',
+        items: sorted,
+        isTV: _isTV,
+        accentColor: _accentColor,
+        cardBuilder: (context, content) {
+          return NetflixCard(
+            imageUrl: content.imageUrl ?? '',
+            title: content.displayName,
+            rating: content.score,
             isTV: _isTV,
-            accentColor: _accentColor,
-            nameOf: (c) => c.displayName,
-            cardBuilder: (context, content) {
-              return NetflixCard(
-                imageUrl: content.imageUrl ?? '',
-                title: content.displayName,
-                rating: content.score,
-                width: cardWidth,
-                height: cardHeight,
-                isTV: _isTV,
-                overlayWidget: _buildProgressOverlay(content),
-                onTap: () {
-                  context.pushNamed('pauloflix-episodes', extra: content);
-                },
-              );
+            overlayWidget: _buildProgressOverlay(content),
+            onTap: () {
+              context.pushNamed('pauloflix-episodes', extra: content);
             },
-          ),
-        ],
+          );
+        },
       ),
     );
   }

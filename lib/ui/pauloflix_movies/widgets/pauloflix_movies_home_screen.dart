@@ -29,12 +29,12 @@ import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
-import '../../core/utils/pagination.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
+import '../../core/widgets/paginated_alphabetical_carousel.dart';
 import '../../core/widgets/progress_overlay.dart';
 import '../models/movie_progress_state.dart';
 import '../view_models/paulo_flix_movie_continue_watching_viewmodel.dart';
@@ -42,7 +42,6 @@ import '../view_models/pauloflix_movies_provider.dart';
 import '_empty_state.dart';
 import '_movie_hero_banner.dart';
 import '_movie_section.dart';
-import '_movies_paginated_grid.dart';
 
 class PauloFlixMoviesHomeScreen extends StatefulWidget {
   const PauloFlixMoviesHomeScreen({super.key});
@@ -58,12 +57,6 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
 
   // ─── Snapshot derivado (memoizado por hash do conteúdo) ─────────────
   List<PauloFlixMovie> _allContents = const [];
-  PaginationResult<PauloFlixMovie> _pagination =
-      const PaginationResult<PauloFlixMovie>(
-        pages: [],
-        letterToPageIndex: {},
-        availableLetters: [],
-      );
   List<PauloFlixMovie> _topRated = const [];
   List<PauloFlixMovie> _recent = const [];
   Map<String, List<PauloFlixMovie>> _byGenre = const {};
@@ -191,12 +184,6 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
       perGenre: 12,
       minPerGenre: 3,
     );
-
-    // 6. Paginação (24/página).
-    _pagination = PauloFlixMoviesProvider.paginateByLetter(
-      _allContents,
-      perPage: 24,
-    );
   }
 
   void _syncContent() {
@@ -313,39 +300,35 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
   }
 
   Widget _buildAllMoviesSection(AppLocalizations l10n) {
+    final sorted = [..._allContents]
+      ..sort(
+        (a, b) =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+      );
+
     return Padding(
       padding: const EdgeInsets.only(top: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.movie_filter,
-                  size: 22,
-                  color: AppColors.moviesAccent,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${l10n.sectionAllMovies} (${_allContents.length})',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          MoviesPaginatedGrid(
-            pagination: _pagination,
+      child: PaginatedAlphabeticalCarousel<PauloFlixMovie>(
+        title: '${l10n.sectionAllMovies} (${_allContents.length})',
+        items: sorted,
+        isTV: _isTV,
+        accentColor: AppColors.moviesAccent,
+        cardBuilder: (context, movie) {
+          final progress = _progressMap[movie.folderName];
+          final overlay = MovieProgressState.buildOverlayWidget(progress);
+          return NetflixCard(
+            imageUrl: movie.imageUrl ?? '',
+            title: movie.displayName,
+            rating: movie.score,
             isTV: _isTV,
-            progressMap: _progressMap,
-          ),
-        ],
+            showTitle: true,
+            showRating: movie.score != null,
+            overlayWidget: overlay,
+            onTap: () {
+              context.pushNamed('pauloflix-movie-detail', extra: movie);
+            },
+          );
+        },
       ),
     );
   }
