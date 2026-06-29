@@ -340,29 +340,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final l10n = AppLocalizations.of(context);
 
     Future(() async {
+      final errors = <String>[];
+
       try {
         await pauloFlixProvider.syncContent();
+        if (pauloFlixProvider.hasSyncError) {
+          errors.add('Animes: ${pauloFlixProvider.lastSyncError}');
+        }
       } catch (e) {
+        errors.add('Animes: $e');
         debugPrint('[BackgroundSync] Erro no sync de animes: $e');
       }
+
       try {
-        await pauloFlixMoviesProvider.syncContent();
+        final moviesSuccess = await pauloFlixMoviesProvider.syncContent();
+        if (!moviesSuccess || pauloFlixMoviesProvider.hasSyncError) {
+          errors.add('Filmes: ${pauloFlixMoviesProvider.lastSyncError ?? l10n.unknownError}');
+        }
       } catch (e) {
+        errors.add('Filmes: $e');
         debugPrint('[BackgroundSync] Erro no sync de filmes: $e');
       }
+
       if (mounted) {
         setState(() => _isSyncing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.syncContent),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+
+        if (errors.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.syncCompleted),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
             ),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${l10n.syncFailed}:\n${errors.join('\n')}',
+              ),
+              backgroundColor: Colors.red.shade700,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: l10n.retry,
+                textColor: Colors.white,
+                onPressed: _syncNow,
+              ),
+            ),
+          );
+        }
       }
     });
   }
