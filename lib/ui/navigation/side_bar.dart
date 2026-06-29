@@ -86,15 +86,8 @@ class SidebarState extends State<Sidebar> {
   bool get hasFocus => _scopeNode.hasFocus;
 
   /// Se [node] está dentro do escopo da sidebar (usado pelo shell para
-  /// distinguish conteúdo vs sidebar em `_SidebarEdgeAction`).
-  bool containsNode(FocusNode node) {
-    FocusNode? current = node;
-    while (current != null) {
-      if (current == _scopeNode) return true;
-      current = current.parent;
-    }
-    return false;
-  }
+  /// discernir conteúdo vs sidebar em `_SidebarEdgeAction`).
+  bool containsNode(FocusNode node) => node.nearestScope == _scopeNode;
 
   /// Retorna a cor do dot de sync para o item no índice [i], ou `null`
   /// se o item não tem indicador de sync.

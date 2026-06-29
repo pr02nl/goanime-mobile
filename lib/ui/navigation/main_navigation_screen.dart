@@ -40,10 +40,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   /// de foco) para evitar colapso indesejado durante autofocus steal.
   bool _sidebarOpen = false;
 
-  /// Escopo de foco do conteúdo — permite rastrear o último item focado e
-  /// restaurá-lo quando a sidebar fecha.
+  /// Escopo de foco do conteúdo — permite restaurar o foco quando a
+  /// sidebar fecha.
   final FocusScopeNode _contentScopeNode = FocusScopeNode();
-  FocusNode? _lastContentFocusNode;
 
   /// Flag que indica que o diálogo de saída está aberto — evita re-entrada
   /// no HardwareKeyboard handler enquanto o diálogo está visível.
@@ -59,34 +58,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   void initState() {
     super.initState();
-    _contentScopeNode.addListener(_onContentFocusChange);
     HardwareKeyboard.instance.addHandler(_onHardwareKey);
   }
 
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onHardwareKey);
-    _contentScopeNode.removeListener(_onContentFocusChange);
     _contentScopeNode.dispose();
     super.dispose();
-  }
-
-  // ───────────────────────────────────────────────────────────────────────
-  // Tracking do último foco no conteúdo
-  // ───────────────────────────────────────────────────────────────────────
-
-  void _onContentFocusChange() {
-    // NÃO usamos `_contentScopeNode.focusedChild` aqui: durante reparenting
-    // de rota filha sob ModalRoute por cima, o getter dispara a assertion
-    // `_focusedChildren.last.enclosingScope == this` (anti-pattern #19 do
-    // skill `flutter-reactivity-gotchas`). Em vez disso, lemos o
-    // `primaryFocus` global e validamos manualmente se ele pertence a este
-    // scope — caminho público, sem assertion interna.
-    final primary = FocusManager.instance.primaryFocus;
-    if (primary == null) return;
-    if (!_isInContentScope(primary)) return;
-    if (primary.context == null) return;
-    _lastContentFocusNode = primary;
   }
 
   /// True se [node] é um descendente direto do `_contentScopeNode`
@@ -96,36 +75,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return node.nearestScope == _contentScopeNode;
   }
 
-  /// Restaura o foco ao conteúdo:
-  /// 1. Último nó focado (se ainda válido E for um widget focável real,
-  ///    não um `FocusScopeNode`).
-  /// 2. Caso contrário, primeiro descendente focável do `_contentScopeNode`.
-  /// 3. Caso contrário, `unfocus()` (último recurso).
+  /// Restaura o foco ao conteúdo após fechar a sidebar.
   ///
-  /// Por que não aceitar scope: focar um `FocusScopeNode` não move o
-  /// foco visualmente — só marca o scope como "primário". O usuário
-  /// ficaria sem anel de foco visível após fechar a sidebar.
-  ///
-  /// Mesma defesa do `_onContentFocusChange`: nunca chama
-  /// `_contentScopeNode.focusedChild` (getter com assertion).
+  /// Encontra o primeiro descendente focável do `_contentScopeNode` e
+  /// requisita foco. Não usa `_contentScopeNode.focusedChild` (dispara
+  /// assertion durante reparenting de rota filha).
   void _restoreContentFocus() {
-    final last = _lastContentFocusNode;
-    if (last != null && last.context != null && last.canRequestFocus) {
-      last.requestFocus();
-      return;
-    }
-    // Fallback: primeiro descendente focável do scope de conteúdo.
-    final fallback = _contentScopeNode.traversalDescendants
+    final target = _contentScopeNode.traversalDescendants
         .where(
           (n) => n.canRequestFocus && !n.skipTraversal && n.context != null,
         )
         .firstOrNull;
-    if (fallback != null) {
-      fallback.requestFocus();
-      return;
-    }
-    // Último recurso.
-    FocusManager.instance.primaryFocus?.unfocus();
+    target?.requestFocus();
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -155,9 +116,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     if (currentFocus != null &&
         _isInContentScope(currentFocus) &&
         currentFocus.canRequestFocus) {
-      _lastContentFocusNode = currentFocus;
       debugPrint(
-        '[SIDEBAR] _openSidebar — _lastContentFocusNode set to: '
+        '[SIDEBAR] _openSidebar — current content focus: '
         '${currentFocus.toString().substring(0, 60)}...',
       );
     }
@@ -177,11 +137,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     setState(() => _sidebarOpen = false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        debugPrint(
-          '[SIDEBAR] _closeSidebar — post-frame _restoreContentFocus. '
-          'last=${_lastContentFocusNode?.toString().substring(0, 60)}, '
-          'contextNull=${_lastContentFocusNode?.context == null}',
-        );
+        debugPrint('[SIDEBAR] _closeSidebar — post-frame _restoreContentFocus.');
         _restoreContentFocus();
       }
     });
