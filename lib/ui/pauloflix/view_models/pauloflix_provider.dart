@@ -38,11 +38,22 @@ class PauloFlixProvider extends ChangeNotifier {
   String _syncProgress = '';
   Timer? _searchDebounce;
 
+  /// `null` = última sync foi bem-sucedida; `String` = mensagem do erro.
+  String? _lastSyncError;
+
   PauloFlixStatus get status => _status;
   List<PauloFlixContent> get contents => _filteredContents;
   String? get errorMessage => _errorMessage;
   String get syncProgress => _syncProgress;
   bool get isSyncing => _status == PauloFlixStatus.loading;
+
+  /// `null` se a última sync foi bem-sucedida (ou nunca foi tentada).
+  /// String não-vazia se houve erro na última sync.
+  String? get lastSyncError => _lastSyncError;
+
+  /// `true` se a última sync falhou. Usado pelo sidebar para mostrar
+  /// indicador vermelho.
+  bool get hasSyncError => _lastSyncError != null;
 
   Future<void> loadContents() async {
     _status = PauloFlixStatus.loading;
@@ -62,6 +73,7 @@ class PauloFlixProvider extends ChangeNotifier {
   Future<void> syncContent() async {
     _status = PauloFlixStatus.loading;
     _syncProgress = 'Iniciando sincronização...';
+    _lastSyncError = null;
     notifyListeners();
     try {
       final sync = await PauloFlixService.syncContent(
@@ -72,6 +84,7 @@ class PauloFlixProvider extends ChangeNotifier {
         },
         onError: (error) {
           _errorMessage = 'Erro na sincronização: $error';
+          _lastSyncError = error;
           _status = PauloFlixStatus.error;
           notifyListeners();
         },
@@ -79,6 +92,7 @@ class PauloFlixProvider extends ChangeNotifier {
       );
       if (!sync) {
         _errorMessage = 'Sincronização falhou por motivos desconhecidos.';
+        _lastSyncError = _errorMessage;
         _status = PauloFlixStatus.error;
         notifyListeners();
         return;
@@ -86,6 +100,7 @@ class PauloFlixProvider extends ChangeNotifier {
       _status = PauloFlixStatus.loaded;
     } catch (e) {
       _errorMessage = 'Erro na sincronização: $e';
+      _lastSyncError = _errorMessage;
       _status = PauloFlixStatus.error;
     }
     notifyListeners();

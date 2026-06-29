@@ -28,11 +28,22 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   String _syncProgress = '';
   Timer? _searchDebounce;
 
+  /// `null` = última sync foi bem-sucedida; `String` = mensagem do erro.
+  String? _lastSyncError;
+
   PauloFlixMoviesStatus get status => _status;
   List<PauloFlixMovie> get contents => _filteredContents;
   String? get errorMessage => _errorMessage;
   String get syncProgress => _syncProgress;
   bool get isSyncing => _status == PauloFlixMoviesStatus.loading;
+
+  /// `null` se a última sync foi bem-sucedida (ou nunca foi tentada).
+  /// String não-vazia se houve erro na última sync.
+  String? get lastSyncError => _lastSyncError;
+
+  /// `true` se a última sync falhou. Usado pelo sidebar para mostrar
+  /// indicador vermelho.
+  bool get hasSyncError => _lastSyncError != null;
 
   Future<void> loadContents() async {
     _status = PauloFlixMoviesStatus.loading;
@@ -51,6 +62,7 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
   Future<bool> syncContent() async {
     _status = PauloFlixMoviesStatus.loading;
     _syncProgress = 'Iniciando sincronização de filmes...';
+    _lastSyncError = null;
     notifyListeners();
     try {
       final success = await PauloFlixMoviesService.syncContent(
@@ -61,18 +73,21 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
         },
         onError: (err) {
           _errorMessage = err;
+          _lastSyncError = err;
           notifyListeners();
         },
       );
       if (success) {
         await loadContents();
       } else {
+        _lastSyncError = _errorMessage;
         _status = PauloFlixMoviesStatus.error;
         notifyListeners();
       }
       return success;
     } catch (e) {
       _errorMessage = 'Erro na sincronização de filmes: $e';
+      _lastSyncError = _errorMessage;
       _status = PauloFlixMoviesStatus.error;
       notifyListeners();
       return false;

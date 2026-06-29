@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -112,29 +114,86 @@ class PauloFlixApp extends StatelessWidget {
                 ..loadWatchlist(),
         ),
       ],
-      child: ListenableBuilder(
-        listenable: themeViewModel,
-        builder: (context, _) {
-          return MaterialApp.router(
-            title: 'PauloFlix',
-            debugShowCheckedModeBanner: false,
-            routerConfig: router,
-            locale: localeViewModel.locale,
-            localizationsDelegates: const [
-              AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: AppLocalizations.supportedLocales,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeViewModel.isDarkMode
-                ? ThemeMode.dark
-                : ThemeMode.light,
-          );
-        },
+      child: _BackgroundSyncWrapper(
+        child: ListenableBuilder(
+          listenable: themeViewModel,
+          builder: (context, _) {
+            return MaterialApp.router(
+              title: 'PauloFlix',
+              debugShowCheckedModeBanner: false,
+              routerConfig: router,
+              locale: localeViewModel.locale,
+              localizationsDelegates: const [
+                AppLocalizations.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: AppLocalizations.supportedLocales,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: themeViewModel.isDarkMode
+                  ? ThemeMode.dark
+                  : ThemeMode.light,
+            );
+          },
+        ),
       ),
     );
   }
+}
+
+/// Wrapper que dispara sync em background a cada 30 minutos.
+///
+/// Colocado dentro do `MultiProvider` para ter acesso aos providers
+/// de conteúdo. O timer é cancelado no dispose. Cada tick chama
+/// `syncContent()` em ambos os providers — os services internamente
+/// verificam o `updated_at` do JSON index e pulam se nada mudou.
+class _BackgroundSyncWrapper extends StatefulWidget {
+  final Widget child;
+  const _BackgroundSyncWrapper({required this.child});
+
+  @override
+  State<_BackgroundSyncWrapper> createState() => _BackgroundSyncWrapperState();
+}
+
+class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
+  Timer? _syncTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Dispara o primeiro sync assim que a árvore estiver montada.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncNow());
+
+    // E a cada 30 minutos após isso.
+    _syncTimer = Timer.periodic(
+      const Duration(minutes: 30),
+      (_) => _syncNow(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    _syncTimer = null;
+    super.dispose();
+  }
+
+  void _syncNow() {
+    try {
+      context.read<PauloFlixProvider>().syncContent();
+    } catch (e) {
+      debugPrint('[BackgroundSync] Erro no sync de animes: $e');
+    }
+    try {
+      context.read<PauloFlixMoviesProvider>().syncContent();
+    } catch (e) {
+      debugPrint('[BackgroundSync] Erro no sync de filmes: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

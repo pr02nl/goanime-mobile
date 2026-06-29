@@ -4,9 +4,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../core/themes/app_colors.dart';
 import '../core/widgets/focusable_widget.dart';
+import '../pauloflix/view_models/pauloflix_provider.dart';
+import '../pauloflix_movies/view_models/pauloflix_movies_provider.dart';
 
 /// Sidebar persistente estilo YouTube TV.
 ///
@@ -86,6 +89,32 @@ class SidebarState extends State<Sidebar> {
       current = current.parent;
     }
     return false;
+  }
+
+  /// Retorna a cor do dot de sync para o item no índice [i], ou `null`
+  /// se o item não tem indicador de sync.
+  ///
+  /// * **Animes (índice 1):** lê `PauloFlixProvider.hasSyncError`
+  /// * **Filmes (índice 2):** lê `PauloFlixMoviesProvider.hasSyncError`
+  ///
+  /// Uso: verde (`Colors.greenAccent`) = sync ok; vermelho
+  /// (`AppColors.primary` red) = erro na última sync.
+  Color? _syncDotForIndex(int i) {
+    if (i == 1) {
+      // Animes
+      final anime = context.read<PauloFlixProvider>();
+      if (anime.hasSyncError) return AppColors.primary;
+      if (anime.contents.isNotEmpty) return Colors.greenAccent;
+      return null;
+    }
+    if (i == 2) {
+      // Filmes
+      final movies = context.read<PauloFlixMoviesProvider>();
+      if (movies.hasSyncError) return AppColors.primary;
+      if (movies.contents.isNotEmpty) return Colors.greenAccent;
+      return null;
+    }
+    return null;
   }
 
   /// Foca o item da rota ativa. Chamado pelo shell ao abrir a sidebar
@@ -228,6 +257,7 @@ class SidebarState extends State<Sidebar> {
                     icon: items[i].icon,
                     label: items[i].label,
                     selected: items[i].isSelected(widget.location),
+                    syncDotColor: _syncDotForIndex(i),
                     focusNode: _itemFocusNodes[i],
                     onFocus: () => _onItemFocus(i),
                     onSelect: () => _onItemSelect(i),
@@ -314,6 +344,7 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
+  final Color? syncDotColor;
   final FocusNode focusNode;
   final VoidCallback onFocus;
   final VoidCallback onSelect;
@@ -323,6 +354,7 @@ class _SidebarItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.selected,
+    this.syncDotColor,
     required this.focusNode,
     required this.onFocus,
     required this.onSelect,
@@ -348,10 +380,31 @@ class _SidebarItem extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  size: 24,
-                  color: selected ? AppColors.primary : Colors.white70,
+                Stack(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 24,
+                      color: selected ? AppColors.primary : Colors.white70,
+                    ),
+                    if (syncDotColor != null)
+                      Positioned(
+                        top: 0,
+                        right: -3,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: syncDotColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.background,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 if (expanded) ...[
                   const SizedBox(width: 16),
@@ -368,6 +421,17 @@ class _SidebarItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (syncDotColor != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: syncDotColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
