@@ -110,8 +110,7 @@ class PauloFlixApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (ctx) =>
-              WatchlistViewModel(repository: ctx.read<WatchlistRepository>())
-                ..loadWatchlist(),
+              WatchlistViewModel(repository: ctx.read<WatchlistRepository>()),
         ),
       ],
       child: _BackgroundSyncWrapper(
