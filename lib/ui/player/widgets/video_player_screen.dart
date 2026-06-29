@@ -105,6 +105,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   /// essas subs a cada `_replaceEpisode()`.
   bool _streamSubsReady = false;
 
+  /// Flag de disposed. Toda operação assíncrona pendente deve verificar
+  /// esta flag ANTES de acessar `_player` ou chamar `setState`.
+  bool _disposed = false;
+
   // Progresso PauloFlix (Fase 2). `null` para fluxos não-PauloFlix
   // (AnimeFire).
   EpisodeProgressService? _progressService;
@@ -284,7 +288,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   }
 
   void _goToNextEpisode() {
-    if (!_hasNextEpisode) return;
+    if (_disposed || !_hasNextEpisode) return;
     final nextIndex = _currentEpisodeIndex! + 1;
     final nextEpisode = widget.episodeList![nextIndex];
     debugPrint('[VideoPlayer] ⏭ Next episode: index $nextIndex');
@@ -338,6 +342,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   /// Chamado no início de `_initializeVideoPlayer` (antes do setState
   /// de loading).
   Future<void> _loadSavedProgress() async {
+    if (_disposed) return;
     final repo = _progressRepo;
     final seasonId = widget.seasonId;
     final episodeNumberStr = widget.episodeNumber;
@@ -439,6 +444,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
   /// Lê o progresso salvo do banco para o filme atual.
   Future<void> _loadMovieSavedProgress() async {
+    if (_disposed) return;
     final repo = _movieProgressRepo;
     final folderName = widget.movieFolderName;
     if (repo == null || folderName == null) {
@@ -626,7 +632,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   }
 
   Future<void> _initializeVideoPlayer() async {
-    if (!mounted) return;
+    if (_disposed || !mounted) return;
 
     final episodeKey = _buildEpisodeKey(widget);
     debugPrint('[VideoPlayer] 🎬 Initializing player for episode: $episodeKey');
@@ -859,38 +865,57 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
   @override
   void dispose() {
+    _disposed = true;
     _uninstallHardwareKeyboardHandler();
     SystemChrome.setSystemUIChangeCallback(null);
 
-    // Fase 2: flush do progresso PauloFlix (último save + cancela timer).
-    // Fire-and-forget — `dispose` não aceita async; o flush roda em
-    // background. Se falhar, perdemos só este último save (aceitável).
-    unawaited(
-      _flushProgressService(
-        getPos: _getCurrentPosition,
-        getDur: _getCurrentDuration,
-      ),
-    );
-    unawaited(
-      _flushMovieProgressService(
-        getPos: _getCurrentPosition,
-        getDur: _getCurrentDuration,
-      ),
-    );
+    // ═══════════════════════════════════════════════════════════════════
+    // Fase 2: para os timers de progresso ANTES de dispose do player.
+    // ═══════════════════════════════════════════════════════════════════
+    // `stop()` cancela o timer periodic SYNCHRONOUSLY — evita que o
+    // timer dispare após `_player.dispose()` e tente ler `_player.state`.
+    _progressService?.stop();
+    _movieProgressService?.stop();
+
+    // Captura a posição/duration ANTES de stop/dispose do player.
+    final lastPosition = _player.state.position;
+    final lastDuration = _player.state.duration;
+
+    // Fire-and-forget: último save USA VALORES CAPTURADOS, não closures
+    // que acessam `_player.state` depois do dispose.
+    unawaited(_saveFinalProgress(lastPosition, lastDuration));
 
     // Cleanup síncrono: para o player antes do State ser desmontado
     _player.stop();
+
     _playingSub?.cancel();
     _completedSub?.cancel();
     _tracksSub?.cancel();
     _debugTracksSub?.cancel();
 
-    // Cleanup assíncrono em background (não pode await no dispose)
+    // Cleanup do player.
     _player.dispose();
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations([]);
     super.dispose(); // Mixin cancela positionTimer, skipButtonAutoHideTimer
+  }
+
+  /// Salva o progresso final ANTES do player ser completamente descartado.
+  /// Usa valores capturados (não closures) para evitar acesso a
+  /// `_player.state` após `_player.dispose()`.
+  Future<void> _saveFinalProgress(Duration position, Duration duration) async {
+    // NOTA: não verificar _disposed aqui — este método é chamado APENAS
+    // de dispose(), que já setou _disposed=true. A verificação impediria
+    // o último save de progresso.
+    await _progressService?.saveProgress(
+      positionSeconds: position.inSeconds,
+      durationSeconds: duration.inSeconds > 0 ? duration.inSeconds : null,
+    );
+    await _movieProgressService?.saveProgress(
+      positionSeconds: position.inSeconds,
+      durationSeconds: duration.inSeconds > 0 ? duration.inSeconds : null,
+    );
   }
 
   /// Sai do player voltando para a tela anterior (home/detail/lista de

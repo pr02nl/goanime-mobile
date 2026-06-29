@@ -164,6 +164,23 @@ class EpisodeProgressService {
     await _save(getCurrentPosition, getDuration);
   }
 
+  /// Salva progresso com valores já capturados (sem closures).
+  /// Usado pelo player após `stop()` + captura de posição, antes de
+  /// descartar o player.
+  Future<void> saveProgress({
+    required int positionSeconds,
+    int? durationSeconds,
+  }) async {
+    if (positionSeconds == _lastSavedPosition) return;
+    _lastSavedPosition = positionSeconds;
+    await _repository.updateProgress(
+      seasonId: seasonId,
+      episodeNumber: episodeNumber,
+      positionSeconds: positionSeconds,
+      durationSeconds: durationSeconds,
+    );
+  }
+
   Future<void> _save(
     Duration Function() getCurrentPosition,
     Duration Function() getDuration,

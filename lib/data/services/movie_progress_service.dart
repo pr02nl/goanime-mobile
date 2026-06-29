@@ -106,6 +106,27 @@ class MovieProgressService {
     await _save(getCurrentPosition, getDuration);
   }
 
+  /// Salva progresso com valores já capturados (sem closures).
+  /// Usado pelo player após `stop()` + captura de posição, antes de
+  /// descartar o player.
+  Future<void> saveProgress({
+    required int positionSeconds,
+    int? durationSeconds,
+  }) async {
+    if (positionSeconds == _lastSavedPosition) return;
+    _lastSavedPosition = positionSeconds;
+    await _repository.updateProgress(
+      folderName: folderName,
+      serverUrl: serverUrl,
+      displayName: displayName,
+      imageUrl: imageUrl,
+      videoUrl: !_videoUrlSaved ? initialVideoUrl : null,
+      positionSeconds: positionSeconds,
+      durationSeconds: durationSeconds,
+    );
+    _videoUrlSaved = true;
+  }
+
   Future<void> _save(
     Duration Function() getCurrentPosition,
     Duration Function() getDuration,
