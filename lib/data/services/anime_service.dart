@@ -134,9 +134,18 @@ class AnimeService {
   /// (LRU) é evictado automaticamente.
   static const int _maxCacheEntries = 20;
 
+  /// TTL do cache de parse: 10 minutos.
+  /// Após esse período, a entrada é considerada expirada e o
+  /// HTML é re-parseado na próxima requisição.
+  static const Duration _cacheTtl = Duration(minutes: 10);
+
   /// Cache do parse HTML do AnimeFire por URL do anime.
   /// Populado por [getAnimeEpisodeList]; evita re-parses.
   static final Map<String, _ParsedAnimeList> _parseCache = {};
+
+  /// Timestamps de quando cada entrada do cache foi criada.
+  /// Usado para validar TTL.
+  static final Map<String, DateTime> _parseCacheTimestamps = {};
 
   /// Ordem de acesso LRU. URLs no início são as mais antigas;
   /// no fim, as mais recentes.
@@ -148,7 +157,15 @@ class AnimeService {
   /// Limpa o cache de parse (útil em forceRefresh).
   static void clearParseCache() {
     _parseCache.clear();
+    _parseCacheTimestamps.clear();
     _cacheAccessOrder.clear();
+  }
+
+  /// `true` se a entrada do cache para [url] expirou (TTL).
+  static bool _isCacheExpired(String url) {
+    final cachedAt = _parseCacheTimestamps[url];
+    if (cachedAt == null) return true;
+    return DateTime.now().difference(cachedAt) > _cacheTtl;
   }
 
   /// Remove a entrada mais antiga do cache (LRU).
@@ -156,6 +173,7 @@ class AnimeService {
     while (_parseCache.length > _maxCacheEntries && _cacheAccessOrder.isNotEmpty) {
       final oldest = _cacheAccessOrder.removeAt(0);
       _parseCache.remove(oldest);
+      _parseCacheTimestamps.remove(oldest);
     }
   }
 
@@ -176,10 +194,18 @@ class AnimeService {
     bool forceRefresh = false,
   }) async {
     if (!forceRefresh && _parseCache.containsKey(anime.url)) {
-      _touchCache(anime.url);
-      return _parseCache[anime.url]!.episodes
-          .map((e) => Episode(number: e.number, url: e.url, thumbnail: anime.imageUrl))
-          .toList();
+      // Verifica TTL: se expirou, trata como cache miss.
+      if (_isCacheExpired(anime.url)) {
+        _parseCache.remove(anime.url);
+        _parseCacheTimestamps.remove(anime.url);
+        _cacheAccessOrder.remove(anime.url);
+        debugPrint('[AnimeFire] Cache expired for: ${anime.name}');
+      } else {
+        _touchCache(anime.url);
+        return _parseCache[anime.url]!.episodes
+            .map((e) => Episode(number: e.number, url: e.url, thumbnail: anime.imageUrl))
+            .toList();
+      }
     }
 
     // Se for refresh, remove do LRU para reinserir como recente.
@@ -219,6 +245,7 @@ class AnimeService {
         malId: anime.malId?.toString(),
         anilistId: anime.anilistId?.toString(),
       );
+      _parseCacheTimestamps[anime.url] = DateTime.now();
       _touchCache(anime.url);
       _evictOldestCache();
 

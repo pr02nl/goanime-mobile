@@ -20,9 +20,17 @@ class EpisodeThumbnailService {
   /// Limite máximo de animes com thumbnails cacheados.
   static const int _maxCacheEntries = 30;
 
+  /// TTL do cache de thumbnails: 15 minutos.
+  /// Após esse período, os thumbnails são refetchados na próxima
+  /// chamada de [batchGetThumbnails].
+  static const Duration _thumbnailCacheTtl = Duration(minutes: 15);
+
   /// Cache de thumbnails por chave (`animeTitle|malId|anilistId`).
   /// O valor é o `Map<int, String>` retornado por [batchGetThumbnails].
   static final Map<String, Map<int, String>> _thumbnailCache = {};
+
+  /// Timestamps de quando cada entrada do cache foi criada.
+  static final Map<String, DateTime> _thumbnailCacheTimestamps = {};
 
   /// Ordem de acesso LRU. Chaves no início são as mais antigas.
   static final List<String> _thumbnailCacheOrder = [];
@@ -30,6 +38,7 @@ class EpisodeThumbnailService {
   /// Limpa o cache de thumbnails (útil em forceRefresh ou testes).
   static void clearThumbnailCache() {
     _thumbnailCache.clear();
+    _thumbnailCacheTimestamps.clear();
     _thumbnailCacheOrder.clear();
   }
 
@@ -39,6 +48,13 @@ class EpisodeThumbnailService {
     String? malId,
     String? anilistId,
   }) => '$animeTitle|${malId ?? ''}|${anilistId ?? ''}';
+
+  /// `true` se a entrada do cache para [key] expirou (TTL).
+  static bool _isThumbnailCacheExpired(String key) {
+    final cachedAt = _thumbnailCacheTimestamps[key];
+    if (cachedAt == null) return true;
+    return DateTime.now().difference(cachedAt) > _thumbnailCacheTtl;
+  }
 
   /// Move a chave para o fim da ordem LRU (mais recente).
   static void _touchCache(String key) {
@@ -52,6 +68,7 @@ class EpisodeThumbnailService {
         _thumbnailCacheOrder.isNotEmpty) {
       final oldest = _thumbnailCacheOrder.removeAt(0);
       _thumbnailCache.remove(oldest);
+      _thumbnailCacheTimestamps.remove(oldest);
     }
   }
 
@@ -236,23 +253,31 @@ class EpisodeThumbnailService {
       anilistId: anilistId,
     );
     if (_thumbnailCache.containsKey(cacheKey)) {
-      _touchCache(cacheKey);
-      final cached = _thumbnailCache[cacheKey]!;
-      // Filtra apenas os episódios solicitados.
-      final result = <int, String>{};
-      for (final ep in episodeNumbers) {
-        if (cached.containsKey(ep)) {
-          result[ep] = cached[ep]!;
+      // Verifica TTL: se expirou, trata como cache miss.
+      if (_isThumbnailCacheExpired(cacheKey)) {
+        _thumbnailCache.remove(cacheKey);
+        _thumbnailCacheTimestamps.remove(cacheKey);
+        _thumbnailCacheOrder.remove(cacheKey);
+        debugPrint('[EpisodeThumbnail] Cache expired for "$animeTitle"');
+      } else {
+        _touchCache(cacheKey);
+        final cached = _thumbnailCache[cacheKey]!;
+        // Filtra apenas os episódios solicitados.
+        final result = <int, String>{};
+        for (final ep in episodeNumbers) {
+          if (cached.containsKey(ep)) {
+            result[ep] = cached[ep]!;
+          }
         }
+        if (result.isNotEmpty) {
+          debugPrint(
+            '[EpisodeThumbnail] Cache hit for "$animeTitle" — ${result.length} thumbnails',
+          );
+          return result;
+        }
+        // Cache existe mas não tem os episódios solicitados — continua
+        // para buscar (pode acontecer com episódios novos).
       }
-      if (result.isNotEmpty) {
-        debugPrint(
-          '[EpisodeThumbnail] Cache hit for "$animeTitle" — ${result.length} thumbnails',
-        );
-        return result;
-      }
-      // Cache existe mas não tem os episódios solicitados — continua
-      // para buscar (pode acontecer com episódios novos).
     }
 
     final Map<int, String> thumbnails = {};
@@ -350,6 +375,7 @@ class EpisodeThumbnailService {
         ...?_thumbnailCache[cacheKey],
         ...thumbnails,
       };
+      _thumbnailCacheTimestamps[cacheKey] = DateTime.now();
       _touchCache(cacheKey);
       _evictOldest();
     }
