@@ -46,221 +46,335 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final viewModel = context.watch<HomeViewModel>();
-    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: RefreshIndicator(
-        onRefresh: () => viewModel.loadHomeData(forceRefresh: true),
+        onRefresh: () =>
+            context.read<HomeViewModel>().loadHomeData(forceRefresh: true),
         color: AppColors.primary,
         backgroundColor: AppColors.surface,
-        child: CustomScrollView(
-          // scrollController removido — otimização de memória
-          // O ScrollView gerencia o scroll nativamente sem necessidade
-          // de um controller externo no HomeViewModel.
+        child: const CustomScrollView(
           slivers: [
-            if (viewModel.seasonAnimes.isNotEmpty)
-              SliverToBoxAdapter(
-                child: NetflixHeroCard(
-                  imageUrl:
-                      viewModel.seasonAnimes.first.largImageUrl ??
-                      viewModel.seasonAnimes.first.imageUrl,
-                  title: viewModel.seasonAnimes.first.title,
-                  description: viewModel.seasonAnimes.first.synopsis,
-                  onPlay: () => _onAnimeTap(viewModel.seasonAnimes.first),
-                  height: Responsive.getBannerHeight(context),
-                  isTV: viewModel.isTV,
-                ),
-              ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-            SliverToBoxAdapter(
-              child: _buildSection(
-                context,
-                l10n.seasonHighlights,
-                viewModel.seasonAnimes,
-                isLoading: viewModel.isLoading,
-                viewModel: viewModel,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _buildSection(
-                context,
-                l10n.topAnime,
-                viewModel.topAnimes,
-                isLoading: viewModel.isLoading,
-                viewModel: viewModel,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _buildSection(
-                context,
-                l10n.action,
-                viewModel.actionAnimes,
-                isLoading: viewModel.isLoading,
-                viewModel: viewModel,
-                genreId: JikanGenreIds.action,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _buildSection(
-                context,
-                l10n.romance,
-                viewModel.romanceAnimes,
-                isLoading: viewModel.isLoading,
-                viewModel: viewModel,
-                genreId: JikanGenreIds.romance,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _buildSection(
-                context,
-                l10n.comedy,
-                viewModel.comedyAnimes,
-                isLoading: viewModel.isLoading,
-                viewModel: viewModel,
-                genreId: JikanGenreIds.comedy,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _buildSection(
-                context,
-                l10n.fantasy,
-                viewModel.fantasyAnimes,
-                isLoading: viewModel.isLoading,
-                viewModel: viewModel,
-                genreId: JikanGenreIds.fantasy,
-              ),
-            ),
-
-            Consumer<PauloFlixProvider>(
-              builder: (context, pauloflix, _) {
-                if (pauloflix.contents.isEmpty) {
-                  return const SliverToBoxAdapter(child: SizedBox.shrink());
-                }
-                return SliverToBoxAdapter(
-                  child: PauloFlixSection(
-                    title: l10n.pauloFlix,
-                    contents: pauloflix.contents.take(15).toList(),
-                    isTV: viewModel.isTV,
-                    onSeeAll: () => context.pushNamed('pauloflix-see-all'),
-                    onItemTap: (content) =>
-                        context.pushNamed('pauloflix-episodes', extra: content),
-                  ),
-                );
-              },
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 48)),
+            _HeroBannerSection(),
+            SliverToBoxAdapter(child: SizedBox(height: 24)),
+            _SeasonHighlightsSection(),
+            _TopAnimeSection(),
+            _ActionAnimeSection(),
+            _RomanceAnimeSection(),
+            _ComedyAnimeSection(),
+            _FantasyAnimeSection(),
+            _PauloFlixHomeSection(),
+            SliverToBoxAdapter(child: SizedBox(height: 48)),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildSection(
-    BuildContext context,
-    String title,
-    List<JikanAnime> animes, {
-    required bool isLoading,
-    required HomeViewModel viewModel,
-    int? genreId,
-  }) {
-    final cardWidth = Responsive.getHorizontalListItemWidth(context);
-    final cardHeight = Responsive.getCardHeightSync(context);
-    final sectionHeight = cardHeight + 60;
+// ─────────────────────────────────────────────────────────────────────────────
+// Section widgets (isolados em Consumer/Selector para evitar rebuilds em
+// cascata quando qualquer propriedade do HomeViewModel muda)
+// ─────────────────────────────────────────────────────────────────────────────
 
-    if (isLoading && animes.isEmpty) {
-      return NetflixCarouselShimmer(title: title, height: sectionHeight);
-    }
+/// Hero banner da season atual.
+class _HeroBannerSection extends StatelessWidget {
+  const _HeroBannerSection();
 
+  @override
+  Widget build(BuildContext context) {
+    final animes = context.select<HomeViewModel, List<JikanAnime>>(
+      (vm) => vm.seasonAnimes,
+    );
     if (animes.isEmpty) {
-      return _buildEmptySection(context, title, sectionHeight);
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
 
-    final items = [
-      ...animes.map(
-        (anime) => NetflixCard(
-          imageUrl: anime.imageUrl,
-          title: anime.title,
-          rating: anime.score,
-          width: cardWidth,
-          height: cardHeight,
-          isTV: viewModel.isTV,
-          onTap: () => _onAnimeTap(anime),
-        ),
+    final isTV = context.select<HomeViewModel, bool>((vm) => vm.isTV);
+    final first = animes.first;
+
+    return SliverToBoxAdapter(
+      child: NetflixHeroCard(
+        imageUrl: first.largImageUrl ?? first.imageUrl,
+        title: first.title,
+        description: first.synopsis,
+        onPlay: () => _navigateToAnime(context, first),
+        height: Responsive.getBannerHeight(context),
+        isTV: isTV,
       ),
-      if (genreId != null)
-        SeeAllCard(
-          label: AppLocalizations.of(context).seeAll,
-          onTap: () => _onSeeAll(title, genreId),
-          width: cardWidth,
-          height: cardHeight,
-          accentColor: AppColors.primary,
-          isTV: viewModel.isTV,
-        ),
-    ];
+    );
+  }
+}
 
-    return NetflixCarousel(
-      title: title,
-      height: sectionHeight,
-      isTV: viewModel.isTV,
-      items: items,
+/// Carrossel de "Destaques da Temporada".
+class _SeasonHighlightsSection extends StatelessWidget {
+  const _SeasonHighlightsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final animes = context.select<HomeViewModel, List<JikanAnime>>(
+      (vm) => vm.seasonAnimes,
+    );
+    final isLoading = context.select<HomeViewModel, bool>((vm) => vm.isLoading);
+    return _buildAnimeCarousel(
+      context: context,
+      animes: animes,
+      isLoading: isLoading,
+      title: (l10n) => l10n.seasonHighlights,
+      genreId: null,
+    );
+  }
+}
+
+/// Carrossel de "Top Animes".
+class _TopAnimeSection extends StatelessWidget {
+  const _TopAnimeSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final animes = context.select<HomeViewModel, List<JikanAnime>>(
+      (vm) => vm.topAnimes,
+    );
+    final isLoading = context.select<HomeViewModel, bool>((vm) => vm.isLoading);
+    return _buildAnimeCarousel(
+      context: context,
+      animes: animes,
+      isLoading: isLoading,
+      title: (l10n) => l10n.topAnime,
+      genreId: null,
+    );
+  }
+}
+
+/// Carrossel de "Ação".
+class _ActionAnimeSection extends StatelessWidget {
+  const _ActionAnimeSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final animes = context.select<HomeViewModel, List<JikanAnime>>(
+      (vm) => vm.actionAnimes,
+    );
+    final isLoading = context.select<HomeViewModel, bool>((vm) => vm.isLoading);
+    return _buildAnimeCarousel(
+      context: context,
+      animes: animes,
+      isLoading: isLoading,
+      title: (l10n) => l10n.action,
+      genreId: JikanGenreIds.action,
+    );
+  }
+}
+
+/// Carrossel de "Romance".
+class _RomanceAnimeSection extends StatelessWidget {
+  const _RomanceAnimeSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final animes = context.select<HomeViewModel, List<JikanAnime>>(
+      (vm) => vm.romanceAnimes,
+    );
+    final isLoading = context.select<HomeViewModel, bool>((vm) => vm.isLoading);
+    return _buildAnimeCarousel(
+      context: context,
+      animes: animes,
+      isLoading: isLoading,
+      title: (l10n) => l10n.romance,
+      genreId: JikanGenreIds.romance,
+    );
+  }
+}
+
+/// Carrossel de "Comédia".
+class _ComedyAnimeSection extends StatelessWidget {
+  const _ComedyAnimeSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final animes = context.select<HomeViewModel, List<JikanAnime>>(
+      (vm) => vm.comedyAnimes,
+    );
+    final isLoading = context.select<HomeViewModel, bool>((vm) => vm.isLoading);
+    return _buildAnimeCarousel(
+      context: context,
+      animes: animes,
+      isLoading: isLoading,
+      title: (l10n) => l10n.comedy,
+      genreId: JikanGenreIds.comedy,
+    );
+  }
+}
+
+/// Carrossel de "Fantasia".
+class _FantasyAnimeSection extends StatelessWidget {
+  const _FantasyAnimeSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final animes = context.select<HomeViewModel, List<JikanAnime>>(
+      (vm) => vm.fantasyAnimes,
+    );
+    final isLoading = context.select<HomeViewModel, bool>((vm) => vm.isLoading);
+    return _buildAnimeCarousel(
+      context: context,
+      animes: animes,
+      isLoading: isLoading,
+      title: (l10n) => l10n.fantasy,
+      genreId: JikanGenreIds.fantasy,
+    );
+  }
+}
+
+/// Seção PauloFlix na home — usa `context.select` para `isTV` em vez
+/// de receber do pai (evita rebuild em cascata).
+class _PauloFlixHomeSection extends StatelessWidget {
+  const _PauloFlixHomeSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final isTV = context.select<HomeViewModel, bool>((vm) => vm.isTV);
+    final l10n = AppLocalizations.of(context);
+
+    return Consumer<PauloFlixProvider>(
+      builder: (context, pauloflix, _) {
+        if (pauloflix.contents.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+        return SliverToBoxAdapter(
+          child: PauloFlixSection(
+            title: l10n.pauloFlix,
+            contents: pauloflix.contents.take(15).toList(),
+            isTV: isTV,
+            onSeeAll: () => context.pushNamed('pauloflix-see-all'),
+            onItemTap: (content) =>
+                context.pushNamed('pauloflix-episodes', extra: content),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─── Helper compartilhado: constrói um carrossel de animes ──────────
+
+/// Constrói o carrossel horizontal de animes (shimmer, vazio ou populado).
+/// Chamado pelos widgets de seção que já fizeram `context.select` para
+/// seus dados específicos.
+Widget _buildAnimeCarousel({
+  required BuildContext context,
+  required List<JikanAnime> animes,
+  required bool isLoading,
+  required String Function(AppLocalizations) title,
+  int? genreId,
+}) {
+  final isTV = context.select<HomeViewModel, bool>((vm) => vm.isTV);
+  final l10n = AppLocalizations.of(context);
+  final resolvedTitle = title(l10n);
+  final cardWidth = Responsive.getHorizontalListItemWidth(context);
+  final cardHeight = Responsive.getCardHeightSync(context);
+  final sectionHeight = cardHeight + 60;
+
+  if (isLoading && animes.isEmpty) {
+    return SliverToBoxAdapter(
+      child: NetflixCarouselShimmer(
+        title: resolvedTitle,
+        height: sectionHeight,
+      ),
     );
   }
 
-  Widget _buildEmptySection(BuildContext context, String title, double height) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: height,
-          child: Center(
-            child: Text(
-              AppLocalizations.of(context).noAnimeFound,
-              style: const TextStyle(color: NetflixTheme.textTertiary),
-            ),
-          ),
-        ),
-      ],
+  if (animes.isEmpty) {
+    return SliverToBoxAdapter(
+      child: _buildEmptyCarousel(context, resolvedTitle, sectionHeight),
     );
   }
 
-  void _onAnimeTap(JikanAnime anime) {
-    context.pushNamed(
-      'source-selection',
-      extra: SourceSelectionRouteData(
-        animeTitle: anime.title,
+  final items = [
+    ...animes.map(
+      (anime) => NetflixCard(
         imageUrl: anime.imageUrl,
-        myAnimeListUrl: 'https://myanimelist.net/anime/${anime.malId}',
+        title: anime.title,
+        rating: anime.score,
+        width: cardWidth,
+        height: cardHeight,
+        isTV: isTV,
+        onTap: () => _navigateToAnime(context, anime),
       ),
-    );
-  }
+    ),
+    if (genreId != null)
+      SeeAllCard(
+        label: l10n.seeAll,
+        onTap: () => _navigateToGenre(context, resolvedTitle, genreId),
+        width: cardWidth,
+        height: cardHeight,
+        accentColor: AppColors.primary,
+        isTV: isTV,
+      ),
+  ];
 
-  void _onSeeAll(String title, int genreId) {
-    context.pushNamed(
-      'genre',
-      extra: GenreRouteData(
-        title: title,
-        icon: Icons.movie,
-        gradient: AppColors.getPrimaryGradient(),
-        genreId: genreId,
+  return SliverToBoxAdapter(
+    child: NetflixCarousel(
+      title: resolvedTitle,
+      height: sectionHeight,
+      isTV: isTV,
+      items: items,
+    ),
+  );
+}
+
+// ─── Helpers de navegação ───────────────────────────────────────────
+
+void _navigateToAnime(BuildContext context, JikanAnime anime) {
+  context.pushNamed(
+    'source-selection',
+    extra: SourceSelectionRouteData(
+      animeTitle: anime.title,
+      imageUrl: anime.imageUrl,
+      myAnimeListUrl: 'https://myanimelist.net/anime/${anime.malId}',
+    ),
+  );
+}
+
+void _navigateToGenre(BuildContext context, String title, int genreId) {
+  context.pushNamed(
+    'genre',
+    extra: GenreRouteData(
+      title: title,
+      icon: Icons.movie,
+      gradient: AppColors.getPrimaryGradient(),
+      genreId: genreId,
+    ),
+  );
+}
+
+Widget _buildEmptyCarousel(BuildContext context, String title, double height) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
-    );
-  }
+      const SizedBox(height: 12),
+      SizedBox(
+        height: height,
+        child: Center(
+          child: Text(
+            AppLocalizations.of(context).noAnimeFound,
+            style: const TextStyle(color: NetflixTheme.textTertiary),
+          ),
+        ),
+      ),
+    ],
+  );
 }
