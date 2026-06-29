@@ -5,7 +5,6 @@
 import FlutterMacOS
 import Foundation
 
-import animated_item
 import media_kit_libs_macos_video
 import media_kit_video
 import package_info_plus
@@ -15,7 +14,6 @@ import wakelock_plus
 import webview_flutter_wkwebview
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
-  AnimatedItemPlugin.register(with: registry.registrar(forPlugin: "AnimatedItemPlugin"))
   MediaKitLibsMacosVideoPlugin.register(with: registry.registrar(forPlugin: "MediaKitLibsMacosVideoPlugin"))
   MediaKitVideoPlugin.register(with: registry.registrar(forPlugin: "MediaKitVideoPlugin"))
   FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))

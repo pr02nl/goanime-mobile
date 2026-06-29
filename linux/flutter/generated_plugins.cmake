@@ -3,7 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  animated_item
   media_kit_libs_linux
   media_kit_video
 )
