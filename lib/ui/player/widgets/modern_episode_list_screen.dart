@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../data/services/anime_service.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../routing/route_data.dart';
@@ -13,6 +12,7 @@ import '../../core/widgets/focusable_widget.dart';
 import '../../downloads/widgets/download_button.dart';
 import 'episode_grid_card.dart';
 import 'episode_list_card.dart';
+import 'episode_list_mixin.dart';
 
 // Funções de extração de número de episódio movidas para episode_utils.dart
 
@@ -27,147 +27,50 @@ class ModernEpisodeListScreen extends StatefulWidget {
 }
 
 class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
-    with SingleTickerProviderStateMixin {
-  static const int _chunkSize = 30;
+    with SingleTickerProviderStateMixin, EpisodeListPaginationMixin<ModernEpisodeListScreen> {
+  @override
+  Anime get anime => widget.anime;
 
-  final ScrollController _scrollController = ScrollController();
-
-  List<Episode> _episodes = [];
-  bool _isLoading = true;
-  bool _isLoadingMore = false;
-  int _totalEpisodes = 0;
-  int _currentChunk = 0;
-  String? _errorMessage;
   late AnimationController _animationController;
   bool _isGridView = false;
-
-  /// Cache dos episódios completos (sem thumbnails) para batch download.
-  List<Episode>? _allEpisodes;
 
   @override
   void initState() {
     super.initState();
     debugPrint(
-      '[ModernEpisodeListScreen] initState - Anime: ${widget.anime.name}, '
-      'Has aniListData: ${widget.anime.aniListData != null}, '
-      'AniList ID: ${widget.anime.anilistId}, '
-      'MAL ID: ${widget.anime.malId}',
+      '[$runtimeType] initState - Anime: ${anime.name}, '
+      'Has aniListData: ${anime.aniListData != null}, '
+      'AniList ID: ${anime.anilistId}, '
+      'MAL ID: ${anime.malId}',
     );
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
     _animationController.forward();
-
-    _scrollController.addListener(_onScroll);
-    _loadInitialChunk();
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
-  /// Callback do ScrollController: detecta quando o usuário está próximo
-  /// do final da lista para carregar o próximo bloco.
-  void _onScroll() {
-    if (_isLoadingMore) return;
-    if (_episodes.length >= _totalEpisodes && _totalEpisodes > 0) return;
-
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    final currentScroll = _scrollController.position.pixels;
-    // Pré-carrega quando faltam 5 itens (aproximadamente 1 tela) para o fim.
-    if (maxScroll - currentScroll < 600) {
-      _loadMoreEpisodes();
-    }
-  }
-
-  /// Carrega o primeiro bloco de episódios e já exibe a UI.
-  Future<void> _loadInitialChunk() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      // Parseia a lista completa (cacheada, sem thumbnails).
-      final allEpisodes = await AnimeService.getAnimeEpisodeList(widget.anime);
-      _allEpisodes = allEpisodes;
-      _totalEpisodes = allEpisodes.length;
-
-      // Carrega o primeiro bloco com thumbnails.
-      final result = await AnimeService.getAnimeEpisodesChunk(
-        widget.anime,
-        chunkIndex: 0,
-        chunkSize: _chunkSize,
-      );
-      _currentChunk = 0;
-
-      if (mounted) {
-        setState(() {
-          _episodes = result.episodes;
-          _totalEpisodes = result.total;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  /// Carrega o próximo bloco de episódios e adiciona à lista.
-  Future<void> _loadMoreEpisodes() async {
-    if (_isLoadingMore) return;
-    if (_episodes.length >= _totalEpisodes) return;
-
-    setState(() => _isLoadingMore = true);
-
-    try {
-      final nextChunk = _currentChunk + 1;
-      final result = await AnimeService.getAnimeEpisodesChunk(
-        widget.anime,
-        chunkIndex: nextChunk,
-        chunkSize: _chunkSize,
-      );
-      _currentChunk = nextChunk;
-
-      if (mounted) {
-        setState(() {
-          _episodes.addAll(result.episodes);
-          _isLoadingMore = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('[ModernEpisodeListScreen] Error loading more: $e');
-      if (mounted) {
-        setState(() => _isLoadingMore = false);
-      }
-    }
-  }
-
   void _openEpisode(Episode episode) {
-    final index = _episodes.indexOf(episode);
+    final index = episodes.indexOf(episode);
     debugPrint(
-      '[ModernEpisodeListScreen] Opening video - Anime: ${widget.anime.name}, '
-      'Has aniListData: ${widget.anime.aniListData != null}, '
-      'AniList ID: ${widget.anime.anilistId}, '
-      'MAL ID: ${widget.anime.malId}',
+      '[$runtimeType] Opening video - Anime: ${anime.name}, '
+      'Has aniListData: ${anime.aniListData != null}, '
+      'AniList ID: ${anime.anilistId}, '
+      'MAL ID: ${anime.malId}',
     );
     context.pushNamed(
       'player',
       extra: PlayerRouteData(
         episode: episode,
-        animeTitle: widget.anime.name,
-        anime: widget.anime,
-        episodeList: _episodes,
+        animeTitle: anime.name,
+        anime: anime,
+        episodeList: episodes,
         episodeIndex: index >= 0 ? index : null,
       ),
     );
@@ -177,10 +80,10 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
     showDialog(
       context: context,
       builder: (context) => BatchDownloadDialog(
-        animeId: widget.anime.url,
-        animeName: widget.anime.name,
-        thumbnailUrl: widget.anime.imageUrl,
-        episodes: (_allEpisodes ?? _episodes).map((e) {
+        animeId: anime.url,
+        animeName: anime.name,
+        thumbnailUrl: anime.imageUrl,
+        episodes: (allEpisodes ?? episodes).map((e) {
           final episodeNumber = extractEpisodeNumber(
             e.number,
           );
@@ -203,26 +106,26 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
           // App Bar com Hero Banner
           _buildSliverAppBar(),
 
-          // Informa├º├Áes do Anime
+          // Informações do Anime
           SliverToBoxAdapter(child: _buildAnimeInfo()),
 
           // Toggle View Button
           SliverToBoxAdapter(child: _buildViewToggle()),
 
           // Episode List
-          if (_isLoading)
+          if (isLoading)
             SliverToBoxAdapter(child: _buildLoadingState())
-          else if (_errorMessage != null)
+          else if (errorMessage != null)
             SliverToBoxAdapter(child: _buildErrorState())
-          else if (_episodes.isEmpty)
+          else if (episodes.isEmpty)
             SliverToBoxAdapter(child: _buildEmptyState())
           else ...[
             if (_isGridView)
               _buildGridView()
             else
               _buildListView(),
-            if (_isLoadingMore)
-              SliverToBoxAdapter(child: _buildLoadingMoreIndicator()),
+            if (isLoadingMore)
+              SliverToBoxAdapter(child: buildLoadingMoreIndicator()),
           ],
         ],
       ),
@@ -230,8 +133,8 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
   }
 
   Widget _buildSliverAppBar() {
-    final hasImage = widget.anime.imageUrl.isNotEmpty;
-    final hasBanner = widget.anime.bannerUrl.isNotEmpty;
+    final hasImage = anime.imageUrl.isNotEmpty;
+    final hasBanner = anime.bannerUrl.isNotEmpty;
 
     return SliverAppBar(
       expandedHeight: 300,
@@ -240,7 +143,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
       elevation: 0,
       actions: [
         // Batch download button
-        if (!_isLoading && _episodes.isNotEmpty)
+        if (!isLoading && episodes.isNotEmpty)
           IconButton(
             icon: const Icon(Icons.file_download, color: Colors.white),
             tooltip: 'Batch Download',
@@ -254,7 +157,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
             // Background Image
             if (hasBanner)
               CachedNetworkImage(
-                imageUrl: widget.anime.bannerUrl,
+                imageUrl: anime.bannerUrl,
                 fit: BoxFit.cover,
                 placeholder: (context, url) =>
                     Container(color: const Color(0xFF1A1A2E)),
@@ -263,7 +166,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
               )
             else if (hasImage)
               CachedNetworkImage(
-                imageUrl: widget.anime.imageUrl,
+                imageUrl: anime.imageUrl,
                 fit: BoxFit.cover,
                 placeholder: (context, url) =>
                     Container(color: const Color(0xFF1A1A2E)),
@@ -305,7 +208,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    widget.anime.name,
+                    anime.name,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 28,
@@ -337,7 +240,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
                           ),
                         ),
                         child: Text(
-                          widget.anime.sourceName,
+                          anime.sourceName,
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontSize: 12,
@@ -345,7 +248,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
                           ),
                         ),
                       ),
-                      if (widget.anime.aniListData?.averageScore != null) ...[
+                      if (anime.aniListData?.averageScore != null) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -365,7 +268,7 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                (widget.anime.aniListData!.averageScore! / 10)
+                                (anime.aniListData!.averageScore! / 10)
                                     .toStringAsFixed(1),
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -400,7 +303,6 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
   }
 
   Widget _buildAnimeInfo() {
-    final anime = widget.anime;
     final hasDescription = anime.description.isNotEmpty;
     final hasGenres = anime.genres.isNotEmpty;
 
@@ -414,20 +316,12 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
             children: [
               _buildStatItem(
                 Icons.tv,
-                _totalEpisodes > 0 ? '$_totalEpisodes eps' : '${_episodes.length} eps',
+                totalEpisodes > 0 ? '$totalEpisodes eps' : '${episodes.length} eps',
                 Colors.blue,
               ),
               const SizedBox(width: 16),
               if (anime.status != null)
                 _buildStatItem(Icons.info_outline, anime.status!, Colors.green),
-              if (anime.episodeCount != null) ...[
-                const SizedBox(width: 16),
-                _buildStatItem(
-                  Icons.calendar_today,
-                  'Total: ${anime.episodeCount}',
-                  Colors.purple,
-                ),
-              ],
             ],
           ),
 
@@ -577,20 +471,20 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
-          final episode = _episodes[index];
+          final episode = episodes[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: EpisodeListCard(
               episode: episode,
               index: index,
               onTap: () => _openEpisode(episode),
-              animeTitle: widget.anime.name,
-              animeThumbnail: widget.anime.imageUrl,
-              sourceName: widget.anime.sourceName,
-              animeUrl: widget.anime.url,
+              animeTitle: anime.name,
+              animeThumbnail: anime.imageUrl,
+              sourceName: anime.sourceName,
+              animeUrl: anime.url,
             ),
           );
-        }, childCount: _episodes.length),
+        }, childCount: episodes.length),
       ),
     );
   }
@@ -606,15 +500,15 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
           mainAxisSpacing: 12,
         ),
         delegate: SliverChildBuilderDelegate((context, index) {
-          final episode = _episodes[index];
+          final episode = episodes[index];
           return EpisodeGridCard(
             episode: episode,
             index: index,
             onTap: () => _openEpisode(episode),
-            animeTitle: widget.anime.name,
-            sourceName: widget.anime.sourceName,
+            animeTitle: anime.name,
+            sourceName: anime.sourceName,
           );
-        }, childCount: _episodes.length),
+        }, childCount: episodes.length),
       ),
     );
   }
@@ -622,12 +516,12 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
   Widget _buildLoadingState() {
     return Container(
       padding: const EdgeInsets.all(48),
-      child: const Center(
+      child: Center(
         child: Column(
           children: [
-            CircularProgressIndicator(color: AppColors.primary),
-            SizedBox(height: 16),
-            Text(
+            const CircularProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 16),
+            const Text(
               'Loading episodes...',
               style: TextStyle(color: Colors.white70),
             ),
@@ -651,17 +545,17 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
             const SizedBox(height: 16),
             const Text(
               'Error loading episodes',
-              style: TextStyle(color: Colors.white, fontSize: 18),
+              style: const TextStyle(color: Colors.white, fontSize: 18),
             ),
             const SizedBox(height: 8),
             Text(
-              _errorMessage ?? 'Unknown error',
+              errorMessage ?? 'Unknown error',
               style: const TextStyle(color: Colors.white54, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _loadInitialChunk,
+              onPressed: () => loadInitialChunk(),
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
               style: ElevatedButton.styleFrom(
@@ -674,19 +568,6 @@ class _ModernEpisodeListScreenState extends State<ModernEpisodeListScreen>
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingMoreIndicator() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: const Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
     );
