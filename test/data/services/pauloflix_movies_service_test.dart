@@ -22,6 +22,7 @@ import 'package:goanime/data/repositories/pauloflix_movies_repository_impl.dart'
 import 'package:goanime/data/services/pauloflix_movies_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// JSON index real de exemplo (extraído de docs/movie_index.json),
 /// com year como string, rating como number, file e sem subtitles.
@@ -93,12 +94,18 @@ const _movieIndexWithSubtitlesJson = '''
 void main() {
   setUpAll(() {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    SharedPreferences.setMockInitialValues({});
   });
 
   late AppDatabase db;
   late PauloFlixMoviesRepositoryImpl repo;
 
-  setUp(() {
+  setUp(() async {
+    // Limpa shared prefs entre testes para evitar que o updated_at
+    // de um teste anterior faça o syncContent pular o processamento.
+    try {
+      (await SharedPreferences.getInstance()).clear();
+    } catch (_) {}
     db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     repo = PauloFlixMoviesRepositoryImpl(db);

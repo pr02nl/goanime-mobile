@@ -75,7 +75,7 @@ class DriftUtils {
     final pattern = '%$escaped%';
     final rows = await db.customSelect(
       'SELECT * FROM $tableName '
-      "WHERE display_name LIKE ?1 ESCAPE '\\\\' "
+      "WHERE display_name LIKE ?1 ESCAPE '\\' "
       'AND is_available = 1 '
       'ORDER BY display_name',
       variables: [Variable.withString(pattern)],

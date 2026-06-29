@@ -1,7 +1,13 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/data/services/pauloflix_movies_service.dart';
 import 'package:goanime/domain/models/pauloflix_movie.dart';
 import 'package:goanime/domain/repositories/pauloflix_movies_repository.dart';
 import 'package:goanime/ui/pauloflix_movies/view_models/pauloflix_movies_provider.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Fake do repository (Fase 3) — retorna dados em memória.
@@ -41,6 +47,28 @@ class FakePauloFlixMoviesRepository implements PauloFlixMoviesRepository {
 }
 
 void main() {
+  setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+
+    // Mock path_provider para suportar DefaultCacheManager
+    // (usado pelo ImagePrecacheService dentro de loadContents).
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (MethodCall methodCall) async {
+        switch (methodCall.method) {
+          case 'getTemporaryDirectory':
+          case 'getApplicationSupportDirectory':
+          case 'getApplicationDocumentsDirectory':
+            return Directory.systemTemp.path;
+          default:
+            return null;
+        }
+      },
+    );
+  });
+
   group('PauloFlixMoviesProvider', () {
     final testMovies = [
       PauloFlixMovie(
@@ -134,9 +162,16 @@ void main() {
     });
 
     test(
-      'syncContent deve retornar false quando TMDB nao configurado',
+      'syncContent retorna false quando HTTP falha (401)',
       () async {
-        SharedPreferences.setMockInitialValues({'tmdb_api_key': ''});
+        // Como o teste usa FakePauloFlixMoviesRepository (sem HTTP mockado),
+        // o PauloFlixMoviesService tenta chamar o servidor real e falha.
+        // Mockamos o HTTP para simular erro 401.
+        PauloFlixMoviesService.configure(
+          MockClient((request) async {
+            return http.Response('Unauthorized', 401);
+          }),
+        );
 
         final provider = PauloFlixMoviesProvider.withServices(
           repository: FakePauloFlixMoviesRepository([]),
@@ -146,7 +181,7 @@ void main() {
 
         expect(result, isFalse);
         expect(provider.status, PauloFlixMoviesStatus.error);
-        expect(provider.errorMessage, contains('não configurado'));
+        expect(provider.errorMessage, contains('HTTP 401'));
       },
     );
   });

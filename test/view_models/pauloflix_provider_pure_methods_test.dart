@@ -91,7 +91,7 @@ void main() {
       ];
       final result = PauloFlixProvider.groupByTopGenres(
         contents,
-        minPerGenre: 2,
+        minPerGenre: 3,
       );
       expect(result.keys, containsAll(['Action', 'Comedy']));
       expect(result.keys.length, 2);

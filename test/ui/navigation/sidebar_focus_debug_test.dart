@@ -32,14 +32,7 @@ void main() {
       ],
     );
 
-    // Habilita debugPrint do Flutter no test runner
     final logs = <String>[];
-    final originalDebugPrint = debugPrint;
-    debugPrint = (String? message, {int? wrapWidth}) {
-      if (message != null) logs.add(message);
-      originalDebugPrint(message, wrapWidth: wrapWidth);
-    };
-    addTearDown(() => debugPrint = originalDebugPrint);
 
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();

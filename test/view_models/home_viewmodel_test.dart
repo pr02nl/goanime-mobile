@@ -1,9 +1,13 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:goanime/data/models/jikan_models.dart';
 import 'package:goanime/data/services/jikan_service.dart';
 import 'package:goanime/domain/repositories/home_repository.dart';
 import 'package:goanime/ui/home/view_models/home_viewmodel.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MockHomeRepository extends Mock implements HomeRepository {}
 
@@ -30,6 +34,29 @@ void main() {
     comedyAnimes: [],
     fantasyAnimes: [],
   );
+
+  setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+
+    // Mock path_provider para suportar DefaultCacheManager
+    // (usado pelo ImagePrecacheService dentro de loadHomeData).
+    // Nota: path_provider retorna String diretamente (não Map).
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      (MethodCall methodCall) async {
+        switch (methodCall.method) {
+          case 'getTemporaryDirectory':
+          case 'getApplicationSupportDirectory':
+          case 'getApplicationDocumentsDirectory':
+            return Directory.systemTemp.path;
+          default:
+            return null;
+        }
+      },
+    );
+  });
 
   setUp(() {
     mockRepository = MockHomeRepository();

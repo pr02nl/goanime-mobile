@@ -363,16 +363,18 @@ void main() {
         // Carrega o 21º anime — força evicção do mais antigo (anime 0)
         await AnimeService.getAnimeEpisodeList(animes[20]);
 
+        // anime 1 (segundo mais antigo) ainda está em cache
+        // (verificar antes de recarregar anime 0, pois recarregar
+        //  um item evictado adiciona ao cache e pode evictar outro)
+        await AnimeService.getAnimeEpisodeList(animes[1]);
+        expect(requestCount[animes[1].url], 1,
+          reason: 'anime 1 deve permanecer em cache',
+        );
+
         // anime 0 foi evictado → re-carregar faz nova requisição
         await AnimeService.getAnimeEpisodeList(animes[0]);
         expect(requestCount[animes[0].url], 2,
           reason: 'anime 0 (mais antigo) foi evictado, deve refazer HTTP',
-        );
-
-        // anime 1 (segundo mais antigo) ainda está em cache
-        await AnimeService.getAnimeEpisodeList(animes[1]);
-        expect(requestCount[animes[1].url], 1,
-          reason: 'anime 1 deve permanecer em cache',
         );
       },
     );
