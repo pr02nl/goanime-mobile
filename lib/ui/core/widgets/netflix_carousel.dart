@@ -30,30 +30,11 @@ class NetflixCarousel extends StatefulWidget {
 
 class _NetflixCarouselState extends State<NetflixCarousel> {
   final ScrollController _scrollController = ScrollController();
-  bool _showLeftGradient = false;
-  bool _showRightGradient = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_updateGradientVisibility);
-  }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_updateGradientVisibility);
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _updateGradientVisibility() {
-    if (!mounted) return;
-    setState(() {
-      _showLeftGradient = _scrollController.offset > 0;
-      _showRightGradient =
-          _scrollController.offset <
-          _scrollController.position.maxScrollExtent - 10;
-    });
   }
 
   // _scrollLeft/_scrollRight removidos: Netflix nao usa botoes de navegacao.
@@ -103,73 +84,24 @@ class _NetflixCarouselState extends State<NetflixCarousel> {
           policy: _ClampedTraversalPolicy(),
           child: SizedBox(
             height: defaultHeight,
-            child: Stack(
-              children: [
-                ListView.builder(
-                  controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: NetflixTheme.horizontalPadding(context),
+            child: ListView.builder(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(
+                horizontal: NetflixTheme.horizontalPadding(context),
+              ),
+              itemCount: widget.items.length,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    right: NetflixTheme.cardSpacing(context),
                   ),
-                  itemCount: widget.items.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        right: NetflixTheme.cardSpacing(context),
-                      ),
-                      child: _AutoScrollOnFocus(
-                        scrollController: _scrollController,
-                        child: widget.items[index],
-                      ),
-                    );
-                  },
-                ),
-                // Edge gradient fades
-                if (_showLeftGradient)
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 60,
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [
-                              NetflixTheme.background,
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                  child: _AutoScrollOnFocus(
+                    scrollController: _scrollController,
+                    child: widget.items[index],
                   ),
-                if (_showRightGradient)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 60,
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [
-                              Colors.transparent,
-                              NetflixTheme.background,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                // Netflix não usa botões de navegação explícitos no carousel —
-                // o fade lateral comunica que há mais conteúdo para rolar.
-              ],
+                );
+              },
             ),
           ),
         ),
