@@ -47,11 +47,18 @@ class TVDetector {
   static void forceTVMode(bool value) {
     _isTV = value;
   }
+
+  /// Acesso síncrono ao valor cacheado. Se `_isTV` ainda não foi
+  /// inicializado (primeiro acesso), retorna `false`.
+  static bool get isTVSync => _isTV ?? false;
 }
 
 /// Extensão para verificar se é TV em BuildContext
 extension TVContextExtension on BuildContext {
   Future<bool> get isTV async => await TVDetector.isTV;
+
+  /// Versão síncrona — usa o cache se já inicializado.
+  bool get isTVSync => TVDetector.isTVSync;
 
   /// Retorna o padding adequado para TV ou mobile
   Future<EdgeInsets> get adaptivePadding async {

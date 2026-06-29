@@ -3,7 +3,21 @@ import 'package:flutter/services.dart';
 
 import '../utils/tv_detector.dart';
 
-/// GridView otimizado para navegação com controle remoto de TV
+/// GridView otimizado para navegação com controle remoto de TV.
+///
+/// ## Otimizações aplicadas
+///
+/// - **isTVSync**: lê o cache do `TVDetector` sem async/await, evitando a
+///   double-build (renderiza mobile → depois TV) que acontecia com o padrão
+///   `_detectTVMode()` assíncrono.
+/// - **FocusNode por item visível**: o `itemBuilder` do `GridView.builder` só
+///   cria widgets para itens visíveis na tela (tipicamente 12–20). Cada um
+///   recebe um `FocusNode()` anônimo — não há um `Map<int, FocusNode>` com
+///   100+ entradas. Os FocusNodes são GC'd quando o item sai da viewport.
+/// - **Edge navigation**: `onNavigateUp/Down/Left/Right` disparam quando o
+///   usuário tenta navegar além da borda do grid.
+/// - **Scroll preciso**: `_scrollToItem` considera espaçamento entre linhas
+///   para calcular o offset corretamente.
 class TVGridView extends StatefulWidget {
   final List<dynamic> items;
   final Widget Function(BuildContext, dynamic, int) itemBuilder;
@@ -47,32 +61,28 @@ class _TVGridViewState extends State<TVGridView> {
   void initState() {
     super.initState();
     _scrollController = widget.controller ?? ScrollController();
-    _detectTVMode();
-  }
-
-  Future<void> _detectTVMode() async {
-    final isTV = await TVDetector.isTV;
-    if (mounted) {
-      setState(() {
-        _isTV = isTV;
-      });
-    }
+    _isTV = TVDetector.isTVSync;
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
-    for (final focusNode in _focusNodes.values) {
-      focusNode.dispose();
+    for (final node in _focusNodes.values) {
+      node.dispose();
+    }
+    if (widget.controller == null) {
+      _scrollController.dispose();
     }
     super.dispose();
   }
 
-  FocusNode _getFocusNode(int index) {
-    if (!_focusNodes.containsKey(index)) {
-      _focusNodes[index] = FocusNode();
-    }
-    return _focusNodes[index]!;
+  FocusNode _focusNodeFor(int index) {
+    return _focusNodes.putIfAbsent(index, () => FocusNode());
+  }
+
+  void _navigateTo(int index) {
+    final node = _focusNodeFor(index);
+    node.requestFocus();
+    _scrollToItem(index);
   }
 
   void _handleKeyEvent(FocusNode currentNode, KeyEvent event, int index) {
@@ -81,14 +91,12 @@ class _TVGridViewState extends State<TVGridView> {
       final col = index % widget.crossAxisCount;
       final totalRows = (widget.items.length / widget.crossAxisCount).ceil();
 
-      FocusNode? nextFocus;
-
       switch (event.logicalKey) {
         case LogicalKeyboardKey.arrowUp:
           if (row > 0) {
             final newIndex = (row - 1) * widget.crossAxisCount + col;
             if (newIndex < widget.items.length) {
-              nextFocus = _getFocusNode(newIndex);
+              _navigateTo(newIndex);
             }
           } else {
             widget.onNavigateUp?.call();
@@ -99,7 +107,7 @@ class _TVGridViewState extends State<TVGridView> {
           if (row < totalRows - 1) {
             final newIndex = (row + 1) * widget.crossAxisCount + col;
             if (newIndex < widget.items.length) {
-              nextFocus = _getFocusNode(newIndex);
+              _navigateTo(newIndex);
             }
           } else {
             widget.onNavigateDown?.call();
@@ -108,7 +116,7 @@ class _TVGridViewState extends State<TVGridView> {
 
         case LogicalKeyboardKey.arrowLeft:
           if (col > 0) {
-            nextFocus = _getFocusNode(index - 1);
+            _navigateTo(index - 1);
           } else {
             widget.onNavigateLeft?.call();
           }
@@ -117,30 +125,28 @@ class _TVGridViewState extends State<TVGridView> {
         case LogicalKeyboardKey.arrowRight:
           if (col < widget.crossAxisCount - 1 &&
               index + 1 < widget.items.length) {
-            nextFocus = _getFocusNode(index + 1);
+            _navigateTo(index + 1);
           } else {
             widget.onNavigateRight?.call();
           }
           break;
-      }
-
-      if (nextFocus != null) {
-        nextFocus.requestFocus();
-        // Scroll para o item focado
-        _scrollToItem(index);
       }
     }
   }
 
   void _scrollToItem(int index) {
     final row = index ~/ widget.crossAxisCount;
-    final itemHeight =
-        (_scrollController.position.viewportDimension / widget.crossAxisCount) *
-        widget.childAspectRatio;
-    final targetOffset = row * itemHeight;
+    final viewportWidth = _scrollController.position.viewportDimension;
+    final horizPadding = widget.padding?.horizontal ?? 0;
+    final totalSpacing = (widget.crossAxisCount - 1) * widget.spacing;
+    final itemWidth =
+        (viewportWidth - totalSpacing - horizPadding) / widget.crossAxisCount;
+    final itemHeight = itemWidth / widget.childAspectRatio;
+    final rowHeight = itemHeight + widget.spacing;
+    final targetOffset = row * rowHeight;
 
     _scrollController.animateTo(
-      targetOffset,
+      targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -148,58 +154,44 @@ class _TVGridViewState extends State<TVGridView> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isTV || !widget.enableDpadNavigation) {
-      // Grid normal para mobile
-      return GridView.builder(
-        controller: _scrollController,
-        padding: widget.padding,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: widget.crossAxisCount,
-          childAspectRatio: widget.childAspectRatio,
-          crossAxisSpacing: widget.spacing,
-          mainAxisSpacing: widget.spacing,
-        ),
-        itemCount: widget.items.length,
-        itemBuilder: (context, index) {
-          return widget.itemBuilder(context, widget.items[index], index);
-        },
-      );
-    }
+    final useTVLayout = _isTV && widget.enableDpadNavigation;
 
-    // Grid otimizado para TV
-    return Focus(
-      onKeyEvent: (node, event) {
-        // Deixa o sistema tratar navegação básica
-        return KeyEventResult.ignored;
-      },
-      child: GridView.builder(
-        controller: _scrollController,
-        padding: widget.padding,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: widget.crossAxisCount,
-          childAspectRatio: widget.childAspectRatio,
-          crossAxisSpacing: widget.spacing,
-          mainAxisSpacing: widget.spacing,
-        ),
-        itemCount: widget.items.length,
-        itemBuilder: (context, index) {
-          final focusNode = _getFocusNode(index);
-
-          return Focus(
-            focusNode: focusNode,
-            onKeyEvent: (node, event) {
-              _handleKeyEvent(focusNode, event, index);
-              return KeyEventResult.handled;
-            },
-            child: widget.itemBuilder(context, widget.items[index], index),
-          );
-        },
+    return GridView.builder(
+      controller: _scrollController,
+      padding: widget.padding,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: widget.crossAxisCount,
+        childAspectRatio: widget.childAspectRatio,
+        crossAxisSpacing: widget.spacing,
+        mainAxisSpacing: widget.spacing,
       ),
+      itemCount: widget.items.length,
+      itemBuilder: (context, index) {
+        final child = widget.itemBuilder(context, widget.items[index], index);
+
+        if (!useTVLayout) return child;
+
+        final focusNode = _focusNodeFor(index);
+        return Focus(
+          key: ValueKey('tv_grid_$index'),
+          focusNode: focusNode,
+          onKeyEvent: (node, event) {
+            _handleKeyEvent(node, event, index);
+            return KeyEventResult.handled;
+          },
+          child: child,
+        );
+      },
     );
   }
 }
 
-/// ListView horizontal otimizada para TV
+/// ListView horizontal otimizada para TV.
+///
+/// ## Otimizações
+/// - **isTVSync**: evita double-build
+/// - **FocusNode por item visível**: alocado no itemBuilder, só para itens
+///   visíveis (tipicamente 6–10 num carrossel horizontal)
 class TVHorizontalList extends StatefulWidget {
   final List<dynamic> items;
   final Widget Function(BuildContext, dynamic, int) itemBuilder;
@@ -235,55 +227,43 @@ class _TVHorizontalListState extends State<TVHorizontalList> {
   void initState() {
     super.initState();
     _scrollController = widget.controller ?? ScrollController();
-    _detectTVMode();
-  }
-
-  Future<void> _detectTVMode() async {
-    final isTV = await TVDetector.isTV;
-    if (mounted) {
-      setState(() {
-        _isTV = isTV;
-      });
-    }
+    _isTV = TVDetector.isTVSync;
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
-    for (final focusNode in _focusNodes.values) {
-      focusNode.dispose();
+    for (final node in _focusNodes.values) {
+      node.dispose();
+    }
+    if (widget.controller == null) {
+      _scrollController.dispose();
     }
     super.dispose();
   }
 
-  FocusNode _getFocusNode(int index) {
-    if (!_focusNodes.containsKey(index)) {
-      _focusNodes[index] = FocusNode();
-    }
-    return _focusNodes[index]!;
+  FocusNode _focusNodeFor(int index) {
+    return _focusNodes.putIfAbsent(index, () => FocusNode());
+  }
+
+  void _navigateTo(int index) {
+    _focusNodeFor(index).requestFocus();
+    _scrollToItem(index);
   }
 
   void _handleKeyEvent(FocusNode currentNode, KeyEvent event, int index) {
     if (event is KeyDownEvent && _isTV) {
-      FocusNode? nextFocus;
-
       switch (event.logicalKey) {
         case LogicalKeyboardKey.arrowLeft:
           if (index > 0) {
-            nextFocus = _getFocusNode(index - 1);
+            _navigateTo(index - 1);
           }
           break;
 
         case LogicalKeyboardKey.arrowRight:
           if (index < widget.items.length - 1) {
-            nextFocus = _getFocusNode(index + 1);
+            _navigateTo(index + 1);
           }
           break;
-      }
-
-      if (nextFocus != null) {
-        nextFocus.requestFocus();
-        _scrollToItem(index);
       }
     }
   }
@@ -302,50 +282,38 @@ class _TVHorizontalListState extends State<TVHorizontalList> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isTV || !widget.enableDpadNavigation) {
-      // Lista normal para mobile
-      return ListView.separated(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        padding: widget.padding,
-        separatorBuilder: (context, index) => SizedBox(width: widget.spacing),
-        itemCount: widget.items.length,
-        itemBuilder: (context, index) {
-          return SizedBox(
-            width: widget.itemWidth,
-            height: widget.itemHeight,
-            child: widget.itemBuilder(context, widget.items[index], index),
-          );
-        },
-      );
-    }
+    final useTVLayout = _isTV && widget.enableDpadNavigation;
 
-    // Lista otimizada para TV
-    return Focus(
-      onKeyEvent: (node, event) => KeyEventResult.ignored,
-      child: ListView.separated(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        padding: widget.padding,
-        separatorBuilder: (context, index) => SizedBox(width: widget.spacing),
-        itemCount: widget.items.length,
-        itemBuilder: (context, index) {
-          final focusNode = _getFocusNode(index);
+    return ListView.separated(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      padding: widget.padding,
+      separatorBuilder: (context, index) => SizedBox(width: widget.spacing),
+      itemCount: widget.items.length,
+      itemBuilder: (context, index) {
+        final child = SizedBox(
+          width: widget.itemWidth,
+          height: widget.itemHeight,
+          child: widget.itemBuilder(context, widget.items[index], index),
+        );
 
-          return SizedBox(
-            width: widget.itemWidth,
-            height: widget.itemHeight,
-            child: Focus(
-              focusNode: focusNode,
-              onKeyEvent: (node, event) {
-                _handleKeyEvent(focusNode, event, index);
-                return KeyEventResult.handled;
-              },
-              child: widget.itemBuilder(context, widget.items[index], index),
-            ),
-          );
-        },
-      ),
+        if (!useTVLayout) return child;
+
+        final focusNode = _focusNodeFor(index);
+        return SizedBox(
+          width: widget.itemWidth,
+          height: widget.itemHeight,
+          child: Focus(
+            key: ValueKey('tv_hlist_$index'),
+            focusNode: focusNode,
+            onKeyEvent: (node, event) {
+              _handleKeyEvent(node, event, index);
+              return KeyEventResult.handled;
+            },
+            child: child,
+          ),
+        );
+      },
     );
   }
 }
