@@ -52,7 +52,6 @@ class PauloFlixMoviesHomeScreen extends StatefulWidget {
 }
 
 class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
-  bool _checkedInitialSync = false;
   bool _isTV = false;
 
   // ─── Snapshot derivado (memoizado por hash do conteúdo) ─────────────
@@ -77,13 +76,6 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
       final provider = context.read<PauloFlixMoviesProvider>();
       await provider.loadContents();
       if (!mounted) return;
-
-      // Sync automático em background — o service verifica o
-      // `updated_at` do JSON index e pula se nada mudou.
-      if (!_checkedInitialSync) {
-        _checkedInitialSync = true;
-        provider.syncContent();
-      }
 
       _subscribeToProgressStream();
 
