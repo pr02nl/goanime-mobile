@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 
 import '../../../data/services/pauloflix_service.dart';
@@ -35,7 +33,6 @@ class PauloFlixProvider extends ChangeNotifier {
   List<PauloFlixContent> _contents = [];
   String? _errorMessage;
   String _syncProgress = '';
-  Timer? _searchDebounce;
 
   /// `null` = última sync foi bem-sucedida; `String` = mensagem do erro.
   String? _lastSyncError;
@@ -120,11 +117,8 @@ class PauloFlixProvider extends ChangeNotifier {
   }
 
   void search(String query) {
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      _searchQuery = query;
-      notifyListeners();
-    });
+    _searchQuery = query;
+    notifyListeners();
   }
 
   Future<List<PauloFlixContent>> searchByName(String query) async {
@@ -138,11 +132,6 @@ class PauloFlixProvider extends ChangeNotifier {
     }
   }
 
-  @override
-  void dispose() {
-    _searchDebounce?.cancel();
-    super.dispose();
-  }
 
   // ─── Métodos puros de agrupamento/paginação ───────────────────────────
 
