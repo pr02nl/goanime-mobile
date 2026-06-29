@@ -62,6 +62,7 @@ class PaginatedAlphabeticalCarousel<T> extends StatefulWidget {
 class _PaginatedAlphabeticalCarouselState<T>
     extends State<PaginatedAlphabeticalCarousel<T>> {
   int _currentPage = 0;
+  final _firstCardFocusNode = FocusNode();
 
   int get _totalPages =>
       widget.items.isEmpty ? 1 : (widget.items.length / widget.pageSize).ceil();
@@ -79,11 +80,25 @@ class _PaginatedAlphabeticalCarouselState<T>
   void _prevPage() {
     if (!_hasPrev) return;
     setState(() => _currentPage--);
+    _requestFocusOnFirstCard();
   }
 
   void _nextPage() {
     if (!_hasNext) return;
     setState(() => _currentPage++);
+    _requestFocusOnFirstCard();
+  }
+
+  void _requestFocusOnFirstCard() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _firstCardFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _firstCardFocusNode.dispose();
+    super.dispose();
   }
 
   @override
@@ -143,6 +158,18 @@ class _PaginatedAlphabeticalCarouselState<T>
             onTap: _nextPage,
           ),
         ),
+      );
+    }
+
+    // Wrapper de foco no primeiro card de conteúdo da página.
+    // Quando a página muda via setState, os widgets são recriados e o foco
+    // desaparece. Este FocusNode permite restaurar o foco explicitamente
+    // via addPostFrameCallback + requestFocus().
+    final firstContentIdx = _hasPrev ? 1 : 0;
+    if (carouselItems.length > firstContentIdx) {
+      carouselItems[firstContentIdx] = Focus(
+        focusNode: _firstCardFocusNode,
+        child: carouselItems[firstContentIdx],
       );
     }
 
