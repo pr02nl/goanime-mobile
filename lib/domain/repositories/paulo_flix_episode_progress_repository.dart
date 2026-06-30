@@ -82,6 +82,16 @@ abstract class PauloFlixEpisodeProgressRepository {
   /// adicionar/resetar/assistir episódios.
   Stream<List<PauloFlixContent>> watchInProgressContents({int limit = 12});
 
+  /// Retorna o episódio mais recente em progresso (não completo) para
+  /// um content. Usado pelo "Continue assistindo" para navegar direto
+  /// ao player.
+  ///
+  /// Ordenado por `lastWatched DESC`, limit 1.
+  /// Retorna `null` se não há episódio em progresso para este content.
+  Future<PauloFlixEpisodeRecord?> getLatestInProgressEpisodeForContent(
+    int contentId,
+  );
+
   // ═══════════════════════════════════════════════════════════════════════
   // CRUD de seasons (lido pela tela de episodes)
   // ═══════════════════════════════════════════════════════════════════════

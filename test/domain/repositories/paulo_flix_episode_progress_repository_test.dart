@@ -50,15 +50,14 @@ void main() {
       await db.close();
     });
 
-    test('expõe os 9 métodos esperados do contrato', () {
-      // Validação estática: a interface tem exatamente os métodos que
-      // o player, a home, e a tela de episodes esperam.
+    test('expõe todos os métodos esperados do contrato', () {
       final r = repo;
       expect(r.updateProgress, isA<Function>());
       expect(r.resetProgress, isA<Function>());
       expect(r.getStatsForContent, isA<Function>());
       expect(r.getInProgressContents, isA<Function>());
       expect(r.watchInProgressContents, isA<Function>());
+      expect(r.getLatestInProgressEpisodeForContent, isA<Function>());
       expect(r.getSeasonsForContent, isA<Function>());
       expect(r.watchSeasonsForContent, isA<Function>());
       expect(r.getEpisodesForSeason, isA<Function>());
@@ -283,6 +282,13 @@ class _ContractStub implements PauloFlixEpisodeProgressRepository {
   @override
   Stream<List<PauloFlixContent>> watchInProgressContents({int limit = 12}) {
     return const Stream.empty();
+  }
+
+  @override
+  Future<PauloFlixEpisodeRecord?> getLatestInProgressEpisodeForContent(
+    int contentId,
+  ) async {
+    return null;
   }
 
   @override

@@ -212,6 +212,27 @@ class PauloFlixEpisodeProgressRepositoryImpl
         );
   }
 
+  @override
+  Future<PauloFlixEpisodeRecord?> getLatestInProgressEpisodeForContent(
+    int contentId,
+  ) async {
+    final row = await _db
+        .customSelect(
+          'SELECT e.* FROM paulo_flix_episodes e '
+          'INNER JOIN paulo_flix_seasons s ON e.season_id = s.id '
+          'WHERE s.content_id = ?1 '
+          '  AND e.position_seconds > 0 '
+          '  AND e.is_completed = 0 '
+          'ORDER BY e.last_watched DESC '
+          'LIMIT 1',
+          variables: [Variable.withInt(contentId)],
+          readsFrom: {_db.pauloFlixEpisodes, _db.pauloFlixSeasons},
+        )
+        .getSingleOrNull();
+    if (row == null) return null;
+    return _toEpisodeDomain(_db.pauloFlixEpisodes.map(row.data));
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
   // CRUD seasons
   // ═══════════════════════════════════════════════════════════════════════

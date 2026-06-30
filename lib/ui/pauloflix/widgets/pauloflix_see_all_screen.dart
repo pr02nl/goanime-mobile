@@ -24,10 +24,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../domain/models/anime.dart';
+import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_progress_stats.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
@@ -385,10 +388,68 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     );
   }
 
-  /// Abre a tela de episodes do anime clicado em "Continue assistindo".
-  /// Usa o mesmo `pushNamed` do hero banner e dos cards da grid.
-  void _onContinueWatchingTap(PauloFlixContent content) {
-    context.pushNamed('pauloflix-episode-list', extra: content);
+  /// Abre o player no episódio em progresso (último assistido não
+  /// completo), incluindo a posição salva. O player lê o progresso
+  /// do banco via [contentId + seasonId + episodeNumber].
+  ///
+  /// Se não houver episódio em progresso, fallback para a lista de
+  /// episódios completa.
+  Future<void> _onContinueWatchingTap(PauloFlixContent content) async {
+    final isWide = MediaQuery.of(context).size.width >= Responsive.phoneMaxWidth;
+    if (!isWide || content.id == null) {
+      if (!mounted) return;
+      context.pushNamed('pauloflix-episodes', extra: content);
+      return;
+    }
+
+    final repo = context.read<PauloFlixEpisodeProgressRepository>();
+    final episode = await repo.getLatestInProgressEpisodeForContent(
+      content.id!,
+    );
+
+    if (episode == null) {
+      if (!mounted) return;
+      context.pushNamed('pauloflix-episodes', extra: content);
+      return;
+    }
+
+    final allEpisodes = await repo.getEpisodesForSeason(episode.seasonId);
+    final idx = allEpisodes.indexWhere(
+      (e) => e.episodeNumber == episode.episodeNumber,
+    );
+    final episodeIndex = idx >= 0 ? idx : 0;
+
+    final episodeList = allEpisodes
+        .map(
+          (e) => Episode(
+            number: e.episodeNumber.toString(),
+            url: e.videoUrl,
+            title: e.title,
+            thumbnailUrl: e.thumbnailUrl,
+          ),
+        )
+        .toList();
+
+    if (!mounted) return;
+    context.pushNamed(
+      'player',
+      extra: PlayerRouteData(
+        episode: episodeList[episodeIndex],
+        animeTitle: content.displayName,
+        anime: Anime(
+          name: content.displayName,
+          url: content.serverUrl,
+          source: AnimeSource.pauloFlix,
+          fallbackImageUrl: content.imageUrl,
+        ),
+        isMovie: false,
+        episodeList: episodeList,
+        episodeIndex: episodeIndex,
+        contentId: content.id,
+        seasonId: episode.seasonId,
+        episodeNumber: episode.episodeNumber.toString(),
+      ),
+    );
   }
 }
 
