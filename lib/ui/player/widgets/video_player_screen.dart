@@ -19,8 +19,8 @@ import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart
 import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/utils/episode_utils.dart';
-import '../video_player_aniskip_mixin.dart';
 import '../../core/utils/tv_detector.dart';
+import '../video_player_aniskip_mixin.dart';
 import 'modern_video_player_controls.dart';
 
 class ModernVideoPlayerScreen extends StatefulWidget {
@@ -329,7 +329,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     if (_disposed || !_hasNextEpisode) return;
     final nextIndex = _currentEpisodeIndex! + 1;
     final nextEpisode = widget.episodeList![nextIndex];
-    debugPrint('[VideoPlayer] ⏭ Next episode: index $nextIndex - ${nextEpisode.title ?? nextEpisode.number}');
+    debugPrint(
+      '[VideoPlayer] ⏭ Next episode: index $nextIndex - ${nextEpisode.title ?? nextEpisode.number}',
+    );
     _currentEpisodeIndex = nextIndex;
     // Dispose do background player antes de trocar
     _backgroundPlayer?.dispose();
@@ -624,7 +626,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     final nearEndByTime = remaining <= _nearEndThreshold;
     final nearEndByPct =
         duration > Duration.zero &&
-        (position.inMicroseconds / duration.inMicroseconds) >= _nearEndPctThreshold;
+        (position.inMicroseconds / duration.inMicroseconds) >=
+            _nearEndPctThreshold;
 
     if (!nearEndByTime && !nearEndByPct) return;
 
@@ -638,7 +641,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     final nextIndex = _currentEpisodeIndex! + 1;
     _nextEpisode = widget.episodeList![nextIndex];
 
-    debugPrint('[VideoPlayer] 🎬 Próximo episódio: index $nextIndex - ${_nextEpisode!.title ?? _nextEpisode!.number}');
+    debugPrint(
+      '[VideoPlayer] 🎬 Próximo episódio: index $nextIndex - ${_nextEpisode!.title ?? _nextEpisode!.number}',
+    );
 
     // Inicia contagem regressiva
     _countdownSeconds = _countdownInitialSeconds;
@@ -678,7 +683,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       );
       final media = Media(_nextEpisode!.url);
       await _backgroundPlayer!.open(media, play: false);
-      debugPrint('[VideoPlayer] ✅ Pré-carregamento iniciado: ${_nextEpisode!.url}');
+      debugPrint(
+        '[VideoPlayer] ✅ Pré-carregamento iniciado: ${_nextEpisode!.url}',
+      );
     } catch (e) {
       debugPrint('[VideoPlayer] ⚠ Falha no pré-carregamento: $e');
       // Não crítico — o player principal carrega na transição.
@@ -949,7 +956,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // This prevents audio playing before the video surface is ready.
       // We listen to the tracks stream which fires when the video track
       // is parsed (contains video dimensions).
-      await      _player.stream.tracks
+      await _player.stream.tracks
           .firstWhere((tracks) => tracks.video.isNotEmpty)
           .timeout(
             const Duration(seconds: 15),
@@ -1045,12 +1052,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           'anilist=${response.data.media.id}, '
           'mal=${response.data.media.idMal}',
         );
-        return (
-          response.data.media.idMal,
-          response.data.media.id,
-        );
+        return (response.data.media.idMal, response.data.media.id);
       }
-      debugPrint('[VideoPlayer] ⚠️ AniList search returned no results for "${widget.animeTitle}"');
+      debugPrint(
+        '[VideoPlayer] ⚠️ AniList search returned no results for "${widget.animeTitle}"',
+      );
     } catch (e) {
       debugPrint('[VideoPlayer] ⚠️ Failed to resolve AniList IDs: $e');
     }
@@ -1151,8 +1157,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                 onSkip: showSkipButton ? skipIntroOutro : null,
                 onRetry: _initializeVideoPlayer,
                 onClose: _exitPlayer,
-                externalSubtitleTracks:
-                    externalSubs.isNotEmpty ? externalSubs : null,
+                externalSubtitleTracks: externalSubs.isNotEmpty
+                    ? externalSubs
+                    : null,
               );
             },
           ),
@@ -1220,16 +1227,12 @@ class _NextEpisodeCard extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.skip_next_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
+                  Icon(Icons.skip_next_rounded, color: Colors.white, size: 16),
+                  SizedBox(width: 6),
+                  Text(
                     'PRÓXIMO',
                     style: TextStyle(
                       color: Colors.white,
@@ -1248,9 +1251,7 @@ class _NextEpisodeCard extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 color: const Color(0xFF1A1A2E).withValues(alpha: 0.95),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.5),
@@ -1333,8 +1334,7 @@ class _NextEpisodeCard extends StatelessWidget {
                                 onPressed: onPlayNow,
                                 style: TextButton.styleFrom(
                                   foregroundColor: Colors.white,
-                                  backgroundColor:
-                                      const Color(0xFFE50914),
+                                  backgroundColor: const Color(0xFFE50914),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 10,
                                   ),
@@ -1362,8 +1362,9 @@ class _NextEpisodeCard extends StatelessWidget {
                                 color: Colors.white54,
                                 iconSize: 18,
                                 style: IconButton.styleFrom(
-                                  backgroundColor: Colors.white
-                                      .withValues(alpha: 0.1),
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -1388,14 +1389,11 @@ class _NextEpisodeCard extends StatelessWidget {
     return Container(
       width: width,
       height: width * 9 / 16,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A1A2E),
-            Color(0xFF16213E),
-          ],
+          colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
         ),
       ),
       child: Center(
@@ -1434,9 +1432,7 @@ class _CountdownCircle extends StatelessWidget {
             value: seconds / 10,
             strokeWidth: 3,
             backgroundColor: Colors.white.withValues(alpha: 0.15),
-            valueColor: const AlwaysStoppedAnimation<Color>(
-              Color(0xFFE50914),
-            ),
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
           ),
           Text(
             '$seconds',
@@ -1451,4 +1447,3 @@ class _CountdownCircle extends StatelessWidget {
     );
   }
 }
-
