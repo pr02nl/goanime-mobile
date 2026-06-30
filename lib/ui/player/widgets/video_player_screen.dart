@@ -94,6 +94,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   StreamSubscription? _completedSub;
   StreamSubscription<Tracks>? _tracksSub;
 
+  /// Listener de posição para detectar near-end e auto-play.
+  StreamSubscription<Duration>? _nearEndSub;
+
   /// Subscription do listener de tracks para debug/logging (linha ~310 em
   /// `_initializeVideoPlayer`). Mantida separada de `_tracksSub` porque
   /// `_waitForEmbeddedSubtitleTracks` sobrescreve `_tracksSub` com uma
@@ -101,13 +104,45 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   StreamSubscription<Tracks>? _debugTracksSub;
 
   /// `true` após a primeira configuração das subscrições persistentes
-  /// (`_debugTracksSub`, `_playingSub`, `_completedSub`). Evita recriar
-  /// essas subs a cada `_replaceEpisode()`.
+  /// (`_debugTracksSub`, `_playingSub`, `_completedSub`, `_nearEndSub`).
+  /// Evita recriar essas subs a cada `_replaceEpisode()`.
   bool _streamSubsReady = false;
 
   /// Flag de disposed. Toda operação assíncrona pendente deve verificar
   /// esta flag ANTES de acessar `_player` ou chamar `setState`.
   bool _disposed = false;
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Auto-play próximo episódio
+  // ═══════════════════════════════════════════════════════════════════
+
+  /// Próximo episódio na lista (null se não houver).
+  Episode? _nextEpisode;
+
+  /// Segundos restantes no contador regressivo.
+  int _countdownSeconds = 10;
+
+  /// Timer do contador regressivo.
+  Timer? _countdownTimer;
+
+  /// Se `true`, o card "Próximo episódio" está visível.
+  bool _showNextEpisodeCard = false;
+
+  /// Player secundário usado para pré-carregar o próximo episódio
+  /// em background. Descartado na transição.
+  Player? _backgroundPlayer;
+
+  /// Evita disparar múltiplas detecções de near-end.
+  bool _nearEndTriggered = false;
+
+  /// Threshold para considerar "perto do fim".
+  static const Duration _nearEndThreshold = Duration(seconds: 30);
+
+  /// Threshold percentual do vídeo (90%).
+  static const double _nearEndPctThreshold = 0.9;
+
+  /// Duração da contagem regressiva antes de auto-play.
+  static const int _countdownInitialSeconds = 10;
 
   // Progresso PauloFlix (Fase 2). `null` para fluxos não-PauloFlix
   // (AnimeFire).
@@ -291,8 +326,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     if (_disposed || !_hasNextEpisode) return;
     final nextIndex = _currentEpisodeIndex! + 1;
     final nextEpisode = widget.episodeList![nextIndex];
-    debugPrint('[VideoPlayer] ⏭ Next episode: index $nextIndex');
+    debugPrint('[VideoPlayer] ⏭ Next episode: index $nextIndex - ${nextEpisode.title ?? nextEpisode.number}');
     _currentEpisodeIndex = nextIndex;
+    // Dispose do background player antes de trocar
+    _backgroundPlayer?.dispose();
+    _backgroundPlayer = null;
     _replaceEpisode(nextEpisode);
   }
 
@@ -557,19 +595,129 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
       debugPrint('[VideoPlayer] Playing state: $playing');
     });
 
-    // Debug: completed.
+    // Completed: auto-play próximo episódio se disponível.
     _completedSub = _player.stream.completed.listen((completed) {
       debugPrint('[VideoPlayer] Completed: $completed');
+      if (!mounted || !completed || !_hasNextEpisode) return;
+      // Se o completed chegar antes do fim da contagem, vai direto.
+      _cancelCountdown();
+      _goToNextEpisode();
     });
+
+    // Position: detecta near-end para mostrar card + preload.
+    _nearEndSub = _player.stream.position.listen((position) {
+      if (!mounted || _disposed) return;
+      _checkNearEnd(position);
+    });
+  }
+
+  void _checkNearEnd(Duration position) {
+    if (_nearEndTriggered || !_hasNextEpisode) return;
+
+    final duration = _player.state.duration;
+    if (duration <= Duration.zero) return;
+
+    final remaining = duration - position;
+    final nearEndByTime = remaining <= _nearEndThreshold;
+    final nearEndByPct =
+        duration > Duration.zero &&
+        (position.inMicroseconds / duration.inMicroseconds) >= _nearEndPctThreshold;
+
+    if (!nearEndByTime && !nearEndByPct) return;
+
+    _nearEndTriggered = true;
+    _showAutoNextCard();
+  }
+
+  void _showAutoNextCard() {
+    if (_disposed || !mounted || !_hasNextEpisode) return;
+
+    final nextIndex = _currentEpisodeIndex! + 1;
+    _nextEpisode = widget.episodeList![nextIndex];
+
+    debugPrint('[VideoPlayer] 🎬 Próximo episódio: index $nextIndex - ${_nextEpisode!.title ?? _nextEpisode!.number}');
+
+    // Inicia contagem regressiva
+    _countdownSeconds = _countdownInitialSeconds;
+    _showNextEpisodeCard = true;
+    setState(() {});
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_disposed || !mounted) {
+        timer.cancel();
+        return;
+      }
+      _countdownSeconds--;
+      if (_countdownSeconds <= 0) {
+        timer.cancel();
+        _autoPlayNext();
+      } else {
+        setState(() {});
+      }
+    });
+
+    // Pré-carrega o próximo episódio em background
+    _preloadNextEpisode();
+  }
+
+  /// Pré-carrega o próximo episódio num Player headless (sem vídeo)
+  /// para que o buffering comece antes da transição.
+  Future<void> _preloadNextEpisode() async {
+    if (_disposed || _nextEpisode == null) return;
+
+    try {
+      _backgroundPlayer?.dispose();
+      _backgroundPlayer = Player(
+        configuration: const PlayerConfiguration(
+          logLevel: MPVLogLevel.error,
+          bufferSize: 1024 * 1024 * 50, // 50MB buffer
+        ),
+      );
+      final media = Media(_nextEpisode!.url);
+      await _backgroundPlayer!.open(media, play: false);
+      debugPrint('[VideoPlayer] ✅ Pré-carregamento iniciado: ${_nextEpisode!.url}');
+    } catch (e) {
+      debugPrint('[VideoPlayer] ⚠ Falha no pré-carregamento: $e');
+      // Não crítico — o player principal carrega na transição.
+    }
+  }
+
+  void _autoPlayNext() {
+    if (_disposed || !mounted) return;
+    _showNextEpisodeCard = false;
+    _cancelCountdown();
+    _goToNextEpisode();
+  }
+
+  void _cancelCountdown() {
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
+  }
+
+  /// Cancela o card "Próximo episódio" sem navegar.
+  void _dismissNextEpisodeCard() {
+    _cancelCountdown();
+    _showNextEpisodeCard = false;
+    _backgroundPlayer?.dispose();
+    _backgroundPlayer = null;
+    if (mounted) setState(() {});
   }
 
   /// Limpa apenas subs específicas do episódio atual (embedded tracks).
   /// Não mexe nas subs persistentes (`_playingSub`, `_completedSub`,
-  /// `_debugTracksSub`) — evita recriá-las a cada troca de episódio.
+  /// `_debugTracksSub`, `_nearEndSub`) — evita recriá-las a cada troca
+  /// de episódio.
   Future<void> _cleanupEpisodeSubs() async {
     await _tracksSub?.cancel();
     _tracksSub = null;
     _currentVideoHeaders = null;
+    // Reseta flags de auto-play para o novo episódio
+    _nearEndTriggered = false;
+    _nextEpisode = null;
+    _showNextEpisodeCard = false;
+    _cancelCountdown();
+    _backgroundPlayer?.dispose();
+    _backgroundPlayer = null;
   }
 
   /// Closures para o player. `_player` pode ser null durante cleanup.
@@ -888,12 +1036,15 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     // Cleanup síncrono: para o player antes do State ser desmontado
     _player.stop();
 
+    _cancelCountdown();
     _playingSub?.cancel();
     _completedSub?.cancel();
+    _nearEndSub?.cancel();
     _tracksSub?.cancel();
     _debugTracksSub?.cancel();
 
     // Cleanup do player.
+    _backgroundPlayer?.dispose();
     _player.dispose();
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -936,24 +1087,320 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Video(
-        controller: _videoController,
-        controls: (state) {
-          final externalSubs = _currentEpisode.subtitleTracks
-              .where((s) => s.url != null)
-              .toList();
-          return ModernVideoPlayerControls(
-            player: state.widget.controller.player,
-            title: _displayLabel,
-            onBack: _exitPlayer,
-            onNextEpisode: _hasNextEpisode ? _goToNextEpisode : null,
-            onRetry: _initializeVideoPlayer,
-            onClose: _exitPlayer,
-            externalSubtitleTracks:
-                externalSubs.isNotEmpty ? externalSubs : null,
-          );
-        },
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Video(
+            controller: _videoController,
+            controls: (state) {
+              final externalSubs = _currentEpisode.subtitleTracks
+                  .where((s) => s.url != null)
+                  .toList();
+              return ModernVideoPlayerControls(
+                player: state.widget.controller.player,
+                title: _displayLabel,
+                onBack: _exitPlayer,
+                onNextEpisode: _hasNextEpisode ? _goToNextEpisode : null,
+                onRetry: _initializeVideoPlayer,
+                onClose: _exitPlayer,
+                externalSubtitleTracks:
+                    externalSubs.isNotEmpty ? externalSubs : null,
+              );
+            },
+          ),
+          // Overlay do próximo episódio
+          if (_showNextEpisodeCard && _nextEpisode != null)
+            _NextEpisodeCard(
+              nextEpisode: _nextEpisode!,
+              animeTitle: widget.animeTitle,
+              countdownSeconds: _countdownSeconds,
+              onPlayNow: _autoPlayNext,
+              onCancel: _dismissNextEpisodeCard,
+            ), // ignore: prefer_const_constructors
+        ],
       ),
     );
   }
 }
+
+/// Card overlay "Próximo episódio" estilo Netflix/stream de mercado.
+///
+/// Exibido no canto inferior direito nos últimos 30s do episódio,
+/// com thumbnail, título e contagem regressiva.
+class _NextEpisodeCard extends StatelessWidget {
+  final Episode nextEpisode;
+  final String animeTitle;
+  final int countdownSeconds;
+  final VoidCallback onPlayNow;
+  final VoidCallback onCancel;
+
+  const _NextEpisodeCard({
+    required this.nextEpisode,
+    required this.animeTitle,
+    required this.countdownSeconds,
+    required this.onPlayNow,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = screenWidth < 320 ? screenWidth - 40 : 280.0;
+
+    return Positioned(
+      right: 24,
+      bottom: 100,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            // Rótulo "Próximo"
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE50914), Color(0xFFB20710)],
+                ),
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFE50914).withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.skip_next_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'PRÓXIMO',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Card com thumbnail + info + contagem
+            Container(
+              width: cardWidth,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF1A1A2E).withValues(alpha: 0.95),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Thumbnail
+                  if (nextEpisode.thumbnailUrl != null ||
+                      nextEpisode.thumbnail != null)
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(12),
+                      ),
+                      child: SizedBox(
+                        width: cardWidth,
+                        height: cardWidth * 9 / 16,
+                        child: Image.network(
+                          nextEpisode.thumbnailUrl ?? nextEpisode.thumbnail!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildThumbnailFallback(cardWidth),
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return _buildThumbnailFallback(cardWidth);
+                          },
+                        ),
+                      ),
+                    )
+                  else
+                    _buildThumbnailFallback(cardWidth),
+                  // Info + ações
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Título do anime
+                        Text(
+                          animeTitle,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        // Número/título do episódio
+                        Text(
+                          nextEpisode.title != null &&
+                                  nextEpisode.title!.isNotEmpty
+                              ? 'Episódio ${nextEpisode.number} - ${nextEpisode.title}'
+                              : 'Episódio ${nextEpisode.number}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 12),
+                        // Barra de ações: contagem + botões
+                        Row(
+                          children: [
+                            // Indicador circular de contagem
+                            _CountdownCircle(seconds: countdownSeconds),
+                            const SizedBox(width: 12),
+                            // Botão "Assistir agora"
+                            Expanded(
+                              child: TextButton(
+                                onPressed: onPlayNow,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  backgroundColor:
+                                      const Color(0xFFE50914),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Assistir agora',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Botão cancelar
+                            SizedBox(
+                              width: 36,
+                              height: 36,
+                              child: IconButton(
+                                onPressed: onCancel,
+                                icon: const Icon(Icons.close),
+                                color: Colors.white54,
+                                iconSize: 18,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.white
+                                      .withValues(alpha: 0.1),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnailFallback(double width) {
+    return Container(
+      width: width,
+      height: width * 9 / 16,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1A1A2E),
+            Color(0xFF16213E),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE50914).withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.play_arrow_rounded,
+            color: Color(0xFFE50914),
+            size: 32,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Círculo de contagem regressiva animado.
+class _CountdownCircle extends StatelessWidget {
+  final int seconds;
+
+  const _CountdownCircle({required this.seconds});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: seconds / 10,
+            strokeWidth: 3,
+            backgroundColor: Colors.white.withValues(alpha: 0.15),
+            valueColor: const AlwaysStoppedAnimation<Color>(
+              Color(0xFFE50914),
+            ),
+          ),
+          Text(
+            '$seconds',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
