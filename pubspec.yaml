@@ -37,8 +37,6 @@ dependencies:
   media_kit_libs_video: ^1.0.7
   # HTTP requests
   http: ^1.6.0
-  # HTTP client com interceptors (rate limiting, retry, logging)
-  dio: ^5.7.0
   # Navegacao type-safe com deep linking
   go_router: ^17.3.0
   # HTML parsing
