@@ -44,27 +44,33 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = context.select<PauloFlixEpisodeProgressViewModel, PauloFlixContent>(
-      (vm) => vm.content,
-    );
+    final content = context
+        .select<PauloFlixEpisodeProgressViewModel, PauloFlixContent>(
+          (vm) => vm.content,
+        );
     final isLoading = context.select<PauloFlixEpisodeProgressViewModel, bool>(
       (vm) => vm.isLoading,
     );
     final hasSeasons = context.select<PauloFlixEpisodeProgressViewModel, bool>(
       (vm) => vm.hasSeasons,
     );
-    final errorMessage = context.select<PauloFlixEpisodeProgressViewModel, String?>(
-      (vm) => vm.errorMessage,
-    );
-    final scrapingSeasons = context.select<PauloFlixEpisodeProgressViewModel, List<scraping.PauloFlixSeason>>(
-      (vm) => vm.scrapingSeasons,
-    );
-    final selectedSeasonIndex = context.select<PauloFlixEpisodeProgressViewModel, int>(
-      (vm) => vm.selectedSeasonIndex,
-    );
-    final isCompletedByIndex = context.select<PauloFlixEpisodeProgressViewModel, Map<int, bool>?>(
-      (vm) => vm.isCompletedByIndex,
-    );
+    final errorMessage = context
+        .select<PauloFlixEpisodeProgressViewModel, String?>(
+          (vm) => vm.errorMessage,
+        );
+    final scrapingSeasons = context
+        .select<
+          PauloFlixEpisodeProgressViewModel,
+          List<scraping.PauloFlixSeason>
+        >((vm) => vm.scrapingSeasons);
+    final selectedSeasonIndex = context
+        .select<PauloFlixEpisodeProgressViewModel, int>(
+          (vm) => vm.selectedSeasonIndex,
+        );
+    final isCompletedByIndex = context
+        .select<PauloFlixEpisodeProgressViewModel, Map<int, bool>?>(
+          (vm) => vm.isCompletedByIndex,
+        );
     final isTV = MediaQuery.of(context).size.width > 1200;
 
     return Scaffold(
@@ -90,7 +96,9 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
                 child: PauloflixSeasonSelector(
                   seasons: scrapingSeasons,
                   selectedIndex: selectedSeasonIndex,
-                  onSeasonSelected: (index) => context.read<PauloFlixEpisodeProgressViewModel>().selectSeason(index),
+                  onSeasonSelected: (index) => context
+                      .read<PauloFlixEpisodeProgressViewModel>()
+                      .selectSeason(index),
                   isCompletedByIndex: isCompletedByIndex,
                 ),
               ),
@@ -101,9 +109,7 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (errorMessage != null)
-            SliverFillRemaining(
-              child: _ErrorState(errorMessage: errorMessage),
-            )
+            SliverFillRemaining(child: _ErrorState(errorMessage: errorMessage))
           else
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -372,21 +378,27 @@ class _EpisodesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final records = context.select<PauloFlixEpisodeProgressViewModel, List<PauloFlixEpisodeRecord>>(
-      (vm) => vm.episodes,
-    );
-    final season = context.select<PauloFlixEpisodeProgressViewModel, PauloFlixSeasonRecord?>(
-      (vm) => vm.selectedSeason,
-    );
-    final scrapings = context.select<PauloFlixEpisodeProgressViewModel, List<scraping.PauloFlixEpisode>>(
-      (vm) => vm.scrapingEpisodesForSelected,
-    );
+    final records = context
+        .select<
+          PauloFlixEpisodeProgressViewModel,
+          List<PauloFlixEpisodeRecord>
+        >((vm) => vm.episodes);
+    final season = context
+        .select<PauloFlixEpisodeProgressViewModel, PauloFlixSeasonRecord?>(
+          (vm) => vm.selectedSeason,
+        );
+    final scrapings = context
+        .select<
+          PauloFlixEpisodeProgressViewModel,
+          List<scraping.PauloFlixEpisode>
+        >((vm) => vm.scrapingEpisodesForSelected);
 
     if (records.isEmpty) {
       return const SliverFillRemaining(
+        hasScrollBody: false,
         child: Center(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.video_library_outlined,
@@ -405,31 +417,26 @@ class _EpisodesList extends StatelessWidget {
     }
 
     return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: index == records.length - 1 ? 0 : 8,
-            ),
-            child: PauloflixEpisodeCard(
-              episode: scrapings[index],
-              seasonNumber: season?.seasonNumber ?? 1,
-              positionSeconds: records[index].positionSeconds,
-              durationSeconds: records[index].durationSeconds,
-              isCompleted: records[index].isCompleted,
-              thumbnailUrl: records[index].thumbnailUrl,
-              originalTitle: records[index].originalTitle,
-              outline: records[index].outline,
-              aired: records[index].aired,
-              rating: records[index].rating,
-              runtime: records[index].runtime,
-              isTV: isTV,
-              onTap: () => _playEpisode(context, records[index], index),
-            ),
-          );
-        },
-        childCount: records.length,
-      ),
+      delegate: SliverChildBuilderDelegate((context, index) {
+        return Padding(
+          padding: EdgeInsets.only(bottom: index == records.length - 1 ? 0 : 8),
+          child: PauloflixEpisodeCard(
+            episode: scrapings[index],
+            seasonNumber: season?.seasonNumber ?? 1,
+            positionSeconds: records[index].positionSeconds,
+            durationSeconds: records[index].durationSeconds,
+            isCompleted: records[index].isCompleted,
+            thumbnailUrl: records[index].thumbnailUrl,
+            originalTitle: records[index].originalTitle,
+            outline: records[index].outline,
+            aired: records[index].aired,
+            rating: records[index].rating,
+            runtime: records[index].runtime,
+            isTV: isTV,
+            onTap: () => _playEpisode(context, records[index], index),
+          ),
+        );
+      }, childCount: records.length),
     );
   }
 
@@ -470,5 +477,3 @@ class _EpisodesList extends StatelessWidget {
     );
   }
 }
-
-
