@@ -7,6 +7,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
+import '../../../data/services/anilist_service.dart';
 import '../../../data/services/auth/authenticated_http_client.dart';
 import '../../../data/services/auth/jwt_token_manager.dart';
 import '../../../data/services/episode_progress_service.dart';
@@ -18,6 +19,7 @@ import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart
 import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/utils/episode_utils.dart';
+import '../video_player_aniskip_mixin.dart';
 import '../../core/utils/tv_detector.dart';
 import 'modern_video_player_controls.dart';
 
@@ -59,7 +61,8 @@ class ModernVideoPlayerScreen extends StatefulWidget {
       _ModernVideoPlayerScreenState();
 }
 
-class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
+class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
+    with VideoPlayerAniSkipMixin {
   late final _player = Player(
     configuration: const PlayerConfiguration(
       logLevel: MPVLogLevel.info,
@@ -203,17 +206,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
   // --- VideoPlayerAniSkipMixin abstract member implementations ---
 
-  // @override
-  // bool isActiveEpisode(String? key) {
-  //   if (key == null) return false;
-  //   return mounted && activeEpisodeKey == key;
-  // }
+  @override
+  bool isActiveEpisode(String? key) {
+    if (key == null) return false;
+    return mounted && activeEpisodeKey == key;
+  }
 
-  // @override
-  // Player? get player => _player;
+  @override
+  Player? get player => _player;
 
-  // @override
-  // BuildContext get localizationContext => context;
+  @override
+  BuildContext get localizationContext => context;
 
   // --- End mixin implementations ---
 
@@ -359,13 +362,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
         getDur: _getCurrentDuration,
       ),
     );
-    // cleanupAniSkip();
-    // skipButtonActiveSegment = null;
-    // skipButtonDismissed = false;
-    // lastAutoHideTime = null;
-    // skipTimes = null;
-    // showSkipButton = false;
-    // skipButtonLabel = '';
+    cleanupAniSkip();
+    skipButtonActiveSegment = null;
+    skipButtonDismissed = false;
+    lastAutoHideTime = null;
+    skipTimes = null;
+    showSkipButton = false;
+    skipButtonLabel = '';
     _initializeVideoPlayer();
   }
 
@@ -995,12 +998,27 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
 
       final videoDurationSeconds = _player.state.duration.inSeconds;
       debugPrint('[VideoPlayer] Duration (s): $videoDurationSeconds');
-      // await loadSkipTimes(
-      //   episodeLengthSeconds: videoDurationSeconds,
-      //   malId: widget.anime?.malId,
-      //   anilistId: widget.anime?.anilistId,
-      //   episodeNumber: _currentEpisode.number.toString(),
-      // );
+
+      // Seta chave do episódio ativo para o mixin AniSkip
+      activeEpisodeKey = _buildEpisodeKey(widget);
+
+      // Resolve IDs do AniList (malId/anilistId) se não estiverem
+      // disponíveis. A AniSkip API requer um ID numérico (MAL ou
+      // AniList) — sem ele não consegue buscar os skip times.
+      int? resolvedMalId = widget.anime?.malId;
+      int? resolvedAnilistId = widget.anime?.anilistId;
+      if (resolvedMalId == null && resolvedAnilistId == null) {
+        final ids = await _resolveAnimeIds();
+        resolvedMalId = ids.$1;
+        resolvedAnilistId = ids.$2;
+      }
+
+      await loadSkipTimes(
+        episodeLengthSeconds: videoDurationSeconds,
+        malId: resolvedMalId,
+        anilistId: resolvedAnilistId,
+        episodeNumber: _currentEpisode.number.toString(),
+      );
     } catch (e) {
       debugPrint('Error initializing video: $e');
       if (mounted) {
@@ -1009,7 +1027,35 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
     }
   }
 
-
+  /// Busca os IDs (MAL e AniList) na AniList API usando o título
+  /// do anime. Usado quando `widget.anime?.malId` e
+  /// `widget.anime?.anilistId` são null (ex.: animes vindos de fontes
+  /// que não têm metadados do AniList).
+  ///
+  /// Retorna um par `(malId, anilistId)`. Ambos podem ser null se a
+  /// busca falhar ou o anime não for encontrado.
+  Future<(int?, int?)> _resolveAnimeIds() async {
+    try {
+      final response = await AniListService.fetchAnimeFromAniList(
+        widget.animeTitle,
+      );
+      if (response != null) {
+        debugPrint(
+          '[VideoPlayer] ✅ Resolved AniList IDs: '
+          'anilist=${response.data.media.id}, '
+          'mal=${response.data.media.idMal}',
+        );
+        return (
+          response.data.media.idMal,
+          response.data.media.id,
+        );
+      }
+      debugPrint('[VideoPlayer] ⚠️ AniList search returned no results for "${widget.animeTitle}"');
+    } catch (e) {
+      debugPrint('[VideoPlayer] ⚠️ Failed to resolve AniList IDs: $e');
+    }
+    return (null, null);
+  }
 
   @override
   void dispose() {
@@ -1101,6 +1147,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen> {
                 title: _displayLabel,
                 onBack: _exitPlayer,
                 onNextEpisode: _hasNextEpisode ? _goToNextEpisode : null,
+                skipLabel: showSkipButton ? skipButtonLabel : null,
+                onSkip: showSkipButton ? skipIntroOutro : null,
                 onRetry: _initializeVideoPlayer,
                 onClose: _exitPlayer,
                 externalSubtitleTracks:
