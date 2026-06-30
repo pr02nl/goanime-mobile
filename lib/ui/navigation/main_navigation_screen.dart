@@ -12,15 +12,15 @@ import 'side_bar.dart';
 ///
 /// Em telas largas (tablet, TV, desktop) exibe uma [Sidebar] à esquerda
 /// estilo YouTube TV:
-/// * Inicia **colapsada** (só ícones) com o foco no conteúdo.
+/// * Inicia **fechada** com o foco no conteúdo.
 /// * **←** no conteúdo no item mais à esquerda → expande a sidebar e foca o
 ///   item da rota ativa. ← no meio do conteúdo move entre itens.
-/// * **↑↓** na sidebar seleciona o conteúdo e atualiza o lado direito
-///   imediatamente (foco = ativação). A sidebar permanece expandida.
+/// * **↑↓** na sidebar navega entre itens (foco ≠ ativação).
 /// * **→** na sidebar ou **Enter/Select** em um item → colapsa e devolve o
-///   foco ao último item selecionado no conteúdo.
-/// * **Back** do d-pad → abre a sidebar (se fechada) ou fecha + devolve foco
-///   ao conteúdo (se aberta).
+///   foco ao **último** widget que estava focado no conteúdo.
+/// * **Back** do d-pad → abre a sidebar (se fechada) ou abre diálogo de saída
+///   (se aberta).
+/// * A sidebar **fecha automaticamente** quando o foco sai dela para o conteúdo.
 ///
 /// Em telas estreitas (mobile) usa um [Drawer] tradicional.
 class MainNavigationScreen extends StatefulWidget {
@@ -48,6 +48,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   /// no HardwareKeyboard handler enquanto o diálogo está visível.
   bool _isDialogShowing = false;
 
+  /// Último widget focado no conteúdo antes da sidebar abrir.
+  /// Usado por [restoreContentFocus] para devolver o foco exato ao fechar.
+  FocusNode? _lastContentFocusNode;
+
   /// Debounce do botão Back: HardwareKeyboard e PopScope podem disparar
   /// para o mesmo evento (conhecido em alguns firmwares Android TV).
   DateTime? _lastBackTime;
@@ -59,11 +63,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_onHardwareKey);
+    FocusManager.instance.addListener(_onAnyFocusChange);
   }
 
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onHardwareKey);
+    FocusManager.instance.removeListener(_onAnyFocusChange);
     _contentScopeNode.dispose();
     super.dispose();
   }
@@ -77,10 +83,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   /// Restaura o foco ao conteúdo após fechar a sidebar.
   ///
-  /// Encontra o primeiro descendente focável do `_contentScopeNode` e
-  /// requisita foco. Não usa `_contentScopeNode.focusedChild` (dispara
-  /// assertion durante reparenting de rota filha).
+  /// Tenta restaurar o [lastContentFocusNode] salvo antes de abrir a sidebar.
+  /// Se o nó não for mais válido, fallback para o primeiro descendente
+  /// focável do [contentScopeNode].
   void _restoreContentFocus() {
+    if (_lastContentFocusNode != null &&
+        _lastContentFocusNode!.canRequestFocus &&
+        _lastContentFocusNode!.context != null) {
+      _lastContentFocusNode!.requestFocus();
+      _lastContentFocusNode = null;
+      return;
+    }
+    _lastContentFocusNode = null;
     final target = _contentScopeNode.traversalDescendants
         .where(
           (n) => n.canRequestFocus && !n.skipTraversal && n.context != null,
@@ -95,52 +109,28 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   void _openSidebar() {
     if (_sidebarOpen) return;
-    // Captura o foco atual ANTES de qualquer mudança — vai ser o
-    // alvo do `_restoreContentFocus` quando a sidebar fechar
-    // (via → ou Back). Garante que sempre há um último foco válido,
-    // mesmo na primeira vez (quando `_lastContentFocusNode` ainda
-    // é null ou o usuário nunca focou explicitamente no conteúdo).
-    //
-    // IMPORTANTE: o `primaryFocus` pode ser um `FocusScopeNode` (root
-    // da rota) quando o usuário não chegou a focar explicitamente em
-    // um widget. Focar um scope não move o foco visualmente — só
-    // garante que o scope é o "primário". Para evitar isso, só
-    // capturamos se for um widget focável real (`canRequestFocus`).
-    final currentFocus = FocusManager.instance.primaryFocus;
-    debugPrint(
-      '[SIDEBAR] _openSidebar — primaryFocus antes: '
-      'hasPrimary=${currentFocus?.hasPrimaryFocus} '
-      'inContent=${currentFocus != null ? _isInContentScope(currentFocus) : "N/A"} '
-      'canRequest=${currentFocus?.canRequestFocus}',
-    );
-    if (currentFocus != null &&
-        _isInContentScope(currentFocus) &&
-        currentFocus.canRequestFocus) {
-      debugPrint(
-        '[SIDEBAR] _openSidebar — current content focus: '
-        '${currentFocus.toString().substring(0, 60)}...',
-      );
+    final current = FocusManager.instance.primaryFocus;
+    if (current != null &&
+        _isInContentScope(current) &&
+        current.canRequestFocus) {
+      _lastContentFocusNode = current;
     }
     setState(() => _sidebarOpen = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint('[SIDEBAR] _openSidebar — post-frame focusActiveItem');
       _sidebarKey.currentState?.focusActiveItem();
     });
   }
 
   void _closeSidebar() {
-    debugPrint(
-      '[SIDEBAR] _closeSidebar — wasOpen=$_sidebarOpen, '
-      'primaryFocus=${FocusManager.instance.primaryFocus?.toString().substring(0, 60)}',
-    );
     if (!_sidebarOpen) return;
+    if (_isDialogShowing) return; // não fecha enquanto diálogo está aberto
     setState(() => _sidebarOpen = false);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        debugPrint('[SIDEBAR] _closeSidebar — post-frame _restoreContentFocus.');
-        _restoreContentFocus();
-      }
-    });
+    final current = FocusManager.instance.primaryFocus;
+    if (current == null || !_isInContentScope(current)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _restoreContentFocus();
+      });
+    }
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -229,11 +219,40 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     if (shouldExit == true) {
       SystemNavigator.pop();
     } else if (shouldExit == false) {
-      // Usuário clicou "Não" → fecha a sidebar para continuar navegando.
+      _closeSidebar();
+    } else {
+      // shouldExit é null (diálogo fechado via Back do sistema).
+      // O auto-close pode não ter disparado porque _isDialogShowing
+      // ainda era true durante a mudança de foco. Verifica no post-frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_sidebarOpen) return;
+        final focus = FocusManager.instance.primaryFocus;
+        if (focus == null) return;
+        final inSidebar =
+            _sidebarKey.currentState?.containsNode(focus) ?? false;
+        if (!inSidebar) _closeSidebar();
+      });
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Auto-close da sidebar (requisito 2: fechada se foco não está nela)
+  // ───────────────────────────────────────────────────────────────────────
+
+  /// Escuta qualquer mudança de foco no [FocusManager].
+  ///
+  /// Se a sidebar está aberta e o foco primário saiu do escopo dela,
+  /// fecha a sidebar automaticamente — exceto se um diálogo estiver aberto
+  /// (exit-dialog ou qualquer outro).
+  void _onAnyFocusChange() {
+    if (!mounted) return;
+    if (!_sidebarOpen || _isDialogShowing) return;
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus == null) return;
+    final inSidebar = _sidebarKey.currentState?.containsNode(focus) ?? false;
+    if (!inSidebar) {
       _closeSidebar();
     }
-    // Se shouldExit é null (diálogo foi fechado via Back do sistema),
-    // apenas mantém a sidebar aberta — o usuário ainda está nela.
   }
 
   // ───────────────────────────────────────────────────────────────────────
