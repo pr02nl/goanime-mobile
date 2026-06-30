@@ -28,8 +28,15 @@ class PlayerRouteData {
   /// `null` para fluxos que não são filmes PauloFlix Movies.
   final String? movieFolderName;
 
+  /// IDs do AniList para AniSkip. Quando nulos, o player tenta
+  /// resolver por busca textual na AniList API.
+  final int? malId;
+  final int? anilistId;
+
   const PlayerRouteData({
     this.movieFolderName,
+    this.malId,
+    this.anilistId,
 
     required this.episode,
     required this.animeTitle,

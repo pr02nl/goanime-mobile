@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -43,6 +44,11 @@ class ModernVideoPlayerScreen extends StatefulWidget {
   /// `null` para fluxos que não são filmes.
   final String? movieFolderName;
 
+  /// IDs do AniList para AniSkip. Quando nulos, o player tenta
+  /// resolver por busca textual na AniList API.
+  final int? malId;
+  final int? anilistId;
+
   const ModernVideoPlayerScreen({
     super.key,
     required this.episode,
@@ -54,6 +60,8 @@ class ModernVideoPlayerScreen extends StatefulWidget {
     this.seasonId,
     this.episodeNumber,
     this.movieFolderName,
+    this.malId,
+    this.anilistId,
   });
 
   @override
@@ -1009,11 +1017,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // Seta chave do episódio ativo para o mixin AniSkip
       activeEpisodeKey = _buildEpisodeKey(widget);
 
-      // Resolve IDs do AniList (malId/anilistId) se não estiverem
-      // disponíveis. A AniSkip API requer um ID numérico (MAL ou
-      // AniList) — sem ele não consegue buscar os skip times.
-      int? resolvedMalId = widget.anime?.malId;
-      int? resolvedAnilistId = widget.anime?.anilistId;
+      // Resolve IDs do AniList (malId/anilistId) para AniSkip.
+      // Prioridade: 1) rota (PlayerRouteData), 2) Anime model,
+      // 3) fallback por busca textual na AniList API.
+      int? resolvedMalId = widget.malId ?? widget.anime?.malId;
+      int? resolvedAnilistId = widget.anilistId ?? widget.anime?.anilistId;
       if (resolvedMalId == null && resolvedAnilistId == null) {
         final ids = await _resolveAnimeIds();
         resolvedMalId = ids.$1;
@@ -1162,6 +1170,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                     : null,
               );
             },
+          ),
+          // Skip button independente dos controles
+          _AniSkipOverlay(
+            visible: showSkipButton,
+            label: skipButtonLabel,
+            onSkip: skipIntroOutro,
           ),
           // Overlay do próximo episódio
           if (_showNextEpisodeCard && _nextEpisode != null)
@@ -1407,6 +1421,89 @@ class _NextEpisodeCard extends StatelessWidget {
             Icons.play_arrow_rounded,
             color: Color(0xFFE50914),
             size: 32,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Overlay do botão AniSkip (pular intro/outro), independente dos
+/// controles. Aparece com slide-in da direita quando o skip está
+/// disponível, some com slide-out quando o skip passa ou é fechado.
+class _AniSkipOverlay extends StatelessWidget {
+  final bool visible;
+  final String label;
+  final VoidCallback onSkip;
+
+  const _AniSkipOverlay({
+    required this.visible,
+    required this.label,
+    required this.onSkip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      right: 16,
+      bottom: 80,
+      child: SafeArea(
+        top: false,
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          offset: visible ? Offset.zero : const Offset(2, 0),
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: visible ? 1 : 0,
+            child: IgnorePointer(
+              ignoring: !visible,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: visible ? onSkip : null,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.skip_next_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              label,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

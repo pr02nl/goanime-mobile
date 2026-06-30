@@ -190,6 +190,8 @@ class _HeroBanner extends StatelessWidget {
         contentId: vm.content.id,
         seasonId: seasonId,
         episodeNumber: records[index].episodeNumber.toString(),
+        malId: vm.content.malId,
+        anilistId: vm.content.anilistId,
       ),
     );
   }
@@ -473,6 +475,8 @@ class _EpisodesList extends StatelessWidget {
         contentId: vm.content.id,
         seasonId: seasonId,
         episodeNumber: records[index].episodeNumber.toString(),
+        malId: vm.content.malId,
+        anilistId: vm.content.anilistId,
       ),
     );
   }

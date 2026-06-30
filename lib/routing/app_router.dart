@@ -103,6 +103,8 @@ GoRouter createAppRouter({String? initialError}) {
             movieFolderName: data.movieFolderName,
             seasonId: data.seasonId,
             episodeNumber: data.episodeNumber,
+            malId: data.malId,
+            anilistId: data.anilistId,
           );
         },
       ),
