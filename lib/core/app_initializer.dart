@@ -1,5 +1,9 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'database/app_database.dart';
@@ -115,9 +119,17 @@ class AppInitializer {
       debugPrint(
         '[AppInitializer] ✓ JWT manager OK. device_id=${jwtManager.deviceId}',
       );
+      late final http.Client innerClient;
+      if (kDebugMode) {
+        final httpClient = HttpClient()
+          ..badCertificateCallback = (_, _, _) => true;
+        innerClient = IOClient(httpClient);
+      } else {
+        innerClient = http.Client();
+      }
       authClient = AuthenticatedHttpClient(
         tokenManager: jwtManager,
-        inner: http.Client(),
+        inner: innerClient,
       );
     } catch (e) {
       debugPrint('[AppInitializer] ✗ JWT manager: $e');
