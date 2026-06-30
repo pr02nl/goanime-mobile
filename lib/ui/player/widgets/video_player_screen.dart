@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -72,10 +71,7 @@ class ModernVideoPlayerScreen extends StatefulWidget {
 class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     with VideoPlayerAniSkipMixin {
   late final _player = Player(
-    configuration: const PlayerConfiguration(
-      logLevel: MPVLogLevel.info,
-      bufferSize: 1024 * 1024 * 100,
-    ),
+    configuration: const PlayerConfiguration(logLevel: MPVLogLevel.info),
   );
   late final _videoController = VideoController(
     _player,
@@ -130,19 +126,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// Próximo episódio na lista (null se não houver).
   Episode? _nextEpisode;
 
-  /// Segundos restantes no contador regressivo.
-  int _countdownSeconds = 10;
-
-  /// Timer do contador regressivo.
-  Timer? _countdownTimer;
-
-  /// Se `true`, o card "Próximo episódio" está visível.
-  bool _showNextEpisodeCard = false;
-
-  /// Player secundário usado para pré-carregar o próximo episódio
-  /// em background. Descartado na transição.
-  Player? _backgroundPlayer;
-
   /// Evita disparar múltiplas detecções de near-end.
   bool _nearEndTriggered = false;
 
@@ -151,9 +134,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   /// Threshold percentual do vídeo (90%).
   static const double _nearEndPctThreshold = 0.9;
-
-  /// Duração da contagem regressiva antes de auto-play.
-  static const int _countdownInitialSeconds = 10;
 
   // Progresso PauloFlix (Fase 2). `null` para fluxos não-PauloFlix
   // (AnimeFire).
@@ -331,20 +311,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       ]);
     }
     return isTV;
-  }
-
-  void _goToNextEpisode() {
-    if (_disposed || !_hasNextEpisode) return;
-    final nextIndex = _currentEpisodeIndex! + 1;
-    final nextEpisode = widget.episodeList![nextIndex];
-    debugPrint(
-      '[VideoPlayer] ⏭ Next episode: index $nextIndex - ${nextEpisode.title ?? nextEpisode.number}',
-    );
-    _currentEpisodeIndex = nextIndex;
-    // Dispose do background player antes de trocar
-    _backgroundPlayer?.dispose();
-    _backgroundPlayer = null;
-    _replaceEpisode(nextEpisode);
   }
 
   /// Troca o episódio atual e reabre a mídia sem recriar as subs
@@ -612,9 +578,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     _completedSub = _player.stream.completed.listen((completed) {
       debugPrint('[VideoPlayer] Completed: $completed');
       if (!mounted || !completed || !_hasNextEpisode) return;
-      // Se o completed chegar antes do fim da contagem, vai direto.
-      _cancelCountdown();
-      _goToNextEpisode();
     });
 
     // Position: detecta near-end para mostrar card + preload.
@@ -640,85 +603,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     if (!nearEndByTime && !nearEndByPct) return;
 
     _nearEndTriggered = true;
-    _showAutoNextCard();
-  }
-
-  void _showAutoNextCard() {
-    if (_disposed || !mounted || !_hasNextEpisode) return;
-
-    final nextIndex = _currentEpisodeIndex! + 1;
-    _nextEpisode = widget.episodeList![nextIndex];
-
-    debugPrint(
-      '[VideoPlayer] 🎬 Próximo episódio: index $nextIndex - ${_nextEpisode!.title ?? _nextEpisode!.number}',
-    );
-
-    // Inicia contagem regressiva
-    _countdownSeconds = _countdownInitialSeconds;
-    _showNextEpisodeCard = true;
-    setState(() {});
-
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_disposed || !mounted) {
-        timer.cancel();
-        return;
-      }
-      _countdownSeconds--;
-      if (_countdownSeconds <= 0) {
-        timer.cancel();
-        _autoPlayNext();
-      } else {
-        setState(() {});
-      }
-    });
-
-    // Pré-carrega o próximo episódio em background
-    _preloadNextEpisode();
-  }
-
-  /// Pré-carrega o próximo episódio num Player headless (sem vídeo)
-  /// para que o buffering comece antes da transição.
-  Future<void> _preloadNextEpisode() async {
-    if (_disposed || _nextEpisode == null) return;
-
-    try {
-      _backgroundPlayer?.dispose();
-      _backgroundPlayer = Player(
-        configuration: const PlayerConfiguration(
-          logLevel: MPVLogLevel.error,
-          bufferSize: 1024 * 1024 * 50, // 50MB buffer
-        ),
-      );
-      final media = Media(_nextEpisode!.url);
-      await _backgroundPlayer!.open(media, play: false);
-      debugPrint(
-        '[VideoPlayer] ✅ Pré-carregamento iniciado: ${_nextEpisode!.url}',
-      );
-    } catch (e) {
-      debugPrint('[VideoPlayer] ⚠ Falha no pré-carregamento: $e');
-      // Não crítico — o player principal carrega na transição.
-    }
-  }
-
-  void _autoPlayNext() {
-    if (_disposed || !mounted) return;
-    _showNextEpisodeCard = false;
-    _cancelCountdown();
-    _goToNextEpisode();
-  }
-
-  void _cancelCountdown() {
-    _countdownTimer?.cancel();
-    _countdownTimer = null;
-  }
-
-  /// Cancela o card "Próximo episódio" sem navegar.
-  void _dismissNextEpisodeCard() {
-    _cancelCountdown();
-    _showNextEpisodeCard = false;
-    _backgroundPlayer?.dispose();
-    _backgroundPlayer = null;
-    if (mounted) setState(() {});
   }
 
   /// Limpa apenas subs específicas do episódio atual (embedded tracks).
@@ -732,10 +616,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     // Reseta flags de auto-play para o novo episódio
     _nearEndTriggered = false;
     _nextEpisode = null;
-    _showNextEpisodeCard = false;
-    _cancelCountdown();
-    _backgroundPlayer?.dispose();
-    _backgroundPlayer = null;
   }
 
   /// Closures para o player. `_player` pode ser null durante cleanup.
@@ -1096,15 +976,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     // Cleanup síncrono: para o player antes do State ser desmontado
     _player.stop();
 
-    _cancelCountdown();
     _playingSub?.cancel();
     _completedSub?.cancel();
     _nearEndSub?.cancel();
     _tracksSub?.cancel();
     _debugTracksSub?.cancel();
 
-    // Cleanup do player.
-    _backgroundPlayer?.dispose();
     _player.dispose();
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -1160,7 +1037,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                 player: state.widget.controller.player,
                 title: _displayLabel,
                 onBack: _exitPlayer,
-                onNextEpisode: _hasNextEpisode ? _goToNextEpisode : null,
+                // onNextEpisode: _hasNextEpisode ? _goToNextEpisode : null,
                 skipLabel: showSkipButton ? skipButtonLabel : null,
                 onSkip: showSkipButton ? skipIntroOutro : null,
                 onRetry: _initializeVideoPlayer,
@@ -1170,22 +1047,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                     : null,
               );
             },
-          ),
-          // Skip button independente dos controles
-          _AniSkipOverlay(
-            visible: showSkipButton,
-            label: skipButtonLabel,
-            onSkip: skipIntroOutro,
-          ),
-          // Overlay do próximo episódio
-          if (_showNextEpisodeCard && _nextEpisode != null)
-            _NextEpisodeCard(
-              nextEpisode: _nextEpisode!,
-              animeTitle: widget.animeTitle,
-              countdownSeconds: _countdownSeconds,
-              onPlayNow: _autoPlayNext,
-              onCancel: _dismissNextEpisodeCard,
-            ), // ignore: prefer_const_constructors
+          ), // ignore: prefer_const_constructors
         ],
       ),
     );
@@ -1196,351 +1058,351 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 ///
 /// Exibido no canto inferior direito nos últimos 30s do episódio,
 /// com thumbnail, título e contagem regressiva.
-class _NextEpisodeCard extends StatelessWidget {
-  final Episode nextEpisode;
-  final String animeTitle;
-  final int countdownSeconds;
-  final VoidCallback onPlayNow;
-  final VoidCallback onCancel;
+// class _NextEpisodeCard extends StatelessWidget {
+//   final Episode nextEpisode;
+//   final String animeTitle;
+//   final int countdownSeconds;
+//   final VoidCallback onPlayNow;
+//   final VoidCallback onCancel;
 
-  const _NextEpisodeCard({
-    required this.nextEpisode,
-    required this.animeTitle,
-    required this.countdownSeconds,
-    required this.onPlayNow,
-    required this.onCancel,
-  });
+//   const _NextEpisodeCard({
+//     required this.nextEpisode,
+//     required this.animeTitle,
+//     required this.countdownSeconds,
+//     required this.onPlayNow,
+//     required this.onCancel,
+//   });
 
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = screenWidth < 320 ? screenWidth - 40 : 280.0;
+//   @override
+//   Widget build(BuildContext context) {
+//     final screenWidth = MediaQuery.of(context).size.width;
+//     final cardWidth = screenWidth < 320 ? screenWidth - 40 : 280.0;
 
-    return Positioned(
-      right: 24,
-      bottom: 100,
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // Rótulo "Próximo"
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFE50914), Color(0xFFB20710)],
-                ),
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFE50914).withValues(alpha: 0.4),
-                    blurRadius: 8,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.skip_next_rounded, color: Colors.white, size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'PRÓXIMO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Card com thumbnail + info + contagem
-            Container(
-              width: cardWidth,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: const Color(0xFF1A1A2E).withValues(alpha: 0.95),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Thumbnail
-                  if (nextEpisode.thumbnailUrl != null ||
-                      nextEpisode.thumbnail != null)
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(12),
-                      ),
-                      child: SizedBox(
-                        width: cardWidth,
-                        height: cardWidth * 9 / 16,
-                        child: Image.network(
-                          nextEpisode.thumbnailUrl ?? nextEpisode.thumbnail!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _buildThumbnailFallback(cardWidth),
-                          loadingBuilder: (context, child, progress) {
-                            if (progress == null) return child;
-                            return _buildThumbnailFallback(cardWidth);
-                          },
-                        ),
-                      ),
-                    )
-                  else
-                    _buildThumbnailFallback(cardWidth),
-                  // Info + ações
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Título do anime
-                        Text(
-                          animeTitle,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        // Número/título do episódio
-                        Text(
-                          nextEpisode.title != null &&
-                                  nextEpisode.title!.isNotEmpty
-                              ? 'Episódio ${nextEpisode.number} - ${nextEpisode.title}'
-                              : 'Episódio ${nextEpisode.number}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 12),
-                        // Barra de ações: contagem + botões
-                        Row(
-                          children: [
-                            // Indicador circular de contagem
-                            _CountdownCircle(seconds: countdownSeconds),
-                            const SizedBox(width: 12),
-                            // Botão "Assistir agora"
-                            Expanded(
-                              child: TextButton(
-                                onPressed: onPlayNow,
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  backgroundColor: const Color(0xFFE50914),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 10,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Assistir agora',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // Botão cancelar
-                            SizedBox(
-                              width: 36,
-                              height: 36,
-                              child: IconButton(
-                                onPressed: onCancel,
-                                icon: const Icon(Icons.close),
-                                color: Colors.white54,
-                                iconSize: 18,
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.white.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+//     return Positioned(
+//       right: 24,
+//       bottom: 100,
+//       child: SafeArea(
+//         top: false,
+//         child: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           crossAxisAlignment: CrossAxisAlignment.end,
+//           children: [
+//             // Rótulo "Próximo"
+//             Container(
+//               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+//               decoration: BoxDecoration(
+//                 gradient: const LinearGradient(
+//                   colors: [Color(0xFFE50914), Color(0xFFB20710)],
+//                 ),
+//                 borderRadius: BorderRadius.circular(4),
+//                 boxShadow: [
+//                   BoxShadow(
+//                     color: const Color(0xFFE50914).withValues(alpha: 0.4),
+//                     blurRadius: 8,
+//                     spreadRadius: 1,
+//                   ),
+//                 ],
+//               ),
+//               child: const Row(
+//                 mainAxisSize: MainAxisSize.min,
+//                 children: [
+//                   Icon(Icons.skip_next_rounded, color: Colors.white, size: 16),
+//                   SizedBox(width: 6),
+//                   Text(
+//                     'PRÓXIMO',
+//                     style: TextStyle(
+//                       color: Colors.white,
+//                       fontSize: 11,
+//                       fontWeight: FontWeight.w700,
+//                       letterSpacing: 1.5,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//             const SizedBox(height: 8),
+//             // Card com thumbnail + info + contagem
+//             Container(
+//               width: cardWidth,
+//               decoration: BoxDecoration(
+//                 borderRadius: BorderRadius.circular(12),
+//                 color: const Color(0xFF1A1A2E).withValues(alpha: 0.95),
+//                 border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+//                 boxShadow: [
+//                   BoxShadow(
+//                     color: Colors.black.withValues(alpha: 0.5),
+//                     blurRadius: 20,
+//                     offset: const Offset(0, 8),
+//                   ),
+//                 ],
+//               ),
+//               clipBehavior: Clip.antiAlias,
+//               child: Column(
+//                 mainAxisSize: MainAxisSize.min,
+//                 children: [
+//                   // Thumbnail
+//                   if (nextEpisode.thumbnailUrl != null ||
+//                       nextEpisode.thumbnail != null)
+//                     ClipRRect(
+//                       borderRadius: const BorderRadius.vertical(
+//                         top: Radius.circular(12),
+//                       ),
+//                       child: SizedBox(
+//                         width: cardWidth,
+//                         height: cardWidth * 9 / 16,
+//                         child: Image.network(
+//                           nextEpisode.thumbnailUrl ?? nextEpisode.thumbnail!,
+//                           fit: BoxFit.cover,
+//                           errorBuilder: (context, error, stackTrace) =>
+//                               _buildThumbnailFallback(cardWidth),
+//                           loadingBuilder: (context, child, progress) {
+//                             if (progress == null) return child;
+//                             return _buildThumbnailFallback(cardWidth);
+//                           },
+//                         ),
+//                       ),
+//                     )
+//                   else
+//                     _buildThumbnailFallback(cardWidth),
+//                   // Info + ações
+//                   Padding(
+//                     padding: const EdgeInsets.all(16),
+//                     child: Column(
+//                       crossAxisAlignment: CrossAxisAlignment.start,
+//                       mainAxisSize: MainAxisSize.min,
+//                       children: [
+//                         // Título do anime
+//                         Text(
+//                           animeTitle,
+//                           style: TextStyle(
+//                             color: Colors.white.withValues(alpha: 0.6),
+//                             fontSize: 12,
+//                             fontWeight: FontWeight.w500,
+//                           ),
+//                           maxLines: 1,
+//                           overflow: TextOverflow.ellipsis,
+//                         ),
+//                         const SizedBox(height: 4),
+//                         // Número/título do episódio
+//                         Text(
+//                           nextEpisode.title != null &&
+//                                   nextEpisode.title!.isNotEmpty
+//                               ? 'Episódio ${nextEpisode.number} - ${nextEpisode.title}'
+//                               : 'Episódio ${nextEpisode.number}',
+//                           style: const TextStyle(
+//                             color: Colors.white,
+//                             fontSize: 14,
+//                             fontWeight: FontWeight.w600,
+//                           ),
+//                           maxLines: 2,
+//                           overflow: TextOverflow.ellipsis,
+//                         ),
+//                         const SizedBox(height: 12),
+//                         // Barra de ações: contagem + botões
+//                         Row(
+//                           children: [
+//                             // Indicador circular de contagem
+//                             _CountdownCircle(seconds: countdownSeconds),
+//                             const SizedBox(width: 12),
+//                             // Botão "Assistir agora"
+//                             Expanded(
+//                               child: TextButton(
+//                                 onPressed: onPlayNow,
+//                                 style: TextButton.styleFrom(
+//                                   foregroundColor: Colors.white,
+//                                   backgroundColor: const Color(0xFFE50914),
+//                                   padding: const EdgeInsets.symmetric(
+//                                     vertical: 10,
+//                                   ),
+//                                   shape: RoundedRectangleBorder(
+//                                     borderRadius: BorderRadius.circular(8),
+//                                   ),
+//                                 ),
+//                                 child: const Text(
+//                                   'Assistir agora',
+//                                   style: TextStyle(
+//                                     fontSize: 13,
+//                                     fontWeight: FontWeight.w600,
+//                                   ),
+//                                 ),
+//                               ),
+//                             ),
+//                             const SizedBox(width: 8),
+//                             // Botão cancelar
+//                             SizedBox(
+//                               width: 36,
+//                               height: 36,
+//                               child: IconButton(
+//                                 onPressed: onCancel,
+//                                 icon: const Icon(Icons.close),
+//                                 color: Colors.white54,
+//                                 iconSize: 18,
+//                                 style: IconButton.styleFrom(
+//                                   backgroundColor: Colors.white.withValues(
+//                                     alpha: 0.1,
+//                                   ),
+//                                   shape: RoundedRectangleBorder(
+//                                     borderRadius: BorderRadius.circular(8),
+//                                   ),
+//                                 ),
+//                               ),
+//                             ),
+//                           ],
+//                         ),
+//                       ],
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
 
-  Widget _buildThumbnailFallback(double width) {
-    return Container(
-      width: width,
-      height: width * 9 / 16,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
-        ),
-      ),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFE50914).withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.play_arrow_rounded,
-            color: Color(0xFFE50914),
-            size: 32,
-          ),
-        ),
-      ),
-    );
-  }
-}
+//   Widget _buildThumbnailFallback(double width) {
+//     return Container(
+//       width: width,
+//       height: width * 9 / 16,
+//       decoration: const BoxDecoration(
+//         gradient: LinearGradient(
+//           begin: Alignment.topLeft,
+//           end: Alignment.bottomRight,
+//           colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+//         ),
+//       ),
+//       child: Center(
+//         child: Container(
+//           padding: const EdgeInsets.all(16),
+//           decoration: BoxDecoration(
+//             color: const Color(0xFFE50914).withValues(alpha: 0.15),
+//             shape: BoxShape.circle,
+//           ),
+//           child: const Icon(
+//             Icons.play_arrow_rounded,
+//             color: Color(0xFFE50914),
+//             size: 32,
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 /// Overlay do botão AniSkip (pular intro/outro), independente dos
 /// controles. Aparece com slide-in da direita quando o skip está
 /// disponível, some com slide-out quando o skip passa ou é fechado.
-class _AniSkipOverlay extends StatelessWidget {
-  final bool visible;
-  final String label;
-  final VoidCallback onSkip;
+// class _AniSkipOverlay extends StatelessWidget {
+//   final bool visible;
+//   final String label;
+//   final VoidCallback onSkip;
 
-  const _AniSkipOverlay({
-    required this.visible,
-    required this.label,
-    required this.onSkip,
-  });
+//   const _AniSkipOverlay({
+//     required this.visible,
+//     required this.label,
+//     required this.onSkip,
+//   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      right: 16,
-      bottom: 80,
-      child: SafeArea(
-        top: false,
-        child: AnimatedSlide(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          offset: visible ? Offset.zero : const Offset(2, 0),
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 200),
-            opacity: visible ? 1 : 0,
-            child: IgnorePointer(
-              ignoring: !visible,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: visible ? onSkip : null,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.skip_next_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              label,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Positioned(
+//       right: 16,
+//       bottom: 80,
+//       child: SafeArea(
+//         top: false,
+//         child: AnimatedSlide(
+//           duration: const Duration(milliseconds: 300),
+//           curve: Curves.easeOutCubic,
+//           offset: visible ? Offset.zero : const Offset(2, 0),
+//           child: AnimatedOpacity(
+//             duration: const Duration(milliseconds: 200),
+//             opacity: visible ? 1 : 0,
+//             child: IgnorePointer(
+//               ignoring: !visible,
+//               child: ClipRRect(
+//                 borderRadius: BorderRadius.circular(8),
+//                 child: BackdropFilter(
+//                   filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+//                   child: Material(
+//                     color: Colors.transparent,
+//                     child: InkWell(
+//                       onTap: visible ? onSkip : null,
+//                       borderRadius: BorderRadius.circular(8),
+//                       child: Container(
+//                         padding: const EdgeInsets.symmetric(
+//                           horizontal: 16,
+//                           vertical: 10,
+//                         ),
+//                         decoration: BoxDecoration(
+//                           color: Colors.white.withValues(alpha: 0.15),
+//                           borderRadius: BorderRadius.circular(8),
+//                           border: Border.all(
+//                             color: Colors.white.withValues(alpha: 0.2),
+//                           ),
+//                         ),
+//                         child: Row(
+//                           mainAxisSize: MainAxisSize.min,
+//                           children: [
+//                             const Icon(
+//                               Icons.skip_next_rounded,
+//                               color: Colors.white,
+//                               size: 20,
+//                             ),
+//                             const SizedBox(width: 6),
+//                             Text(
+//                               label,
+//                               style: const TextStyle(
+//                                 color: Colors.white,
+//                                 fontSize: 14,
+//                                 fontWeight: FontWeight.w600,
+//                               ),
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                 ),
+//               ),
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 /// Círculo de contagem regressiva animado.
-class _CountdownCircle extends StatelessWidget {
-  final int seconds;
+// class _CountdownCircle extends StatelessWidget {
+//   final int seconds;
 
-  const _CountdownCircle({required this.seconds});
+//   const _CountdownCircle({required this.seconds});
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CircularProgressIndicator(
-            value: seconds / 10,
-            strokeWidth: 3,
-            backgroundColor: Colors.white.withValues(alpha: 0.15),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
-          ),
-          Text(
-            '$seconds',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return SizedBox(
+//       width: 40,
+//       height: 40,
+//       child: Stack(
+//         alignment: Alignment.center,
+//         children: [
+//           CircularProgressIndicator(
+//             value: seconds / 10,
+//             strokeWidth: 3,
+//             backgroundColor: Colors.white.withValues(alpha: 0.15),
+//             valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
+//           ),
+//           Text(
+//             '$seconds',
+//             style: const TextStyle(
+//               color: Colors.white,
+//               fontSize: 14,
+//               fontWeight: FontWeight.w700,
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
