@@ -160,7 +160,6 @@ class _HeroBanner extends StatelessWidget {
   void _playEpisode(BuildContext context, dynamic episode, int index) {
     final vm = context.read<PauloFlixEpisodeProgressViewModel>();
     final selectedSeason = vm.selectedSeason;
-    final seasonId = selectedSeason?.id;
     final records = vm.episodes;
     final scrapings = vm.scrapingEpisodesForSelected;
     final episodes = <Episode>[
@@ -188,7 +187,7 @@ class _HeroBanner extends StatelessWidget {
         episodeList: episodes,
         episodeIndex: index,
         contentId: vm.content.id,
-        seasonId: seasonId,
+        seasonId: records[index].seasonId,
         episodeNumber: records[index].episodeNumber.toString(),
         tmdbId: vm.content.tmdbId,
         seasonNumber: selectedSeason?.seasonNumber,
