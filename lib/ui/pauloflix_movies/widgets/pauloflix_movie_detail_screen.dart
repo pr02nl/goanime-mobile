@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/logger/app_logger.dart';
-
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_movie_progress_record.dart';
@@ -77,7 +76,9 @@ class _PauloFlixMovieDetailScreenState
         if (mounted) setState(() => _progress = progress);
       }
     } catch (e, st) {
-      const AppLogger('MovieDetailScreen').error('Erro ao carregar progresso', e, st);
+      const AppLogger(
+        'MovieDetailScreen',
+      ).error('Erro ao carregar progresso', e, st);
     }
   }
 
@@ -122,6 +123,7 @@ class _PauloFlixMovieDetailScreenState
         ),
         animeTitle: title,
         isMovie: true,
+        tmdbId: widget.content.tmdbId,
         movieFolderName: widget.content.folderName,
         anime: Anime(
           name: title,
@@ -353,7 +355,9 @@ class _PauloFlixMovieDetailScreenState
             value: _progressRatio,
             minHeight: 4,
             backgroundColor: Colors.white.withValues(alpha: 0.1),
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.moviesAccent),
+            valueColor: const AlwaysStoppedAnimation<Color>(
+              AppColors.moviesAccent,
+            ),
           ),
         ),
       ],

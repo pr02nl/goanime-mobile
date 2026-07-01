@@ -22,7 +22,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/logger/app_logger.dart';
-
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_movie_progress_record.dart';
@@ -33,7 +32,6 @@ import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
-import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/paginated_alphabetical_carousel.dart';
@@ -136,7 +134,9 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
         },
       );
     } catch (e, st) {
-      const AppLogger('MoviesHomeScreen').error('Erro ao assinar stream de progresso', e, st);
+      const AppLogger(
+        'MoviesHomeScreen',
+      ).error('Erro ao assinar stream de progresso', e, st);
     }
   }
 
@@ -187,9 +187,10 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final contents = context.select<PauloFlixMoviesProvider, List<PauloFlixMovie>>(
-      (p) => p.contents,
-    );
+    final contents = context
+        .select<PauloFlixMoviesProvider, List<PauloFlixMovie>>(
+          (p) => p.contents,
+        );
     final isSyncing = context.select<PauloFlixMoviesProvider, bool>(
       (p) => p.isSyncing,
     );
@@ -375,9 +376,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
       create: (ctx) => PauloFlixMovieContinueWatchingViewModel(
         repository: ctx.read<PauloFlixMovieProgressRepository>(),
       ),
-      child: _MovieContinueWatchingConsumer(
-        isTV: _isTV,
-      ),
+      child: _MovieContinueWatchingConsumer(isTV: _isTV),
     );
   }
 
@@ -438,20 +437,30 @@ class _MovieContinueWatchingConsumer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final loading = context.select<PauloFlixMovieContinueWatchingViewModel, bool>(
-      (vm) => vm.loading,
-    );
+    final loading = context
+        .select<PauloFlixMovieContinueWatchingViewModel, bool>(
+          (vm) => vm.loading,
+        );
     if (loading) return const SizedBox.shrink();
 
-    final contents = context.select<PauloFlixMovieContinueWatchingViewModel, List<PauloFlixMovieProgressRecord>>(
-      (vm) => vm.contents,
-    );
+    final contents = context
+        .select<
+          PauloFlixMovieContinueWatchingViewModel,
+          List<PauloFlixMovieProgressRecord>
+        >((vm) => vm.contents);
 
-    return _MovieContinueWatchingCarousel(
-      contents: contents,
-      isTV: isTV,
-    );
+    return _MovieContinueWatchingCarousel(contents: contents, isTV: isTV);
   }
+}
+
+/// Busca o `tmdbId` de um filme pelo `folderName` na lista de filmes.
+///
+/// Usado por `_MovieContinueWatchingCarousel._onTap` para resolver o
+/// `tmdbId` a partir do `PauloFlixMoviesProvider` no momento do clique.
+/// Retorna `null` se o filme não for encontrado ou se não tiver `tmdbId`.
+int? tmdbIdForMovie(List<PauloFlixMovie> movies, String folderName) {
+  final idx = movies.indexWhere((m) => m.folderName == folderName);
+  return idx >= 0 ? movies[idx].tmdbId : null;
 }
 
 /// Carrossel "Continue assistindo" para filmes PauloFlix.
@@ -488,23 +497,24 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
       accentColor: AppColors.moviesAccent,
     );
 
-    return FocusableWidget(
-      onSelect: () => _onTap(context, record),
-      borderRadius: 6,
-      focusPadding: EdgeInsets.zero,
-      child: NetflixCard(
-        imageUrl: record.imageUrl ?? '',
-        title: record.displayName,
-        showTitle: true,
-        showRating: false,
-        isTV: isTV,
-        overlayWidget: overlay,
-        onTap: () => _onTap(context, record),
-      ),
+    return NetflixCard(
+      imageUrl: record.imageUrl ?? '',
+      title: record.displayName,
+      showTitle: true,
+      showRating: false,
+      isTV: isTV,
+      overlayWidget: overlay,
+      onTap: () => _onTap(context, record),
     );
   }
 
   void _onTap(BuildContext context, PauloFlixMovieProgressRecord record) {
+    // Busca o tmdbId do filme correspondente no provider para o IntroDb.
+    final tmdbId = tmdbIdForMovie(
+      context.read<PauloFlixMoviesProvider>().contents,
+      record.folderName,
+    );
+
     context.pushNamed(
       'player',
       extra: PlayerRouteData(
@@ -512,6 +522,7 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
         animeTitle: record.displayName,
         isMovie: true,
         movieFolderName: record.folderName,
+        tmdbId: tmdbId,
         anime: Anime(
           name: record.displayName,
           url: record.serverUrl,
