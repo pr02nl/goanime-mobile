@@ -788,11 +788,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // `Media.open`, então ouvimos o `stream.tracks` em vez de assumir um
       // delay fixo (que falha em streams lentos / contêineres grandes).
       await _waitForEmbeddedSubtitleTracks(episodeKey);
-      // if (!isActiveEpisode(episodeKey)) {
-      //   debugPrint('[VideoPlayer] Tracks wait ignored (episode changed).');
-      //   return;
-      // }
-
       // Carrega legenda (.srt) externa, se fornecida via Episode.subtitleUrl.
       // Equivale a `ffmpeg -i video.mp4 -i legend.srt -c copy out.mkv`, mas
       // sem precisar re-encodar: o media_kit expõe a legenda como track.
