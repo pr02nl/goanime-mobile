@@ -7,7 +7,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/database/tables/downloads.dart'
     show DownloadQuality, DownloadStatus;
-import 'anime_service.dart';
 import '../../domain/repositories/downloads_repository.dart';
 
 // Re-exporta os enums para o código que ainda importa daqui
@@ -348,32 +347,25 @@ class DownloadService extends ChangeNotifier {
     _notify(true);
 
     try {
-      // Check if this is an AllAnime episode (videoUrl is just episode number)
-      final isAllAnimeEpisode =
-          !download.videoUrl.startsWith('http') &&
-          int.tryParse(download.videoUrl) != null;
-
-      if (!isAllAnimeEpisode) {
-        // Validate URL for AnimeFire - must be a full URL
-        final Uri uri;
-        try {
-          uri = Uri.parse(download.videoUrl);
-          if (!uri.hasScheme ||
-              (uri.scheme != 'http' && uri.scheme != 'https')) {
-            throw Exception('Invalid URL format');
-          }
-          if (uri.host.isEmpty) {
-            throw Exception('Invalid URL format');
-          }
-        } catch (e) {
-          if (e.toString().contains('Invalid URL format')) {
-            rethrow;
-          }
-          throw Exception('Invalid video URL: ${download.videoUrl}');
+      // Validate URL
+      final Uri uri;
+      try {
+        uri = Uri.parse(download.videoUrl);
+        if (!uri.hasScheme ||
+            (uri.scheme != 'http' && uri.scheme != 'https')) {
+          throw Exception('Invalid URL format');
         }
+        if (uri.host.isEmpty) {
+          throw Exception('Invalid URL format');
+        }
+      } catch (e) {
+        if (e.toString().contains('Invalid URL format')) {
+          rethrow;
+        }
+        throw Exception('Invalid video URL: ${download.videoUrl}');
       }
 
-      // Start the download (URL resolution happens in _downloadHttp)
+      // Start the download (PauloFlix URLs are direct file URLs)
       await _downloadHttp(id);
     } catch (e) {
       debugPrint('Download error for $id: $e');
@@ -402,46 +394,8 @@ class DownloadService extends ChangeNotifier {
     debugPrint('[Download] Episode URL: ${download.videoUrl}');
     debugPrint('[Download] Anime ID: ${download.animeId}');
 
-    // Resolve the actual video URL (extract from page and get direct link)
-    String actualVideoUrl;
-    try {
-      debugPrint('[Download] Resolving video URL...');
-
-      // AnimeFire: use AnimeService URL extraction
-      debugPrint(
-        '[Download] Detected AnimeFire episode, extracting video URL...',
-      );
-
-      // Step 1: Extract video source from episode page
-      final videoSrc = await AnimeService.extractVideoURL(download.videoUrl);
-      debugPrint('[Download] Extracted video source: $videoSrc');
-
-      // Check if it's an HLS/m3u8 URL after extraction
-      if (videoSrc.contains('.m3u8') || videoSrc.contains('master.m3u8')) {
-        throw Exception(
-          'This source uses HLS streaming which cannot be downloaded. Try a different source.',
-        );
-      }
-
-      // Step 2: Get the actual video URL
-      final videoResult = await AnimeService.extractActualVideoURL(videoSrc);
-      actualVideoUrl = videoResult.url;
-      debugPrint('[Download] Resolved video URL: $actualVideoUrl');
-
-      // Final check for HLS
-      if (actualVideoUrl.contains('.m3u8') ||
-          actualVideoUrl.contains('master.m3u8')) {
-        throw Exception(
-          'This source uses HLS streaming which cannot be downloaded. Try a different source.',
-        );
-      }
-    } catch (e) {
-      debugPrint('[Download] Failed to resolve video URL: $e');
-      if (e.toString().contains('HLS') || e.toString().contains('streaming')) {
-        rethrow;
-      }
-      throw Exception('Failed to get video URL: $e');
-    }
+    // PauloFlix URLs are direct MKV/MP4 file URLs — no resolution needed.
+    final String actualVideoUrl = download.videoUrl;
 
     // Create download directory
     final downloadDir = await _getDownloadDirectory();

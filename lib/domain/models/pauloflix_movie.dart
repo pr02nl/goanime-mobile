@@ -1,10 +1,9 @@
 import 'dart:convert';
 
 import '../../core/utils/genre_codec.dart';
-import '../../data/models/tmdb_models.dart';
 import 'pauloflix_movie_item.dart';
 
-/// Conteúdo mapeado do PauloFlix Movies com metadados do TMDB.
+/// Conteúdo mapeado do PauloFlix Movies.
 ///
 /// Representa um filme individual com metadados do JSON index
 /// (`movie_index.json`). Cada filme tem URL direta do vídeo (`file`)
@@ -51,46 +50,6 @@ class PauloFlixMovie {
     DateTime? lastSynced,
     this.isAvailable = true,
   }) : lastSynced = lastSynced ?? DateTime.now();
-
-  /// Cria a partir de dados do TMDB (filme individual).
-  factory PauloFlixMovie.fromTmdb({
-    required String folderName,
-    required String serverUrl,
-    required TmdbMovie tmdb,
-    Map<int, String>? genreIdToName,
-    String? fallbackPosterUrl,
-    String? fallbackFanartUrl,
-  }) {
-    final List<String> resolvedGenres;
-    if (tmdb.genres.isNotEmpty) {
-      resolvedGenres = tmdb.genres.map((g) => g.name).toList();
-    } else if (genreIdToName != null && tmdb.genreIds.isNotEmpty) {
-      resolvedGenres = tmdb.genreIds
-          .map((id) => genreIdToName[id])
-          .whereType<String>()
-          .toList();
-    } else {
-      resolvedGenres = const [];
-    }
-
-    return PauloFlixMovie(
-      folderName: folderName,
-      displayName: tmdb.title,
-      serverUrl: serverUrl,
-      imageUrl: tmdb.getFullPosterUrl().isNotEmpty
-          ? tmdb.getFullPosterUrl()
-          : fallbackPosterUrl,
-      bannerUrl: tmdb.getFullBackdropUrl().isNotEmpty
-          ? tmdb.getFullBackdropUrl()
-          : fallbackFanartUrl,
-      description: tmdb.overview,
-      score: tmdb.voteAverage,
-      genres: resolvedGenres,
-      runtime: tmdb.runtime,
-      year: tmdb.year,
-      tmdbId: tmdb.id,
-    );
-  }
 
   /// Cria a partir do JSON index do servidor PauloFlix
   /// (`movie_index.json`).

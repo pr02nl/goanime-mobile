@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/data/models/tmdb_models.dart';
 import 'package:goanime/domain/models/pauloflix_movie.dart';
 
 void main() {
@@ -21,41 +20,6 @@ void main() {
       expect(movie.videoUrl, isNull);
       expect(movie.subtitles, isNull);
       expect(movie.isAvailable, true);
-    });
-
-    test('deve criar a partir de TmdbMovie via fromTmdb', () {
-      final tmdb = TmdbMovie(
-        id: 27205,
-        title: 'Inception',
-        overview: 'A thief who steals corporate secrets...',
-        posterPath: '/poster.jpg',
-        backdropPath: '/backdrop.jpg',
-        voteAverage: 8.4,
-        releaseDate: '2010-07-16',
-        runtime: 148,
-        genres: [
-          TmdbGenre(id: 1, name: 'Action'),
-          TmdbGenre(id: 2, name: 'Sci-Fi'),
-        ],
-      );
-
-      final movie = PauloFlixMovie.fromTmdb(
-        folderName: 'Inception',
-        serverUrl: 'http://server/inception/',
-        tmdb: tmdb,
-      );
-
-      expect(movie.displayName, 'Inception');
-      expect(movie.imageUrl, 'https://image.tmdb.org/t/p/w500/poster.jpg');
-      expect(movie.bannerUrl, 'https://image.tmdb.org/t/p/w1280/backdrop.jpg');
-      expect(movie.description, 'A thief who steals corporate secrets...');
-      expect(movie.score, 8.4);
-      expect(movie.runtime, 148);
-      expect(movie.year, 2010);
-      expect(movie.tmdbId, 27205);
-      expect(movie.videoUrl, isNull);
-      expect(movie.subtitles, isNull);
-      expect(movie.genres, ['Action', 'Sci-Fi']);
     });
 
     test('toMap e fromMap devem ser consistentes', () {

@@ -51,18 +51,6 @@ class PlayerRouteData {
   });
 }
 
-class SourceSelectionRouteData {
-  final String animeTitle;
-  final String imageUrl;
-  final String myAnimeListUrl;
-
-  const SourceSelectionRouteData({
-    required this.animeTitle,
-    required this.imageUrl,
-    required this.myAnimeListUrl,
-  });
-}
-
 class WebViewRouteData {
   final String url;
   final String title;

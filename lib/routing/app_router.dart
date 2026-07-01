@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
-import '../domain/models/anime.dart';
 import '../domain/models/pauloflix_content.dart';
 import '../domain/models/pauloflix_movie.dart';
 import '../ui/downloads/widgets/downloads_screen.dart';
-import '../ui/home/widgets/anime_detail_screen.dart';
 import '../ui/home/widgets/home_screen.dart';
 import '../ui/navigation/main_navigation_screen.dart';
 import '../ui/pauloflix/widgets/pauloflix_episode_list_screen.dart';
@@ -16,13 +13,8 @@ import '../ui/pauloflix_movies/widgets/pauloflix_movie_detail_screen.dart';
 import '../ui/pauloflix_movies/widgets/pauloflix_movies_home_screen.dart';
 import '../ui/pauloflix_movies/widgets/pauloflix_movies_search_screen.dart';
 import '../ui/player/widgets/blogger_webview_screen.dart';
-import '../ui/player/widgets/episode_list_screen.dart';
-import '../ui/player/widgets/modern_episode_list_screen.dart';
 import '../ui/player/widgets/video_player_screen.dart';
-import '../ui/search/widgets/anime_search_screen.dart';
 import '../ui/search/widgets/search_screen.dart';
-import '../ui/search/widgets/source_selection_screen.dart';
-import '../ui/settings/view_models/theme_viewmodel.dart';
 import '../ui/settings/widgets/settings_screen.dart';
 import '../ui/watchlist/widgets/watchlist_screen.dart';
 import 'route_data.dart';
@@ -113,50 +105,6 @@ GoRouter createAppRouter({String? initialError}) {
         builder: (context, state) {
           final content = state.extra as PauloFlixContent;
           return PauloFlixEpisodeListScreen(content: content);
-        },
-      ),
-      GoRoute(
-        path: '/source-selection',
-        name: 'source-selection',
-        builder: (context, state) {
-          final data = state.extra as SourceSelectionRouteData;
-          return SourceSelectionScreen(
-            animeTitle: data.animeTitle,
-            imageUrl: data.imageUrl,
-            myAnimeListUrl: data.myAnimeListUrl,
-          );
-        },
-      ),
-      GoRoute(
-        path: '/anime-search',
-        name: 'anime-search',
-        builder: (context, state) {
-          final themeViewModel = context.read<ThemeViewModel>();
-          return AnimeSearchScreen(themeViewModel: themeViewModel);
-        },
-      ),
-      GoRoute(
-        path: '/anime-detail',
-        name: 'anime-detail',
-        builder: (context, state) {
-          final anime = state.extra as Anime;
-          return AnimeDetailScreen(anime: anime);
-        },
-      ),
-      GoRoute(
-        path: '/episode-list',
-        name: 'episode-list',
-        builder: (context, state) {
-          final anime = state.extra as Anime;
-          return EpisodeListScreen(anime: anime);
-        },
-      ),
-      GoRoute(
-        path: '/modern-episode-list',
-        name: 'modern-episode-list',
-        builder: (context, state) {
-          final anime = state.extra as Anime;
-          return ModernEpisodeListScreen(anime: anime);
         },
       ),
       GoRoute(

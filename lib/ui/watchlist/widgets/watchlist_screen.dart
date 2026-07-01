@@ -8,7 +8,6 @@ import '../../core/themes/netflix_theme.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
-import '../../search/widgets/source_selection_screen.dart';
 import '../view_models/watchlist_viewmodel.dart';
 
 class WatchlistScreen extends StatefulWidget {
@@ -197,15 +196,8 @@ class _WatchlistScreenState extends State<WatchlistScreen>
   }
 
   void _navigateToSource(WatchlistAnime anime) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => SourceSelectionScreen(
-          animeTitle: anime.title,
-          imageUrl: anime.coverImage,
-          myAnimeListUrl: anime.myAnimeListUrl,
-        ),
-      ),
-    );
+    // Fontes externas removidas — watchlist exibe apenas para consulta.
+    // Ações: ver detalhes ou remover.
   }
 
   void _showClearDialog() {
