@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:goanime/data/models/anilist_models.dart';
-import 'package:goanime/data/models/jikan_models.dart';
 import 'package:goanime/domain/models/anime.dart';
 
 void main() {
@@ -79,74 +78,6 @@ void main() {
       final anime = Anime(name: 'Meu Anime', url: 'https://example.com');
 
       expect(anime.toString(), 'Meu Anime');
-    });
-  });
-
-  group('JikanAnime Model', () {
-    test('deve criar JikanAnime a partir de JSON', () {
-      final json = {
-        'mal_id': 12345,
-        'title': 'Test Anime',
-        'title_english': 'Test Anime English',
-        'title_japanese': 'テストアニメ',
-        'images': {
-          'jpg': {
-            'image_url': 'https://example.com/image.jpg',
-            'large_image_url': 'https://example.com/large.jpg',
-          },
-          'webp': {
-            'image_url': 'https://example.com/image.webp',
-            'large_image_url': 'https://example.com/large.webp',
-          },
-        },
-        'synopsis': 'Uma sinopse de teste',
-        'score': 8.5,
-        'episodes': 12,
-        'status': 'Finished Airing',
-        'rating': 'PG-13',
-        'genres': [
-          {'mal_id': 1, 'name': 'Action', 'type': 'anime'},
-          {'mal_id': 2, 'name': 'Adventure', 'type': 'anime'},
-        ],
-        'year': 2024,
-        'season': 'spring',
-      };
-
-      final anime = JikanAnime.fromJson(json);
-
-      expect(anime.malId, 12345);
-      expect(anime.title, 'Test Anime');
-      expect(anime.titleEnglish, 'Test Anime English');
-      expect(anime.titleJapanese, 'テストアニメ');
-      expect(anime.imageUrl, 'https://example.com/image.webp');
-      expect(anime.largImageUrl, 'https://example.com/large.webp');
-      expect(anime.synopsis, 'Uma sinopse de teste');
-      expect(anime.score, 8.5);
-      expect(anime.episodes, 12);
-      expect(anime.status, 'Finished Airing');
-      expect(anime.rating, 'PG-13');
-      expect(anime.genres.length, 2);
-      expect(anime.year, 2024);
-      expect(anime.season, 'spring');
-    });
-
-    test('deve usar JPG quando WebP nao disponivel', () {
-      final json = {
-        'mal_id': 12345,
-        'title': 'Test Anime',
-        'images': {
-          'jpg': {
-            'image_url': 'https://example.com/image.jpg',
-            'large_image_url': 'https://example.com/large.jpg',
-          },
-        },
-        'genres': [],
-      };
-
-      final anime = JikanAnime.fromJson(json);
-
-      expect(anime.imageUrl, 'https://example.com/image.jpg');
-      expect(anime.largImageUrl, 'https://example.com/large.jpg');
     });
   });
 

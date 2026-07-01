@@ -125,7 +125,7 @@ void main() {
         await repo.saveContent(
           sample(
             folderName: 'naruto',
-            displayName: 'Naruto v2 — Jikan updated score',
+            displayName: 'Naruto v2 — updated score',
             score: 8.5,
             imageUrl: 'http://img/naruto.jpg',
           ),
@@ -135,7 +135,7 @@ void main() {
         expect(all, hasLength(1), reason: 'não pode duplicar');
         final updated = (await repo.getByFolderName('naruto'))!;
         expect(updated.id, equals(firstId), reason: 'id deve ser preservado');
-        expect(updated.displayName, 'Naruto v2 — Jikan updated score');
+        expect(updated.displayName, 'Naruto v2 — updated score');
         expect(updated.score, 8.5);
         expect(updated.imageUrl, 'http://img/naruto.jpg');
       },

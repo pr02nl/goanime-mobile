@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/data/models/jikan_models.dart';
 import 'package:goanime/domain/models/pauloflix_content.dart';
 
 void main() {
@@ -18,38 +17,6 @@ void main() {
       expect(content.genres, isEmpty);
       expect(content.isAvailable, true);
       expect(content.id, isNull);
-    });
-
-    test('deve criar a partir de JikanAnime via fromJikan', () {
-      final jikan = JikanAnime(
-        malId: 123,
-        title: 'Naruto',
-        imageUrl: 'http://image.com/naruto.jpg',
-        largImageUrl: 'http://image.com/naruto_large.jpg',
-        synopsis: 'Um anime sobre ninjas',
-        score: 8.5,
-        episodes: 220,
-        status: 'Finished Airing',
-        genres: [
-          JikanGenre(malId: 1, name: 'Action', type: 'anime'),
-          JikanGenre(malId: 10, name: 'Fantasy', type: 'anime'),
-        ],
-      );
-
-      final content = PauloFlixContent.fromJikan(
-        folderName: 'Naruto',
-        serverUrl: 'http://server/naruto/',
-        jikanAnime: jikan,
-      );
-
-      expect(content.displayName, 'Naruto');
-      expect(content.imageUrl, 'http://image.com/naruto.jpg');
-      expect(content.bannerUrl, 'http://image.com/naruto_large.jpg');
-      expect(content.description, 'Um anime sobre ninjas');
-      expect(content.score, 8.5);
-      expect(content.episodeCount, 220);
-      expect(content.status, 'Finished Airing');
-      expect(content.genres, ['Action', 'Fantasy']);
     });
 
     test('toMap e fromMap devem ser consistentes', () {

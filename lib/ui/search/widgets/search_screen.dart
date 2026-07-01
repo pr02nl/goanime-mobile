@@ -1,18 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../data/models/jikan_models.dart';
-import '../../../data/services/jikan_service.dart';
-import '../../../data/services/search_history_service.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
-import '../../core/themes/netflix_theme.dart';
-import '../../core/utils/responsive.dart';
-import '../../core/utils/tv_detector.dart';
-import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/tv_safe_text_field.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -24,667 +14,196 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen>
-    with SingleTickerProviderStateMixin {
+class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final JikanService _jikanService = JikanService();
   final FocusNode _searchFocusNode = FocusNode();
-
-  late AnimationController _animationController;
-  Timer? _debounce;
-
-  /// Flag lazy: `_loadRecentSearches` (3 chamadas API) só dispara
-  /// na primeira vez que a seção de histórico renderiza, não em init.
-  bool _recentSearchesLoaded = false;
-
-  List<String> _searchHistory = [];
-  List<String> _suggestions = [];
-  List<JikanAnime> _trendingAnimes = [];
-  List<JikanAnime> _searchResults = [];
-  List<JikanAnime> _recentSearchResults = [];
-
-  bool _isLoadingTrending = true;
-  bool _isSearching = false;
-  bool _showHistory = true;
-  bool _isTV = false;
-
-  // Filtros
-  int? _selectedGenre;
-
-  List<Map<String, dynamic>> _getGenres() {
-    final l10n = AppLocalizations.of(context);
-    return [
-      {'id': JikanGenreIds.action, 'name': l10n.action, 'icon': Icons.flash_on},
-      {
-        'id': JikanGenreIds.adventure,
-        'name': l10n.adventure,
-        'icon': Icons.explore,
-      },
-      {
-        'id': JikanGenreIds.comedy,
-        'name': l10n.comedy,
-        'icon': Icons.emoji_emotions,
-      },
-      {
-        'id': JikanGenreIds.drama,
-        'name': l10n.drama,
-        'icon': Icons.theater_comedy,
-      },
-      {
-        'id': JikanGenreIds.fantasy,
-        'name': l10n.fantasy,
-        'icon': Icons.auto_awesome,
-      },
-      {
-        'id': JikanGenreIds.horror,
-        'name': l10n.horror,
-        'icon': Icons.dark_mode,
-      },
-      {'id': JikanGenreIds.mystery, 'name': l10n.mystery, 'icon': Icons.search},
-      {
-        'id': JikanGenreIds.romance,
-        'name': l10n.romance,
-        'icon': Icons.favorite,
-      },
-      {
-        'id': JikanGenreIds.sciFi,
-        'name': l10n.sciFi,
-        'icon': Icons.rocket_launch,
-      },
-      {
-        'id': JikanGenreIds.sliceOfLife,
-        'name': l10n.sliceOfLife,
-        'icon': Icons.wb_sunny,
-      },
-      {
-        'id': JikanGenreIds.sports,
-        'name': l10n.sports,
-        'icon': Icons.sports_soccer,
-      },
-      {
-        'id': JikanGenreIds.supernatural,
-        'name': l10n.supernatural,
-        'icon': Icons.auto_fix_high,
-      },
-    ];
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _animationController.forward();
-
-    _detectTVMode();
-    _loadSearchHistory();
-    _loadTrendingAnimes();
-    // _loadRecentSearches é lazy: dispara só na primeira vez que
-    // _buildHistoryAndTrending renderiza (evita 3 chamadas API
-    // ao abrir a tela antes do usuário digitar).
-
-    _searchController.addListener(_onSearchChanged);
-  }
 
   @override
   void dispose() {
-    _animationController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
-    _debounce?.cancel();
     super.dispose();
   }
 
-  Future<void> _detectTVMode() async {
-    final isTV = await TVDetector.isTV;
-    if (mounted) setState(() => _isTV = isTV);
-  }
-
-  void _onSearchChanged() {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-
-    final query = _searchController.text.trim();
-
-    if (query.isEmpty) {
-      setState(() {
-        _showHistory = true;
-        _suggestions = [];
-        _searchResults = [];
-      });
-      return;
-    }
-
-    setState(() => _showHistory = false);
-
-    // Busca sugestões no histórico
-    _loadSuggestions(query);
-
-    // Debounce para busca na API
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      _performSearch(query);
-    });
-  }
-
-  Future<void> _loadSearchHistory() async {
-    final history = await SearchHistoryService.getSearchHistory();
-    setState(() => _searchHistory = history);
-  }
-
-  Future<void> _loadSuggestions(String query) async {
-    final suggestions = await SearchHistoryService.getSuggestions(query);
-    setState(() => _suggestions = suggestions);
-  }
-
-  Future<void> _loadTrendingAnimes() async {
-    setState(() => _isLoadingTrending = true);
-    try {
-      final animes = await _jikanService.getCurrentSeasonAnimes(limit: 12);
-      if (mounted) {
-        setState(() {
-          _trendingAnimes = animes;
-          _isLoadingTrending = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading trending animes: $e');
-      if (mounted) setState(() => _isLoadingTrending = false);
-    }
-  }
-
-  Future<void> _loadRecentSearches() async {
-    final history = await SearchHistoryService.getSearchHistory();
-    if (history.isEmpty) return;
-
-    // Busca os últimos 3 animes do histórico
-    final recentSearches = history.take(3).toList();
-    final List<JikanAnime> results = [];
-
-    for (final query in recentSearches) {
-      try {
-        await Future.delayed(const Duration(milliseconds: 400)); // Rate limit
-        final searchResults = await _jikanService.searchAnimes(query, limit: 1);
-        if (searchResults.isNotEmpty) {
-          results.add(searchResults.first);
-        }
-      } catch (e) {
-        debugPrint('Error loading recent search: $e');
-      }
-    }
-
-    if (mounted) {
-      setState(() => _recentSearchResults = results);
-    }
-  }
-
-  Future<void> _performSearch(String query) async {
-    if (query.isEmpty) return;
-
-    setState(() => _isSearching = true);
-
-    try {
-      List<JikanAnime> results;
-
-      if (_selectedGenre != null) {
-        // Busca por gênero com termo
-        results = await _jikanService.searchAnimes(query, limit: 20);
-        results = results.where((anime) {
-          return anime.genres.any((genre) => genre.malId == _selectedGenre);
-        }).toList();
-      } else {
-        // Busca normal
-        results = await _jikanService.searchAnimes(query, limit: 20);
-      }
-
-      if (mounted) {
-        setState(() {
-          _searchResults = results;
-          _isSearching = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error searching animes: $e');
-      if (mounted) setState(() => _isSearching = false);
-    }
-  }
-
-  Future<void> _selectSearchQuery(String query) async {
-    _searchController.text = query;
-    _searchFocusNode.unfocus();
-
-    // Salva no histórico
-    await SearchHistoryService.saveSearch(query);
-    await _loadSearchHistory();
-
-    // Realiza a busca
-    _performSearch(query);
-  }
-
-  Future<void> _removeHistoryItem(String query) async {
-    await SearchHistoryService.removeSearchItem(query);
-    await _loadSearchHistory();
-  }
-
-  Future<void> _clearHistory() async {
-    await SearchHistoryService.clearHistory();
-    await _loadSearchHistory();
-    setState(() => _recentSearchResults = []);
-  }
-
-  void _selectGenre(int? genreId) {
-    setState(() {
-      _selectedGenre = genreId;
-    });
-
-    if (_searchController.text.isNotEmpty) {
-      _performSearch(_searchController.text);
-    }
-  }
-
-  Future<void> _onAnimeTap(JikanAnime anime) async {
-    // Salva no histórico
-    await SearchHistoryService.saveSearch(anime.title);
-
-    // Navega para tela de seleção de fonte
-    if (!mounted) return;
-    context.pushNamed(
-      'source-selection',
-      extra: SourceSelectionRouteData(
-        animeTitle: anime.title,
-        imageUrl: anime.imageUrl,
-        myAnimeListUrl: 'https://myanimelist.net/anime/${anime.malId}',
-      ),
-    );
+  void _performSearch(String query) {
+    if (query.trim().isEmpty) return;
+    context.pushNamed('anime-search');
   }
 
   @override
   Widget build(BuildContext context) {
-    final canPop = Navigator.canPop(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: GestureDetector(
-        onTap: () {
-          // Fecha o teclado ao clicar fora do campo de busca
-          FocusScope.of(context).unfocus();
-        },
-        behavior: HitTestBehavior.translucent,
-        child: SafeArea(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Search Header
-              _buildSearchHeader(canPop),
-
-              // Genre Filters
-              if (!_showHistory) _buildGenreFilters(),
-
-              // Content
-              Expanded(
-                child: _showHistory
-                    ? _buildHistoryAndTrending()
-                    : _buildSearchResults(),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchHeader(bool canPop) {
-    final l10n = AppLocalizations.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.background, AppColors.backgroundLight],
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              // Back button
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () {
-                  if (canPop) {
-                    Navigator.pop(context);
-                  } else if (widget.onBackPressed != null) {
-                    widget.onBackPressed!();
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-
-              // Search field (otimizado - sem BackdropFilter)
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      width: 1,
-                    ),
+              // Search header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.background, AppColors.backgroundLight],
                   ),
-                  child: TVSafeTextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    autofocus: !_isTV,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (_) => _performSearch(_searchController.text),
-                    decoration: InputDecoration(
-                      hintText: l10n.searchAnime,
-                      hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: AppColors.primary,
-                      ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(
-                                Icons.clear,
-                                color: NetflixTheme.textSecondary,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                width: 1,
                               ),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {
-                                  _showHistory = true;
-                                  _searchResults = [];
-                                });
-                              },
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
+                            ),
+                            child: TVSafeTextField(
+                              controller: _searchController,
+                              focusNode: _searchFocusNode,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                              textInputAction: TextInputAction.search,
+                              onSubmitted: _performSearch,
+                              decoration: InputDecoration(
+                                hintText: l10n.searchAnime,
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.search,
+                                  color: AppColors.primary,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Search options
+              Expanded(
+                child: ListView(
+                  children: [
+                    _buildSearchOption(
+                      icon: Icons.search,
+                      title: l10n.searchAnime,
+                      subtitle: l10n.searchPrompt,
+                      color: AppColors.primary,
+                      onTap: () => context.pushNamed('anime-search'),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSearchOption(
+                      icon: Icons.live_tv,
+                      title: l10n.pauloFlix,
+                      subtitle: l10n.sectionAllAnimes,
+                      color: const Color(0xFF00BCD4),
+                      onTap: () => context.pushNamed('pauloflix-search'),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildSearchOption(
+                      icon: Icons.movie,
+                      title: l10n.movies,
+                      subtitle: l10n.moviesAvailable,
+                      color: const Color(0xFFE53935),
+                      onTap: () =>
+                          context.pushNamed('pauloflix-movies-search'),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-
-          // Suggestions
-          if (_suggestions.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 40,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _suggestions.length,
-                itemBuilder: (context, index) {
-                  final suggestion = _suggestions[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ActionChip(
-                      label: Text(suggestion),
-                      labelStyle: const TextStyle(color: Colors.white),
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                      side: BorderSide(
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                      ),
-                      onPressed: () => _selectSearchQuery(suggestion),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGenreFilters() {
-    final l10n = AppLocalizations.of(context);
-    final genres = _getGenres();
-
-    return Container(
-      height: 50,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: genres.length + 1,
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(l10n.allGenres),
-                labelStyle: TextStyle(
-                  color: _selectedGenre == null
-                      ? Colors.white
-                      : NetflixTheme.textSecondary,
-                  fontWeight: _selectedGenre == null
-                      ? FontWeight.bold
-                      : FontWeight.normal,
-                ),
-                selected: _selectedGenre == null,
-                selectedColor: AppColors.primary,
-                backgroundColor: Colors.white.withValues(alpha: 0.1),
-                onSelected: (_) => _selectGenre(null),
-              ),
-            );
-          }
-
-          final genre = genres[index - 1];
-          final isSelected = _selectedGenre == genre['id'];
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              avatar: Icon(
-                genre['icon'] as IconData,
-                color: isSelected ? Colors.white : NetflixTheme.textSecondary,
-                size: 18,
-              ),
-              label: Text(genre['name'] as String),
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : NetflixTheme.textSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-              selected: isSelected,
-              selectedColor: AppColors.primary,
-              backgroundColor: Colors.white.withValues(alpha: 0.1),
-              onSelected: (_) => _selectGenre(genre['id'] as int),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildHistoryAndTrending() {
-    final l10n = AppLocalizations.of(context);
-    // Lazy load: dispara _loadRecentSearches (3 chamadas API) só
-    // na primeira vez que esta seção é renderizada.
-    if (!_recentSearchesLoaded) {
-      _recentSearchesLoaded = true;
-      _loadRecentSearches();
-    }
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Recent Searches (with results)
-        if (_recentSearchResults.isNotEmpty) ...[
-          _buildSectionHeader(l10n.recentSearches, Icons.history),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 200,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _recentSearchResults.length,
-              itemBuilder: (context, index) {
-                final anime = _recentSearchResults[index];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: NetflixCard(
-                    imageUrl: anime.imageUrl,
-                    title: anime.title,
-                    rating: anime.score,
-                    width: 130,
-                    height: 160,
-                    onTap: () => _onAnimeTap(anime),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 32),
-        ],
-
-        // Search History
-        if (_searchHistory.isNotEmpty) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildSectionHeader(l10n.recentSearches, Icons.schedule),
-              TextButton(
-                onPressed: _clearHistory,
-                child: Text(
-                  l10n.clear,
-                  style: const TextStyle(color: AppColors.primary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ..._searchHistory.take(8).map((query) {
-            return ListTile(
-              leading: const Icon(Icons.history, color: AppColors.primary),
-              title: Text(query, style: const TextStyle(color: Colors.white)),
-              trailing: IconButton(
-                icon: const Icon(Icons.close, color: NetflixTheme.textTertiary),
-                onPressed: () => _removeHistoryItem(query),
-              ),
-              onTap: () => _selectSearchQuery(query),
-            );
-          }),
-          const SizedBox(height: 32),
-        ],
-
-        // Trending
-        _buildSectionHeader(l10n.trending, Icons.local_fire_department),
-        const SizedBox(height: 16),
-        if (_isLoadingTrending)
-          const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          )
-        else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: Responsive.getGridColumnCount(context),
-              childAspectRatio: 0.6,
-              crossAxisSpacing: Responsive.getCardSpacing(context),
-              mainAxisSpacing: Responsive.getCardSpacing(context),
-            ),
-            itemCount: _trendingAnimes.length,
-            itemBuilder: (context, index) {
-              final anime = _trendingAnimes[index];
-              return NetflixCard(
-                imageUrl: anime.imageUrl,
-                title: anime.title,
-                rating: anime.score,
-                width: double.infinity,
-                height: 220,
-                onTap: () => _onAnimeTap(anime),
-              );
-            },
-          ),
-      ],
-    );
-  }
-
-  Widget _buildSearchResults() {
-    if (_isSearching) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
-    }
-
-    if (_searchResults.isEmpty) {
-      final l10n = AppLocalizations.of(context);
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 64,
-              color: Colors.white.withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.noResultsFound,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 16,
-              ),
-            ),
-          ],
         ),
-      );
-    }
-
-    return GridView.builder(
-      padding: EdgeInsets.all(Responsive.getHorizontalPadding(context)),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: Responsive.getGridColumnCount(context),
-        childAspectRatio: 0.6,
-        crossAxisSpacing: Responsive.getCardSpacing(context),
-        mainAxisSpacing: Responsive.getCardSpacing(context),
       ),
-      itemCount: _searchResults.length,
-      itemBuilder: (context, index) {
-        final anime = _searchResults[index];
-        return NetflixCard(
-          imageUrl: anime.imageUrl,
-          title: anime.title,
-          rating: anime.score,
-          width: double.infinity,
-          height: 220,
-          onTap: () => _onAnimeTap(anime),
-        );
-      },
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
+  Widget _buildSearchOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primary, AppColors.primaryDark],
+            borderRadius: BorderRadius.circular(16),
+            color: color.withValues(alpha: 0.1),
+            border: Border.all(
+              color: color.withValues(alpha: 0.3),
             ),
-            borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white.withValues(alpha: 0.4),
+                size: 16,
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }

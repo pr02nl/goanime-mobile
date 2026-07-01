@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 
 import 'core/database/app_database.dart';
 import 'data/repositories/downloads_repository_impl.dart';
-import 'data/repositories/home_repository_impl.dart';
 import 'data/repositories/paulo_flix_episode_progress_repository_impl.dart';
 import 'data/repositories/paulo_flix_movie_progress_repository_impl.dart';
 import 'data/repositories/pauloflix_movies_repository_impl.dart';
@@ -17,7 +16,6 @@ import 'data/services/auth/authenticated_cache_manager.dart';
 import 'data/services/auth/jwt_token_manager.dart';
 import 'data/services/download_service.dart';
 import 'domain/repositories/downloads_repository.dart';
-import 'domain/repositories/home_repository.dart';
 import 'domain/repositories/paulo_flix_episode_progress_repository.dart';
 import 'domain/repositories/paulo_flix_movie_progress_repository.dart';
 import 'domain/repositories/pauloflix_movies_repository.dart';
@@ -27,7 +25,6 @@ import 'l10n/app_localizations.dart';
 import 'routing/app_router.dart';
 import 'ui/core/themes/app_theme.dart';
 import 'ui/core/view_models/locale_viewmodel.dart';
-import 'ui/home/view_models/home_viewmodel.dart';
 import 'ui/pauloflix/view_models/pauloflix_provider.dart';
 import 'ui/pauloflix_movies/view_models/pauloflix_movies_provider.dart';
 import 'ui/settings/view_models/theme_viewmodel.dart';
@@ -101,12 +98,6 @@ class PauloFlixApp extends StatelessWidget {
           create: (ctx) => PauloFlixMoviesProvider.withServices(
             repository: ctx.read<PauloFlixMoviesRepository>(),
           ),
-        ),
-        Provider<HomeRepository>(create: (_) => HomeRepositoryImpl()),
-        ChangeNotifierProvider(
-          create: (ctx) =>
-              HomeViewModel(repository: ctx.read<HomeRepository>())
-                ..loadHomeData(),
         ),
         ChangeNotifierProvider(
           create: (ctx) =>

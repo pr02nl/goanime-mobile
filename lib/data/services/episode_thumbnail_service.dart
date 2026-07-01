@@ -12,7 +12,6 @@ class EpisodeThumbnailService {
   static const String _tmdbApiBase = ApiConstants.tmdbBaseUrl;
   static const String _tmdbImageBase = '${ApiConstants.tmdbImageBase}/w500';
   static const String _kitsuApiBase = ApiConstants.kitsuBaseUrl;
-  static const String _jikanApiBase = ApiConstants.jikanBaseUrl;
   static const String _anilistGraphQL = ApiConstants.anilistBaseUrl;
 
   // ─── Cache LRU ───────────────────────────────────────────────────
@@ -296,23 +295,6 @@ class EpisodeThumbnailService {
       }
     }
 
-    // Try Jikan (MyAnimeList) if we have remaining episodes and a MAL ID
-    if (thumbnails.length < episodeNumbers.length && malId != null) {
-      final remainingEpisodes = episodeNumbers
-          .where((ep) => !thumbnails.containsKey(ep))
-          .toList();
-      final jikanThumbnails = await _batchGetFromJikan(
-        malId,
-        remainingEpisodes,
-      );
-      if (jikanThumbnails.isNotEmpty) {
-        thumbnails.addAll(jikanThumbnails);
-        debugPrint(
-          '[EpisodeThumbnail] Jikan provided ${jikanThumbnails.length} thumbnails',
-        );
-      }
-    }
-
     // Try TMDB for remaining episodes
     if (thumbnails.length < episodeNumbers.length) {
       final remainingEpisodes = episodeNumbers
@@ -535,64 +517,6 @@ class EpisodeThumbnailService {
       }
     } catch (e) {
       debugPrint('[EpisodeThumbnail] AniList variety error: $e');
-    }
-
-    return thumbnails;
-  }
-
-  /// Batch fetch from Jikan (MyAnimeList API)
-  /// Note: Jikan API doesn't provide episode thumbnails, only episode metadata
-  /// This is kept as a placeholder for future improvements
-  static Future<Map<int, String>> _batchGetFromJikan(
-    String malId,
-    List<int> episodeNumbers,
-  ) async {
-    final Map<int, String> thumbnails = {};
-
-    try {
-      debugPrint('[EpisodeThumbnail] Trying Jikan for MAL ID: $malId');
-
-      // Unfortunately, Jikan v4 API does not provide episode thumbnails/screenshots
-      // Only episode titles, air dates, and basic metadata
-      // We'll try to get anime pictures instead as fallback
-
-      final url = Uri.parse('$_jikanApiBase/anime/$malId/pictures');
-
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode != 200) return thumbnails;
-
-      final data = json.decode(response.body);
-      final pictures = data['data'] as List?;
-
-      if (pictures == null || pictures.isEmpty) {
-        debugPrint('[EpisodeThumbnail] Jikan: No pictures found');
-        return thumbnails;
-      }
-
-      debugPrint(
-        '[EpisodeThumbnail] Jikan found ${pictures.length} pictures (using as episode variety)',
-      );
-
-      // Use different pictures for different episodes to add variety
-      for (int i = 0; i < episodeNumbers.length && i < pictures.length; i++) {
-        final picture = pictures[i % pictures.length];
-        final imageUrl =
-            picture['jpg']?['large_image_url'] as String? ??
-            picture['jpg']?['image_url'] as String?;
-
-        if (imageUrl != null) {
-          thumbnails[episodeNumbers[i]] = imageUrl;
-        }
-      }
-
-      if (thumbnails.isNotEmpty) {
-        debugPrint(
-          '[EpisodeThumbnail] Jikan provided ${thumbnails.length} varied images',
-        );
-      }
-    } catch (e) {
-      debugPrint('[EpisodeThumbnail] Jikan error: $e');
     }
 
     return thumbnails;

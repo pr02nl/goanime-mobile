@@ -1,7 +1,6 @@
 import '../../core/utils/genre_codec.dart';
-import '../../data/models/jikan_models.dart';
 
-/// Conteúdo mapeado do PauloFlix com metadados do Jikan
+/// Conteúdo mapeado do PauloFlix TV.
 class PauloFlixContent {
   final int? id;
   final String folderName;
@@ -44,25 +43,6 @@ class PauloFlixContent {
     DateTime? lastSynced,
     this.isAvailable = true,
   }) : lastSynced = lastSynced ?? DateTime.now();
-
-  factory PauloFlixContent.fromJikan({
-    required String folderName,
-    required String serverUrl,
-    required JikanAnime jikanAnime,
-  }) {
-    return PauloFlixContent(
-      folderName: folderName,
-      displayName: jikanAnime.title,
-      serverUrl: serverUrl,
-      imageUrl: jikanAnime.imageUrl,
-      bannerUrl: jikanAnime.largImageUrl,
-      description: jikanAnime.synopsis,
-      score: jikanAnime.score,
-      genres: jikanAnime.genres.map((g) => g.name).toList(),
-      status: jikanAnime.status,
-      episodeCount: jikanAnime.episodes,
-    );
-  }
 
   /// Cria um [PauloFlixContent] a partir do JSON index do servidor
   /// PauloFlix (`tv_index.json`).

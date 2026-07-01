@@ -7,7 +7,6 @@ import '../domain/models/pauloflix_content.dart';
 import '../domain/models/pauloflix_movie.dart';
 import '../ui/downloads/widgets/downloads_screen.dart';
 import '../ui/home/widgets/anime_detail_screen.dart';
-import '../ui/home/widgets/genre_animes_screen.dart';
 import '../ui/home/widgets/home_screen.dart';
 import '../ui/navigation/main_navigation_screen.dart';
 import '../ui/pauloflix/widgets/pauloflix_episode_list_screen.dart';
@@ -158,19 +157,6 @@ GoRouter createAppRouter({String? initialError}) {
         builder: (context, state) {
           final anime = state.extra as Anime;
           return ModernEpisodeListScreen(anime: anime);
-        },
-      ),
-      GoRoute(
-        path: '/genre',
-        name: 'genre',
-        builder: (context, state) {
-          final data = state.extra as GenreRouteData;
-          return GenreAnimesScreen(
-            title: data.title,
-            icon: data.icon,
-            gradient: data.gradient,
-            genreId: data.genreId,
-          );
         },
       ),
       GoRoute(
