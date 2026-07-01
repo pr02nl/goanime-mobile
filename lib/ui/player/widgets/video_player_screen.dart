@@ -658,21 +658,25 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     if (_disposed || !mounted) return;
 
     final episodeKey = _buildEpisodeKey();
-    debugPrint('[VideoPlayer] 🎬 Initializing player for episode: $episodeKey');    // Fase 2: lê progresso salvo do banco (PauloFlix) ANTES do setState
-    // para já ter a decisão de reset/seek pronta quando o Media abrir.
-    if (widget.isMovie && widget.movieFolderName != null) {
-      await _loadMovieSavedProgress();
-    } else {
-      await _loadSavedProgress();
-    }
+    debugPrint('[VideoPlayer] 🎬 Initializing player for episode: $episodeKey');    // ═══════════════════════════════════════════════════════════════════
+    // Paraleliza tarefas independentes no início da inicialização:
+    // 1. DB read (progresso salvo do episódio/filme)  — 5-50ms
+    // 2. TV detection (já iniciada em initState)       — 10-100ms
+    // 3. JWT token fetch (usado antes do Media.open)   — 0-500ms
+    //
+    // Antes: DB → TV → (surface init → JWT)  (sequencial)
+    // Depois: [DB + TV + JWT] em paralelo     (max dos 3)
+    // ═══════════════════════════════════════════════════════════════════
+    final dbFuture = widget.isMovie && widget.movieFolderName != null
+        ? _loadMovieSavedProgress()
+        : _loadSavedProgress();
+    final tvFuture = _tvDetectionFuture ?? Future.value(false);
+    // Inicia o fetch do JWT imediatamente — o token será aguardado
+    // logo antes do Media.open (dentro do try block).
+    final jwtFuture = _jwtTokenManager?.getValidToken();
 
-    // Aguarda detecção de TV iniciada em initState. Garante que
-    // `_isTVDevice` está populado antes de criar o Player (HW accel,
-    // controles, orientation já aplicados).
-    final tvFuture = _tvDetectionFuture;
-    if (tvFuture != null) {
-      await tvFuture;
-    }
+    await Future.wait([dbFuture, tvFuture]);
+    // jwtFuture continua em voo e será aguardado quando necessário.
 
     // Configura subs persistentes uma ÚNICA vez (não recria a cada
     // _replaceEpisode).
@@ -737,13 +741,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // Migração Tailscale → HTTPS+token: se a URL for do PauloFlix, injeta
       // o JWT Authorization no `httpHeaders` do Media.open() (libmpv envia
       // esses headers em CADA range request subsequente).
-      // O JwtTokenManager está disponível via Provider (configurado no
-      // app.dart). Lê via context.read<>() — safe em initState porque o
-      // Provider está registrado no MultiProvider do PauloFlixApp.
+      // O JWT já foi iniciado em paralelo com DB + TV detection no início
+      // de _initializeVideoPlayer, então `await jwtFuture` geralmente
+      // retorna instantaneamente (o fetch já completou).
       // ═══════════════════════════════════════════════════════════════════════
       if (kPauloFlixHostPattern.hasMatch(uri.host)) {
         try {
-          final token = await _jwtTokenManager?.getValidToken() ?? '';
+          final token = await jwtFuture ?? '';
           mergedHeaders['Authorization'] = 'Bearer $token';
           debugPrint(
             '[VideoPlayer] ✓ JWT injetado no header do player (PauloFlix)',
