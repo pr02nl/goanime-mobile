@@ -140,61 +140,7 @@ GET /movies/movie_index.json
 
 ---
 
-## 1. Jikan API (MyAnimeList Unofficial)
-
-**Uso:** Apenas para a tela Home (animes externos) e busca. **Não é mais usado pelo sync PauloFlix.**
-
-### Base URL
-```
-https://api.jikan.moe/v4
-```
-
-### Endpoints Utilizados
-
-#### Temporada Atual
-```
-GET /seasons/now?limit=15
-```
-
-#### Top Animes
-```
-GET /top/anime?limit=15
-```
-
-#### Busca por Gênero
-```
-GET /anime?genres={genre_id}&limit=15&order_by=score&sort=desc
-```
-
-#### Busca por Nome
-```
-GET /anime?q={query}&limit=20
-```
-
-### IDs de Gêneros (JikanGenreIds)
-| ID | Gênero |
-|----|--------|
-| 1 | Action |
-| 2 | Adventure |
-| 4 | Comedy |
-| 8 | Drama |
-| 10 | Fantasy |
-| 14 | Horror |
-| 7 | Mystery |
-| 22 | Romance |
-| 24 | Sci-Fi |
-| 36 | Slice of Life |
-| 30 | Sports |
-| 37 | Supernatural |
-
-### Rate Limiting
-- 3 requisições por segundo
-- Implementação em batches de 3 requisições com delay de 400ms entre batches
-- Cache em memória (30 min) + persistente (SharedPreferences)
-
----
-
-## 2. AniList API (GraphQL)
+## 1. AniList API (GraphQL)
 
 **Uso:** Enriquecimento de metadados de animes (imagens, scores, sinopses).
 
@@ -431,7 +377,6 @@ Stream<List<PauloFlixMovieProgressRecord>> watchInProgressMovies({
 | PauloFlix JSON Index (Movies) | HTTPS | Sync de filmes (fonte primária) | Drift |
 | PauloFlixEpisodeProgressRepository | Drift (SQLite) | Progresso de episódios (animes) | Drift |
 | PauloFlixMovieProgressRepository | Drift (SQLite) | Progresso de filmes | Drift |
-| Jikan | REST | Home/Busca de animes externos | 30 min |
 | AniList | GraphQL | Metadados de animes | N/A |
 | AniSkip | REST | Skip intro/outro | N/A |
 | TMDB | REST | Fallback de metadados | 30 min |

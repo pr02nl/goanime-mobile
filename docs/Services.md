@@ -341,27 +341,9 @@ originalTitle, outline, aired (DateTime), rating (double), runtime (int)
 
 ---
 
-## JikanService
+## ~~JikanService~~ (removido)
 
-Serviço para dados de animes via Jikan API (MyAnimeList). **Usado apenas pela tela Home (animes externos) — o sync PauloFlix não usa mais.**
-
-### URL Base
-```
-https://api.jikan.moe/v4
-```
-
-### Características
-- Cache em memória (30 minutos) + cache persistente via SharedPreferences
-- Rate limiting automático (3 req/s)
-- Carregamento em 2 batches de 3 requisições com delay de 400ms entre batches
-
-### Métodos Principais
-
-#### `loadHomeData({bool forceRefresh = false})`
-Carrega dados da Home em paralelo: temporada atual + top animes + 4 gêneros.
-
-#### `getTopAnimes()`, `getCurrentSeasonAnimes()`, `getAnimesByGenre(genreId)`, `searchAnimes(query)`, etc.
-Métodos individuais com cache em memória.
+O serviço Jikan API (MyAnimeList) foi **removido**.
 
 ---
 
@@ -470,7 +452,7 @@ Wrapper `http.Client` que injeta `Authorization: Bearer <JWT>` em toda request.
 | `PauloFlixEpisodeSyncService` | Sync | HTTP + HTML scraping + NFO | Via `PauloFlixEpisodeProgressRepository` (Drift) |
 | `PauloFlixNfoEnricher` | Sync | HTTP | Não |
 | `DownloadService` | Streaming | HTTP + Drift (fila + persistência) | Via `DownloadsRepository` (Drift) |
-| `JikanService` | API externa | HTTP (Jikan API) | Cache SharedPreferences |
+| ~~`JikanService`~~ (removido) | — | — | — |
 | `AniListService` | API externa | GraphQL HTTP | Não |
 | `AniSkipService` | API externa | HTTP (AniSkip API) | Não |
 | `TmdbService` | API externa | HTTP (TMDB API) | Não |
@@ -488,7 +470,7 @@ Wrapper `http.Client` que injeta `Authorization: Bearer <JWT>` em toda request.
 || Sync episodes | HTTP + HTML scraping | `data/services/paulo_flix_episode_sync_service.dart` |
 || NFO enrichment | HTTP + XML parsing | `data/services/kodi/pauloflix_nfo_enricher.dart` |
 || Kodi NFO parser | XML (package:xml) | `data/services/kodi/kodi_nfo_parser.dart` |
-|| Animes API (Jikan) | HTTP + cache 30min | `data/services/jikan_service.dart` |
+|| ~~Animes API (Jikan)~~ (removido) | — | — |
 || AniList API | GraphQL HTTP | `data/services/anilist_service.dart` |
 || AniSkip API | HTTP | `data/services/aniskip_service.dart` |
 || TMDB API | HTTP (fallback) | `data/services/tmdb_service.dart` |

@@ -24,64 +24,34 @@ Tela principal de navegação com bottom navigation bar customizado.
 ---
 
 ### HomeScreen
-Tela inicial com layout inspirado em Netflix/Disney+.
+Tela inicial simplificada exibindo conteúdo PauloFlix.
 
 **Arquivo:** `lib/ui/home/widgets/home_screen.dart`
 
 **Características:**
-- Banner hero com carrossel automático (PageView)
-- Seções horizontais de animes (Jikan API)
-- Seção PauloFlix animes e filmes (do banco Drift)
-- Pull-to-refresh
-- FAB animado (voltar ao topo)
-- Header com blur effect
+- Seção PauloFlix (animes do banco Drift)
+- Pull-to-refresh (re-sync do conteúdo)
 
-**Seções:**
-1. **Destaques da Temporada** - Animes em exibição (Jikan API)
-2. **Top Animes** - Mais bem avaliados
-3. **Ação** - Gênero Action
-4. **Romance** - Gênero Romance
-5. **Comédia** - Gênero Comedy
-6. **Fantasia** - Gênero Fantasy
-
-**Otimizações:**
-- `AutomaticKeepAliveClientMixin` para manter estado
-- Pre-cache de imagens de banner
-- Shimmer loading durante carregamento
+> As seções baseadas em Jikan API (Temporada, Top Animes, gêneros) foram removidas.
+> A Home agora exibe apenas o catálogo PauloFlix.
 
 ---
 
 ### SearchScreen
-Tela de busca com histórico e filtros.
+Tela de busca simplificada — hub de navegação para as telas de busca especializadas.
 
 **Arquivo:** `lib/ui/search/widgets/search_screen.dart`
 
 **Características:**
-- Search bar com focus node
-- Debounce de 500ms para busca automática
-- Histórico de buscas (até 20 itens)
-- Sugestões baseadas no histórico
-- Filtros de gênero com ícones
-- Animes em alta (trending)
+- Opções de busca: AnimeFire, PauloFlix (animes), PauloFlix (filmes)
+- Redireciona para `/anime-search`, `/pauloflix-search`, `/pauloflix-movies-search`
 
-**Filtros de Gênero:**
-- Action (Icons.flash_on)
-- Adventure (Icons.explore)
-- Comedy (Icons.emoji_emotions)
-- Drama (Icons.theater_comedy)
-- Fantasy (Icons.auto_awesome)
-- Horror (Icons.dark_mode)
-- Mystery (Icons.search)
-- Romance (Icons.favorite)
-- Sci-Fi (Icons.rocket_launch)
-- Slice of Life (Icons.wb_sunny)
-- Sports (Icons.sports_soccer)
-- Supernatural (Icons.auto_fix_high)
+> A busca por Jikan API foi removida. A pesquisa agora é feita via AnimeFire e PauloFlix.
 
 ---
 
 ### AnimeDetailScreen
-Tela de detalhe de anime (Jikan + AniList).
+Tela de detalhe de anime (AniList).
 
 **Arquivo:** `lib/ui/home/widgets/anime_detail_screen.dart`
 
@@ -92,16 +62,6 @@ Tela de detalhe de anime (Jikan + AniList).
 - WatchlistButton integrado
 
 ---
-
-### GenreAnimesScreen
-Lista de animes filtrados por gênero.
-
-**Arquivo:** `lib/ui/home/widgets/genre_animes_screen.dart`
-
-**Características:**
-- Gradient header customizado por gênero
-- Grid responsivo de cards
-- Paginação via Jikan API
 
 ---
 
@@ -279,40 +239,6 @@ Configurações do aplicativo.
 ---
 
 ## Widgets Reutilizáveis
-
-### AnimeCard
-Card padrão para exibição de anime (Jikan + estilo Netflix opcional).
-
-**Arquivo:** `lib/ui/core/widgets/anime_card.dart`
-
-**Props:**
-```dart
-AnimeCard({
-  required JikanAnime anime,
-  required VoidCallback onTap,
-  bool useNetflixStyle = true,
-  double? width,
-  double? height,
-})
-```
-
-**Características:**
-- Aspect ratio 2:3
-- CachedNetworkImage com placeholder
-- Fade-in animation
-- Rating badge (score)
-- Netflix style: hover effects com scale, gradient overlay
-
----
-
-### ResponsiveAnimeCard
-Versão responsiva do AnimeCard.
-
-**Arquivo:** `lib/ui/core/widgets/responsive_anime_card.dart`
-
-**Características:**
-- Ajusta tamanho baseado na largura da tela
-- Layout adaptativo para tablets
 
 ---
 

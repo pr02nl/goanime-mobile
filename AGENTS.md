@@ -43,10 +43,8 @@ lib/
 │   │   ├── models/                        # Modelos de API externos
 │   │   │   ├── anilist_models.dart
 │   │   │   ├── aniskip_models.dart
-│   │   │   ├── jikan_models.dart
 │   │   │   └── tmdb_models.dart
 │   │   ├── repositories/                  # ✅ Repositories Drift (Fase 3)
-│   │   │   ├── home_repository_impl.dart
 │   │   │   ├── watchlist_repository_impl.dart
 │   │   │   ├── pauloflix_repository_impl.dart
 │   │   │   ├── pauloflix_movies_repository_impl.dart
@@ -59,7 +57,6 @@ lib/
 │   │       ├── download_service.dart      # Aceita DownloadsRepository (Fase 3)
 │   │       ├── episode_thumbnail_service.dart
 │   │       ├── google_video_proxy.dart
-│   │       ├── jikan_service.dart
 │   │       ├── auth/
 │   │       │   ├── authenticated_http_client.dart  # Injeta JWT
 │   │       │   ├── authenticated_cache_manager.dart
@@ -98,7 +95,6 @@ lib/
     │   ├── view_models/
     │   │   └── locale_viewmodel.dart  # Estado do idioma
     │   └── widgets/                   # Widgets reutilizáveis
-    │       ├── anime_card.dart
     │       ├── anime_result_card.dart
     │       ├── content_type_selector.dart  # Pill Animes|Filmes
     │       ├── focusable_widget.dart  # Focus + D-pad
@@ -110,7 +106,6 @@ lib/
     │       ├── pauloflix_movies_badge.dart # Badge vermelho cinema
     │       ├── pauloflix_movies_section.dart # Seção filmes
     │       ├── pauloflix_section.dart # Seção animes PauloFlix
-    │       ├── responsive_anime_card.dart
     │       ├── shimmer_loading.dart   # Skeleton loading
     │       ├── skip_button.dart       # Botão AniSkip
     │       ├── tv_grid_view.dart      # Grid otimizado TV
@@ -122,10 +117,8 @@ lib/
     │   └── downloads_screen.dart
     │
     ├── home/
-    │   ├── view_models/home_viewmodel.dart
     │   └── widgets/
     │       ├── anime_detail_screen.dart
-    │       ├── genre_animes_screen.dart
     │       └── home_screen.dart
     │
     ├── navigation/main_navigation_screen.dart  # Shell + toggle Animes|Filmes
@@ -241,14 +234,9 @@ The project includes a Netflix-inspired UI system with gradual migration support
 
 ### Migration Pattern
 ```dart
-// Old way (still supported)
-AnimeCard(anime: anime, onTap: () {})
-
-// Netflix style (gradual migration)
-AnimeCard(anime: anime, useNetflixStyle: true, onTap: () {})
-
-// New Netflix components
-NetflixCard(imageUrl: anime.imageUrl, title: anime.title, onTap: () {})
+// Netflix components
+NetflixCard(imageUrl: imageUrl, title: title, onTap: () {})
+NetflixCarousel(title: title, height: height, items: items)
 ```
 
 ### Theme Integration
@@ -363,8 +351,8 @@ All project documentation is in the `docs/` folder:
 ### API Calls
 ```dart
 // Use services for API calls
-final animeService = AnimeService();
-final animes = await animeService.getTopAnime();
+final pauloflixService = PauloFlixService();
+final contents = await pauloflixService.syncContent(...);
 ```
 
 ### Navigation

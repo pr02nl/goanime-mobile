@@ -99,12 +99,11 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 ### 1. **PauloFlix JSON Index** (sync principal)
 - **TV:** `GET /tvshows/tv_index.json` — índice completo de shows
 - **Movies:** `GET /movies/movie_index.json` — índice completo de filmes
-- Substitui scraping HTML + APIs externas (Jikan/TMDB) como fonte primária
+- Substitui scraping HTML + APIs externas como fonte primária
 
-### 2. **Jikan API** (MyAnimeList) — Home/Busca de animes externos
-### 3. **AniList API** (GraphQL) — Metadados enriquecidos
-### 4. **AniSkip API** — Skip intro/outro
-### 5. **TMDB API** — Fallback (não usado no sync principal)
+### 2. **AniList API** (GraphQL) — Metadados enriquecidos
+### 3. **AniSkip API** — Skip intro/outro
+### 4. **TMDB API** — Fallback de metadados
 
 ---
 
@@ -179,10 +178,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 3. Sync de Filmes (PauloFlixMoviesService.syncContent)
    GET movie_index.json → parse → repository.saveBatch() → Drift
 
-4. Home Screen (Jikan API)
-   JikanService.loadHomeData() → Cache → UI
-
-5. Player
+4. Player
    VideoPlayerScreen → AniSkipService (skip times) + Streaming
 ```
 

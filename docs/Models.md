@@ -3,35 +3,7 @@
 > **Persistência:** Drift com 7 tabelas. `genres` é **JSON serializado** (não CSV).
 > Ver `docs/Services.md` para a arquitetura completa.
 
-## Jikan API Models
-
-### JikanAnime
-
-Modelo principal de anime da Jikan API (usado apenas pela Home/Busca externa).
-
-```dart
-class JikanAnime {
-  final int malId;
-  final String title;
-  final String? titleEnglish;
-  final String? titleJapanese;
-  final String imageUrl;          // WebP preferido
-  final String? largImageUrl;
-  final String? synopsis;
-  final double? score;
-  final int? episodes;
-  final String? status;
-  final String? rating;
-  final List<JikanGenre> genres;
-  final int? year;
-  final String? season;
-}
-```
-
-### JikanResponse<T>, JikanPagination, JikanGenreIds
-Wrapper de resposta paginada. IDs de gêneros (Action=1, Adventure=2, Comedy=4, etc.)
-
----
+> ~~Jikan API Models~~ foram removidos.
 
 ## AniList API Models
 
@@ -86,7 +58,6 @@ Modelo de conteúdo PauloFlix (TV shows do file server).
 > **Fábricas:**
 > - `fromTvIndex()` — fonte **primária** (JSON index do servidor)
 > - `fromNfo()` — fallback (Kodi NFO, usado pelo NfoEnricher)
-> - `fromJikan()` — legado (não usado no sync principal)
 > - `fromMap()` — desserialização do banco Drift
 
 ```dart
@@ -102,8 +73,6 @@ class PauloFlixContent {
   final List<String> genres;      // Gêneros (JSON no banco)
   final String? status;           // Status (Finished, Ongoing...)
   final int? episodeCount;
-  final int? malId;               // MyAnimeList ID
-  final int? anilistId;           // AniList ID
   final String? originalTitle;    // Título original (NFO V2)
   final int? year;                // Ano de estreia
   final int? tmdbId;              // TMDB ID
@@ -124,7 +93,7 @@ factory PauloFlixContent.fromTvIndex({
 - `title` → `displayName`
 - `poster` / `fanart` → URLs absolutas via `baseHost`
 - `genre` (array) → `genres`
-- `original_title`, `year`, `tmdb_id`, `mal_id`, `anilist_id`
+- `original_title`, `year`, `tmdb_id`
 - `episode_count`, `rating`, `status`
 
 ### fromNfo (Kodi)
@@ -288,12 +257,4 @@ class KodiSeasonNfo {
 
 ## Modelos de Cache
 
-### HomeData (JikanService)
-```dart
-class HomeData {
-  final List<JikanAnime> seasonAnimes, topAnimes;
-  final List<JikanAnime> actionAnimes, romanceAnimes, comedyAnimes, fantasyAnimes;
-  final DateTime loadedAt;
-  bool get isExpired => difference > 30 min;
-}
-```
+
