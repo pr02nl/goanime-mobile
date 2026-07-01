@@ -98,14 +98,14 @@ class SidebarState extends State<Sidebar> {
   /// Uso: verde (`Colors.greenAccent`) = sync ok; vermelho
   /// (`AppColors.primary` red) = erro na última sync.
   Color? _syncDotForIndex(int i) {
-    if (i == 1) {
+    if (i == 0) {
       // Animes
       final anime = context.read<PauloFlixProvider>();
       if (anime.hasSyncError) return AppColors.primary;
       if (anime.contents.isNotEmpty) return Colors.greenAccent;
       return null;
     }
-    if (i == 2) {
+    if (i == 1) {
       // Filmes
       final movies = context.read<PauloFlixMoviesProvider>();
       if (movies.hasSyncError) return AppColors.primary;

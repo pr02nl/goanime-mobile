@@ -33,6 +33,7 @@ import 'package:flutter/material.dart';
 import '../../../domain/models/paulo_flix_progress_stats.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../core/themes/app_colors.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/progress_overlay.dart';
@@ -79,6 +80,8 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
     final overlay = content.id != null
         ? _buildProgressOverlay(statsById[content.id!])
         : null;
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
 
     return NetflixCard(
       imageUrl: content.imageUrl ?? '',
@@ -88,6 +91,8 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
       isTV: isTV,
       overlayWidget: overlay,
       onTap: () => onContentTap?.call(content),
+      width: cardWidth,
+      height: cardHeight,
     );
   }
 

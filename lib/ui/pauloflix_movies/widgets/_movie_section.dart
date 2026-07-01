@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../domain/models/pauloflix_movie.dart';
+import '../../core/utils/responsive.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../models/movie_progress_state.dart';
@@ -47,11 +48,13 @@ class MovieSection extends StatelessWidget {
   Widget _buildCard(BuildContext context, PauloFlixMovie movie) {
     final progress = progressMap?[movie.folderName];
     final overlay = MovieProgressState.buildOverlayWidget(progress);
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
     return NetflixCard(
       imageUrl: movie.imageUrl ?? '',
       title: movie.displayName,
       rating: movie.score,
-      width: 140,
+      width: cardWidth,
       height: cardHeight,
       isTV: isTV,
       showTitle: true,
@@ -62,5 +65,4 @@ class MovieSection extends StatelessWidget {
       },
     );
   }
-
 }

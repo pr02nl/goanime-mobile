@@ -306,6 +306,8 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
         (a, b) =>
             a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
       );
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -328,6 +330,8 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
             onTap: () {
               context.pushNamed('pauloflix-movie-detail', extra: movie);
             },
+            width: cardWidth,
+            height: cardHeight,
           );
         },
       ),
@@ -496,6 +500,8 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
       isCompleted: false,
       accentColor: AppColors.moviesAccent,
     );
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
 
     return NetflixCard(
       imageUrl: record.imageUrl ?? '',
@@ -503,6 +509,8 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
       showTitle: true,
       showRating: false,
       isTV: isTV,
+      width: cardWidth,
+      height: cardHeight,
       overlayWidget: overlay,
       onTap: () => _onTap(context, record),
     );

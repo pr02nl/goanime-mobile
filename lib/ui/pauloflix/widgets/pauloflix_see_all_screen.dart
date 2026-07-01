@@ -312,6 +312,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
         (a, b) =>
             a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
       );
+    final cardWidth = Responsive.getHorizontalListItemWidth(context);
+    final cardHeight = Responsive.getCardHeightSync(context);
 
     return Padding(
       padding: const EdgeInsets.only(top: 24),
@@ -325,6 +327,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
             imageUrl: content.imageUrl ?? '',
             title: content.displayName,
             rating: content.score,
+            width: cardWidth,
+            height: cardHeight,
             isTV: _isTV,
             overlayWidget: _buildProgressOverlay(content),
             onTap: () {
@@ -396,7 +400,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   /// Se não houver episódio em progresso, fallback para a lista de
   /// episódios completa.
   Future<void> _onContinueWatchingTap(PauloFlixContent content) async {
-    final isWide = MediaQuery.of(context).size.width >= Responsive.phoneMaxWidth;
+    final isWide =
+        MediaQuery.of(context).size.width >= Responsive.phoneMaxWidth;
     if (!isWide || content.id == null) {
       if (!mounted) return;
       context.pushNamed('pauloflix-episodes', extra: content);
@@ -424,8 +429,10 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     final seasons = await repo.getSeasonsForContent(content.id!);
     final currentSeason = seasons.isEmpty
         ? null
-        : seasons.firstWhere((s) => s.id == episode.seasonId,
-            orElse: () => seasons.first);
+        : seasons.firstWhere(
+            (s) => s.id == episode.seasonId,
+            orElse: () => seasons.first,
+          );
 
     final episodeList = allEpisodes
         .map(
@@ -475,10 +482,7 @@ class _ContinueWatchingConsumer extends StatelessWidget {
   final bool isTV;
   final void Function(PauloFlixContent content)? onContentTap;
 
-  const _ContinueWatchingConsumer({
-    required this.isTV,
-    this.onContentTap,
-  });
+  const _ContinueWatchingConsumer({required this.isTV, this.onContentTap});
 
   @override
   Widget build(BuildContext context) {
@@ -489,12 +493,15 @@ class _ContinueWatchingConsumer extends StatelessWidget {
     // primeiro evento do stream).
     if (loading) return const SizedBox.shrink();
 
-    final contents = context.select<PauloFlixContinueWatchingViewModel, List<PauloFlixContent>>(
-      (vm) => vm.contents,
-    );
-    final statsById = context.select<PauloFlixContinueWatchingViewModel, Map<int, PauloFlixProgressStats>>(
-      (vm) => vm.statsById,
-    );
+    final contents = context
+        .select<PauloFlixContinueWatchingViewModel, List<PauloFlixContent>>(
+          (vm) => vm.contents,
+        );
+    final statsById = context
+        .select<
+          PauloFlixContinueWatchingViewModel,
+          Map<int, PauloFlixProgressStats>
+        >((vm) => vm.statsById);
 
     return PauloFlixContinueWatchingSection(
       contents: contents,
