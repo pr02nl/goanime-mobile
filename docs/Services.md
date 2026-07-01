@@ -19,7 +19,7 @@
 │  │  JSON Index Sync  │  │  Services de Scraping/Stream  │   │
 │  │  (fonte primária) │  │  (fallback on-demand)         │   │
 │  │  pauloflix*_svc   │  │  jikan_service, tmdb_service  │   │
-│  └──────────────────┘  │  anilist_service, aniskip_svc │   │
+│  └──────────────────┘  │  anilist_service, introdb_svc  │   │
 │                        │  anime_service, download_svc  │   │
 │                        └───────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
@@ -363,24 +363,24 @@ https://graphql.anilist.co
 
 ---
 
-## AniSkipService
+## IntroDbService
 
-Serviço para pular intro/outro automaticamente.
+Serviço para consulta de segmentos de intro/outro via TheIntroDB API.
 
 ### URL Base
 ```
-https://api.aniskip.com/v2
+https://api.theintrodb.org/v3
 ```
 
 ### Endpoint
 ```
-GET /skip-times/{anime_id}/{episode_number}?types[]=op&types[]=ed
+GET /v3/media?tmdb_id={tmdb_id}&season_number={season_number}&episode_number={episode_number}
 ```
 
-### Estratégia
-1. Tenta com MAL ID
-2. Se falhar, tenta com AniList ID
-3. Retorna vazio se ambos falharem
+### Funcionalidades
+- Cache em memória (respostas por `tmdbId`)
+- Suporte a séries (TV) com `season_number` e `episode_number`
+- Retorna segmentos de intro, créditos, recap e preview
 
 ---
 
@@ -454,7 +454,7 @@ Wrapper `http.Client` que injeta `Authorization: Bearer <JWT>` em toda request.
 | `DownloadService` | Streaming | HTTP + Drift (fila + persistência) | Via `DownloadsRepository` (Drift) |
 | ~~`JikanService`~~ (removido) | — | — | — |
 | `AniListService` | API externa | GraphQL HTTP | Não |
-| `AniSkipService` | API externa | HTTP (AniSkip API) | Não |
+| `IntroDbService` | API externa | HTTP (TheIntroDB API) | Sim (memória) |
 | `TmdbService` | API externa | HTTP (TMDB API) | Não |
 | `SearchHistoryService` | Persistência | SharedPreferences | Sim |
 | `EpisodeThumbnailService` | Streaming | HTTP (AniList) | Não |
@@ -472,7 +472,7 @@ Wrapper `http.Client` que injeta `Authorization: Bearer <JWT>` em toda request.
 || Kodi NFO parser | XML (package:xml) | `data/services/kodi/kodi_nfo_parser.dart` |
 || ~~Animes API (Jikan)~~ (removido) | — | — |
 || AniList API | GraphQL HTTP | `data/services/anilist_service.dart` |
-|| AniSkip API | HTTP | `data/services/aniskip_service.dart` |
+|| TheIntroDB API | HTTP | `data/services/introdb_service.dart` |
 || TMDB API | HTTP (fallback) | `data/services/tmdb_service.dart` |
 || Downloads (fila HTTP) | HTTP + Drift | `data/services/download_service.dart` |
 || Search history | SharedPreferences | `data/services/search_history_service.dart` |

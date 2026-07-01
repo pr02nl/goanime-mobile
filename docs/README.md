@@ -43,7 +43,7 @@ lib/
 ├── data/                           # Implementações de dados
 │   ├── models/                     # Modelos de API externa
 │   │   ├── jikan_models.dart, anilist_models.dart
-│   │   ├── aniskip_models.dart, tmdb_models.dart
+│   │   ├── introdb_models.dart, tmdb_models.dart
 │   ├── repositories/              # Implementações Drift (5 impls)
 │   │   ├── *repository_impl.dart
 │   └── services/                   # Services de I/O, scraping, sync
@@ -54,7 +54,7 @@ lib/
 │       ├── paulo_flix_episode_sync_service.dart  # Sync episodes on-demand
 │       ├── download_service.dart            # Fila HTTP + persistência
 │       ├── jikan_service.dart, anilist_service.dart
-│       ├── aniskip_service.dart, tmdb_service.dart
+│       ├── introdb_service.dart, tmdb_service.dart
 │       ├── anime_service.dart, episode_thumbnail_service.dart
 │       └── search_history_service.dart, tv_api_key_server.dart
 └── ui/                             # Interface do usuário
@@ -102,7 +102,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 - Substitui scraping HTML + APIs externas como fonte primária
 
 ### 2. **AniList API** (GraphQL) — Metadados enriquecidos
-### 3. **AniSkip API** — Skip intro/outro
+### 3. **TheIntroDB API** — Skip intro/outro
 ### 4. **TMDB API** — Fallback de metadados
 
 ---
@@ -134,7 +134,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 ### Tecnologias
 - **media_kit**: Player nativo Flutter de alta performance
 - **Google Video Proxy**: Para contornar restrições de referrer
-- **AniSkip**: Pular intro/outro automaticamente
+- **TheIntroDB**: Pular intro/outro automaticamente
 - **Fallback WebView**: Para iOS quando o player nativo falha
 
 ### Recursos
@@ -179,7 +179,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
    GET movie_index.json → parse → repository.saveBatch() → Drift
 
 4. Player
-   VideoPlayerScreen → AniSkipService (skip times) + Streaming
+   VideoPlayerScreen → IntroDbService (skip times) + Streaming
 ```
 
 ## 📄 Documentação Detalhada

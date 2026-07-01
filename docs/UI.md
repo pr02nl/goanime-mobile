@@ -87,15 +87,15 @@ Player de vídeo principal (media_kit).
 
 **Características:**
 - Player nativo (media_kit)
-- AniSkip integration (botão de pular intro/outro)
+- TheIntroDB integration (botão de pular intro/outro)
 - Fallback WebView para iOS
 - Google Video proxy para contornar restrições
 - Legendas `.srt` (prioridade PT-BR)
 - Loading overlay com skeleton
 - Error handling com retry
 
-**AniSkip:**
-- Detecção automática de intro/outro
+**TheIntroDB:**
+- Detecção automática de intro/outro via api.theintrodb.org
 - Botão flutuante com animação
 - Auto-hide após 15 segundos
 - Labels dinâmicas ("Skip Intro", "Skip Outro")
@@ -205,7 +205,7 @@ Tela de detalhe de filme ou coleção.
 **Características:**
 - Filme individual: backdrop + poster + sinopse + botão Assistir
 - Coleção: banner + lista de sub-filmes clicáveis
-- Reutiliza `ModernVideoPlayerScreen` para reprodução (sem AniSkip)
+- Reutiliza `ModernVideoPlayerScreen` para reprodução (sem TheIntroDB)
 - Suporte a legendas `.srt` (prioridade PT-BR, detectada via `inspectFolder`)
 - TV: FocusableWidget nos sub-filmes
 
@@ -331,7 +331,7 @@ DownloadButton({
 ---
 
 ### SkipButton
-Botão de pular intro/outro (AniSkip).
+Botão de pular intro/outro (TheIntroDB).
 
 **Arquivo:** `lib/ui/core/widgets/skip_button.dart`
 

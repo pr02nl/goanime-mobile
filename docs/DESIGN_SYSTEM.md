@@ -313,8 +313,8 @@ ShimmerLoading({
 })
 ```
 
-### SkipButton (AniSkip)
-Botão para pular intro/outro com animação.
+### SkipButton (TheIntroDB)
+Botão para pular intro/outro com animação, integrado com a API TheIntroDB.
 
 ```dart
 SkipButton({

@@ -184,24 +184,25 @@ Remove tags como `[AnimeFire]`, indicadores de idioma, sufixos de episódios/tem
 
 ---
 
-## 3. AniSkip API
+## 3. TheIntroDB API
 
 **Uso:** Pular intro/outro automaticamente no player de vídeo.
 
 ### Base URL
 ```
-https://api.aniskip.com/v2
+https://api.theintrodb.org/v3
 ```
 
 ### Endpoint
 ```
-GET /skip-times/{anime_id}/{episode_number}?types[]=op&types[]=ed&episodeLength={seconds}
+GET /v3/media?tmdb_id={tmdb_id}&season_number={season_number}&episode_number={episode_number}
 ```
 
-### Estratégia de Busca
-1. Tenta com MAL ID se disponível
-2. Se falhar, tenta com AniList ID
-3. Retorna empty se nenhum ID funcionar
+### Funcionalidades
+- Cache em memória (respostas por `tmdbId`)
+- Suporte a séries (TV) com `season_number` e `episode_number`
+- Retorna segmentos de intro, créditos, recap e preview
+- Timeout de 10s por requisição
 
 ---
 
@@ -378,7 +379,7 @@ Stream<List<PauloFlixMovieProgressRecord>> watchInProgressMovies({
 | PauloFlixEpisodeProgressRepository | Drift (SQLite) | Progresso de episódios (animes) | Drift |
 | PauloFlixMovieProgressRepository | Drift (SQLite) | Progresso de filmes | Drift |
 | AniList | GraphQL | Metadados de animes | N/A |
-| AniSkip | REST | Skip intro/outro | N/A |
+| TheIntroDB | REST | Skip intro/outro | Sim (memória) |
 | TMDB | REST | Fallback de metadados | 30 min |
 | AnimeFire | Web scraping | Streaming de episódios | N/A |
 
