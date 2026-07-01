@@ -300,6 +300,12 @@ class AppLocalizations {
   String get preparingServer => locale.languageCode == 'pt'
       ? 'Preparando o melhor servidor para você'
       : 'Preparing the best server for you';
+  String get recoveringConnection => locale.languageCode == 'pt'
+      ? 'Recuperando conexão...'
+      : 'Recovering connection...';
+  String get reconnectingServer => locale.languageCode == 'pt'
+      ? 'Aguarde, restabelecendo conexão com o servidor'
+      : 'Please wait, reconnecting to the server';
   String get playerError =>
       locale.languageCode == 'pt' ? 'Erro no Player' : 'Player Error';
   String get serverInUse =>

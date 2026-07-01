@@ -1003,6 +1003,8 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   // ─── Loading overlay ───────────────────────────────────────────
 
   Widget _buildLoadingOverlay() {
+    final isBuffering = _waitingForBuffer;
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1032,7 +1034,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           ),
           const SizedBox(height: 16),
           Text(
-            AppLocalizations.of(context).loadingStream,
+            isBuffering
+                ? l10n.recoveringConnection
+                : l10n.loadingStream,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
@@ -1042,7 +1046,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           ),
           const SizedBox(height: 4),
           Text(
-            AppLocalizations.of(context).preparingServer,
+            isBuffering
+                ? l10n.reconnectingServer
+                : l10n.preparingServer,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.6),
               fontSize: 12,
