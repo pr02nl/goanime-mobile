@@ -183,7 +183,7 @@ class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
         _paused = true;
         _syncTimer?.cancel();
         _syncTimer = null;
-        AppLogger('BackgroundSync').debug('App paused — timer cancelado.');
+        const AppLogger('BackgroundSync').debug('App paused — timer cancelado.');
       },
       onResume: () {
         _paused = false;
@@ -197,7 +197,7 @@ class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
         );
         // Dispara um sync imediato ao retornar.
         _syncNow();
-        AppLogger('BackgroundSync').debug('App resumed — timer reiniciado.');
+        const AppLogger('BackgroundSync').debug('App resumed — timer reiniciado.');
       },
     );
   }
@@ -215,12 +215,12 @@ class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
     try {
       context.read<PauloFlixProvider>().syncContent();
     } catch (e) {
-      AppLogger('BackgroundSync').error('Erro no sync de animes', e);
+      const AppLogger('BackgroundSync').error('Erro no sync de animes', e);
     }
     try {
       context.read<PauloFlixMoviesProvider>().syncContent();
     } catch (e) {
-      AppLogger('BackgroundSync').error('Erro no sync de filmes', e);
+      const AppLogger('BackgroundSync').error('Erro no sync de filmes', e);
     }
   }
 

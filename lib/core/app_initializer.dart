@@ -57,12 +57,12 @@ class AppInitializer {
     final errors = <String>[];
     String? firstError;
 
-    final _log = const AppLogger('AppInitializer');
+    const log = AppLogger('AppInitializer');
 
     /// Loga o erro e o acumula na lista de falhas.
     /// [e] é a exceção lançada, [st] é o stack trace (opcional).
     void captureError(String label, Object e, [StackTrace? st]) {
-      _log.error(label, e, st);
+      log.error(label, e, st);
       final msg = '$label: $e';
       errors.add(msg);
       firstError ??= msg;
@@ -71,7 +71,7 @@ class AppInitializer {
     // ── 1. MediaKit ──────────────────────────────────────────────
     try {
       MediaKit.ensureInitialized();
-      _log.info('✓ MediaKit');
+      log.info('✓ MediaKit');
     } catch (e, st) {
       captureError('MediaKit', e, st);
     }
@@ -79,7 +79,7 @@ class AppInitializer {
     // ── 2. PerformanceConfig ─────────────────────────────────────
     try {
       PerformanceConfig.init();
-      _log.info('✓ PerformanceConfig');
+      log.info('✓ PerformanceConfig');
     } catch (e, st) {
       captureError('PerformanceConfig', e, st);
     }
@@ -87,18 +87,18 @@ class AppInitializer {
     // ── 3. TVDetector (cache eager) ──────────────────────────────
     try {
       final isTv = await TVDetector.isTV;
-      _log.info(
+      log.info(
         '✓ TVDetector (${isTv ? "TV" : "mobile"})',
       );
     } catch (e) {
-      _log.warning('⚠ TVDetector', e);
+      log.warning('⚠ TVDetector', e);
     }
 
     // ── 4. ThemeViewModel ────────────────────────────────────────
     final themeViewModel = ThemeViewModel();
     try {
       await themeViewModel.load();
-      _log.info('✓ ThemeViewModel');
+      log.info('✓ ThemeViewModel');
     } catch (e, st) {
       captureError('ThemeViewModel', e, st);
     }
@@ -107,7 +107,7 @@ class AppInitializer {
     final localeViewModel = LocaleViewModel();
     try {
       await localeViewModel.load();
-      _log.info('✓ LocaleViewModel');
+      log.info('✓ LocaleViewModel');
     } catch (e, st) {
       captureError('LocaleViewModel', e, st);
     }
@@ -118,11 +118,11 @@ class AppInitializer {
     // ══════════════════════════════════════════════════════════════
     String? jwtWarning;
     final jwtManager = JwtTokenManager();
-    _log.debug('▶ Inicializando JWT manager...');
+    log.debug('▶ Inicializando JWT manager...');
     http.Client? authClient;
     try {
       await jwtManager.initialize();
-      _log.info(
+      log.info(
         '✓ JWT manager OK. device_id=${jwtManager.deviceId}',
       );
       late final http.Client innerClient;
@@ -141,7 +141,7 @@ class AppInitializer {
       jwtWarning =
           'Falha ao autenticar com o servidor. '
           'Downloads e sincronização podem não funcionar. ($e)';
-      _log.error('✗ JWT manager', e);
+      log.error('✗ JWT manager', e);
     }
 
     // ── 7. AppDatabase + DownloadService ─────────────────────────
@@ -158,7 +158,7 @@ class AppInitializer {
         httpClient: authClient,
       );
       await downloadService.initialize();
-      _log.info('✓ AppDatabase + DownloadService');
+      log.info('✓ AppDatabase + DownloadService');
     } catch (e, st) {
       captureError('AppDatabase', e, st);
       rethrow;
@@ -168,17 +168,17 @@ class AppInitializer {
     if (authClient != null) {
       PauloFlixService.configure(authClient);
       PauloFlixMoviesService.configure(authClient);
-      _log.info(
+      log.info(
         '✓ Auth client configurado em services PauloFlix.',
       );
     } else {
-      _log.warning(
+      log.warning(
         '⚠ Sem authClient — services usam http.Client() default.',
       );
     }
 
     if (errors.isNotEmpty) {
-      _log.warning(
+      log.warning(
         '⚠ Inicialização concluída com ${errors.length} erro(s).',
       );
     }

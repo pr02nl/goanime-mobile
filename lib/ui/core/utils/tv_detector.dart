@@ -32,7 +32,7 @@ class TVDetector {
       final bool? isTV = await platform.invokeMethod('isTV');
       return isTV ?? _detectTVFallback();
     } catch (e) {
-      AppLogger('TVDetector').warning('Platform channel failed', e);
+      const AppLogger('TVDetector').warning('Platform channel failed', e);
       return _detectTVFallback();
     }
   }

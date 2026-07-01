@@ -182,7 +182,7 @@ class _FocusableWidgetState extends State<FocusableWidget>
             onInvoke: (intent) {
               final custom = widget.directionalAction;
               if (custom != null) {
-                AppLogger('FocusableWidget').debug(
+                const AppLogger('FocusableWidget').debug(
                   'using custom directional action: '
                   '${custom.runtimeType} (hashCode=${custom.hashCode}) '
                   'for direction=${intent.direction}',

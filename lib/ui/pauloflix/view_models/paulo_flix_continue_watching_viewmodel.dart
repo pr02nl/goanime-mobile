@@ -42,7 +42,7 @@ class PauloFlixContinueWatchingViewModel extends ChangeNotifier {
     _sub = _repository.watchInProgressContents(limit: _limit).listen(
       _onUpdate,
       onError: (Object e, StackTrace st) {
-        AppLogger('ContinueWatching').error('Stream error', e);
+        const AppLogger('ContinueWatching').error('Stream error', e);
       },
     );
   }
@@ -61,7 +61,7 @@ class PauloFlixContinueWatchingViewModel extends ChangeNotifier {
       try {
         _statsById = await _repository.getProgressStatsForContents(ids);
       } catch (e) {
-        AppLogger('ContinueWatching').error('Erro ao buscar stats', e);
+        const AppLogger('ContinueWatching').error('Erro ao buscar stats', e);
         _statsById = const {};
       }
     } else {

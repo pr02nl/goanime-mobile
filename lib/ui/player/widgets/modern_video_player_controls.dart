@@ -277,21 +277,21 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           error.contains('HTTP error 5') ||
           // Connection timed out: sem resposta (pode ser transiente).
           error.contains('Connection timed out')) {
-        AppLogger('PlayerControls').debug(
+        const AppLogger('PlayerControls').debug(
           'Ignoring transient network error: $error',
         );
         return;
       }
 
       if (mounted && error.isNotEmpty) {
-        AppLogger('PlayerControls').error('Player error', error);
+        const AppLogger('PlayerControls').error('Player error', error);
 
         if (_waitingForBuffer) {
           // Já estamos em modo de recuperação de buffer. O timer de
           // grace period (_bufferRecoveryTimer) vai decidir quando
           // mostrar o erro. Não sobrescrever o loading com error
           // overlay — a rede pode voltar.
-          AppLogger('PlayerControls').debug(
+          const AppLogger('PlayerControls').debug(
             '⏳ Deferring error — buffer recovery in progress',
           );
           return;
@@ -313,7 +313,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           // loading e inicia timer de grace period.
           // Se o buffer recuperar antes do timeout, retoma
           // automaticamente. Se não, mostra erro.
-          AppLogger('PlayerControls').debug('⏸ Buffer drained during playback');
+          const AppLogger('PlayerControls').debug('⏸ Buffer drained during playback');
           _waitingForBuffer = true;
           _startBufferRecoveryTimer();
           widget.player.pause();
@@ -409,7 +409,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _bufferRecoveryTimer?.cancel();
     _bufferRecoveryTimer = Timer(_kBufferRecoveryTimeout, () {
       if (!mounted) return;
-      AppLogger('PlayerControls').warning(
+      const AppLogger('PlayerControls').warning(
         '⏰ Buffer recovery timeout ({_kBufferRecoveryTimeout.inSeconds}s) — showing error',
       );
       _waitingForBuffer = false;
@@ -436,7 +436,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     if (!_waitingForBuffer) return;
     if (!isBufferSufficient(_buffer, _duration, _position)) return;
 
-    AppLogger('PlayerControls').debug(
+    const AppLogger('PlayerControls').debug(
       '▶ Buffer sufficient (${_buffer.inSeconds}s), resuming playback',
     );
     _cancelBufferRecoveryTimer();
@@ -743,7 +743,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
               }
           }
         } catch (e) {
-          AppLogger('PlayerControls').warning('Failed to set subtitle track', e);
+          const AppLogger('PlayerControls').warning('Failed to set subtitle track', e);
         }
         if (sheetContext.mounted) Navigator.pop(sheetContext);
       },

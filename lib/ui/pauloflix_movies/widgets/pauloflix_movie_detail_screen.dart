@@ -52,7 +52,7 @@ class _PauloFlixMovieDetailScreenState
         if (mounted) setState(() => _progress = progress);
       }
     } catch (e) {
-      AppLogger('MovieDetailScreen').error('Erro ao carregar progresso', e);
+      const AppLogger('MovieDetailScreen').error('Erro ao carregar progresso', e);
     }
   }
 

@@ -35,7 +35,7 @@ class PauloFlixMovieContinueWatchingViewModel extends ChangeNotifier {
     _sub = _repository.watchInProgressMovies(limit: _limit).listen(
       _onUpdate,
       onError: (Object e, StackTrace st) {
-        AppLogger('MovieContinueWatching').error('Stream error', e);
+        const AppLogger('MovieContinueWatching').error('Stream error', e);
       },
     );
   }

@@ -118,7 +118,7 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     try {
       return await _repository.searchByName(q);
     } catch (e) {
-      AppLogger('PauloFlixMoviesProvider').warning('searchByName falhou', e);
+      const AppLogger('PauloFlixMoviesProvider').warning('searchByName falhou', e);
       return const [];
     }
   }

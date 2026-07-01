@@ -132,11 +132,11 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
           setState(() => _progressMap = map);
         },
         onError: (Object e, StackTrace st) {
-          AppLogger('MoviesHomeScreen').error('Stream error', e);
+          const AppLogger('MoviesHomeScreen').error('Stream error', e);
         },
       );
     } catch (e) {
-      AppLogger('MoviesHomeScreen').error('Erro ao assinar stream de progresso', e);
+      const AppLogger('MoviesHomeScreen').error('Erro ao assinar stream de progresso', e);
     }
   }
 

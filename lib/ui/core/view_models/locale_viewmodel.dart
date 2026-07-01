@@ -28,7 +28,7 @@ class LocaleViewModel extends ChangeNotifier {
       _initialized = true;
       notifyListeners();
     } catch (e) {
-      AppLogger('LocaleViewModel').error('load failed', e);
+      const AppLogger('LocaleViewModel').error('load failed', e);
       _initialized = true;
     }
   }
@@ -41,7 +41,7 @@ class LocaleViewModel extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_localeKey, locale.languageCode);
     } catch (e) {
-      AppLogger('LocaleViewModel').error('setLocale failed', e);
+      const AppLogger('LocaleViewModel').error('setLocale failed', e);
     }
   }
 

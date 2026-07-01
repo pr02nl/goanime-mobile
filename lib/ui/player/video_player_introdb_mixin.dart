@@ -77,20 +77,20 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
     int? seasonNumber,
     int? episodeNumber,
   }) async {
-    final _log = const AppLogger('IntroDb');
+    const log = AppLogger('IntroDb');
 
     final requestKey = activeEpisodeKey;
     if (!isActiveEpisode(requestKey)) {
-      _log.debug('Skipping load - episode changed.');
+      log.debug('Skipping load - episode changed.');
       return;
     }
 
     if (tmdbId == null) {
-      _log.debug('No tmdbId available');
+      log.debug('No tmdbId available');
       return;
     }
 
-    _log.debug(
+    log.debug(
       'Fetching segments for tmdbId=$tmdbId '
       'season=$seasonNumber episode=$episodeNumber',
     );
@@ -115,15 +115,15 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
 
         if (isActiveEpisode(requestKey)) {
           if (result != null && result.hasAnySegment) {
-            _log.debug('Segments loaded successfully!');
+            log.debug('Segments loaded successfully!');
             startPositionTimer();
           } else {
-            _log.debug('No segments found for this media');
+            log.debug('No segments found for this media');
           }
         }
       }
     } catch (e) {
-      _log.error('Error loading segments', e);
+      log.error('Error loading segments', e);
     }
   }
 

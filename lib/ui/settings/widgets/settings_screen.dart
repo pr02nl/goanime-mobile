@@ -351,7 +351,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
       } catch (e) {
         errors.add('Animes: $e');
-        AppLogger('SettingsScreen').error('Erro no sync de animes', e);
+        const AppLogger('SettingsScreen').error('Erro no sync de animes', e);
       }
 
       try {
@@ -361,7 +361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
       } catch (e) {
         errors.add('Filmes: $e');
-        AppLogger('SettingsScreen').error('Erro no sync de filmes', e);
+        const AppLogger('SettingsScreen').error('Erro no sync de filmes', e);
       }
 
       if (mounted) {
