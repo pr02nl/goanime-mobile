@@ -184,6 +184,78 @@ void main() {
   // ÍNDICES V14 (existentes) — regressão
   // ═══════════════════════════════════════════════════════════════
 
+  // ═══════════════════════════════════════════════════════════════
+  // JOIN episódios + seasons — queries faltantes
+  // ═══════════════════════════════════════════════════════════════
+
+  test('getStatsForContent: JOIN episodes+seasons WHERE content_id usa índices',
+      () async {
+    final rows = await explain(
+      db,
+      'SELECT COUNT(*) AS total, '
+      '  COALESCE(SUM(CASE WHEN e.is_completed = 1 THEN 1 ELSE 0 END), 0) '
+      '    AS completed, '
+      '  COALESCE(SUM(CASE WHEN e.position_seconds > 0 AND e.is_completed = 0 '
+      '           THEN 1 ELSE 0 END), 0) AS in_progress '
+      'FROM paulo_flix_episodes e '
+      'INNER JOIN paulo_flix_seasons s ON e.season_id = s.id '
+      'WHERE s.content_id = ?1',
+      variables: [Variable.withInt(1)],
+    );
+    // e.season_id → idx_episodes_season_number (primeira coluna = season_id)
+    // s.content_id é filtro WHERE, mas o SQLite pode escolher
+    // começar por episodes (via idx_episodes_season_number) e
+    // buscar seasons por PK — o que é igualmente eficiente.
+    expectNoFullScan(rows, 'paulo_flix_episodes');
+    expectNoFullScan(rows, 'paulo_flix_seasons');
+  });
+
+  test('getProgressStatsForContents: JOIN episodes+seasons WHERE IN usa índices',
+      () async {
+    final rows = await explain(
+      db,
+      'SELECT s.content_id AS cid, '
+      '  COUNT(*) AS total, '
+      '  COALESCE(SUM(CASE WHEN e.is_completed = 1 THEN 1 ELSE 0 END), 0) '
+      '    AS completed, '
+      '  COALESCE(SUM(CASE WHEN e.position_seconds > 0 AND e.is_completed = 0 '
+      '           THEN 1 ELSE 0 END), 0) AS in_progress '
+      'FROM paulo_flix_episodes e '
+      'INNER JOIN paulo_flix_seasons s ON e.season_id = s.id '
+      'WHERE s.content_id IN (?1, ?2, ?3) '
+      'GROUP BY s.content_id',
+      variables: [
+        Variable.withInt(1),
+        Variable.withInt(2),
+        Variable.withInt(3),
+      ],
+    );
+    expectIndexUsed(rows, 'idx_seasons_content');
+    expectIndexUsed(rows, 'idx_episodes_season_number');
+  });
+
+  test('getLatestInProgressEpisodeForContent: JOIN + pos/completed + ORDER BY usa índices',
+      () async {
+    final rows = await explain(
+      db,
+      'SELECT e.* FROM paulo_flix_episodes e '
+      'INNER JOIN paulo_flix_seasons s ON e.season_id = s.id '
+      'WHERE s.content_id = ?1 '
+      '  AND e.position_seconds > 0 '
+      '  AND e.is_completed = 0 '
+      'ORDER BY e.last_watched DESC '
+      'LIMIT 1',
+      variables: [Variable.withInt(1)],
+    );
+    // SQLite começa por episodes (idx_episodes_in_progress filtra
+    // is_completed=0 AND position_seconds>0) e busca seasons por PK.
+    // Isso é mais eficiente que começar por idx_seasons_content,
+    // pois reduz o conjunto antes do JOIN.
+    expectIndexUsed(rows, 'idx_episodes_in_progress');
+    expectNoFullScan(rows, 'paulo_flix_episodes');
+    expectNoFullScan(rows, 'paulo_flix_seasons');
+  });
+
   test('idx_episodes_in_progress: watchInProgressContents usa o índice',
       () async {
     final rows = await explain(
