@@ -46,16 +46,6 @@ import 'jwt_token_manager.dart';
 /// **Importante:** este wrapper **delega** para um [CacheManager]
 /// interno (default do `cached_network_image`). Não duplica
 /// lógica de cache — só adiciona o header de auth.
-///
-/// **Por que `implements ImageCacheManager`:** o `CachedNetworkImage`
-/// valida (via `assert` em debug) que quando `maxWidthDiskCache` ou
-/// `maxHeightDiskCache` são passados (ex: `NetflixCard` define-os
-/// quando `width`/`height` são finitos), o `cacheManager` DEVE
-/// implementar `ImageCacheManager` (mixin) OU os max* são null.
-/// Sem isto, o `NetflixCard` (cards de seção) lança `AssertionError`
-/// que vira `errorWidget` cinza — mas o `NetflixHeroCard` (hero,
-/// `width: double.infinity`) e `PaginatedLetterGrid` (grid, `width:
-/// double.infinity`) funcionam porque não passam max*.
 class AuthenticatedCacheManager implements BaseCacheManager, ImageCacheManager {
   AuthenticatedCacheManager(this._tokenManager, {BaseCacheManager? inner})
     : _inner = inner ?? CacheManager(Config(_kCacheKey));
@@ -85,6 +75,23 @@ class AuthenticatedCacheManager implements BaseCacheManager, ImageCacheManager {
   // ════════════════════════════════════════════════════════════════════════
   // Override dos métodos públicos para injetar o header
   // ════════════════════════════════════════════════════════════════════════
+
+  @override
+  @Deprecated('Prefer getFileStream — mantido apenas para compatibilidade com BaseCacheManager')
+  Stream<FileInfo> getFile(
+    String url, {
+    String? key,
+    Map<String, String>? headers,
+  }) async* {
+    // O método é abstrato em BaseCacheManager. Delegamos para
+    // getFileStream e filtramos apenas FileInfo (ignorando
+    // DownloadProgress).
+    await for (final response in getFileStream(url, key: key, headers: headers)) {
+      if (response is FileInfo) {
+        yield response;
+      }
+    }
+  }
 
   @override
   Future<file_pkg.File> getSingleFile(
@@ -119,23 +126,6 @@ class AuthenticatedCacheManager implements BaseCacheManager, ImageCacheManager {
       key: key,
       headers: h,
       withProgress: withProgress,
-    )) {
-      yield result;
-    }
-  }
-
-  @override
-  @Deprecated('Prefer to use the new getFileStream method')
-  Stream<FileInfo> getFile(
-    String url, {
-    String? key,
-    Map<String, String>? headers,
-  }) async* {
-    final h = await _injectAuth(headers);
-    await for (final result in _inner.getFile(
-      url,
-      key: key ?? url,
-      headers: h ?? const {},
     )) {
       yield result;
     }

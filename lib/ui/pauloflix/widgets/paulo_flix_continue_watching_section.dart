@@ -28,7 +28,6 @@
 /// ```
 library;
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../domain/models/paulo_flix_progress_stats.dart';
@@ -123,7 +122,3 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
     );
   }
 }
-
-// CachedNetworkImage importado para uso futuro.
-// ignore: unused_element
-const _kKeepImports = CachedNetworkImage;

@@ -8,7 +8,7 @@
 // Ver plano `.hermes/plans/2026-06-23_225500-pauloflix-nfo-enrichment-v2.md`.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:goanime/core/utils/url_codec.dart';
+import 'package:goanime/core/utils/episode_utils.dart';
 
 void main() {
   // ============================================================
