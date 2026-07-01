@@ -659,7 +659,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            _buildLayout(),
+            if (!showLoading) _buildLayout(),
             if (showLoading) _buildLoadingOverlay(),
             if (showError) _buildErrorOverlay(),
           ],
@@ -848,59 +848,53 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   // ─── Loading overlay ───────────────────────────────────────────
 
   Widget _buildLoadingOverlay() {
-    return SizedBox.expand(
-      child: Container(
-        color: Colors.black,
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: AppColors.getPrimaryGradient(),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryShadow,
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: AppColors.getPrimaryGradient(),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryShadow,
+                  blurRadius: 20,
+                  spreadRadius: 5,
                 ),
-                child: const SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 3,
-                  ),
-                ),
+              ],
+            ),
+            child: const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 3,
               ),
-              const SizedBox(height: 16),
-              Text(
-                AppLocalizations.of(context).loadingStream,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                AppLocalizations.of(context).preparingServer,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            AppLocalizations.of(context).loadingStream,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            AppLocalizations.of(context).preparingServer,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.6),
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
