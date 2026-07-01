@@ -337,7 +337,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     cleanupIntroDb();
     skipButtonActiveSegment = null;
     skipButtonDismissed = false;
-    lastAutoHideTime = null;
+    maybeReshowSkipButton();
     showSkipButton = false;
     skipButtonLabel = '';
     _initializeVideoPlayer();
@@ -1067,6 +1067,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                 onBack: _exitPlayer,
                 skipLabel: showSkipButton ? skipButtonLabel : null,
                 onSkip: showSkipButton ? skipIntroOutro : null,
+                onControlsVisible: () {
+                  if (mounted) maybeReshowSkipButton();
+                },
                 onRetry: _initializeVideoPlayer,
                 onPlayerError: _stopProgressServices,
                 onClose: _exitPlayer,

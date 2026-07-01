@@ -68,6 +68,12 @@ class ModernVideoPlayerControls extends StatefulWidget {
   /// progresso salvo.
   final VoidCallback? onPlayerError;
 
+  /// Callback disparado quando os controles se tornam visíveis
+  /// (ex.: usuário toca na tela ou pressiona uma tecla).
+  /// Usado pela screen para reexibir o botão skip via
+  /// [VideoPlayerIntroDbMixin.maybeReshowSkipButton].
+  final VoidCallback? onControlsVisible;
+
   /// Callback para fechar o player.
   final VoidCallback? onClose;
 
@@ -90,6 +96,7 @@ class ModernVideoPlayerControls extends StatefulWidget {
     this.onRetry,
     this.onPlayerError,
     this.onClose,
+    this.onControlsVisible,
     this.autoHideDuration,
     this.externalSubtitleTracks,
   });
@@ -391,6 +398,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     if (!_isVisible) {
       setState(() => _isVisible = true);
       focusNode.requestFocus();
+      widget.onControlsVisible?.call();
     }
     _autoHideTimer = Timer(_autoHide, _hide);
   }

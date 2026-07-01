@@ -44,16 +44,25 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
   /// Se o usuário já dispensou o botão de skip manualmente.
   bool skipButtonDismissed = false;
 
-  /// Timestamp do último auto-hide.
-  DateTime? lastAutoHideTime;
-
   /// Chave de identificação do episódio ativo (evita race conditions
   /// em trocas rápidas de episódio).
   String? activeEpisodeKey;
 
   static const double skipLeadSeconds = 3.0;
   static const double skipHoldSeconds = 2.0;
-  static const Duration skipAutoHideDuration = Duration(seconds: 15);
+  /// Tempo que o botão skip fica visível antes de auto-esconder.
+  static const Duration skipAutoHideDuration = Duration(seconds: 10);
+
+  /// `true` após o primeiro auto-hide do botão skip. Enquanto `true`,
+  /// o timer de 500ms não reexibe o botão — ele só volta a aparecer
+  /// quando os controles do player são explicitamente mostrados
+  /// (via [maybeReshowSkipButton]).
+  bool _skipButtonAutoHidden = false;
+
+  /// Getter visível apenas para testes — permite verificar o estado
+  /// interno do flag de auto-hide sem expô-lo na API pública.
+  @visibleForTesting
+  bool get skipButtonAutoHidden => _skipButtonAutoHidden;
 
   /// Verifica se o episódio identificado por [key] ainda é o ativo.
   bool isActiveEpisode(String? key);
@@ -108,7 +117,7 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
           _introDbSegments = result;
           skipButtonActiveSegment = null;
           skipButtonDismissed = false;
-          lastAutoHideTime = null;
+          _skipButtonAutoHidden = false;
           showSkipButton = false;
           skipButtonLabel = '';
         });
@@ -205,7 +214,7 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
       skipButtonActiveSegment = activeSegment;
       if (activeSegment != null) {
         skipButtonDismissed = false;
-        lastAutoHideTime = null;
+        _skipButtonAutoHidden = false;
       }
     }
 
@@ -216,6 +225,7 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
           skipButtonLabel = '';
         });
       }
+      _skipButtonAutoHidden = false;
       return;
     }
 
@@ -229,19 +239,16 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
       return;
     }
 
-    if (lastAutoHideTime != null) {
-      final timeSinceAutoHide = DateTime.now().difference(lastAutoHideTime!);
-      if (timeSinceAutoHide.inSeconds < 30) {
-        if (showSkipButton) {
-          setState(() {
-            showSkipButton = false;
-            skipButtonLabel = '';
-          });
-        }
-        return;
-      } else {
-        lastAutoHideTime = null;
+    // Após o primeiro auto-hide, o botão só reaparece quando os
+    // controles do player são explicitamente mostrados.
+    if (_skipButtonAutoHidden) {
+      if (showSkipButton) {
+        setState(() {
+          showSkipButton = false;
+          skipButtonLabel = '';
+        });
       }
+      return;
     }
 
     if (!showSkipButton || label != skipButtonLabel) {
@@ -315,12 +322,23 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
           !mounted) {
         return;
       }
-      lastAutoHideTime = DateTime.now();
+      _skipButtonAutoHidden = true;
       setState(() {
         showSkipButton = false;
         skipButtonLabel = '';
       });
     });
+  }
+
+  /// Reabilita a exibição do botão skip após auto-hide.
+  ///
+  /// Chamado quando os controles do player são mostrados
+  /// (ex.: usuário toca na tela ou pressiona uma tecla)
+  /// ou ao trocar de episódio (via `_replaceEpisode`).
+  /// O próximo tick do timer de 500ms reavalia se o botão
+  /// deve aparecer com base na posição atual.
+  void maybeReshowSkipButton() {
+    _skipButtonAutoHidden = false;
   }
 
   // ─── Cleanup ───────────────────────────────────────────────────
