@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../../core/logger/app_logger.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
@@ -309,7 +311,7 @@ class DownloadService extends ChangeNotifier {
         );
         downloadIds.add(id);
       } catch (e) {
-        debugPrint('Failed to add episode ${episode['number']}: $e');
+        AppLogger('Download').error('Failed to add episode ${episode['number']}', e);
       }
     }
 
@@ -368,7 +370,7 @@ class DownloadService extends ChangeNotifier {
       // Start the download (PauloFlix URLs are direct file URLs)
       await _downloadHttp(id);
     } catch (e) {
-      debugPrint('Download error for $id: $e');
+      AppLogger('Download').error('Download error for $id', e);
       _downloads[id] = download.copyWith(
         status: DownloadStatus.failed,
         error: e.toString(),
@@ -390,9 +392,9 @@ class DownloadService extends ChangeNotifier {
       return;
     }
 
-    debugPrint('[Download] Starting download for $id');
-    debugPrint('[Download] Episode URL: ${download.videoUrl}');
-    debugPrint('[Download] Anime ID: ${download.animeId}');
+    AppLogger('Download').debug('Starting download for $id');
+    AppLogger('Download').debug('Episode URL: ${download.videoUrl}');
+    AppLogger('Download').debug('Anime ID: ${download.animeId}');
 
     // PauloFlix URLs are direct MKV/MP4 file URLs — no resolution needed.
     final String actualVideoUrl = download.videoUrl;
@@ -410,7 +412,7 @@ class DownloadService extends ChangeNotifier {
 
     final fileName = 'Episode_${download.episodeNumber}.mp4';
     final filePath = path.join(animeDir.path, fileName);
-    debugPrint('[Download] Saving to: $filePath');
+    AppLogger('Download').debug('Saving to: $filePath');
 
     // Set filePath immediately so cancel/retry can clean up partial file
     _downloads[id] = _downloads[id]!.copyWith(filePath: filePath);
@@ -423,18 +425,18 @@ class DownloadService extends ChangeNotifier {
 
     try {
       // Get content length first
-      debugPrint('[Download] Getting content length...');
+      AppLogger('Download').debug('Getting content length...');
       final headResponse = await client
           .head(Uri.parse(actualVideoUrl))
           .timeout(const Duration(seconds: 30));
       final totalBytes =
           int.tryParse(headResponse.headers['content-length'] ?? '0') ?? 0;
-      debugPrint(
-        '[Download] Total size: $totalBytes bytes (${(totalBytes / 1024 / 1024).toStringAsFixed(2)} MB)',
+      AppLogger('Download').debug(
+        'Total size: $totalBytes bytes (${(totalBytes / 1024 / 1024).toStringAsFixed(2)} MB)',
       );
 
       // Start streaming download
-      debugPrint('[Download] Starting stream...');
+      AppLogger('Download').debug('Starting stream...');
       final request = http.Request('GET', Uri.parse(actualVideoUrl));
       final response = await client
           .send(request)
@@ -492,8 +494,8 @@ class DownloadService extends ChangeNotifier {
 
         if (shouldSave) {
           lastSaveBytes = bytesDownloaded;
-          debugPrint(
-            '[Download] Progress: ${(progress * 100).toStringAsFixed(1)}% (${(bytesDownloaded / 1024 / 1024).toStringAsFixed(2)} MB)',
+          AppLogger('Download').debug(
+            'Progress: ${(progress * 100).toStringAsFixed(1)}% (${(bytesDownloaded / 1024 / 1024).toStringAsFixed(2)} MB)',
           );
           await _repository.save(_downloads[id]!);
         }
@@ -502,8 +504,8 @@ class DownloadService extends ChangeNotifier {
       await sink.flush();
       await sink.close();
 
-      debugPrint('[Download] Download completed: $id');
-      debugPrint('[Download] File saved to: $filePath');
+      AppLogger('Download').debug('Download completed: $id');
+      AppLogger('Download').debug('File saved to: $filePath');
 
       // Download completed
       _downloads[id] = _downloads[id]!.copyWith(
@@ -653,14 +655,14 @@ class DownloadService extends ChangeNotifier {
         try {
           directory = await getExternalStorageDirectory();
         } catch (e) {
-          debugPrint('[DownloadService] External storage not available: $e');
+          AppLogger('Download').warning('External storage not available', e);
         }
 
         // Fallback to app documents for Android TV compatibility
         if (directory == null) {
           directory = await getApplicationDocumentsDirectory();
-          debugPrint(
-            '[DownloadService] Using app documents directory (Android TV mode)',
+          AppLogger('Download').debug(
+            'Using app documents directory (Android TV mode)',
           );
         }
 
@@ -680,7 +682,7 @@ class DownloadService extends ChangeNotifier {
         return downloadDir;
       }
     } catch (e) {
-      debugPrint('[DownloadService] Failed to get download directory: $e');
+      AppLogger('Download').error('Failed to get download directory', e);
       return null;
     }
   }

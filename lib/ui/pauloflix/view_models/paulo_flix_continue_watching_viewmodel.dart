@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/logger/app_logger.dart';
 import '../../../domain/models/paulo_flix_progress_stats.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
@@ -41,7 +42,7 @@ class PauloFlixContinueWatchingViewModel extends ChangeNotifier {
     _sub = _repository.watchInProgressContents(limit: _limit).listen(
       _onUpdate,
       onError: (Object e, StackTrace st) {
-        debugPrint('[ContinueWatching] Stream error: $e');
+        AppLogger('ContinueWatching').error('Stream error', e);
       },
     );
   }
@@ -60,7 +61,7 @@ class PauloFlixContinueWatchingViewModel extends ChangeNotifier {
       try {
         _statsById = await _repository.getProgressStatsForContents(ids);
       } catch (e) {
-        debugPrint('[ContinueWatching] Erro ao buscar stats: $e');
+        AppLogger('ContinueWatching').error('Erro ao buscar stats', e);
         _statsById = const {};
       }
     } else {

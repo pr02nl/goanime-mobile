@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/logger/app_logger.dart';
 import '../../domain/models/pauloflix_movie.dart';
 import '../../domain/repositories/pauloflix_movies_repository.dart';
 
@@ -79,9 +79,9 @@ class PauloFlixMoviesService {
         final prefs = await SharedPreferences.getInstance();
         final lastUpdatedAt = prefs.getString(_lastUpdatedAtKey);
         if (serverUpdatedAt == lastUpdatedAt) {
-          debugPrint(
-            '[PauloFlix Movies] Índice não mudou desde a última sync — pulando.',
-          );
+          const AppLogger(
+            'PauloFlixMoviesService',
+          ).debug('Índice não mudou desde a última sync — pulando.');
           return true;
         }
       }
@@ -135,7 +135,7 @@ class PauloFlixMoviesService {
       onProgress?.call('Sincronização completa: $totalAvailable filmes');
       return true;
     } catch (e) {
-      debugPrint('[PauloFlix Movies] syncContent error: $e');
+      const AppLogger('PauloFlixMoviesService').error('syncContent error', e);
       onError?.call('Erro na sincronização: $e');
       return false;
     }

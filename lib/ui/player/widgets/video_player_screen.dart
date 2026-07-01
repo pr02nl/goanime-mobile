@@ -17,6 +17,7 @@ import '../../../domain/models/paulo_flix_episode_record.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../core/logger/app_logger.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/utils/tv_detector.dart';
 import '../video_player_introdb_mixin.dart';
@@ -76,6 +77,8 @@ class ModernVideoPlayerScreen extends StatefulWidget {
 
 class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     with VideoPlayerIntroDbMixin {
+  final _log = const AppLogger('VideoPlayer');
+
   late final _player = Player(
     configuration: const PlayerConfiguration(logLevel: MPVLogLevel.info),
   );
@@ -390,14 +393,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       _savedPositionSeconds = saved.positionSeconds;
       _savedDurationSeconds = saved.durationSeconds;
       _savedIsCompleted = saved.isCompleted;
-      debugPrint(
-        '[VideoPlayer] Saved progress: '
+      _log.debug(
+        'Saved progress: '
         'pos=${saved.positionSeconds}s '
         'dur=${saved.durationSeconds}s '
         'completed=${saved.isCompleted}',
       );
     } catch (e) {
-      debugPrint('[VideoPlayer] Failed to load saved progress: $e');
+      _log.error('Failed to load saved progress', e);
       _savedPositionSeconds = null;
       _savedDurationSeconds = null;
       _savedIsCompleted = false;
@@ -427,7 +430,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       getCurrentPosition: _getCurrentPosition,
       getDuration: _getCurrentDuration,
     );
-    debugPrint('[VideoPlayer] Progress service started (timer 5s)');
+    _log.debug('Progress service started (timer 5s)');
   }
 
   /// Flush do progresso (último save + cancela timer). Chamado em
@@ -477,8 +480,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         _savedPositionSeconds = saved.positionSeconds;
         _savedDurationSeconds = saved.durationSeconds;
         _savedIsCompleted = saved.isCompleted;
-        debugPrint(
-          '[VideoPlayer] Movie saved progress: '
+        _log.debug(
+          'Movie saved progress: '
           'pos=${saved.positionSeconds}s '
           'dur=${saved.durationSeconds}s '
           'completed=${saved.isCompleted}',
@@ -489,7 +492,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         _savedIsCompleted = false;
       }
     } catch (e) {
-      debugPrint('[VideoPlayer] Failed to load movie progress: $e');
+      _log.error('Failed to load movie progress', e);
       _savedPositionSeconds = null;
       _savedDurationSeconds = null;
       _savedIsCompleted = false;
@@ -517,7 +520,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       getCurrentPosition: _getCurrentPosition,
       getDuration: _getCurrentDuration,
     );
-    debugPrint('[VideoPlayer] Movie progress service started (timer 5s)');
+    _log.debug('Movie progress service started (timer 5s)');
   }
 
   /// Flush do progresso do filme (último save + cancela timer).
@@ -541,7 +544,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     _progressService?.stop();
     _movieProgressService?.stop();
     cleanupIntroDb();
-    debugPrint('[VideoPlayer] ⏹ All timers stopped (player error)');
+    _log.debug('⏹ All timers stopped (player error)');
   }
 
   /// Configura as stream subscriptions persistentes uma ÚNICA vez.
@@ -552,7 +555,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     if (_streamSubsReady) return;
     _streamSubsReady = true;
 
-    debugPrint('[VideoPlayer] Setting up persistent stream subscriptions');
+    _log.debug('Setting up persistent stream subscriptions');
 
     // Tracks de áudio/vídeo/legenda (debug + áudio PT-BR).
     _debugTracksSub = _player.stream.tracks.listen((event) {
@@ -566,13 +569,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           audiosBr = st;
           return;
         }
-        debugPrint('audios language: ${st.language}');
+        _log.debug('audios language: ${st.language}');
       }
     });
 
     // Debug: estado de playing.
     _playingSub = _player.stream.playing.listen((playing) {
-      debugPrint('[VideoPlayer] Playing state: $playing');
+      _log.debug('Playing state: $playing');
     });
 
     // Completed: auto-play próximo episódio.
@@ -580,7 +583,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     // `end-file(reason=error)` do mpv inicie o próximo episódio enquanto
     // o usuário vê o overlay de erro.
     _completedSub = _player.stream.completed.listen((completed) {
-      debugPrint('[VideoPlayer] Completed: $completed');
+      _log.debug('Completed: $completed');
       if (!mounted || !completed || _hasPlayerError) return;
       _findAndPlayNextEpisode();
     });
@@ -623,18 +626,18 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     }
 
     timeoutTimer = Timer(const Duration(seconds: 2), () {
-      debugPrint('[VideoPlayer] Tracks stream timeout (2s)');
+      _log.debug('Tracks stream timeout (2s)');
       finish();
     });
 
     try {
       sub = player.stream.tracks.listen((t) {
-        debugPrint(
-          '[VideoPlayer] Embedded subtitle tracks: ${t.subtitle.length}',
+        _log.debug(
+          'Embedded subtitle tracks: ${t.subtitle.length}',
         );
         for (final st in t.subtitle) {
-          debugPrint(
-            '[VideoPlayer]   embed: id=${st.id}, '
+          _log.debug(
+            '  embed: id=${st.id}, '
             'title=${st.title}, lang=${st.language}',
           );
         }
@@ -650,7 +653,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       _tracksSub = sub;
       await completer.future;
     } catch (e) {
-      debugPrint('[VideoPlayer] Error waiting for embedded tracks: $e');
+      _log.error('Error waiting for embedded tracks', e);
     }
   }
 
@@ -658,7 +661,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     if (_disposed || !mounted) return;
 
     final episodeKey = _buildEpisodeKey();
-    debugPrint('[VideoPlayer] 🎬 Initializing player for episode: $episodeKey');    // ═══════════════════════════════════════════════════════════════════
+    _log.debug('🎬 Initializing player for episode: $episodeKey');    // ═══════════════════════════════════════════════════════════════════
     // Paraleliza tarefas independentes no início da inicialização:
     // 1. DB read (progresso salvo do episódio/filme)  — 5-50ms
     // 2. TV detection (já iniciada em initState)       — 10-100ms
@@ -690,16 +693,16 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       String resolvedVideoUrl;
 
       // Verificar se é PauloFlix (URL direta do arquivo MKV)
-      debugPrint('[VideoPlayer] PauloFlix: Using direct URL');
+      _log.debug('PauloFlix: Using direct URL');
       resolvedVideoUrl = _currentEpisode.url;
 
-      debugPrint('Using playback headers: $_currentVideoHeaders');
+      _log.debug('Using playback headers: $_currentVideoHeaders');
 
       // Aguarda a Surface Android estar pronta antes de abrir a mídia
       await _player.platform?.waitForVideoControllerInitializationIfAttached
           .timeout(
             const Duration(seconds: 5),
-            onTimeout: () => debugPrint('[VideoPlayer] Surface init timeout'),
+            onTimeout: () => _log.debug('Surface init timeout'),
           );
 
       // Subs persistentes (_playingSub, _completedSub) já foram
@@ -749,17 +752,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         try {
           final token = await jwtFuture ?? '';
           mergedHeaders['Authorization'] = 'Bearer $token';
-          debugPrint(
-            '[VideoPlayer] ✓ JWT injetado no header do player (PauloFlix)',
+          _log.debug(
+            '✓ JWT injetado no header do player (PauloFlix)',
           );
         } catch (e) {
-          debugPrint('[VideoPlayer] ⚠ Falha ao injetar JWT (placeholder?): $e');
+          _log.warning('⚠ Falha ao injetar JWT (placeholder?)', e);
           // Sem auth, range requests vão dar 401. Mas o player ainda
           // funciona (vai mostrar erro de playback, não crash).
         }
       }
 
-      debugPrint('[VideoPlayer] Headers: $mergedHeaders');
+      _log.debug('Headers: $mergedHeaders');
 
       // Fase 2: aplica heurística de reset vs retomar (PauloFlix) ANTES
       // do Media.open. Se reset: zera progresso no banco + abre do zero.
@@ -772,15 +775,15 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       try {
         final media = Media(resolvedVideoUrl, httpHeaders: mergedHeaders);
         await _player.open(media, play: false);
-        debugPrint(
-          '[VideoPlayer] Media opened (paused, waiting for video ready)',
+        _log.debug(
+          'Media opened (paused, waiting for video ready)',
         );
       } catch (e) {
-        debugPrint('[VideoPlayer] Failed with headers, trying without...');
+        _log.warning('Failed with headers, trying without...');
         // Fallback: try without headers
         final media = Media(resolvedVideoUrl);
         await _player.open(media, play: false);
-        debugPrint('[VideoPlayer] Media opened (no headers fallback, paused)');
+        _log.debug('Media opened (no headers fallback, paused)');
       }
 
       // Espera o media_kit parsear o contêiner e popular as tracks
@@ -804,9 +807,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
             language: s.language,
           );
           await _player.setSubtitleTrack(subtitle);
-          debugPrint('[VideoPlayer] Subtitle loaded: ${s.displayName}');
+          _log.debug('Subtitle loaded: ${s.displayName}');
         } catch (e) {
-          debugPrint('[VideoPlayer] Failed to load subtitle: $e');
+          _log.warning('Failed to load subtitle', e);
           // Não derruba a reprodução — vídeo continua sem legenda.
         }
       } else if (_embeddedSubtitleTracks.isNotEmpty) {
@@ -814,9 +817,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         // detectado nas embutidas.
         try {
           await _player.setSubtitleTrack(SubtitleTrack.auto());
-          debugPrint('[VideoPlayer] Subtitle auto (from embedded tracks)');
+          _log.debug('Subtitle auto (from embedded tracks)');
         } catch (e) {
-          debugPrint('[VideoPlayer] Failed auto subtitle: $e');
+          _log.warning('Failed auto subtitle', e);
         }
       }
 
@@ -829,7 +832,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           .timeout(
             const Duration(seconds: 15),
             onTimeout: () {
-              debugPrint('[VideoPlayer] Timeout waiting for video tracks');
+              _log.debug('Timeout waiting for video tracks');
               return const Tracks();
             },
           );
@@ -842,8 +845,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       if (!shouldReset &&
           _savedPositionSeconds != null &&
           _savedPositionSeconds! > 0) {
-        debugPrint(
-          '[VideoPlayer] Resuming at ${_savedPositionSeconds}s '
+        _log.debug(
+          'Resuming at ${_savedPositionSeconds}s '
           '(of ${_savedDurationSeconds ?? "?"}s) '
           '— seeking after video tracks ready',
         );
@@ -862,17 +865,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       // Video is ready — start playback now
       await _player.play();
-      debugPrint('[VideoPlayer] Playback started');
+      _log.debug('Playback started');
 
       if (audiosBr != null) {
-        debugPrint('Found Portuguese audio track: ${audiosBr!.id}');
+        _log.debug('Found Portuguese audio track: ${audiosBr!.id}');
         await _player.setAudioTrack(audiosBr!);
       }
 
       if (!mounted) return;
 
       final videoDurationSeconds = _player.state.duration.inSeconds;
-      debugPrint('[VideoPlayer] Duration (s): $videoDurationSeconds');
+      _log.debug('Duration (s): $videoDurationSeconds');
 
       // Seta chave do episódio ativo para o mixin IntroDB.
       activeEpisodeKey = _buildEpisodeKey();
@@ -887,7 +890,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         episodeNumber: _currentEpisodeNum,
       ));
     } catch (e) {
-      debugPrint('Error initializing video: $e');
+      _log.error('Error initializing video', e);
       if (mounted) {
         setState(() {});
       }
@@ -1002,10 +1005,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       if (nextRecord != null && nextSeasonId != null) {
         _playNextEpisode(nextRecord, nextSeasonId);
       } else {
-        debugPrint('[VideoPlayer] No next episode available');
+        _log.debug('No next episode available');
       }
     } catch (e) {
-      debugPrint('[VideoPlayer] Error finding next episode: $e');
+      _log.error('Error finding next episode', e);
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+
+import '../../core/logger/app_logger.dart';
 
 /// Pré-carrega imagens em background para o cache de disco do
 /// `cached_network_image`, aquecendo o cache antes que o usuário
@@ -58,7 +59,9 @@ class ImagePrecacheService {
   /// evitando warning de tipo de retorno (`FutureOr<File>` vs void).
   static void _fetchIgnoringErrors(BaseCacheManager cm, String url) {
     cm.getSingleFile(url).then((_) {}).catchError((Object err) {
-      debugPrint('[ImagePrecache] Erro ao prefetch $url: $err');
+      const AppLogger(
+        'ImagePrecacheService',
+      ).warning('Erro ao prefetch $url', err);
     });
   }
 

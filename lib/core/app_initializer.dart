@@ -15,6 +15,7 @@ import '../data/services/pauloflix_movies_service.dart';
 import '../data/services/pauloflix_service.dart';
 import '../ui/core/utils/performance_config.dart';
 import '../ui/core/utils/tv_detector.dart';
+import 'logger/app_logger.dart';
 import '../ui/core/view_models/locale_viewmodel.dart';
 import '../ui/settings/view_models/theme_viewmodel.dart';
 
@@ -56,9 +57,11 @@ class AppInitializer {
     final errors = <String>[];
     String? firstError;
 
+    final _log = const AppLogger('AppInitializer');
+
     void captureError(String label, Object e) {
       final msg = '$label: $e';
-      debugPrint('[AppInitializer] ✗ $msg');
+      _log.error(msg);
       errors.add(msg);
       firstError ??= msg;
     }
@@ -66,7 +69,7 @@ class AppInitializer {
     // ── 1. MediaKit ──────────────────────────────────────────────
     try {
       MediaKit.ensureInitialized();
-      debugPrint('[AppInitializer] ✓ MediaKit');
+      _log.info('✓ MediaKit');
     } catch (e) {
       captureError('MediaKit', e);
     }
@@ -74,7 +77,7 @@ class AppInitializer {
     // ── 2. PerformanceConfig ─────────────────────────────────────
     try {
       PerformanceConfig.init();
-      debugPrint('[AppInitializer] ✓ PerformanceConfig');
+      _log.info('✓ PerformanceConfig');
     } catch (e) {
       captureError('PerformanceConfig', e);
     }
@@ -82,18 +85,18 @@ class AppInitializer {
     // ── 3. TVDetector (cache eager) ──────────────────────────────
     try {
       final isTv = await TVDetector.isTV;
-      debugPrint(
-        '[AppInitializer] ✓ TVDetector (${isTv ? "TV" : "mobile"})',
+      _log.info(
+        '✓ TVDetector (${isTv ? "TV" : "mobile"})',
       );
     } catch (e) {
-      debugPrint('[AppInitializer] ⚠ TVDetector: $e');
+      _log.warning('⚠ TVDetector', e);
     }
 
     // ── 4. ThemeViewModel ────────────────────────────────────────
     final themeViewModel = ThemeViewModel();
     try {
       await themeViewModel.load();
-      debugPrint('[AppInitializer] ✓ ThemeViewModel');
+      _log.info('✓ ThemeViewModel');
     } catch (e) {
       captureError('ThemeViewModel', e);
     }
@@ -102,7 +105,7 @@ class AppInitializer {
     final localeViewModel = LocaleViewModel();
     try {
       await localeViewModel.load();
-      debugPrint('[AppInitializer] ✓ LocaleViewModel');
+      _log.info('✓ LocaleViewModel');
     } catch (e) {
       captureError('LocaleViewModel', e);
     }
@@ -113,12 +116,12 @@ class AppInitializer {
     // ══════════════════════════════════════════════════════════════
     String? jwtWarning;
     final jwtManager = JwtTokenManager();
-    debugPrint('[AppInitializer] ▶ Inicializando JWT manager...');
+    _log.debug('▶ Inicializando JWT manager...');
     http.Client? authClient;
     try {
       await jwtManager.initialize();
-      debugPrint(
-        '[AppInitializer] ✓ JWT manager OK. device_id=${jwtManager.deviceId}',
+      _log.info(
+        '✓ JWT manager OK. device_id=${jwtManager.deviceId}',
       );
       late final http.Client innerClient;
       if (kDebugMode) {
@@ -136,7 +139,7 @@ class AppInitializer {
       jwtWarning =
           'Falha ao autenticar com o servidor. '
           'Downloads e sincronização podem não funcionar. ($e)';
-      debugPrint('[AppInitializer] ✗ JWT manager: $e');
+      _log.error('✗ JWT manager: $e');
     }
 
     // ── 7. AppDatabase + DownloadService ─────────────────────────
@@ -153,7 +156,7 @@ class AppInitializer {
         httpClient: authClient,
       );
       await downloadService.initialize();
-      debugPrint('[AppInitializer] ✓ AppDatabase + DownloadService');
+      _log.info('✓ AppDatabase + DownloadService');
     } catch (e) {
       captureError('AppDatabase', e);
       rethrow;
@@ -163,18 +166,18 @@ class AppInitializer {
     if (authClient != null) {
       PauloFlixService.configure(authClient);
       PauloFlixMoviesService.configure(authClient);
-      debugPrint(
-        '[AppInitializer] ✓ Auth client configurado em services PauloFlix.',
+      _log.info(
+        '✓ Auth client configurado em services PauloFlix.',
       );
     } else {
-      debugPrint(
-        '[AppInitializer] ⚠ Sem authClient — services usam http.Client() default.',
+      _log.warning(
+        '⚠ Sem authClient — services usam http.Client() default.',
       );
     }
 
     if (errors.isNotEmpty) {
-      debugPrint(
-        '[AppInitializer] ⚠ Inicialização concluída com ${errors.length} erro(s).',
+      _log.warning(
+        '⚠ Inicialização concluída com ${errors.length} erro(s).',
       );
     }
 

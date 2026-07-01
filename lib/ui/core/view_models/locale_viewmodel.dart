@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 class LocaleViewModel extends ChangeNotifier {
   static const String _localeKey = 'app_locale';
   Locale _locale = const Locale('pt', 'BR');
@@ -26,7 +28,7 @@ class LocaleViewModel extends ChangeNotifier {
       _initialized = true;
       notifyListeners();
     } catch (e) {
-      debugPrint('[LocaleViewModel] load failed: $e');
+      AppLogger('LocaleViewModel').error('load failed', e);
       _initialized = true;
     }
   }
@@ -39,7 +41,7 @@ class LocaleViewModel extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_localeKey, locale.languageCode);
     } catch (e) {
-      debugPrint('[LocaleViewModel] setLocale failed: $e');
+      AppLogger('LocaleViewModel').error('setLocale failed', e);
     }
   }
 

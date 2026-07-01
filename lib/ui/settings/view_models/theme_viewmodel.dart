@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 class ThemeViewModel extends ChangeNotifier {
   static const String _themeKey = 'app_theme_mode';
   bool _isDarkMode = true;
@@ -13,7 +15,7 @@ class ThemeViewModel extends ChangeNotifier {
       _isDarkMode = prefs.getBool(_themeKey) ?? true;
       notifyListeners();
     } catch (e) {
-      debugPrint('[ThemeViewModel] load failed: $e');
+      AppLogger('ThemeViewModel').error('load failed', e);
     }
   }
 
@@ -24,7 +26,7 @@ class ThemeViewModel extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_themeKey, _isDarkMode);
     } catch (e) {
-      debugPrint('[ThemeViewModel] toggleTheme persist failed: $e');
+      AppLogger('ThemeViewModel').error('toggleTheme persist failed', e);
     }
   }
 }

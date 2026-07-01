@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_movie_progress_record.dart';
@@ -50,7 +52,7 @@ class _PauloFlixMovieDetailScreenState
         if (mounted) setState(() => _progress = progress);
       }
     } catch (e) {
-      debugPrint('[MovieDetail] Erro ao carregar progresso: $e');
+      AppLogger('MovieDetailScreen').error('Erro ao carregar progresso', e);
     }
   }
 

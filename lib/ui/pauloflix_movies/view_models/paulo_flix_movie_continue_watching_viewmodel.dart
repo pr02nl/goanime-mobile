@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/logger/app_logger.dart';
 import '../../../domain/models/paulo_flix_movie_progress_record.dart';
 import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 
@@ -34,7 +35,7 @@ class PauloFlixMovieContinueWatchingViewModel extends ChangeNotifier {
     _sub = _repository.watchInProgressMovies(limit: _limit).listen(
       _onUpdate,
       onError: (Object e, StackTrace st) {
-        debugPrint('[MovieContinueWatching] Stream error: $e');
+        AppLogger('MovieContinueWatching').error('Stream error', e);
       },
     );
   }

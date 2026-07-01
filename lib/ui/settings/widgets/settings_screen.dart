@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/tv_detector.dart';
@@ -349,7 +351,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
       } catch (e) {
         errors.add('Animes: $e');
-        debugPrint('[BackgroundSync] Erro no sync de animes: $e');
+        AppLogger('SettingsScreen').error('Erro no sync de animes', e);
       }
 
       try {
@@ -359,7 +361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
       } catch (e) {
         errors.add('Filmes: $e');
-        debugPrint('[BackgroundSync] Erro no sync de filmes: $e');
+        AppLogger('SettingsScreen').error('Erro no sync de filmes', e);
       }
 
       if (mounted) {

@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/logger/app_logger.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_progress_stats.dart';
@@ -112,7 +113,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       final stats = await repo.getProgressStatsForContents(ids);
       if (mounted) setState(() => _statsById = stats);
     } catch (e) {
-      debugPrint('[SeeAll] Erro ao carregar stats: $e');
+      AppLogger('SeeAllScreen').error('Erro ao carregar stats', e);
     }
   }
 

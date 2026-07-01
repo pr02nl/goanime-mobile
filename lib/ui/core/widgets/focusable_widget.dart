@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 /// Widget que adiciona suporte a foco para navegação com teclado (Windows/desktop)
 /// e controle remoto D-pad (Android TV).
 ///
@@ -180,8 +182,8 @@ class _FocusableWidgetState extends State<FocusableWidget>
             onInvoke: (intent) {
               final custom = widget.directionalAction;
               if (custom != null) {
-                debugPrint(
-                  '[FocusableWidget] using custom directional action: '
+                AppLogger('FocusableWidget').debug(
+                  'using custom directional action: '
                   '${custom.runtimeType} (hashCode=${custom.hashCode}) '
                   'for direction=${intent.direction}',
                 );

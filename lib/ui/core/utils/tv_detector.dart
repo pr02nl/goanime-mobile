@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 /// Utilitário para detectar se o aplicativo está rodando em uma TV
 class TVDetector {
   static bool? _isTV;
@@ -30,7 +32,7 @@ class TVDetector {
       final bool? isTV = await platform.invokeMethod('isTV');
       return isTV ?? _detectTVFallback();
     } catch (e) {
-      debugPrint('[TVDetector] Platform channel failed: $e');
+      AppLogger('TVDetector').warning('Platform channel failed', e);
       return _detectTVFallback();
     }
   }

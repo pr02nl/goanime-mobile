@@ -1,6 +1,8 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/logger/app_logger.dart';
 
 class SearchHistoryService {
   static const String _historyKey = 'search_history';
@@ -9,19 +11,19 @@ class SearchHistoryService {
   /// Salva uma busca no histórico
   static Future<void> saveSearch(String query) async {
     if (query.trim().isEmpty) return;
-    
+
     final prefs = await SharedPreferences.getInstance();
     final history = await getSearchHistory();
-    
+
     // Remove duplicatas e adiciona no início
     history.remove(query.trim());
     history.insert(0, query.trim());
-    
+
     // Limita o tamanho do histórico
     if (history.length > _maxHistoryItems) {
       history.removeRange(_maxHistoryItems, history.length);
     }
-    
+
     await prefs.setString(_historyKey, jsonEncode(history));
   }
 
@@ -29,14 +31,16 @@ class SearchHistoryService {
   static Future<List<String>> getSearchHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final historyJson = prefs.getString(_historyKey);
-    
+
     if (historyJson == null) return [];
-    
+
     try {
       final List<dynamic> decoded = jsonDecode(historyJson);
       return decoded.map((e) => e.toString()).toList();
     } catch (e) {
-      debugPrint('Error loading search history: $e');
+      const AppLogger(
+        'SearchHistoryService',
+      ).error('Error loading search history', e);
       return [];
     }
   }
@@ -45,7 +49,7 @@ class SearchHistoryService {
   static Future<void> removeSearchItem(String query) async {
     final prefs = await SharedPreferences.getInstance();
     final history = await getSearchHistory();
-    
+
     history.remove(query);
     await prefs.setString(_historyKey, jsonEncode(history));
   }
@@ -59,10 +63,10 @@ class SearchHistoryService {
   /// Obtém sugestões baseadas no histórico
   static Future<List<String>> getSuggestions(String query) async {
     if (query.trim().isEmpty) return [];
-    
+
     final history = await getSearchHistory();
     final lowerQuery = query.toLowerCase();
-    
+
     return history
         .where((item) => item.toLowerCase().contains(lowerQuery))
         .take(5)

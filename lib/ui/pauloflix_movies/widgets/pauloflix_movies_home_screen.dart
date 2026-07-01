@@ -21,6 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
 import '../../../domain/models/paulo_flix_movie_progress_record.dart';
@@ -130,11 +132,11 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
           setState(() => _progressMap = map);
         },
         onError: (Object e, StackTrace st) {
-          debugPrint('[MoviesHome] Stream error: $e');
+          AppLogger('MoviesHomeScreen').error('Stream error', e);
         },
       );
     } catch (e) {
-      debugPrint('[MoviesHome] Erro ao assinar stream de progresso: $e');
+      AppLogger('MoviesHomeScreen').error('Erro ao assinar stream de progresso', e);
     }
   }
 

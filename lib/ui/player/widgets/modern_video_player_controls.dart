@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 import '../../../domain/models/episode.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
@@ -275,23 +277,22 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           error.contains('HTTP error 5') ||
           // Connection timed out: sem resposta (pode ser transiente).
           error.contains('Connection timed out')) {
-        debugPrint(
-          '[ModernVideoPlayerControls] Ignoring transient network error: $error',
+        AppLogger('PlayerControls').debug(
+          'Ignoring transient network error: $error',
         );
         return;
       }
 
       if (mounted && error.isNotEmpty) {
-        debugPrint('[ModernVideoPlayerControls] Player error: $error');
+        AppLogger('PlayerControls').error('Player error', error);
 
         if (_waitingForBuffer) {
           // Já estamos em modo de recuperação de buffer. O timer de
           // grace period (_bufferRecoveryTimer) vai decidir quando
           // mostrar o erro. Não sobrescrever o loading com error
           // overlay — a rede pode voltar.
-          debugPrint(
-            '[ModernVideoPlayerControls] ⏳ Deferring error — '
-            'buffer recovery in progress',
+          AppLogger('PlayerControls').debug(
+            '⏳ Deferring error — buffer recovery in progress',
           );
           return;
         }
@@ -312,7 +313,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           // loading e inicia timer de grace period.
           // Se o buffer recuperar antes do timeout, retoma
           // automaticamente. Se não, mostra erro.
-          debugPrint('[PlayerControls] ⏸ Buffer drained during playback');
+          AppLogger('PlayerControls').debug('⏸ Buffer drained during playback');
           _waitingForBuffer = true;
           _startBufferRecoveryTimer();
           widget.player.pause();
@@ -408,9 +409,8 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _bufferRecoveryTimer?.cancel();
     _bufferRecoveryTimer = Timer(_kBufferRecoveryTimeout, () {
       if (!mounted) return;
-      debugPrint(
-        '[PlayerControls] ⏰ Buffer recovery timeout '
-        '(${_kBufferRecoveryTimeout.inSeconds}s) — showing error',
+      AppLogger('PlayerControls').warning(
+        '⏰ Buffer recovery timeout ({_kBufferRecoveryTimeout.inSeconds}s) — showing error',
       );
       _waitingForBuffer = false;
       _bufferRecoveryTimer = null;
@@ -436,9 +436,8 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     if (!_waitingForBuffer) return;
     if (!isBufferSufficient(_buffer, _duration, _position)) return;
 
-    debugPrint(
-      '[PlayerControls] ▶ Buffer sufficient '
-      '(${_buffer.inSeconds}s), resuming playback',
+    AppLogger('PlayerControls').debug(
+      '▶ Buffer sufficient (${_buffer.inSeconds}s), resuming playback',
     );
     _cancelBufferRecoveryTimer();
     _waitingForBuffer = false;
@@ -744,7 +743,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
               }
           }
         } catch (e) {
-          debugPrint('[PlayerControls] Failed to set subtitle track: $e');
+          AppLogger('PlayerControls').warning('Failed to set subtitle track', e);
         }
         if (sheetContext.mounted) Navigator.pop(sheetContext);
       },

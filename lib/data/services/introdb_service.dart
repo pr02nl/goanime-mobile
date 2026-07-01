@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
+import '../../core/logger/app_logger.dart';
 import '../models/introdb_models.dart';
 
 /// Service de consulta à API pública do TheIntroDB.
@@ -116,8 +116,8 @@ class IntroDbService {
         _cacheOrder.remove(cacheKey);
       } else {
         _touchCache(cacheKey);
-        debugPrint(
-          '[IntroDb] ✅ Cache hit for tmdbId=$tmdbId '
+        const AppLogger('IntroDb').debug(
+          '✅ Cache hit for tmdbId=$tmdbId '
           'season=$season episode=$episode',
         );
         return _cache[cacheKey];
@@ -132,19 +132,23 @@ class IntroDbService {
 
       final uri = Uri.https('api.theintrodb.org', '/v3/media', queryParams);
 
-      debugPrint('[IntroDb] 🌐 GET $uri');
+      const AppLogger('IntroDb').debug('🌐 GET $uri');
 
       final response = await http
           .get(uri, headers: {'Accept': 'application/json'})
           .timeout(
             const Duration(seconds: 10),
             onTimeout: () {
-              debugPrint('[IntroDb] ⏱️ Request timeout after 10s');
+              const AppLogger(
+                'IntroDb',
+              ).warning('⏱️ Request timeout after 10s');
               throw TimeoutException('IntroDB request timeout');
             },
           );
 
-      debugPrint('[IntroDb] 📡 Response status: ${response.statusCode}');
+      const AppLogger(
+        'IntroDb',
+      ).debug('📡 Response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body) as Map<String, dynamic>;
@@ -156,13 +160,15 @@ class IntroDbService {
         _touchCache(cacheKey);
         _evictOldest();
 
-        debugPrint(
-          '[IntroDb] ✅ Loaded: intro=${result.intro.length}, '
+        const AppLogger('IntroDb').debug(
+          '✅ Loaded: intro=${result.intro.length}, '
           'credits=${result.credits.length}',
         );
         return result;
       } else if (response.statusCode == 404) {
-        debugPrint('[IntroDb] 404 - No segments for tmdbId=$tmdbId');
+        const AppLogger(
+          'IntroDb',
+        ).debug('404 - No segments for tmdbId=$tmdbId');
         // Cache o resultado vazio.
         final empty = IntroDbResponse(
           intro: [],
@@ -176,12 +182,14 @@ class IntroDbService {
         _evictOldest();
         return empty;
       } else {
-        debugPrint('[IntroDb] ❌ HTTP ${response.statusCode}: ${response.body}');
+        const AppLogger(
+          'IntroDb',
+        ).error('❌ HTTP ${response.statusCode}: ${response.body}');
       }
     } on TimeoutException {
       // Timeout já logado acima.
     } catch (e) {
-      debugPrint('[IntroDb] ❌ Exception: $e');
+      const AppLogger('IntroDb').error('❌ Exception', e);
     }
 
     return null;

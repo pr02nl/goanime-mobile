@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../../core/logger/app_logger.dart';
 import '../../data/models/introdb_models.dart';
 import '../../data/services/introdb_service.dart';
 import '../../l10n/app_localizations.dart';
@@ -76,19 +77,21 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
     int? seasonNumber,
     int? episodeNumber,
   }) async {
+    final _log = const AppLogger('IntroDb');
+
     final requestKey = activeEpisodeKey;
     if (!isActiveEpisode(requestKey)) {
-      debugPrint('[IntroDb] Skipping load - episode changed.');
+      _log.debug('Skipping load - episode changed.');
       return;
     }
 
     if (tmdbId == null) {
-      debugPrint('[IntroDb] No tmdbId available');
+      _log.debug('No tmdbId available');
       return;
     }
 
-    debugPrint(
-      '[IntroDb] Fetching segments for tmdbId=$tmdbId '
+    _log.debug(
+      'Fetching segments for tmdbId=$tmdbId '
       'season=$seasonNumber episode=$episodeNumber',
     );
 
@@ -112,15 +115,15 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
 
         if (isActiveEpisode(requestKey)) {
           if (result != null && result.hasAnySegment) {
-            debugPrint('[IntroDb] Segments loaded successfully!');
+            _log.debug('Segments loaded successfully!');
             startPositionTimer();
           } else {
-            debugPrint('[IntroDb] No segments found for this media');
+            _log.debug('No segments found for this media');
           }
         }
       }
     } catch (e) {
-      debugPrint('[IntroDb] Error loading segments: $e');
+      _log.error('Error loading segments', e);
     }
   }
 

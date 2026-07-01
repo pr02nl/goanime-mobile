@@ -10,6 +10,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 import '../../../domain/models/episode.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
@@ -337,9 +339,9 @@ class SubtitleSelectorTag extends StatelessWidget {
   Future<void> _selectSubtitle(SubtitleTrack track, {String? label}) async {
     try {
       await player?.setSubtitleTrack(track);
-      debugPrint('[VideoPlayer] Subtitle changed to: ${label ?? track.id}');
+      AppLogger('VideoPlayer').debug('Subtitle changed to: ${label ?? track.id}');
     } catch (e) {
-      debugPrint('[VideoPlayer] Failed to change subtitle: $e');
+      AppLogger('VideoPlayer').warning('Failed to change subtitle', e);
     }
     onSubtitleChanged();
   }

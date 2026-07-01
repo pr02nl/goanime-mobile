@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'core/logger/app_logger.dart';
 import 'package:provider/provider.dart';
 
 import 'core/database/app_database.dart';
@@ -181,7 +183,7 @@ class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
         _paused = true;
         _syncTimer?.cancel();
         _syncTimer = null;
-        debugPrint('[BackgroundSync] App paused — timer cancelado.');
+        AppLogger('BackgroundSync').debug('App paused — timer cancelado.');
       },
       onResume: () {
         _paused = false;
@@ -195,7 +197,7 @@ class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
         );
         // Dispara um sync imediato ao retornar.
         _syncNow();
-        debugPrint('[BackgroundSync] App resumed — timer reiniciado.');
+        AppLogger('BackgroundSync').debug('App resumed — timer reiniciado.');
       },
     );
   }
@@ -213,12 +215,12 @@ class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
     try {
       context.read<PauloFlixProvider>().syncContent();
     } catch (e) {
-      debugPrint('[BackgroundSync] Erro no sync de animes: $e');
+      AppLogger('BackgroundSync').error('Erro no sync de animes', e);
     }
     try {
       context.read<PauloFlixMoviesProvider>().syncContent();
     } catch (e) {
-      debugPrint('[BackgroundSync] Erro no sync de filmes: $e');
+      AppLogger('BackgroundSync').error('Erro no sync de filmes', e);
     }
   }
 

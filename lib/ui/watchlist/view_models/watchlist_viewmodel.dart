@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/logger/app_logger.dart';
+
 import '../../../domain/models/watchlist_anime.dart';
 import '../../../domain/repositories/watchlist_repository.dart';
 
@@ -31,7 +33,7 @@ class WatchlistViewModel extends ChangeNotifier {
     try {
       _animes = await _repository.getAll();
     } catch (e) {
-      debugPrint('[WatchlistViewModel] load failed: $e');
+      AppLogger('WatchlistViewModel').error('load failed', e);
     } finally {
       _isLoading = false;
       notifyListeners();

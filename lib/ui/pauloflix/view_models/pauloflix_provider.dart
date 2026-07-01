@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/logger/app_logger.dart';
 import '../../../data/services/image_precache_service.dart';
 import '../../../data/services/pauloflix_service.dart';
 import '../../../domain/models/pauloflix_content.dart';
@@ -130,7 +131,7 @@ class PauloFlixProvider extends ChangeNotifier {
     try {
       return await _repository.searchByName(q);
     } catch (e) {
-      debugPrint('searchByName falhou: $e');
+      AppLogger('PauloFlixProvider').warning('searchByName falhou', e);
       return const [];
     }
   }
