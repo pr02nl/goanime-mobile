@@ -1,14 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/api_constants.dart';
-import '../../core/utils/url_codec.dart';
 import '../../domain/models/pauloflix_content.dart';
-import '../../domain/models/pauloflix_models.dart';
 import '../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../domain/repositories/pauloflix_repository.dart';
 
@@ -34,169 +31,6 @@ class PauloFlixService {
   /// sync. Em testes, pode injetar um `MockClient`.
   static void configure(http.Client client) {
     _httpClient = client;
-  }
-
-  /// Busca temporadas de um show via scraping HTML da pasta do show.
-  /// Mantido para a tela de episódios (chamada on-demand pelo
-  /// `PauloFlixEpisodeListViewModel`).
-  static Future<List<PauloFlixSeason>> fetchShowSeasons(String showUrl) async {
-    try {
-      debugPrint('[PauloFlix] Fetching seasons from $showUrl');
-      final response = await _httpClient
-          .get(Uri.parse(showUrl))
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200) {
-        debugPrint(
-          '[PauloFlix] Failed to fetch seasons: ${response.statusCode}',
-        );
-        return [];
-      }
-      final document = html_parser.parse(response.body);
-      final linkElements = document.querySelectorAll('a[href]');
-      final List<PauloFlixSeason> seasons = [];
-      for (final element in linkElements) {
-        final href = element.attributes['href'] ?? '';
-        final text = element.text.trim();
-        if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {
-          continue;
-        }
-        if (!href.endsWith('/')) continue;
-        final rawName = href.substring(0, href.length - 1);
-        final decodedName = safeDecodeComponent(rawName);
-        final seasonNumber = _extractSeasonNumber(decodedName);
-        if (seasonNumber == null) continue;
-        final absoluteUrl = '$showUrl$href';
-        seasons.add(
-          PauloFlixSeason(
-            name: decodedName,
-            url: absoluteUrl,
-            number: seasonNumber,
-          ),
-        );
-      }
-      seasons.sort((a, b) => a.number.compareTo(b.number));
-      debugPrint('[PauloFlix] Found ${seasons.length} seasons');
-      return seasons;
-    } catch (e) {
-      debugPrint('[PauloFlix] Error fetching seasons: $e');
-      throw Exception('Error fetching PauloFlix seasons: $e');
-    }
-  }
-
-  /// Supported video extensions
-  static const Set<String> videoExtensions = {
-    '.mkv',
-    '.mp4',
-    '.avi',
-    '.webm',
-    '.mov',
-    '.flv',
-    '.wmv',
-    '.m4v',
-  };
-
-  /// Busca episódios de uma temporada via scraping HTML da pasta.
-  /// Mantido para a tela de episódios (chamada on-demand pelo
-  /// `PauloFlixEpisodeListViewModel`).
-  static Future<List<PauloFlixEpisode>> fetchSeasonEpisodes(
-    String seasonUrl,
-  ) async {
-    try {
-      debugPrint('[PauloFlix] Fetching episodes from $seasonUrl');
-      final response = await _httpClient
-          .get(Uri.parse(seasonUrl))
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200) {
-        debugPrint(
-          '[PauloFlix] Failed to fetch episodes: ${response.statusCode}',
-        );
-        return [];
-      }
-      final document = html_parser.parse(response.body);
-      final linkElements = document.querySelectorAll('a[href]');
-      final List<PauloFlixEpisode> episodes = [];
-      for (final element in linkElements) {
-        final href = element.attributes['href'] ?? '';
-        final text = element.text.trim();
-        if (href == '../' || href.isEmpty || text.isEmpty || text == '../') {
-          continue;
-        }
-        final lowerHref = href.toLowerCase();
-        final hasVideoExtension = videoExtensions.any(
-          (ext) => lowerHref.endsWith(ext),
-        );
-        if (!hasVideoExtension) continue;
-        final decodedName = safeDecodeComponent(href);
-        final episodeInfo = _extractEpisodeInfo(decodedName);
-        if (episodeInfo == null) continue;
-        final absoluteUrl = '$seasonUrl$href';
-        episodes.add(
-          PauloFlixEpisode(
-            number: episodeInfo.number,
-            title: episodeInfo.title,
-            url: absoluteUrl,
-            fileSize: null,
-          ),
-        );
-      }
-      episodes.sort((a, b) => a.number.compareTo(b.number));
-      debugPrint('[PauloFlix] Found ${episodes.length} episodes');
-      return episodes;
-    } catch (e) {
-      debugPrint('[PauloFlix] Error fetching episodes: $e');
-      throw Exception('Error fetching PauloFlix episodes: $e');
-    }
-  }
-
-  // RegExps estáticos — recriá-los a cada chamada aloca memória
-  // desnecessariamente no GC.
-  static final _seasonPattern1 = RegExp(
-    r'Season\s+(\d+)',
-    caseSensitive: false,
-  );
-  static final _seasonPattern2 = RegExp(r'\bS(\d+)\b');
-  static final _seasonPattern3 = RegExp(
-    r'Temporada\s+(\d+)',
-    caseSensitive: false,
-  );
-  static final _episodePatternFull = RegExp(
-    r'S\d+E(\d+)(?:\s*-\s*(.+))?\.(mkv|mp4|avi|webm|mov|flv|wmv|m4v)$',
-    caseSensitive: false,
-  );
-  static final _episodePatternSimple = RegExp(r'E(\d+)');
-
-  static int? _extractSeasonNumber(String name) {
-    final seasonMatch = _seasonPattern1.firstMatch(name);
-    if (seasonMatch != null) return int.tryParse(seasonMatch.group(1)!);
-
-    final sMatch = _seasonPattern2.firstMatch(name);
-    if (sMatch != null) return int.tryParse(sMatch.group(1)!);
-
-    final ptMatch = _seasonPattern3.firstMatch(name);
-    if (ptMatch != null) return int.tryParse(ptMatch.group(1)!);
-
-    return null;
-  }
-
-  static _EpisodeInfo? _extractEpisodeInfo(String filename) {
-    final match = _episodePatternFull.firstMatch(filename);
-    if (match != null) {
-      final number = int.tryParse(match.group(1)!);
-      final title = match.group(2)?.trim() ?? 'Episode ${match.group(1)}';
-      if (number != null) return _EpisodeInfo(number: number, title: title);
-    }
-    final simpleMatch = _episodePatternSimple.firstMatch(filename);
-    if (simpleMatch != null) {
-      final number = int.tryParse(simpleMatch.group(1)!);
-      if (number != null) {
-        var title = filename;
-        for (final ext in videoExtensions) {
-          title = title.replaceAll(ext, '');
-        }
-        return _EpisodeInfo(number: number, title: title);
-      }
-    }
-    return null;
   }
 
   /// Sincroniza todo o conteúdo do PauloFlix TV a partir do JSON index
@@ -442,12 +276,4 @@ class PauloFlixService {
       return false;
     }
   }
-}
-
-/// Informação de episódio extraída do nome do arquivo pelo
-/// [PauloFlixService._extractEpisodeInfo].
-class _EpisodeInfo {
-  final int number;
-  final String title;
-  const _EpisodeInfo({required this.number, required this.title});
 }
