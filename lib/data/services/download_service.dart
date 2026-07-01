@@ -424,7 +424,9 @@ class DownloadService extends ChangeNotifier {
     try {
       // Get content length first
       debugPrint('[Download] Getting content length...');
-      final headResponse = await client.head(Uri.parse(actualVideoUrl));
+      final headResponse = await client
+          .head(Uri.parse(actualVideoUrl))
+          .timeout(const Duration(seconds: 30));
       final totalBytes =
           int.tryParse(headResponse.headers['content-length'] ?? '0') ?? 0;
       debugPrint(
