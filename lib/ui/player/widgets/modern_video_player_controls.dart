@@ -379,8 +379,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     setState(() {});
   }
 
-  // ─── Auto-hide ───────────────────────────────────────────────────
-
   Duration get _autoHide {
     if (widget.autoHideDuration != null) return widget.autoHideDuration!;
     return _isTVDevice ? _kTVAutoHide : _kMobileAutoHide;
@@ -402,43 +400,6 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   }
 
   // ─── Mid-playback buffer recovery ──────────────────────────────
-
-  /// Verifica se o buffer atual é suficiente para retomar o playback.
-  ///
-  /// Usa o **restante** do vídeo (`duration - position`) como base:
-  /// - Alvo: 50% do restante, clamp entre 30s e 120s
-  /// - Se o restante for menor que o alvo, usa o restante
-  ///   (evita exigir mais buffer do que o possível).
-  ///
-  /// Exemplos (restante → alvo):
-  /// - Restante 30s → 30s (50% = 15s < min 30s, clamp sobe para 30s,
-  ///   e 30s == restante → buffer completo do trecho final)
-  /// - Restante 5min → 30s (50% = 2,5min, clamp mínimo de 30s)
-  /// - Restante 60min → 120s (50% = 30min, cap máximo de 120s)
-  static bool isBufferSufficient(
-    Duration buffered,
-    Duration duration,
-    Duration position,
-  ) {
-    if (buffered <= Duration.zero) return false;
-    final remaining = duration - position;
-    if (remaining <= Duration.zero) {
-      // Vídeo já acabou ou sem duração: queremos ao menos 5s para
-      // garantir que o último frame está disponível.
-      return buffered >= const Duration(seconds: 5);
-    }
-    // 50% do restante, clamp entre 30s e 120s
-    final halfRemaining = remaining ~/ 2;
-    final target = halfRemaining < const Duration(seconds: 30)
-        ? const Duration(seconds: 30)
-        : halfRemaining;
-    final capped = target > const Duration(seconds: 120)
-        ? const Duration(seconds: 120)
-        : target;
-    // Não exigir mais buffer do que o restante disponível
-    final effective = capped > remaining ? remaining : capped;
-    return buffered >= effective;
-  }
 
   /// Inicia o timer de grace period para recuperação de buffer.
   /// Se o timeout expirar sem que o buffer se recupere, mostra
@@ -1182,6 +1143,51 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       ),
     );
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Buffer recovery utilities (público para testes)
+// ═══════════════════════════════════════════════════════════════════
+
+/// Verifica se o buffer atual é suficiente para retomar o playback.
+///
+/// Usa o **restante** do vídeo (`duration - position`) como base:
+/// - Alvo: 50% do restante, clamp entre 30s e 120s
+/// - Se o restante for menor que o alvo, usa o restante
+///   (evita exigir mais buffer do que o possível).
+///
+/// Esta função é usada internamente por
+/// [_ModernVideoPlayerControlsState._checkBufferAndResume] e está
+/// exposta como pública para viabilizar testes unitários.
+///
+/// Exemplos (restante → alvo):
+/// - Restante 30s → 30s (50% = 15s < min 30s, clamp sobe para 30s,
+///   e 30s == restante → buffer completo do trecho final)
+/// - Restante 5min → 30s (50% = 2,5min, clamp mínimo de 30s)
+/// - Restante 60min → 120s (50% = 30min, cap máximo de 120s)
+bool isBufferSufficient(
+  Duration buffered,
+  Duration duration,
+  Duration position,
+) {
+  if (buffered <= Duration.zero) return false;
+  final remaining = duration - position;
+  if (remaining <= Duration.zero) {
+    // Vídeo já acabou ou sem duração: queremos ao menos 5s para
+    // garantir que o último frame está disponível.
+    return buffered >= const Duration(seconds: 5);
+  }
+  // 50% do restante, clamp entre 30s e 120s
+  final halfRemaining = remaining ~/ 2;
+  final target = halfRemaining < const Duration(seconds: 30)
+      ? const Duration(seconds: 30)
+      : halfRemaining;
+  final capped = target > const Duration(seconds: 120)
+      ? const Duration(seconds: 120)
+      : target;
+  // Não exigir mais buffer do que o restante disponível
+  final effective = capped > remaining ? remaining : capped;
+  return buffered >= effective;
 }
 
 // ═══════════════════════════════════════════════════════════════════
