@@ -37,7 +37,7 @@ class PauloFlixSeasonRecord {
 
   /// Descrição / plot da season. Vem de `season.nfo` (Fase 10 do
   /// plano NFO enrichment V2). Nullable porque:
-  /// 1. Nem toda season tem `season.nfo` (cair em fallback TMDB/Jikan).
+  /// 1. Nem toda season tem `season.nfo` (cair em fallback TMDB).
   /// 2. Migração v6→v7 adicionou a coluna, mas rows antigos ficam
   ///    com `null` (não re-raspamos retroativamente).
   final String? description;

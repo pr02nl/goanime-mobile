@@ -202,11 +202,11 @@ class PauloFlixService {
   /// Sincroniza todo o conteúdo do PauloFlix TV a partir do JSON index
   /// do servidor (`tv_index.json`).
   ///
-  /// ## Diferenças do sync legado (HTML scraping + Jikan)
+  /// ## Diferenças do sync legado (HTML scraping)
   ///
   /// - **Sem scraping HTML:** lê um JSON index que já contém todos os
   ///   metadados (título, descrição, poster, fanart, seasons/episódios).
-  /// - **Sem API externa (Jikan):** toda a informação vem do JSON,
+  /// - **Sem API externa:** toda a informação vem do JSON,
   ///   eliminando chamadas HTTP externas e rate limiting.
   /// - **Sem TTL:** o JSON é fonte da verdade — cada sync processa
   ///   todos os shows e atualiza o banco via `DoUpdate` (UPSERT real).

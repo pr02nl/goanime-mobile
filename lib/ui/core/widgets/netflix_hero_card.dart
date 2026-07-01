@@ -18,7 +18,7 @@ import '../themes/netflix_theme.dart';
 /// * [badge] — overlay no canto superior esquerdo (ex: `PauloFlixBadge`).
 ///   Renderizado apenas se fornecido.
 /// * [score] — quando não-nulo, exibe estrela + valor formatado
-///   `9.0` ao lado do título. Usado para animes Jikan-score.
+///   `9.0` ao lado do título. Usado para exibir score do anime.
 ///   Quando `null`, não renderiza nada (movies não têm score).
 /// * [showTitle] — quando `false`, esconde o `Text` do título. Usado
 ///   em screens onde o título já está na `AppBar` (ex: lista de

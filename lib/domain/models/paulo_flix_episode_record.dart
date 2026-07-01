@@ -38,7 +38,7 @@ class PauloFlixEpisodeRecord {
 
   /// Descrição / plot do episode. Vem de `S01E{nnn}.nfo` (Fase 10 do
   /// plano NFO enrichment V2). Nullable porque:
-  /// 1. Nem todo episode tem NFO individual (cair em fallback TMDB/Jikan).
+  /// 1. Nem todo episode tem NFO individual (cair em fallback TMDB).
   /// 2. Migração v6→v7 adicionou a coluna, mas rows antigos ficam
   ///    com `null` (não re-raspamos retroativamente).
   final String? description;

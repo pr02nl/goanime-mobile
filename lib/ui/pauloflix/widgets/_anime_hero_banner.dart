@@ -10,7 +10,7 @@ import '../../core/widgets/netflix_hero_card.dart';
 /// `_movie_hero_banner.dart` para filmes) que adiciona:
 /// * `PauloFlixBadge` (azul, canto superior esquerdo) — sinaliza
 ///   que o conteúdo vem do file server PauloFlix.
-/// * Score Jikan com estrelinha (se `content.score != null`).
+/// * Score com estrelinha (se `content.score != null`).
 /// * Tap em qualquer área → vai para a lista de episódios.
 ///
 /// **Por que wrapper e não código próprio:** antes desta refatoração
@@ -48,7 +48,7 @@ class AnimeHeroBanner extends StatelessWidget {
         description: content.description,
         // Badge PauloFlix (azul) — sinaliza origem do file server.
         // badge: const PauloFlixBadge(),
-        // Score Jikan com estrelinha (null se não veio do Jikan).
+        // Score com estrelinha (null se não disponível).
         score: content.score,
         height: height,
         isTV: isTV,

@@ -46,7 +46,7 @@ class PauloFlixSeasons extends Table {
   ///
   /// Fase 10 do plano `.hermes/plans/2026-06-23_225500-pauloflix-nfo-enrichment-v2.md`.
   /// Nullable porque nem toda season tem NFO — quando ausente, o
-  /// caller cai no fallback TMDB/Jikan (status quo).
+  /// caller cai no fallback TMDB (status quo).
   TextColumn get description => text().nullable()();
 
   /// Cache de `COUNT(episodes)` — evita JOIN ao listar seasons.

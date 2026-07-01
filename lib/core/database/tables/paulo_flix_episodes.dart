@@ -57,7 +57,7 @@ class PauloFlixEpisodes extends Table {
   ///
   /// Fase 10 do plano `.hermes/plans/2026-06-23_225500-pauloflix-nfo-enrichment-v2.md`.
   /// Nullable porque nem todo episode tem NFO — quando ausente, o
-  /// caller cai no fallback TMDB/Jikan (status quo).
+  /// caller cai no fallback TMDB (status quo).
   TextColumn get description => text().nullable()();
 
   /// Duração total do vídeo em segundos. Populada pelo player em runtime
