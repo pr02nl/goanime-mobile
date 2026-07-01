@@ -24,7 +24,7 @@ Tela principal de navegação com bottom navigation bar customizado.
 ---
 
 ### HomeScreen
-Tela inicial simplificada exibindo conteúdo PauloFlix.
+Tela inicial exibindo conteúdo PauloFlix.
 
 **Arquivo:** `lib/ui/home/widgets/home_screen.dart`
 
@@ -32,51 +32,16 @@ Tela inicial simplificada exibindo conteúdo PauloFlix.
 - Seção PauloFlix (animes do banco Drift)
 - Pull-to-refresh (re-sync do conteúdo)
 
-> As seções baseadas em Jikan API (Temporada, Top Animes, gêneros) foram removidas.
-> A Home agora exibe apenas o catálogo PauloFlix.
-
 ---
 
 ### SearchScreen
-Tela de busca simplificada — hub de navegação para as telas de busca especializadas.
+Tela de busca — hub de navegação para as telas de busca PauloFlix.
 
 **Arquivo:** `lib/ui/search/widgets/search_screen.dart`
 
 **Características:**
-- Opções de busca: AnimeFire, PauloFlix (animes), PauloFlix (filmes)
-- Redireciona para `/anime-search`, `/pauloflix-search`, `/pauloflix-movies-search`
-
-> A busca por Jikan API foi removida. A pesquisa agora é feita via AnimeFire e PauloFlix.
-
----
-
-### AnimeDetailScreen
-Tela de detalhe de anime (AniList).
-
-**Arquivo:** `lib/ui/home/widgets/anime_detail_screen.dart`
-
-**Características:**
-- Banner + poster do anime
-- Sinopse, score, gêneros, status
-- Botão de assistir → EpisodeListScreen
-- WatchlistButton integrado
-
----
-
----
-
-### EpisodeListScreen / ModernEpisodeListScreen
-Lista de episódios de um anime (fonte externa, não PauloFlix).
-
-**Arquivo (legado):** `lib/ui/player/widgets/episode_list_screen.dart`
-**Arquivo (moderno):** `lib/ui/player/widgets/modern_episode_list_screen.dart`
-
-**Características:**
-- Grid view (2 colunas) ou list view (toggle)
-- Thumbnails de episódios com fade-in
-- Informações de AniList (score, status, episódios)
-- Botão de download por episódio
-- Pull-to-refresh
+- Opções de busca: PauloFlix (animes), PauloFlix (filmes)
+- Redireciona para `/pauloflix-search`, `/pauloflix-movies-search`
 
 ---
 
@@ -89,16 +54,21 @@ Player de vídeo principal (media_kit).
 - Player nativo (media_kit)
 - TheIntroDB integration (botão de pular intro/outro)
 - Fallback WebView para iOS
-- Google Video proxy para contornar restrições
 - Legendas `.srt` (prioridade PT-BR)
 - Loading overlay com skeleton
 - Error handling com retry
+- Auto-play próximo episódio (PauloFlix)
 
 **TheIntroDB:**
 - Detecção automática de intro/outro via api.theintrodb.org
 - Botão flutuante com animação
 - Auto-hide após 15 segundos
 - Labels dinâmicas ("Skip Intro", "Skip Outro")
+
+**Progresso:**
+- Grava posição a cada 5s + ao sair
+- Retoma de onde parou (≥ 10%)
+- Marca como completo (≥ 90%)
 
 ---
 
@@ -117,7 +87,6 @@ Lista de animes salvos para assistir depois.
 **Características:**
 - Grid de cards
 - Empty state com CTA
-- Swipe to delete
 - Clear all com confirmação
 - Animações de entrada
 
@@ -134,10 +103,6 @@ Gerenciamento de downloads offline.
 - Ações: Pause, Resume, Cancel, Retry, Delete
 - Preview do vídeo baixado
 - Settings para limitar downloads concorrentes
-
-**Tabs:**
-- **Active**: Downloads em andamento, pausados ou na fila
-- **Completed**: Downloads finalizados
 
 ---
 
@@ -192,21 +157,19 @@ Tela principal da área de Filmes do PauloFlix.
 - Grid responsivo de filmes com posters do servidor (JSON index)
 - Busca em tempo real
 - Sync manual via botão refresh (dispara `PauloFlixMoviesService.syncContent`)
-- Coleções com banner custom + sub-filmes clicáveis
 - TV: grid adaptativo (6 colunas), D-pad navigation
 
 ---
 
 ### PauloFlixMovieDetailScreen
-Tela de detalhe de filme ou coleção.
+Tela de detalhe de filme.
 
 **Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movie_detail_screen.dart`
 
 **Características:**
-- Filme individual: backdrop + poster + sinopse + botão Assistir
-- Coleção: banner + lista de sub-filmes clicáveis
-- Reutiliza `ModernVideoPlayerScreen` para reprodução (sem TheIntroDB)
-- Suporte a legendas `.srt` (prioridade PT-BR, detectada via `inspectFolder`)
+- Backdrop + poster + sinopse + botão Assistir
+- Reutiliza `ModernVideoPlayerScreen` para reprodução
+- Suporte a legendas `.srt` (prioridade PT-BR)
 - TV: FocusableWidget nos sub-filmes
 
 ---
@@ -233,7 +196,6 @@ Configurações do aplicativo.
 - Toggle de tema (Dark only)
 - Opções de download
 - Clear cache
-- Configuração de API Key TMDB
 - Sobre / Créditos
 
 ---
@@ -264,20 +226,6 @@ Efeito de loading skeleton.
 
 **Arquivo:** `lib/ui/core/widgets/shimmer_loading.dart`
 
-**Uso:**
-```dart
-ShimmerLoading(
-  child: Container(
-    width: 120,
-    height: 180,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(8),
-    ),
-  ),
-)
-```
-
 ---
 
 ### WatchlistButton
@@ -285,21 +233,10 @@ Botão de adicionar/remover da watchlist.
 
 **Arquivo:** `lib/ui/core/widgets/watchlist_button.dart`
 
-**Props:**
-```dart
-WatchlistButton({
-  required String animeId,
-  required String title,
-  required String coverImage,
-  required String myAnimeListUrl,
-})
-```
-
 **Características:**
 - Animação de pulse ao adicionar
 - Ícone muda de bookmark_outline para bookmark
 - Snackbar de confirmação
-- Provider reativo (via WatchlistRepository.watch())
 
 ---
 
@@ -307,18 +244,6 @@ WatchlistButton({
 Botão de download de episódio.
 
 **Arquivo:** `lib/ui/downloads/widgets/download_button.dart`
-
-**Props:**
-```dart
-DownloadButton({
-  required String animeId,
-  required String animeName,
-  required String episodeNumber,
-  required String episodeTitle,
-  required String videoUrl,
-  required String thumbnailUrl,
-})
-```
 
 **Estados:**
 - **Idle**: Ícone de download
@@ -335,15 +260,6 @@ Botão de pular intro/outro (TheIntroDB).
 
 **Arquivo:** `lib/ui/core/widgets/skip_button.dart`
 
-**Props:**
-```dart
-SkipButton({
-  required String label,
-  required VoidCallback onPressed,
-  required AnimationController animationController,
-})
-```
-
 **Características:**
 - Animação de slide-in
 - Auto-hide após 15 segundos
@@ -352,43 +268,10 @@ SkipButton({
 
 ---
 
-### GenreGlyphIcon
-Ícones de gênero customizados.
-
-**Arquivo:** `lib/ui/core/widgets/genre_glyph_icon.dart`
-
-**Gêneros Suportados:**
-- Action (espada)
-- Adventure (bússola)
-- Comedy (máscara)
-- Drama (máscara triste)
-- Fantasy (varinha)
-- Horror (caveira)
-- Mystery (lupa)
-- Romance (coração)
-- Sci-Fi (foguete)
-- Slice of Life (casa)
-- Sports (bola)
-- Supernatural (estrela)
-
----
-
 ### ContentTypeSelector
 Pill seletor "Animes | Filmes" no AppBar do MainNavigationScreen.
 
 **Arquivo:** `lib/ui/core/widgets/content_type_selector.dart`
-
-**Props:**
-```dart
-ContentTypeSelector({
-  required ContentType currentType,
-  required ValueChanged<ContentType> onTypeChanged,
-})
-```
-
-**Características:**
-- Toggle animado entre Animes e Filmes
-- Visual pill com transição suave
 
 ---
 
@@ -397,28 +280,12 @@ Widget de overlay de progresso para cards, unificando a exibição entre filmes 
 
 **Arquivo:** `lib/ui/core/widgets/progress_overlay.dart`
 
-**Uso:**
-```dart
-NetflixCard(
-  overlayWidget: ProgressOverlay.build(
-    ratio: 0.5,
-    isCompleted: false,
-    accentColor: Color(0xFFDC2626), // vermelho filmes
-    fractionText: '3/12',            // opcional, usado em animes
-  ),
-)
-```
-
 **Comportamento:**
 | `isCompleted` | `ratio` | Resultado |
 |:---:|:---:|---|
 | `true` | qualquer | Badge verde "✓ Completo" |
 | `false` | `> 0` | Barra de progresso + `fractionText` opcional |
 | `false` | `== 0` | `null` (sem overlay) |
-
-**Cor da barra:** Controlada por `accentColor`. Vermelho (`#DC2626`) para filmes, Roxo (`#6366F1` = `AppColors.primary`) para animes.
-
-**Testes:** `test/ui/core/widgets/progress_overlay_test.dart` — 10 testes cobrindo null, badge, barra, cores, fractionText.
 
 ---
 
@@ -427,87 +294,33 @@ Badge verde "✓ Completo" com 3 variantes pré-definidas.
 
 **Arquivo:** `lib/ui/core/widgets/completed_badge.dart`
 
-**Variantes:**
-| Construtor | Tamanho | Fundo | Borda | Uso |
-|---|---|---|---|---|
-| `.cardOverlay()` | Pequeno (font 9) | Sólido (90%) | Nenhuma | Overlay em cards (`ProgressOverlay`) |
-| `.heroBanner()` | Grande (font 13) | Sólido (90%) | `greenAccent` sutil | Canto do hero banner |
-| `.detailScreen()` | Médio (font 12) | Translúcido (20%) | `green` | Linha de metadados na tela de detalhes |
-
-```dart
-// Card overlay (cards na grid/carrossel)
-CompletedBadge.cardOverlay()
-
-// Hero banner (canto superior direito)
-CompletedBadge.heroBanner()
-
-// Tela de detalhes (ao lado dos metadados)
-CompletedBadge.detailScreen()
-```
-
 ---
 
-### FocusableWidget
-Wrapper genérico para adicionar suporte a D-pad (TV).
-
-**Arquivo:** `lib/ui/core/widgets/focusable_widget.dart`
-
-**Props:**
-```dart
-FocusableWidget({
-  required Widget child,
-  required VoidCallback onSelect,
-  double scaleAmount = 1.05,
-})
-```
-
----
-
-### TVGridView / TVSafeTextField
+### FocusableWidget / TVGridView / TVSafeTextField
 Widgets otimizados para Android TV.
 
 **Arquivos:**
+- `lib/ui/core/widgets/focusable_widget.dart` — Focus + D-pad
 - `lib/ui/core/widgets/tv_grid_view.dart` — Grid com navegação D-pad
 - `lib/ui/core/widgets/tv_safe_text_field.dart` — TextField seguro para TV
 
 ---
 
-### PauloFlixBadge
-Badge azul para conteúdo PauloFlix (animes).
+### PauloFlixBadge / PauloFlixMoviesBadge
+Badges de conteúdo.
 
-**Arquivo:** `lib/ui/core/widgets/pauloflix_badge.dart`
-
----
-
-### PauloFlixMoviesBadge
-Badge vermelho para conteúdo PauloFlix Movies (filmes).
-
-**Arquivo:** `lib/ui/core/widgets/pauloflix_movies_badge.dart`
-
-**Props:**
-```dart
-PauloFlixMoviesBadge({
-  bool isCollection = false,
-})
-```
-
-**Características:**
-- Vermelho cinema quando filme individual
-- Indicador de coleção quando `isCollection: true`
+**Arquivos:**
+- `lib/ui/core/widgets/pauloflix_badge.dart` — Badge azul para animes
+- `lib/ui/core/widgets/pauloflix_movies_badge.dart` — Badge vermelho para filmes
 
 ---
 
-### PauloFlixSection
-Seção horizontal de animes PauloFlix no HomeScreen.
+### PauloFlixSection / PauloFlixMoviesSection
+Seções horizontais.
 
-**Arquivo:** `lib/ui/pauloflix/widgets/pauloflix_section.dart`
-
----
-
-### PauloFlixMoviesSection
-Seção horizontal de filmes PauloFlix no HomeScreen.
-
-**Arquivo:** `lib/ui/pauloflix_movies/widgets/pauloflix_movies_section.dart`
+**Arquivos:**
+- `lib/ui/pauloflix/widgets/pauloflix_section.dart` — Seção de animes
+- `lib/ui/pauloflix_movies/widgets/pauloflix_movies_section.dart` — Seção de filmes
 
 ---
 
@@ -517,20 +330,6 @@ Seção horizontal de filmes PauloFlix no HomeScreen.
 Paleta de cores centralizada.
 
 **Arquivo:** `lib/ui/core/themes/app_colors.dart`
-
-**Categorias:**
-- Primary (Cyan): Interação principal
-- Secondary (Purple): Destaques secundários
-- Accent (Pink): CTAs e ações
-- Background: Puro preto (#000000)
-- Surface: Cinza escuro (#141414)
-- Text: Branco e tons de cinza
-- Status: Success, Warning, Error, Info
-
-**Gradientes:**
-- `getPrimaryGradient()`: Cyan gradient
-- `getSecondaryGradient()`: Purple gradient
-- `getHeroGradient()`: Cyan + Purple
 
 ### AppTheme / NetflixTheme / TVTheme
 
@@ -552,15 +351,6 @@ Paleta de cores centralizada.
 - Tablet: 600px - 900px
 - Desktop: > 900px
 
-**Funções:**
-```dart
-bool isMobile(BuildContext context)
-bool isTablet(BuildContext context)
-bool isDesktop(BuildContext context)
-int getCrossAxisCount(BuildContext context)
-EdgeInsets getResponsivePadding(BuildContext context)
-```
-
 ---
 
 ## Animações
@@ -575,12 +365,6 @@ mediumAnimation: Duration(milliseconds: 250)
 slowAnimation: Duration(milliseconds: 400)
 ```
 
-### Animações Comuns
-- **Fade**: Opacity transitions
-- **Scale**: Card hover effects
-- **Slide**: Skip button entrance
-- **Shimmer**: Loading skeletons
-
 ---
 
 ## Internacionalização (i18n)
@@ -589,18 +373,3 @@ slowAnimation: Duration(milliseconds: 400)
 Suporte a PT-BR e EN-US.
 
 **Arquivo:** `lib/l10n/app_localizations.dart`
-
-**Categorias de Strings:**
-- Common (appName, search, settings, etc)
-- Home (trending, topAnime, genres)
-- Search (placeholders, filters)
-- Episode List (episodes, status, actions)
-- Video Player (controls, errors)
-- Watchlist (add, remove, empty)
-- Downloads (status, actions)
-
-**Uso:**
-```dart
-final l10n = AppLocalizations.of(context);
-text: l10n.searchAnime,
-```

@@ -19,7 +19,7 @@ Authorization: Bearer <JWT_Ed25519>
 GET /tvshows/tv_index.json
 ```
 
-Índice JSON de todos os shows. Substitui completamente o scraping HTML + Jikan API.
+Índice JSON de todos os shows.
 
 **Estrutura resumida:**
 ```json
@@ -85,7 +85,7 @@ GET /tvshows/tv_index.json
 GET /movies/movie_index.json
 ```
 
-Índice JSON de todos os filmes. Substitui completamente o scraping HTML + TMDB API. Cada filme é uma entry individual (sem coleções).
+Índice JSON de todos os filmes. Cada filme é uma entry individual (sem coleções).
 
 **Estrutura resumida:**
 ```json
@@ -129,62 +129,12 @@ GET /movies/movie_index.json
 | `poster` | `string` | Path relativo do poster |
 | `fanart` | `string` | Path relativo do fanart |
 | `file` | `string?` | **URL relativa do vídeo** (resolvida com baseHost). `null` se indisponível |
-| `subtitles` | `array?` | Legendas externas. Cada entry: `{ file, lang, name }`.
-  - `file`: path relativo do `.srt`/`.vtt`
-  - `lang`: código ISO 639-1 (`"por"`, `"eng"`, `"jpn"`)
-  - `name`: nome legível (`"Português"`, `"English"`)
-  `null` se o filme não tiver legendas externas |
+| `subtitles` | `array?` | Legendas externas. Cada entry: `{ file, lang, name }`. `null` se o filme não tiver legendas externas |
 | `nfo` | `object` | Metadados Kodi NFO (rating, runtime, studio, etc.) |
 
-> **Nota:** Coleções foram eliminadas. Cada entry representa **um filme por pasta**. O campo `file` contém a URL direta do vídeo — sem necessidade de scraping on-demand.
-
 ---
 
-## 1. AniList API (GraphQL)
-
-**Uso:** Enriquecimento de metadados de animes (imagens, scores, sinopses).
-
-### Base URL
-```
-https://graphql.anilist.co
-```
-
-### Queries GraphQL
-
-#### Busca por Título
-```graphql
-query ($search: String) {
-  Media(search: $search, type: ANIME) {
-    id
-    idMal
-    title { romaji english native }
-    coverImage { extraLarge large medium color }
-    bannerImage
-    description
-    episodes
-    status
-    season
-    seasonYear
-    averageScore
-    popularity
-    genres
-    format
-  }
-}
-```
-
-#### Busca por MAL ID / AniList ID
-```graphql
-query ($malId: Int) { Media(idMal: $malId, type: ANIME) { ... } }
-query ($id: Int) { Media(id: $id, type: ANIME) { ... } }
-```
-
-### Limpeza de Títulos
-Remove tags como `[AnimeFire]`, indicadores de idioma, sufixos de episódios/temporadas.
-
----
-
-## 3. TheIntroDB API
+## 1. TheIntroDB API
 
 **Uso:** Pular intro/outro automaticamente no player de vídeo.
 
@@ -206,38 +156,7 @@ GET /v3/media?tmdb_id={tmdb_id}&season_number={season_number}&episode_number={ep
 
 ---
 
-## 4. TMDB API (The Movie Database)
-
-**Uso:** **Não é mais usado no sync principal de filmes** (substituído pelo JSON index). Mantido como fallback para busca manual e compatibilidade.
-
-### Base URL
-```
-https://api.themoviedb.org/3
-```
-
-### Autenticação
-API Key v3 configurada pelo usuário em Settings → API Keys. Enviada via `Authorization: Bearer`.
-
-### Endpoints
-```
-GET /search/movie?query={title}&language=pt-BR
-GET /movie/{id}?language=pt-BR
-```
-
----
-
-## 5. AnimeFire (Streaming)
-
-**Uso:** Fonte de streaming de episódios (URLs de vídeo).
-
-### Base URL
-```
-https://animefire.plus
-```
-
----
-
-## 6. Repositórios de Progresso (Internos — Drift)
+## 2. Repositórios de Progresso (Internos — Drift)
 
 Os repositórios de progresso são **interfaces internas** implementadas
 sobre Drift (SQLite). A UI consome métodos assíncronos e streams
@@ -271,8 +190,6 @@ Future<Map<int, PauloFlixProgressStats>> getProgressStatsForContents(
 
 **Batch** — estatísticas de múltiplos animes em UMA query apenas, usando
 `IN` clause parametrizado (`?1, ?2, ...`). Retorna mapa `contentId → stats`.
-Usado pela seção "Continue assistindo" e tela See All para exibir overlays
-nos cards sem N queries individuais.
 
 #### `getInProgressContents({int limit = 12})`
 ```dart
@@ -287,9 +204,7 @@ Filtra: `positionSeconds > 0 && !isCompleted`.
 Stream<List<PauloFlixContent>> watchInProgressContents({int limit = 12});
 ```
 
-**Stream reativa** da lista de animes em andamento. Aciona ao
-adicionar/resetar/assistir episódios. Usado pelo carrossel "Continue
-assistindo" da home para atualizar sem polling.
+**Stream reativa** da lista de animes em andamento.
 
 #### `updateProgress(...)`
 ```dart
@@ -328,7 +243,7 @@ Future<void> updateProgress({
 ```
 
 Grava progresso do filme. Se `positionSeconds / durationSeconds >= 0.9`,
-marca `isCompleted = true`. Se o record não existe, cria com metadados.
+marca `isCompleted = true`.
 
 #### `getAllProgress()`
 ```dart
@@ -336,17 +251,13 @@ Future<List<PauloFlixMovieProgressRecord>> getAllProgress();
 ```
 
 Retorna TODO progresso salvo (em andamento + completo), sem limite.
-Usado pela home de filmes para construir o mapa `folderName → progress`
-e exibir overlays nos cards.
 
 #### `watchAllProgress()` ⭐
 ```dart
 Stream<List<PauloFlixMovieProgressRecord>> watchAllProgress();
 ```
 
-**Stream reativa** de TODO progresso salvo. Aciona ao
-adicionar/resetar/assistir filmes. Usado pela home de filmes para
-manter os overlays dos cards atualizados reativamente.
+**Stream reativa** de TODO progresso salvo.
 
 #### `getInProgressMovies({int limit = 12})`
 ```dart
@@ -356,7 +267,6 @@ Future<List<PauloFlixMovieProgressRecord>> getInProgressMovies({
 ```
 
 Lista filmes em andamento, ordenados por `lastWatched DESC`.
-Filtra: `positionSeconds > 0 && !isCompleted`.
 
 #### `watchInProgressMovies({int limit = 12})`
 ```dart
@@ -365,8 +275,7 @@ Stream<List<PauloFlixMovieProgressRecord>> watchInProgressMovies({
 });
 ```
 
-**Stream reativa** da lista de filmes em andamento. Usado pelo carrossel
-"Continue assistindo" de filmes.
+**Stream reativa** da lista de filmes em andamento.
 
 ---
 
@@ -378,10 +287,7 @@ Stream<List<PauloFlixMovieProgressRecord>> watchInProgressMovies({
 | PauloFlix JSON Index (Movies) | HTTPS | Sync de filmes (fonte primária) | Drift |
 | PauloFlixEpisodeProgressRepository | Drift (SQLite) | Progresso de episódios (animes) | Drift |
 | PauloFlixMovieProgressRepository | Drift (SQLite) | Progresso de filmes | Drift |
-| AniList | GraphQL | Metadados de animes | N/A |
 | TheIntroDB | REST | Skip intro/outro | Sim (memória) |
-| TMDB | REST | Fallback de metadados | 30 min |
-| AnimeFire | Web scraping | Streaming de episódios | N/A |
 
 ---
 
@@ -393,14 +299,3 @@ Desde a migração Tailscale → HTTPS+JWT, toda request ao servidor PauloFlix i
 Authorization: Bearer <JWT_Ed25519>
 ```
 Implementado via `AuthenticatedHttpClient` (wrapper do `http.Client`).
-
-### User Agents (streaming externo)
-```dart
-// Google Video (iOS simulation)
-'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1'
-```
-
-### Referers
-```dart
-Google Video: 'https://www.blogger.com'
-```

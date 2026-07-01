@@ -16,12 +16,10 @@
 │  └──────────────────────────────────────────────────────┘   │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌──────────────────┐  ┌───────────────────────────────┐   │
-│  │  JSON Index Sync  │  │  Services de Scraping/Stream  │   │
-│  │  (fonte primária) │  │  (fallback on-demand)         │   │
-│  │  pauloflix*_svc   │  │  jikan_service, tmdb_service  │   │
-│  └──────────────────┘  │  anilist_service, introdb_svc  │   │
-│                        │  anime_service, download_svc  │   │
-│                        └───────────────────────────────┘   │
+│  │  JSON Index Sync  │  │  Serviços Auxiliares          │   │
+│  │  (fonte primária) │  │  introdb_svc, download_svc,  │   │
+│  │  pauloflix*_svc   │  │  nfo_enricher, kodi_parser   │   │
+│  └──────────────────┘  └───────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -31,10 +29,7 @@
 3. Salva no banco Drift via repositories (UPSERT)
 4. UI lê do banco via ViewModels → reativo via `Stream`
 
-**Fluxo legado (fallback on-demand):**
-- Episódios/seasons: scraping HTML do file server (quando não há JSON)
-- Metadados de animes (Jikan API): usado apenas pela tela de busca/animes externos
-- Metadados de filmes (TMDB): **não é mais usado** para o sync principal
+**Serviços externos removidos:** Jikan, AniList, TMDB, AnimeFire, Kitsu e GoogleVideoProxy foram removidos — os JSON indexes fornecem todos os metadados necessários (título, descrição, poster, fanart, rating, gêneros, thumbnails de episódios, URLs diretas de vídeo).
 
 ---
 
@@ -51,7 +46,7 @@ https://media.oliveira.braga.nom.br/tvshows/
 
 **Endpoint:** `GET /tvshows/tv_index.json`
 
-O servidor gera server-side um JSON index (`tv_index.json`) contendo todos os metadados de todos os shows. Este JSON substituiu o scraping HTML + Jikan API como fonte primária de dados.
+O servidor gera server-side um JSON index (`tv_index.json`) contendo todos os metadados de todos os shows.
 
 **Estrutura do JSON index:**
 ```json
@@ -70,8 +65,6 @@ O servidor gera server-side um JSON index (`tv_index.json`) contendo todos os me
       "status": "Finished",
       "year": "2011",
       "episode_count": 148,
-      "mal_id": 11061,
-      "anilist_id": 11061,
       "tmdb_id": 46298,
       "seasons": [
         {
@@ -86,10 +79,7 @@ O servidor gera server-side um JSON index (`tv_index.json`) contendo todos os me
               "aired": "2011-10-02",
               "rating": 8.5,
               "plot": "...",
-              "nfo": {
-                "runtime": "23",
-                "originaltitle": "..."
-              }
+              "nfo": { "runtime": "23", "originaltitle": "..." }
             }
           ]
         }
@@ -98,17 +88,6 @@ O servidor gera server-side um JSON index (`tv_index.json`) contendo todos os me
   ]
 }
 ```
-
-### Vantagens do JSON Index sobre o scraping HTML + Jikan
-
-| Aspecto | Antes (HTML + Jikan) | Agora (JSON Index) |
-|---------|---------------------|-------------------|
-| Requisições HTTP | N scraping HTML + N Jikan API (rate limited) | 1 GET do JSON index |
-| Rate limiting | 3 req/s (Jikan) | Nenhum |
-| TTL/cache | 30 min (Jikan) | Sem TTL (fonte da verdade) |
-| Metadados | Parciais (título, imagem, score) | Completos (título, descrição, poster, fanart, rating, gêneros, status, year, tmdbId, + seasons/episódios) |
-| Episódios | Scraping separado por season | Inclusos no mesmo JSON |
-| Imagens | URL externa (Jikan) | URL do próprio servidor |
 
 ### Métodos Principais
 
@@ -157,11 +136,8 @@ O JSON index (`movie_index.json`) é a **única fonte** de dados. Todo scraping 
       "genres": ["Ação", "Aventura"],
       "rating": 5.8,
       "year": 2009,
-      "release_date": "2009-11-13",
       "runtime": 158,
       "tmdb_id": 14161,
-      "available_movie_count": 1,
-
       "file": "/movies/2012 (2009)/2012.2009.1080p.mp4",
       "subtitles": [
         { "file": "/movies/2012 (2009)/sub.srt", "lang": "pob", "name": "sub.srt" },
@@ -171,18 +147,6 @@ O JSON index (`movie_index.json`) é a **única fonte** de dados. Todo scraping 
   ]
 }
 ```
-
-### Vantagens sobre o fluxo legado
-
-| Aspecto | Antes (HTML scraping + TMDB) | Agora (JSON Index) |
-|---------|------------------------------|--------------------|
-| Requisições | N scraping HTML + N TMDB (rate limited) | 1 GET do JSON index |
-| URL do vídeo | Scraping on-demand (`inspectFolder`) | Direto do campo `file` |
-| Legendas | Scraping + ranking por filename | Direto do campo `subtitles` |
-| API key TMDB | Necessária | Não precisa |
-| Metadados | Parciais (dependia de match) | Completos (pré-resolvidos) |
-| Velocidade | Minutos (200+ filmes × rate limit) | Segundos |
-| Manutenção | 2 implementações de parse HTML | Zero parsing HTML |
 
 ### Métodos
 
@@ -198,13 +162,6 @@ Injeta o HTTP client com autenticação JWT. Chamado **uma vez** no boot do app 
 3. Salva em batch no banco via `repository.saveBatch()` (UPSERT)
 4. Marca filmes que sumiram do servidor como indisponíveis
 
-> **Métodos removidos** (scraping eliminado):
-> - ~~`inspectFolder()`~~ — não há mais scraping de diretórios HTML
-> - ~~`fetchMovieFile()`~~ — URL do vídeo vem do `file` no JSON
-> - ~~`cleanTitleForTmdb()`~~ — metadados vêm do JSON, não do TMDB
-> - ~~`safeDecodeComponent()`~~ — não há mais parsing de listing HTML
-> - ~~Classes auxiliares~~ — `_LinkEntry`, `_DetectedImages` removidas
-
 ---
 
 ## DownloadService
@@ -212,12 +169,13 @@ Injeta o HTTP client com autenticação JWT. Chamado **uma vez** no boot do app 
 Serviço de gerenciamento de downloads para offline.
 
 ### Características
-- **Não é mais singleton** — injetado via `DownloadService.withRepository(repo, {httpClient})`
+- Injetado via `DownloadService.withRepository(repo, {httpClient})`
 - Persistência via `DownloadsRepository` (Drift) — fonte de verdade
 - Downloads concorrentes configuráveis (1-5)
 - Progresso em tempo real via `ChangeNotifier`
 - Controle de fila (pausar, cancelar, retomar)
 - HTTP client injetável (em produção: `AuthenticatedHttpClient` com JWT)
+- URLs diretas PauloFlix (MKV/MP4) — sem resolução de URL externa
 
 ### Estados de Download
 ```dart
@@ -228,16 +186,6 @@ enum DownloadStatus {
   completed,   // Concluído
   failed,      // Falhou
   cancelled,   // Cancelado
-}
-```
-
-### Qualidades Suportadas
-```dart
-enum DownloadQuality {
-  auto,   // Auto-detectar
-  low,    // 480p
-  medium, // 720p
-  high,   // 1080p
 }
 ```
 
@@ -253,7 +201,7 @@ Pausa/retoma download específico.
 Cancela e remove arquivo parcial.
 
 #### `deleteDownload(String id)`
-Remove do banco (via `_repository.delete(id)`) + deleta arquivo local.
+Remove do banco + deleta arquivo local.
 
 #### `retryDownload(String id)`
 Reseta status para `queued` e re-processa fila.
@@ -284,18 +232,10 @@ Serviço de sincronização on-demand de seasons + episodes.
 ### Métodos Principais
 
 #### `syncSeasonEpisodes({contentId, contentServerUrl, enricher})`
-Sync upsert de seasons/episodes de um show:
-1. Fetch + parse seasons (HTTP)
-2. Para cada season:
-   a. (Opcional) Listing unificado via enricher (episodeNumbers, thumbUrls, images, hasSeasonNfo)
-   b. Upsert season
-   c. (Opcional) N NFOs paralelos via enricher → descrições + metadados V2
-   d. Fetch + parse episodes (HTTP)
-   e. Upsert cada episode preservando progresso
-   f. Atualiza episodeCount
+Sync upsert de seasons/episodes de um show.
 
 #### `reconcileSeasonEpisodes({contentId, contentServerUrl, enricher})`
-Sync + reconciliação: remove seasons/episodes ausentes do servidor **que não têm progresso do usuário**. Retorna `SeasonEpisodesReconciliationStats`.
+Sync + reconciliação: remove seasons/episodes ausentes do servidor **que não têm progresso do usuário**.
 
 ---
 
@@ -303,23 +243,13 @@ Sync + reconciliação: remove seasons/episodes ausentes do servidor **que não 
 
 Orquestrador HTTP para enriquecimento via arquivos NFO/JPG do servidor.
 
-### Responsabilidades
-- GET `tvshow.nfo` / `movie.nfo` / `season.nfo` → parse via `KodiNfoParser`
-- GET `SXXEYYY-thumb.jpg` do listing da season
-- GET `SXXEYYY.nfo` com fallback de zero-padding (3-dígitos → 2-dígitos → sem padding)
-- Detecção de `poster.jpg` / `fanart.jpg` no listing (show e season)
-- Resolução de URLs (absoluta vs path relativo)
-
 ### Métodos
 - `fetchShowNfo(showUrl)` → `KodiShowNfo?`
 - `fetchMovieNfo(folderUrl)` → `KodiShowNfo?`
 - `fetchSeasonNfo(seasonUrl)` → `KodiSeasonNfo?`
 - `fetchEpisodeNfo(seasonUrl, seasonNumber, episodeNumber)` → `KodiEpisodeNfo?`
-- `fetchSeasonListing(seasonUrl)` → record unificado (episodeNumbers, thumbUrls, images, hasSeasonNfo, episodeNfoFilenames)
+- `fetchSeasonListing(seasonUrl)` → record unificado
 - `fetchShowNfoWithImages(showUrl)` → record (nfo + DetectedShowImages)
-
-### Tratamento de Erros
-Todos os métodos envolvem HTTP em `try`/`catch` e retornam `null` / vazio em qualquer falha. NUNCA propagam exceção.
 
 ---
 
@@ -332,34 +262,6 @@ Parser XML puro (sem Flutter) para arquivos NFO do Kodi.
 - `parseMovie(String xmlBody)` — root `<movie>` → `KodiShowNfo?`
 - `parseEpisode(String xmlBody)` — root `<episodedetails>` → `KodiEpisodeNfo?`
 - `parseSeasonNfo(String xmlBody)` — root `<season>` → `KodiSeasonNfo?`
-
-### Schema V2 (KodiEpisodeNfo)
-```
-originalTitle, outline, aired (DateTime), rating (double), runtime (int)
-```
-5 campos novos além dos V1 (season, episode, title, plot, thumb).
-
----
-
-## ~~JikanService~~ (removido)
-
-O serviço Jikan API (MyAnimeList) foi **removido**.
-
----
-
-## AniListService
-
-Serviço para metadados via AniList GraphQL API.
-
-### URL Base
-```
-https://graphql.anilist.co
-```
-
-### Funcionalidades
-- Busca por título (com limpeza inteligente de tags como `[AnimeFire]`, indicadores de idioma)
-- Busca por MAL ID
-- Busca por AniList ID
 
 ---
 
@@ -384,32 +286,6 @@ GET /v3/media?tmdb_id={tmdb_id}&season_number={season_number}&episode_number={ep
 
 ---
 
-## TmdbService
-
-Cliente para a API v3 do TMDB. **Não é mais usado no sync de filmes PauloFlix** (substituído pelo JSON index). Mantido para compatibilidade.
-
-### URL Base
-```
-https://api.themoviedb.org/3
-```
-
-### Características
-- Cache em memória (30 minutos)
-- Rate throttle: 25 req/s
-- Autenticação via `Authorization: Bearer` (API key v3 configurada pelo usuário)
-
----
-
-## EpisodeThumbnailService
-
-Serviço para obter thumbnails de episódios de fontes externas (AniList streamingEpisodes).
-
-### Fontes
-1. AniList streamingEpisodes (raro)
-2. Thumbnail do anime como fallback
-
----
-
 ## SearchHistoryService
 
 Serviço de histórico de busca via SharedPreferences.
@@ -418,15 +294,6 @@ Serviço de histórico de busca via SharedPreferences.
 - Máximo 20 itens
 - FIFO quando cheio
 - Persistência em SharedPreferences
-
----
-
-## ApiKeySettingsService
-
-Persiste chaves de API do usuário em SharedPreferences.
-
-### Chaves
-- `tmdb_api_key` — chave v3 do TMDB (configurada pelo usuário em Settings)
 
 ---
 
@@ -452,29 +319,20 @@ Wrapper `http.Client` que injeta `Authorization: Bearer <JWT>` em toda request.
 | `PauloFlixEpisodeSyncService` | Sync | HTTP + HTML scraping + NFO | Via `PauloFlixEpisodeProgressRepository` (Drift) |
 | `PauloFlixNfoEnricher` | Sync | HTTP | Não |
 | `DownloadService` | Streaming | HTTP + Drift (fila + persistência) | Via `DownloadsRepository` (Drift) |
-| ~~`JikanService`~~ (removido) | — | — | — |
-| `AniListService` | API externa | GraphQL HTTP | Não |
 | `IntroDbService` | API externa | HTTP (TheIntroDB API) | Sim (memória) |
-| `TmdbService` | API externa | HTTP (TMDB API) | Não |
 | `SearchHistoryService` | Persistência | SharedPreferences | Sim |
-| `EpisodeThumbnailService` | Streaming | HTTP (AniList) | Não |
-| `ApiKeySettingsService` | Persistência | SharedPreferences | Sim |
 
 ## Resumo de Persistência
 
 || Camada | Tecnologia | Arquivo |
 || ------ | ---------- | ------- |
 || Banco de dados | Drift | `core/database/app_database.dart` |
-|| Repositories (4) | Drift | `data/repositories/*repository_impl.dart` |
+|| Repositories (5) | Drift | `data/repositories/*repository_impl.dart` |
 || Sync shows + films | HTTP + JSON index | `data/services/pauloflix*_service.dart` |
 || Sync episodes | HTTP + HTML scraping | `data/services/paulo_flix_episode_sync_service.dart` |
 || NFO enrichment | HTTP + XML parsing | `data/services/kodi/pauloflix_nfo_enricher.dart` |
 || Kodi NFO parser | XML (package:xml) | `data/services/kodi/kodi_nfo_parser.dart` |
-|| ~~Animes API (Jikan)~~ (removido) | — | — |
-|| AniList API | GraphQL HTTP | `data/services/anilist_service.dart` |
 || TheIntroDB API | HTTP | `data/services/introdb_service.dart` |
-|| TMDB API | HTTP (fallback) | `data/services/tmdb_service.dart` |
 || Downloads (fila HTTP) | HTTP + Drift | `data/services/download_service.dart` |
 || Search history | SharedPreferences | `data/services/search_history_service.dart` |
-|| TV API key | HTTP server | `data/services/tv_api_key_server.dart` |
 || JWT auth | HTTP client wrapper | `data/services/auth/authenticated_http_client.dart` |

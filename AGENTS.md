@@ -18,10 +18,10 @@ lib/
 ├── main.dart                          # Entry point
 ├── app.dart                           # MaterialApp setup, providers, theme
 │
-│   ├── core/                              # Infraestrutura compartilhada
-│   │   ├── constants/
-│   │   │   ├── api_constants.dart         # Base URLs, endpoints
-│   │   │   └── app_constants.dart         # Chaves de SharedPreferences, limites
+├── core/                              # Infraestrutura compartilhada
+│   ├── constants/
+│   │   ├── api_constants.dart         # URLs do servidor PauloFlix + IntroDB
+│   │   └── app_constants.dart         # Chaves de SharedPreferences, limites
 │   ├── database/                      # Drift — fonte de verdade (7 tabelas)
 │   │   ├── app_database.dart          # @DriftDatabase
 │   │   ├── app_database.g.dart        # Drift codegen (gerado, ignorado)
@@ -35,42 +35,47 @@ lib/
 │   │       ├── pauloflix_seasons.dart
 │   │       ├── pauloflix_episodes.dart
 │   │       └── episode_progress.dart
-│   │   ├── errors/
-│   │   ├── logger/
-│   │   └── network/
+│   ├── errors/
+│   ├── logger/
+│   └── network/
 │
-│   ├── data/                              # Implementações de dados
-│   │   ├── models/                        # Modelos de API externos
-│   │   │   ├── anilist_models.dart
-│   │   │   ├── aniskip_models.dart
-│   │   │   └── tmdb_models.dart
-│   │   ├── repositories/                  # ✅ Repositories Drift (Fase 3)
-│   │   │   ├── watchlist_repository_impl.dart
-│   │   │   ├── pauloflix_repository_impl.dart
-│   │   │   ├── pauloflix_movies_repository_impl.dart
-│   │   │   └── downloads_repository_impl.dart
-│   │   └── services/                      # Services de scraping/streaming
-│   │       ├── anilist_service.dart
-│   │       ├── anime_service.dart
-│   │       ├── aniskip_service.dart
-│   │       ├── api_key_settings_service.dart
-│   │       ├── download_service.dart      # Aceita DownloadsRepository (Fase 3)
-│   │       ├── episode_thumbnail_service.dart
-│   │       ├── google_video_proxy.dart
-│   │       ├── auth/
-│   │       │   ├── authenticated_http_client.dart  # Injeta JWT
-│   │       │   ├── authenticated_cache_manager.dart
-│   │       │   └── jwt_token_manager.dart
-│   │       ├── kodi/
-│   │       │   ├── kodi_nfo_models.dart
-│   │       │   ├── kodi_nfo_parser.dart
-│   │       │   └── pauloflix_nfo_enricher.dart
-│   │       ├── pauloflix_movies_service.dart  # JSON index sync
-│   │       ├── pauloflix_service.dart        # JSON index sync
-│   │       ├── paulo_flix_episode_sync_service.dart
-│   │       ├── search_history_service.dart
-│   │       ├── tmdb_service.dart
-│   │       └── tv_api_key_server.dart
+├── domain/                            # Camada de domínio (pura)
+│   ├── models/                        # Modelos de domínio
+│   │   ├── anime.dart
+│   │   ├── episode.dart
+│   │   ├── pauloflix_content.dart
+│   │   ├── pauloflix_movie.dart
+│   │   ├── pauloflix_models.dart      # SeasonRecord, EpisodeRecord
+│   │   └── ...
+│   └── repositories/                  # Interfaces (5)
+│
+├── data/                              # Implementações de dados
+│   ├── models/                        # Modelos de API externa
+│   │   └── introdb_models.dart        # TheIntroDB API models
+│   ├── repositories/                  # Implementações Drift (5 impls)
+│   │   ├── home_repository_impl.dart
+│   │   ├── watchlist_repository_impl.dart
+│   │   ├── pauloflix_repository_impl.dart
+│   │   ├── pauloflix_movies_repository_impl.dart
+│   │   └── downloads_repository_impl.dart
+│   └── services/                      # Services
+│       ├── auth/
+│       │   ├── authenticated_http_client.dart     # Injeta JWT
+│       │   ├── authenticated_cache_manager.dart
+│       │   └── jwt_token_manager.dart
+│       ├── kodi/
+│       │   ├── kodi_nfo_models.dart
+│       │   ├── kodi_nfo_parser.dart
+│       │   └── pauloflix_nfo_enricher.dart
+│       ├── download_service.dart                  # Fila HTTP + persistência
+│       ├── episode_progress_service.dart          # Progresso de episódios
+│       ├── image_precache_service.dart            # Precache de imagens
+│       ├── introdb_service.dart                   # TheIntroDB API
+│       ├── movie_progress_service.dart            # Progresso de filmes
+│       ├── pauloflix_movies_service.dart          # Sync JSON index (Movies)
+│       ├── pauloflix_service.dart                 # Sync JSON index (TV)
+│       ├── paulo_flix_episode_sync_service.dart   # Sync episodes on-demand
+│       └── search_history_service.dart            # Histórico de busca
 │
 ├── routing/                           # Navegação
 │   ├── app_router.dart                # go_router config
@@ -95,19 +100,23 @@ lib/
     │   ├── view_models/
     │   │   └── locale_viewmodel.dart  # Estado do idioma
     │   └── widgets/                   # Widgets reutilizáveis
-    │       ├── anime_result_card.dart
+    │       ├── completed_badge.dart
     │       ├── content_type_selector.dart  # Pill Animes|Filmes
     │       ├── focusable_widget.dart  # Focus + D-pad
-    │       ├── genre_glyph_icon.dart  # Ícones de gênero
+    │       ├── genre_glyph_icon.dart
+    │       ├── letter_index.dart
     │       ├── logo_widget.dart
     │       ├── netflix_card.dart      # Card estilo Netflix
     │       ├── netflix_carousel.dart  # Carousel horizontal
+    │       ├── netflix_hero_card.dart # Banner hero
+    │       ├── paginated_alphabetical_carousel.dart
+    │       ├── paginated_letter_grid.dart
     │       ├── pauloflix_badge.dart   # Badge azul PauloFlix
     │       ├── pauloflix_movies_badge.dart # Badge vermelho cinema
-    │       ├── pauloflix_movies_section.dart # Seção filmes
-    │       ├── pauloflix_section.dart # Seção animes PauloFlix
+    │       ├── progress_overlay.dart
+    │       ├── see_all_card.dart
     │       ├── shimmer_loading.dart   # Skeleton loading
-    │       ├── skip_button.dart       # Botão AniSkip
+    │       ├── skip_button.dart       # Botão TheIntroDB
     │       ├── tv_grid_view.dart      # Grid otimizado TV
     │       ├── tv_safe_text_field.dart # TextField seguro para TV
     │       └── watchlist_button.dart
@@ -116,10 +125,8 @@ lib/
     │   ├── download_button.dart
     │   └── downloads_screen.dart
     │
-    ├── home/
-    │   └── widgets/
-    │       ├── anime_detail_screen.dart
-    │       └── home_screen.dart
+    ├── home/widgets/
+    │   └── home_screen.dart
     │
     ├── navigation/main_navigation_screen.dart  # Shell + toggle Animes|Filmes
     │
@@ -127,6 +134,7 @@ lib/
     │   ├── view_models/pauloflix_provider.dart
     │   └── widgets/
     │       ├── pauloflix_episode_list_screen.dart
+    │       ├── pauloflix_search_screen.dart
     │       └── pauloflix_see_all_screen.dart
     │
     ├── pauloflix_movies/
@@ -134,25 +142,20 @@ lib/
     │   └── widgets/
     │       ├── pauloflix_movie_detail_screen.dart
     │       ├── pauloflix_movies_home_screen.dart
+    │       ├── pauloflix_movies_section.dart
     │       └── pauloflix_movies_search_screen.dart
     │
     ├── player/
-    │   ├── video_player_aniskip_mixin.dart  # Mixin AniSkip
+    │   ├── video_player_introdb_mixin.dart  # Mixin TheIntroDB
     │   └── widgets/
     │       ├── blogger_webview_screen.dart
-    │       ├── episode_grid_card.dart      # Card de episódio em modo grid
-    │       ├── episode_list_card.dart      # Card de episódio em modo lista
-    │       ├── episode_list_screen.dart
-    │       ├── modern_episode_list_screen.dart
-    │       ├── video_player_info_panel.dart      # Painel de info abaixo do player
-    │       ├── video_player_overlay_controls.dart # Controles de overlay fullscreen
+    │       ├── modern_video_player_controls.dart # Controles overlay
+    │       ├── video_player_episode_buttons.dart
     │       ├── video_player_screen.dart
     │       └── video_player_subtitle_sheet.dart   # Seletor de legendas
     │
     ├── search/widgets/
-    │   ├── anime_search_screen.dart
-    │   ├── search_screen.dart
-    │   └── source_selection_screen.dart
+    │   └── search_screen.dart
     │
     ├── settings/
     │   ├── view_models/theme_viewmodel.dart
@@ -247,41 +250,33 @@ NetflixCarousel(title: title, height: height, items: items)
 
 ## Video Player Implementation
 
-The project uses **media_kit** for video playback, replacing the previous Chewie implementation:
+The project uses **media_kit** for video playback:
 
 ### Key Components
 - **media_kit**: Core video player library
 - **media_kit_video**: Flutter widget for video rendering
 - **media_kit_libs_video**: Native video libraries for each platform
-- **GoogleVideoProxy**: Custom proxy for Google Video streams with referrer handling
+- **TheIntroDB**: Skip intro/outro via api.theintrodb.org
 
 ### Video Player Features
 - Modern video player with media_kit backend
 - Fullscreen support with immersive mode
 - TV-optimized playback with D-pad controls
-- AniSkip integration for skipping intro/outro segments
-- Google Video proxy for handling restricted streams
-- Hardware acceleration enabled safely on TV (using androidAttachSurfaceAfterVideoParameters to prevent black screen)
+- TheIntroDB integration for skipping intro/outro segments
+- HTTP headers (User-Agent, Referer, JWT) injetados diretamente no `Media.open()`
+- Hardware acceleration enabled safely on TV
 - WebView fallback for iOS when needed
 - Adaptive video controls for different platforms
 
 ### Video Player Architecture
 ```dart
 // Main video player screen
-ModernVideoPlayerScreen
+VideoPlayerScreen
 ├── Player (media_kit core)
 ├── VideoController (media_kit_video)
-├── GoogleVideoProxy (for Google Video streams)
-├── AniSkip integration (skip intro/outro)
+├── IntroDbService (skip intro/outro)
 └── TV-specific optimizations
 ```
-
-### Google Video Proxy
-Custom HTTP proxy server that:
-- Handles Google Video streams with proper referrer headers
-- Runs locally on loopback interface
-- Forwards relevant headers (Range, Accept, etc.)
-- Bypasses CORS restrictions for embedded video players
 
 ### TV Video Player Specifics
 - Hardware acceleration enabled safely with androidAttachSurfaceAfterVideoParameters: true
@@ -363,12 +358,12 @@ context.pushNamed('player', extra: PlayerRouteData(...));
 ### State Management
 ```dart
 // Using Provider
-class AnimeProvider extends ChangeNotifier {
-  List<Anime> _animes = [];
-  List<Anime> get animes => _animes;
-  
-  Future<void> loadAnimes() async {
-    _animes = await animeService.getTopAnime();
+class PauloFlixProvider extends ChangeNotifier {
+  List<PauloFlixContent> _contents = [];
+  List<PauloFlixContent> get contents => _contents;
+
+  Future<void> loadContents() async {
+    _contents = await repository.getAll();
     notifyListeners();
   }
 }

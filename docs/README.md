@@ -2,7 +2,7 @@
 
 ## Visão Geral
 
-**PauloFlix** é um aplicativo Flutter de streaming de anime que oferece uma experiência premium inspirada em plataformas como Netflix, Disney+ e HBO Max. O app consome múltiplas fontes de dados para fornecer informações ricas sobre animes e permite assistir a episódios de diversas fontes.
+**PauloFlix** é um aplicativo Flutter de streaming que consome exclusivamente o catálogo PauloFlix via JSON indexes (`tv_index.json` / `movie_index.json`). Os índices fornecem todos os metadados (título, descrição, poster, fanart, rating, gêneros, thumbnails, URLs diretas de vídeo), eliminando a necessidade de APIs externas.
 
 ---
 
@@ -20,7 +20,7 @@ lib/
 │   └── route_data.dart             # Typed route extras
 ├── core/
 │   ├── constants/
-│   │   ├── api_constants.dart      # URLs, endpoints (incl. tvIndexUrl, movieIndexUrl)
+│   │   ├── api_constants.dart      # URLs do servidor PauloFlix + IntroDB
 │   │   └── app_constants.dart      # SharedPreferences keys
 │   ├── database/                   # Drift — fonte de verdade
 │   │   ├── app_database.dart       # @DriftDatabase (7 tabelas)
@@ -42,34 +42,31 @@ lib/
 │   └── repositories/              # Interfaces dos repositories (5)
 ├── data/                           # Implementações de dados
 │   ├── models/                     # Modelos de API externa
-│   │   ├── jikan_models.dart, anilist_models.dart
-│   │   ├── introdb_models.dart, tmdb_models.dart
+│   │   └── introdb_models.dart     # TheIntroDB API models
 │   ├── repositories/              # Implementações Drift (5 impls)
-│   │   ├── *repository_impl.dart
-│   └── services/                   # Services de I/O, scraping, sync
+│   │   └── *repository_impl.dart
+│   └── services/                   # Services de I/O, sync
 │       ├── auth/                   # AuthenticatedHttpClient, JwtTokenManager
 │       ├── kodi/                   # KodiNfoParser, KodiNfoModels, PauloFlixNfoEnricher
 │       ├── pauloflix_service.dart          # Sync JSON index (TV)
 │       ├── pauloflix_movies_service.dart   # Sync JSON index (Movies)
 │       ├── paulo_flix_episode_sync_service.dart  # Sync episodes on-demand
 │       ├── download_service.dart            # Fila HTTP + persistência
-│       ├── jikan_service.dart, anilist_service.dart
-│       ├── introdb_service.dart, tmdb_service.dart
-│       ├── anime_service.dart, episode_thumbnail_service.dart
-│       └── search_history_service.dart, tv_api_key_server.dart
+│       ├── introdb_service.dart            # TheIntroDB API
+│       └── search_history_service.dart
 └── ui/                             # Interface do usuário
     ├── core/
     │   ├── themes/                 # AppTheme, AppColors, NetflixTheme, TVTheme
     │   ├── utils/                  # Responsive, PerformanceConfig, TVDetector
     │   ├── view_models/            # LocaleViewModel
-    │   └── widgets/                # AnimeCard, NetflixCard, NetflixCarousel,
-    │                                # FocusableWidget, ShimmerLoading, etc.
-    ├── home/                       # HomeScreen, AnimeDetailScreen, GenreAnimesScreen
+    │   └── widgets/                # NetflixCard, NetflixCarousel, FocusableWidget,
+    │                                # ShimmerLoading, SkipButton, etc.
+    ├── home/                       # HomeScreen
     ├── navigation/                 # MainNavigationScreen (ShellRoute)
     ├── pauloflix/                  # PauloFlix (TV shows)
     ├── pauloflix_movies/           # PauloFlix Movies
-    ├── player/                     # VideoPlayerScreen, ModernEpisodeListScreen
-    ├── search/                     # SearchScreen, SourceSelectionScreen
+    ├── player/                     # VideoPlayerScreen
+    ├── search/                     # SearchScreen
     ├── settings/                   # SettingsScreen
     ├── watchlist/                  # WatchlistScreen
     └── downloads/                  # DownloadsScreen
@@ -99,11 +96,10 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 ### 1. **PauloFlix JSON Index** (sync principal)
 - **TV:** `GET /tvshows/tv_index.json` — índice completo de shows
 - **Movies:** `GET /movies/movie_index.json` — índice completo de filmes
-- Substitui scraping HTML + APIs externas como fonte primária
+- Fonte **única** de dados — substitui todas as APIs externas
 
-### 2. **AniList API** (GraphQL) — Metadados enriquecidos
-### 3. **TheIntroDB API** — Skip intro/outro
-### 4. **TMDB API** — Fallback de metadados
+### 2. **TheIntroDB API** — Skip intro/outro
+- Única API externa mantida
 
 ---
 
@@ -122,10 +118,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 | `episode_progress` | Progresso do usuário por episódio |
 
 **SharedPreferences:**
-- Cache de dados da Home (30 min)
-- Histórico de busca
 - Preferências de idioma
-- API key do TMDB
 
 ---
 
@@ -133,14 +126,13 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 
 ### Tecnologias
 - **media_kit**: Player nativo Flutter de alta performance
-- **Google Video Proxy**: Para contornar restrições de referrer
 - **TheIntroDB**: Pular intro/outro automaticamente
 - **Fallback WebView**: Para iOS quando o player nativo falha
 
 ### Recursos
-- Qualidade adaptativa (Google Video, Blogger)
 - Download para offline
 - Legendas `.srt` (prioridade PT-BR)
+- Progresso de playback (salvo a cada 5s + no dispose)
 
 ---
 
@@ -157,7 +149,6 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 | http | ^1.6.0 | Requisições HTTP |
 | html | ^0.15.6 | Parsing HTML (fallback scraping) |
 | xml | ^7.0.1 | Parsing NFO (Kodi) |
-| dio | ^5.7.0 | HTTP client com interceptors |
 | cached_network_image | ^3.4.1 | Cache de imagens |
 | cryptography_plus | ^3.0.0 | JWT Ed25519 signing |
 
@@ -191,4 +182,3 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 - [PAULOFLIX_MOVIES.md](./PAULOFLIX_MOVIES.md) — Detalhes da área de filmes
 - [TV_SUPPORT.md](./TV_SUPPORT.md) — Suporte a Android TV
 - [NETFLIX_REFACTORING.md](./NETFLIX_REFACTORING.md) — Netflix UI/UX
-- [archive/DATABASE_REFACTORING.md](./archive/DATABASE_REFACTORING.md) — Histórico da refatoração do banco (5 fases concluídas)
