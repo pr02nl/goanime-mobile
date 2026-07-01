@@ -132,6 +132,87 @@ void main() {
     });
   });
 
+  group('stop() — proteção contra erro de streaming', () {
+    test('erro de streaming: stop() ANTES que posição 0 corroa o save',
+        () {
+      // Cenário: usuário assistiu até 50s, erro ocorre, player.state.position
+      // zera para 0. O onPlayerError chama stop() antes do próximo tick.
+      fakeAsync((async) {
+        final repo = _MockRepo();
+        final service = EpisodeProgressService(
+          repo: repo,
+          seasonId: 1,
+          episodeNumber: 1,
+        );
+
+        var pos = 0;
+        service.start(
+          getCurrentPosition: () => Duration(seconds: pos),
+          getDuration: () => const Duration(seconds: 100),
+        );
+
+        // Avança 50s em ticks de 5s = 10 chamadas de save.
+        for (int i = 0; i < 10; i++) {
+          pos = (i + 1) * 5;
+          async.elapse(const Duration(seconds: 5));
+        }
+        expect(repo.updateCalls, 10);
+        expect(repo.lastUpdate?.positionSeconds, 50);
+
+        // ─── ERRO DE STREAMING ─────────────────────────────────
+        // A posição do player zera para 0.
+        pos = 0;
+
+        // onPlayerError → stop() é chamado ANTES do próximo tick.
+        service.stop();
+
+        // Avança 30s extras — NENHUM save deve acontecer.
+        async.elapse(const Duration(seconds: 30));
+        expect(repo.updateCalls, 10,
+            reason: 'stop() impediu que posição 0 sobrescrevesse '
+                'o progresso salvo');
+        expect(repo.lastUpdate?.positionSeconds, 50,
+            reason: 'último progresso válido (50s) preservado');
+      });
+    });
+
+    test('erro de streaming: saveProgress com valores capturados '
+        'funciona mesmo após stop()', () {
+      fakeAsync((fa) async {
+        final repo = _MockRepo();
+        final service = EpisodeProgressService(
+          repo: repo,
+          seasonId: 1,
+          episodeNumber: 1,
+        );
+
+        service.start(
+          getCurrentPosition: () => const Duration(seconds: 50),
+          getDuration: () => const Duration(seconds: 100),
+        );
+
+        fa.elapse(const Duration(seconds: 5));
+        expect(repo.updateCalls, 1);
+        expect(repo.lastUpdate?.positionSeconds, 50);
+
+        // Erro → stop()
+        service.stop();
+
+        // Dispose salva com valores capturados (não corrompidos).
+        await service.saveProgress(
+          positionSeconds: 50,
+          durationSeconds: 100,
+        );
+
+        expect(repo.updateCalls, 2);
+        expect(repo.lastUpdate?.positionSeconds, 50,
+            reason: 'progresso final = 50s, não 0');
+
+        fa.flushMicrotasks();
+      });
+    });
+  });
+
   group('start + flush', () {
     test('start agenda timer e tick chama updateProgress com posição atual',
         () {
