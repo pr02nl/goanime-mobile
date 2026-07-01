@@ -209,9 +209,6 @@ class _MockRepository implements PauloFlixRepository {
   Future<PauloFlixContent?> getByFolderName(String folderName) async => null;
 
   @override
-  Future<PauloFlixContent?> getByMalId(int malId) async => null;
-
-  @override
   Future<void> saveContent(PauloFlixContent content) async {}
 
   @override
