@@ -52,6 +52,13 @@ class _TestSkipWidgetState extends State<_TestSkipWidget>
       ],
     );
   }
+
+  void showSkipButtonWithLabel(String label) {
+    setState(() {
+      showSkipButton = true;
+      skipButtonLabel = label;
+    });
+  }
 }
 
 Widget buildTestApp() {
@@ -257,10 +264,7 @@ void main() {
       // 1. Exibe o botão
       // 2. Chama maybeReshowSkipButton (limpa a flag)
       // 3. A flag continua false (pronta para reexibir)
-      state.setState(() {
-        state.showSkipButton = true;
-        state.skipButtonLabel = 'Pular Intro';
-      });
+      state.showSkipButtonWithLabel('Pular Intro');
       await tester.pump();
 
       expect(find.text('Pular Intro'), findsOneWidget);
@@ -297,10 +301,7 @@ void main() {
       );
 
       // Simula a exibição do botão setando o estado diretamente.
-      state.setState(() {
-        state.showSkipButton = true;
-        state.skipButtonLabel = 'Pular Intro';
-      });
+      state.showSkipButtonWithLabel('Pular Intro');
       await tester.pump();
 
       // Verifica que o label aparece na UI.
