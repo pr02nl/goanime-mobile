@@ -122,6 +122,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// esta flag ANTES de acessar `_player` ou chamar `setState`.
   bool _disposed = false;
 
+  /// Flag de erro ativo. Impede que `player.stream.completed` dispare
+  /// `_findAndPlayNextEpisode()` durante um erro de streaming, evitando
+  /// que o app comece a tocar o próximo episódio enquanto o usuário vê
+  /// o overlay de erro.
+  /// Setada como `true` em `_stopProgressServices()`, resetada como `false`
+  /// no início de `_initializeVideoPlayer()`.
+  bool _hasPlayerError = false;
+
   // ═══════════════════════════════════════════════════════════════════
   // Auto-play próximo episódio
   // ═══════════════════════════════════════════════════════════════════
@@ -522,12 +530,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     await service.flush(getCurrentPosition: getPos, getDuration: getDur);
   }
 
-  /// Para todos os timers ativos (progresso episódios/filmes + AniSkip).
+  /// Para todos os timers ativos (progresso episódios/filmes + AniSkip)
+  /// e bloqueia auto-play acidental via `_completedSub`.
   ///
   /// Chamado quando um erro de streaming é detectado, ANTES que
   /// `player.state.position` zere e sobrescreva o progresso salvo
   /// no banco com posição 0.
   void _stopProgressServices() {
+    _hasPlayerError = true;
     _progressService?.stop();
     _movieProgressService?.stop();
     cleanupIntroDb();
@@ -566,9 +576,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     });
 
     // Completed: auto-play próximo episódio.
+    // O guard `_hasPlayerError` impede que o completed disparado pelo
+    // `end-file(reason=error)` do mpv inicie o próximo episódio enquanto
+    // o usuário vê o overlay de erro.
     _completedSub = _player.stream.completed.listen((completed) {
       debugPrint('[VideoPlayer] Completed: $completed');
-      if (!mounted || !completed) return;
+      if (!mounted || !completed || _hasPlayerError) return;
       _findAndPlayNextEpisode();
     });
   }
@@ -645,9 +658,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     if (_disposed || !mounted) return;
 
     final episodeKey = _buildEpisodeKey();
-    debugPrint('[VideoPlayer] 🎬 Initializing player for episode: $episodeKey');
-
-    // Fase 2: lê progresso salvo do banco (PauloFlix) ANTES do setState
+    debugPrint('[VideoPlayer] 🎬 Initializing player for episode: $episodeKey');    // Fase 2: lê progresso salvo do banco (PauloFlix) ANTES do setState
     // para já ter a decisão de reset/seek pronta quando o Media abrir.
     if (widget.isMovie && widget.movieFolderName != null) {
       await _loadMovieSavedProgress();
@@ -715,6 +726,12 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       // Merge: controller headers take priority over defaults
       final mergedHeaders = {...defaultHeaders};
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // Reseta flag de erro APENAS quando o novo Media.open está prestes a
+      // acontecer. Se fosse resetado no início de _initializeVideoPlayer(),
+      // um evento completed antigo (ainda na fila de eventos) poderia passar.
+      _hasPlayerError = false;
 
       // ═══════════════════════════════════════════════════════════════════════
       // Migração Tailscale → HTTPS+token: se a URL for do PauloFlix, injeta
