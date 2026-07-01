@@ -522,6 +522,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     await service.flush(getCurrentPosition: getPos, getDuration: getDur);
   }
 
+  /// Para AMBOS os timers de progresso (episódios + filmes).
+  ///
+  /// Chamado quando um erro de streaming é detectado, ANTES que
+  /// `player.state.position` zere e sobrescreva o progresso salvo
+  /// no banco com posição 0.
+  void _stopProgressServices() {
+    _progressService?.stop();
+    _movieProgressService?.stop();
+    debugPrint('[VideoPlayer] ⏹ Progress services stopped (player error)');
+  }
+
   /// Configura as stream subscriptions persistentes uma ÚNICA vez.
   /// Chamado na primeira execução de `_initializeVideoPlayer`.
   /// Em trocas de episódio (`_replaceEpisode`), o guard `_streamSubsReady`
@@ -1034,6 +1045,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                 skipLabel: showSkipButton ? skipButtonLabel : null,
                 onSkip: showSkipButton ? skipIntroOutro : null,
                 onRetry: _initializeVideoPlayer,
+                onPlayerError: _stopProgressServices,
                 onClose: _exitPlayer,
                 externalSubtitleTracks: externalSubs.isNotEmpty
                     ? externalSubs

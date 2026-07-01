@@ -59,6 +59,13 @@ class ModernVideoPlayerControls extends StatefulWidget {
   /// Callback para tentar novamente após erro.
   final VoidCallback? onRetry;
 
+  /// Callback disparado quando um erro de streaming não-ignorável é
+  /// detectado. Usado pelo screen state para parar os timers de
+  /// progresso (MovieProgressService / EpisodeProgressService)
+  /// antes que `player.state.position` zere e sobrescreva o
+  /// progresso salvo.
+  final VoidCallback? onPlayerError;
+
   /// Callback para fechar o player.
   final VoidCallback? onClose;
 
@@ -79,6 +86,7 @@ class ModernVideoPlayerControls extends StatefulWidget {
     this.skipLabel,
     this.onSkip,
     this.onRetry,
+    this.onPlayerError,
     this.onClose,
     this.autoHideDuration,
     this.externalSubtitleTracks,
@@ -243,6 +251,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       }
       if (mounted && error.isNotEmpty) {
         debugPrint('[ModernVideoPlayerControls] Player error: $error');
+        // Notifica o screen state para parar os timers de progresso
+        // ANTES que o player state zere e corrompa o progresso salvo.
+        widget.onPlayerError?.call();
         setState(() {
           _uiState = _PlayerUIState.error;
           _errorMessage = error;
