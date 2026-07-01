@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 import '../domain/models/anime.dart';
 import '../domain/models/episode.dart';
 
@@ -62,20 +60,6 @@ class SourceSelectionRouteData {
     required this.animeTitle,
     required this.imageUrl,
     required this.myAnimeListUrl,
-  });
-}
-
-class GenreRouteData {
-  final String title;
-  final IconData icon;
-  final LinearGradient gradient;
-  final int genreId;
-
-  const GenreRouteData({
-    required this.title,
-    required this.icon,
-    required this.gradient,
-    required this.genreId,
   });
 }
 
