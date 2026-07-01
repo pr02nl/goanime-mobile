@@ -28,6 +28,9 @@ class PauloFlixMovieDetailScreen extends StatefulWidget {
 
 class _PauloFlixMovieDetailScreenState
     extends State<PauloFlixMovieDetailScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _playButtonFocusNode = FocusNode();
+
   String? _error;
 
   // Para filme individual
@@ -40,8 +43,30 @@ class _PauloFlixMovieDetailScreenState
   @override
   void initState() {
     super.initState();
+    _playButtonFocusNode.addListener(_onPlayButtonFocusChanged);
     _resolveSingleMovie();
     _loadProgress();
+  }
+
+  @override
+  void dispose() {
+    _playButtonFocusNode.removeListener(_onPlayButtonFocusChanged);
+    _playButtonFocusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onPlayButtonFocusChanged() {
+    if (_playButtonFocusNode.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    }
   }
 
   Future<void> _loadProgress() async {
@@ -136,6 +161,7 @@ class _PauloFlixMovieDetailScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           _buildAppBar(),
           SliverToBoxAdapter(child: _buildMovieInfo()),
@@ -353,6 +379,7 @@ class _PauloFlixMovieDetailScreenState
             _buttonLabel,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
+          focusNode: _playButtonFocusNode,
           style: ElevatedButton.styleFrom(
             backgroundColor: _isCompleted
                 ? Colors.green

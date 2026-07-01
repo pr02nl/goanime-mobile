@@ -231,6 +231,38 @@ class _HeroActionButton extends StatefulWidget {
 
 class _HeroActionButtonState extends State<_HeroActionButton> {
   bool _isFocused = false;
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChanged() {
+    final focused = _focusNode.hasFocus;
+    setState(() => _isFocused = focused);
+    if (focused) {
+      // Revela o herocard completo ao receber foco via D-pad "cima".
+      // Usa addPostFrameCallback para evitar conflito com o
+      // ensureVisible automático do sistema de foco do Flutter.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Scrollable.maybeOf(context)?.position.animateTo(
+          0,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -239,6 +271,7 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
             onPressed: widget.onPressed,
             icon: Icon(widget.icon),
             label: Text(widget.label),
+            focusNode: _focusNode,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -252,6 +285,7 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
             onPressed: widget.onPressed,
             icon: Icon(widget.icon),
             label: Text(widget.label),
+            focusNode: _focusNode,
             style: OutlinedButton.styleFrom(
               foregroundColor: NetflixTheme.textPrimary,
               side: const BorderSide(color: NetflixTheme.textSecondary),
@@ -263,23 +297,10 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
           );
 
     return Focus(
-      // Sem `autofocus: true` — ver doc do `NetflixHeroCard`.
-      onFocusChange: (focused) {
-        setState(() => _isFocused = focused);
-        if (focused) {
-          // Revela o herocard completo ao receber foco via D-pad "cima".
-          // Usa addPostFrameCallback para evitar conflito com o
-          // ensureVisible automático do sistema de foco do Flutter.
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            Scrollable.maybeOf(context)?.position.animateTo(
-              0,
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeOutCubic,
-            );
-          });
-        }
-      },
+      // Apenas para capturar o botão SELECT do TV remote;
+      // o foco real é detectado via _focusNode passado ao botão.
+      canRequestFocus: false,
+      includeSemantics: false,
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
             (event.logicalKey == LogicalKeyboardKey.select ||
