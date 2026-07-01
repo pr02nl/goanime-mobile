@@ -131,6 +131,15 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   bool _isSeeking = false;
   double? _seekPreviewValue;
 
+  // ─── Mid-playback buffer recovery ──────────────────────────────
+  /// `true` quando o buffer acabou durante o playback e estamos
+  /// aguardando o buffer encher novamente. Enquanto `true`:
+  /// - O player fica pausado (evita freezing a cada 1s)
+  /// - O overlay de loading aparece
+  /// - O toggle play/pause é bloqueado
+  /// - O buffer é monitorado via `_bufferPctSub`
+  bool _waitingForBuffer = false;
+
   // ─── TV detection (assíncrono) ──────────────────────────────────
   bool _isTVDevice = false;
 
@@ -224,7 +233,10 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       if (mounted) {
         setState(() {
           _isPlaying = v;
-          if (v && _uiState == _PlayerUIState.loading) {
+          // Só transiciona loading→playing se NÃO estivermos
+          // aguardando buffer. O _checkBufferAndResume é quem
+          // decide quando retomar após mid-playback buffer drain.
+          if (v && _uiState == _PlayerUIState.loading && !_waitingForBuffer) {
             _uiState = _PlayerUIState.playing;
           }
         });
@@ -253,6 +265,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         debugPrint('[ModernVideoPlayerControls] Player error: $error');
         // Notifica o screen state para parar os timers de progresso
         // ANTES que o player state zere e corrompa o progresso salvo.
+        _waitingForBuffer = false;
         widget.onPlayerError?.call();
         setState(() {
           _uiState = _PlayerUIState.error;
@@ -262,9 +275,25 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     });
     _bufferingSub = p.stream.buffering.listen((buffering) {
       if (mounted && _uiState != _PlayerUIState.error) {
-        if (buffering && !_isPlaying && _position == Duration.zero) {
+        if (buffering && _isPlaying) {
+          // Mid-playback buffer drain: pausa o player e mostra
+          // loading para evitar freezing contínuo. O player
+          // retomará automaticamente quando o buffer for suficiente.
+          debugPrint('[PlayerControls] ⏸ Buffer drained during playback');
+          _waitingForBuffer = true;
+          widget.player.pause();
+          setState(() {
+            _uiState = _PlayerUIState.loading;
+            _isPlaying = false;
+          });
+        } else if (!buffering && _waitingForBuffer) {
+          // Buffering ended while waiting — check if buffer is sufficient
+          _checkBufferAndResume();
+        } else if (buffering && !_isPlaying && _position == Duration.zero) {
+          // Initial loading (position=0)
           setState(() => _uiState = _PlayerUIState.loading);
-        } else if (!buffering && _uiState == _PlayerUIState.loading) {
+        } else if (!buffering && _uiState == _PlayerUIState.loading && !_waitingForBuffer) {
+          // Initial loading finished
           setState(() => _uiState = _PlayerUIState.playing);
         }
       }
@@ -277,12 +306,17 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     });
     _completedSub = p.stream.completed.listen((v) {
       if (mounted && v) {
+        _waitingForBuffer = false;
         setState(() => _isPlaying = false);
       }
     });
     _bufferPctSub = p.stream.buffer.listen((buffer) {
       if (mounted) {
         setState(() => _buffer = buffer);
+        // Se estamos aguardando buffer, verifica se já é suficiente.
+        if (_waitingForBuffer) {
+          _checkBufferAndResume();
+        }
       }
     });
     _isPlaying = p.state.playing;
@@ -329,9 +363,53 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     setState(() => _isVisible = false);
   }
 
-  // ─── Action handlers ────────────────────────────────────────────
+  // ─── Mid-playback buffer recovery ──────────────────────────────
+
+  /// Verifica se o buffer atual é suficiente para retomar o playback.
+  ///
+  /// Threshold: no mínimo 30s, no máximo 120s ou 50% da duração total
+  /// (o que for menor). Exemplos:
+  /// - Vídeo de 1min → threshold = 30s
+  /// - Vídeo de 10min → threshold = 30s (30s < 50% = 5min)
+  /// - Filme de 2h → threshold = 120s (capped)
+  static bool isBufferSufficient(Duration buffered, Duration duration) {
+    if (buffered <= Duration.zero) return false;
+    if (duration <= Duration.zero) {
+      // Sem duração conhecida: mínimo 30s
+      return buffered >= const Duration(seconds: 30);
+    }
+    // 50% da duração, clamp entre 30s e 120s
+    final halfDuration = duration ~/ 2;
+    final threshold = halfDuration < const Duration(seconds: 30)
+        ? const Duration(seconds: 30)
+        : halfDuration;
+    final capped = threshold > const Duration(seconds: 120)
+        ? const Duration(seconds: 120)
+        : threshold;
+    return buffered >= capped;
+  }
+
+  /// Verifica se o buffer está suficiente e, em caso positivo,
+  /// retoma o playback e esconde o loading.
+  void _checkBufferAndResume() {
+    if (!_waitingForBuffer) return;
+    if (!isBufferSufficient(_buffer, _duration)) return;
+
+    debugPrint(
+      '[PlayerControls] ▶ Buffer sufficient '
+      '(${_buffer.inSeconds}s), resuming playback',
+    );
+    _waitingForBuffer = false;
+    widget.player.play();
+    setState(() {
+      _uiState = _PlayerUIState.playing;
+      _isPlaying = true;
+    });
+    _showAndScheduleAutoHide();
+  }
 
   void _togglePlay() {
+    if (_waitingForBuffer) return; // bloqueado durante recuperação de buffer
     widget.player.playOrPause();
     _showAndScheduleAutoHide();
   }
@@ -359,6 +437,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   }
 
   void _retry() {
+    _waitingForBuffer = false;
     setState(() {
       _uiState = _PlayerUIState.loading;
       _errorMessage = null;
