@@ -434,7 +434,9 @@ class DownloadService extends ChangeNotifier {
       // Start streaming download
       debugPrint('[Download] Starting stream...');
       final request = http.Request('GET', Uri.parse(actualVideoUrl));
-      final response = await client.send(request);
+      final response = await client
+          .send(request)
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode != 200) {
         throw Exception('Failed to download: ${response.statusCode}');
