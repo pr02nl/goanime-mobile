@@ -138,7 +138,21 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   /// - O overlay de loading aparece
   /// - O toggle play/pause é bloqueado
   /// - O buffer é monitorado via `_bufferPctSub`
+  /// - Um timer de grace period de 20s é iniciado; se expirar sem
+  ///   recuperação, o erro é mostrado.
   bool _waitingForBuffer = false;
+
+  /// Timer de grace period para recuperação de buffer.
+  /// Iniciado quando o buffer acaba durante playback. Se o buffer
+  /// não recuperar dentro de 20s, o overlay de erro é exibido.
+  /// Cancelado se o buffer recuperar antes do timeout.
+  Timer? _bufferRecoveryTimer;
+
+  /// Duração do grace period para recuperação de buffer.
+  /// Tempo suficiente para a maioria dos hiccups de rede (roteador
+  /// reiniciar, queda de sinal WiFi, etc.), sem ser frustrante para
+  /// o usuário.
+  static const Duration _kBufferRecoveryTimeout = Duration(seconds: 20);
 
   // ─── TV detection (assíncrono) ──────────────────────────────────
   bool _isTVDevice = false;
@@ -170,6 +184,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   @override
   void dispose() {
     _autoHideTimer?.cancel();
+    _bufferRecoveryTimer?.cancel();
     _unsubscribeFromPlayer();
     _uninstallHardwareKeyboardHandler();
     super.dispose();
@@ -243,28 +258,45 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       }
     });
     _errorStreamSub = p.stream.error.listen((error) {
-      if (error.contains('tcp: ffurl_read returned')) {
+      // ── Erros de rede transientes (ignorar silenciosamente) ──
+      // ffurl_read: erro de leitura FFmpeg (transiente).
+      if (error.contains('tcp: ffurl_read returned') ||
+          // Connection reset: servidor dropou conexão (transiente).
+          error.contains('tcp: Connection reset by peer') ||
+          // Error -138: MPV_ERROR_LOADING_FAILED — genérico FFmpeg.
+          error.contains('Error number -138 occurred') ||
+          // Operation timed out: timeout de socket (transiente).
+          error.contains('tcp: Operation timed out') ||
+          // No route to host: roteamento temporário (transiente).
+          error.contains('No route to host') ||
+          // Broken pipe: servidor fechou conexão (transiente).
+          error.contains('Broken pipe') ||
+          // HTTP 5xx: erro temporário de servidor.
+          error.contains('HTTP error 5') ||
+          // Connection timed out: sem resposta (pode ser transiente).
+          error.contains('Connection timed out')) {
         debugPrint(
-          '[ModernVideoPlayerControls] Ignoring network error: $error',
+          '[ModernVideoPlayerControls] Ignoring transient network error: $error',
         );
         return;
       }
-      if (error.contains('tcp: Connection reset by peer')) {
-        debugPrint(
-          '[ModernVideoPlayerControls] Ignoring network error: $error',
-        );
-        return;
-      }
-      if (error.contains('Error number -138 occurred')) {
-        debugPrint(
-          '[ModernVideoPlayerControls] Ignoring network error: $error',
-        );
-        return;
-      }
+
       if (mounted && error.isNotEmpty) {
         debugPrint('[ModernVideoPlayerControls] Player error: $error');
-        // Notifica o screen state para parar os timers de progresso
-        // ANTES que o player state zere e corrompa o progresso salvo.
+
+        if (_waitingForBuffer) {
+          // Já estamos em modo de recuperação de buffer. O timer de
+          // grace period (_bufferRecoveryTimer) vai decidir quando
+          // mostrar o erro. Não sobrescrever o loading com error
+          // overlay — a rede pode voltar.
+          debugPrint(
+            '[ModernVideoPlayerControls] ⏳ Deferring error — '
+            'buffer recovery in progress',
+          );
+          return;
+        }
+
+        // Não está em recuperação: mostra erro imediatamente.
         _waitingForBuffer = false;
         widget.onPlayerError?.call();
         setState(() {
@@ -276,11 +308,13 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     _bufferingSub = p.stream.buffering.listen((buffering) {
       if (mounted && _uiState != _PlayerUIState.error) {
         if (buffering && _isPlaying) {
-          // Mid-playback buffer drain: pausa o player e mostra
-          // loading para evitar freezing contínuo. O player
-          // retomará automaticamente quando o buffer for suficiente.
+          // Mid-playback buffer drain: pausa o player, mostra
+          // loading e inicia timer de grace period.
+          // Se o buffer recuperar antes do timeout, retoma
+          // automaticamente. Se não, mostra erro.
           debugPrint('[PlayerControls] ⏸ Buffer drained during playback');
           _waitingForBuffer = true;
+          _startBufferRecoveryTimer();
           widget.player.pause();
           setState(() {
             _uiState = _PlayerUIState.loading;
@@ -389,8 +423,37 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     return buffered >= capped;
   }
 
+  /// Inicia o timer de grace period para recuperação de buffer.
+  /// Se o timeout expirar sem que o buffer se recupere, mostra
+  /// o overlay de erro.
+  void _startBufferRecoveryTimer() {
+    _bufferRecoveryTimer?.cancel();
+    _bufferRecoveryTimer = Timer(_kBufferRecoveryTimeout, () {
+      if (!mounted) return;
+      debugPrint(
+        '[PlayerControls] ⏰ Buffer recovery timeout '
+        '(${_kBufferRecoveryTimeout.inSeconds}s) — showing error',
+      );
+      _waitingForBuffer = false;
+      _bufferRecoveryTimer = null;
+      widget.onPlayerError?.call();
+      setState(() {
+        _uiState = _PlayerUIState.error;
+        _errorMessage = 'Sem conexão com o servidor';
+      });
+    });
+  }
+
+  /// Cancela o timer de grace period (buffer recuperou ou foi
+  /// cancelado manualmente via retry/dispose).
+  void _cancelBufferRecoveryTimer() {
+    _bufferRecoveryTimer?.cancel();
+    _bufferRecoveryTimer = null;
+  }
+
   /// Verifica se o buffer está suficiente e, em caso positivo,
-  /// retoma o playback e esconde o loading.
+  /// cancela o timer de grace period, retoma o playback e esconde
+  /// o loading.
   void _checkBufferAndResume() {
     if (!_waitingForBuffer) return;
     if (!isBufferSufficient(_buffer, _duration)) return;
@@ -399,6 +462,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       '[PlayerControls] ▶ Buffer sufficient '
       '(${_buffer.inSeconds}s), resuming playback',
     );
+    _cancelBufferRecoveryTimer();
     _waitingForBuffer = false;
     widget.player.play();
     setState(() {
@@ -438,6 +502,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   void _retry() {
     _waitingForBuffer = false;
+    _cancelBufferRecoveryTimer();
     setState(() {
       _uiState = _PlayerUIState.loading;
       _errorMessage = null;
