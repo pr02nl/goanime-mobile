@@ -86,9 +86,8 @@ class PauloFlixMoviesService {
         }
       }
 
-      final List<dynamic> moviesJson = data['movies'] as List<dynamic>;
-
-      if (moviesJson.isEmpty) {
+      final moviesJson = data['movies'] as List<dynamic>?;
+      if (moviesJson == null || moviesJson.isEmpty) {
         onError?.call('Nenhum filme encontrado no índice JSON');
         return false;
       }

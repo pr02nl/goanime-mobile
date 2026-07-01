@@ -86,9 +86,8 @@ class PauloFlixService {
         }
       }
 
-      final List<dynamic> showsJson = data['shows'] as List<dynamic>;
-
-      if (showsJson.isEmpty) {
+      final showsJson = data['shows'] as List<dynamic>?;
+      if (showsJson == null || showsJson.isEmpty) {
         onError?.call('Nenhum show encontrado no índice JSON');
         return false;
       }
