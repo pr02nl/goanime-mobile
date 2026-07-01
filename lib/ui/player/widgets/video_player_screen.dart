@@ -1077,7 +1077,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                     : null,
               );
             },
-          ), // ignore: prefer_const_constructors
+          ),
         ],
       ),
     );
