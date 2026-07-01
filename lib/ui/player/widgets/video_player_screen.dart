@@ -28,8 +28,12 @@ class ModernVideoPlayerScreen extends StatefulWidget {
   final String animeTitle;
   final Anime? anime;
   final bool isMovie;
-  final List<Episode>? episodeList;
   final int? episodeIndex;
+
+  /// FK para `paulo_flix_content.id` (Fase 5 do plano de progresso —
+  /// usado pelo auto-play para buscar a próxima season).
+  /// `null` para fluxos não-PauloFlix (filmes, AnimeFire).
+  final int? contentId;
 
   /// FK para `paulo_flix_seasons.id` (Fase 2 do plano de progresso).
   /// Quando `null`, o player NÃO cria o `EpisodeProgressService`
@@ -54,8 +58,8 @@ class ModernVideoPlayerScreen extends StatefulWidget {
     required this.animeTitle,
     this.anime,
     this.isMovie = false,
-    this.episodeList,
     this.episodeIndex,
+    this.contentId,
     this.seasonId,
     this.episodeNumber,
     this.movieFolderName,
@@ -101,9 +105,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   StreamSubscription? _completedSub;
   StreamSubscription<Tracks>? _tracksSub;
 
-  /// Listener de posição para detectar near-end e auto-play.
-  StreamSubscription<Duration>? _nearEndSub;
-
   /// Subscription do listener de tracks para debug/logging (linha ~310 em
   /// `_initializeVideoPlayer`). Mantida separada de `_tracksSub` porque
   /// `_waitForEmbeddedSubtitleTracks` sobrescreve `_tracksSub` com uma
@@ -111,7 +112,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   StreamSubscription<Tracks>? _debugTracksSub;
 
   /// `true` após a primeira configuração das subscrições persistentes
-  /// (`_debugTracksSub`, `_playingSub`, `_completedSub`, `_nearEndSub`).
+  /// (`_debugTracksSub`, `_playingSub`, `_completedSub`).
   /// Evita recriar essas subs a cada `_replaceEpisode()`.
   bool _streamSubsReady = false;
 
@@ -123,17 +124,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   // Auto-play próximo episódio
   // ═══════════════════════════════════════════════════════════════════
 
-  /// Próximo episódio na lista (null se não houver).
-  Episode? _nextEpisode;
+  /// Season atual (mutável para suportar transição entre temporadas
+  /// no auto-play). Inicializado a partir de `widget.seasonId`.
+  int? _currentSeasonId;
 
-  /// Evita disparar múltiplas detecções de near-end.
-  bool _nearEndTriggered = false;
-
-  /// Threshold para considerar "perto do fim".
-  static const Duration _nearEndThreshold = Duration(seconds: 30);
-
-  /// Threshold percentual do vídeo (90%).
-  static const double _nearEndPctThreshold = 0.9;
+  /// Número do episódio atual (mutável para suportar auto-play).
+  /// Inicializado a partir de `widget.episodeNumber`.
+  int _currentEpisodeNum = 1;
 
   // Progresso PauloFlix (Fase 2). `null` para fluxos não-PauloFlix
   // (AnimeFire).
@@ -169,15 +166,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// assim que o `Media.open` finaliza).
   List<SubtitleTrack> _embeddedSubtitleTracks = const [];
 
-  int? _currentEpisodeIndex;
   late Episode _currentEpisode;
-
-  bool get _hasNextEpisode {
-    if (widget.episodeList == null || _currentEpisodeIndex == null) {
-      return false;
-    }
-    return _currentEpisodeIndex! < widget.episodeList!.length - 1;
-  }
 
   /// Label de exibição do conteúdo atual.
   /// Para filmes: retorna o título do filme.
@@ -223,8 +212,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   @override
   void initState() {
     super.initState();
-    _currentEpisodeIndex = widget.episodeIndex;
     _currentEpisode = widget.episode;
+    _currentSeasonId = widget.seasonId;
+    _currentEpisodeNum = int.tryParse(widget.episodeNumber ?? '') ?? 1;
     // Fase 2: lê o repo PauloFlix do Provider (Fase 4 do plano vai
     // registrar no `MultiProvider` em `app.dart`). Para fluxos
     // não-PauloFlix (sem `seasonId`/`episodeNumber`), fica `null` →
@@ -361,20 +351,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   Future<void> _loadSavedProgress() async {
     if (_disposed) return;
     final repo = _progressRepo;
-    final seasonId = widget.seasonId;
-    final episodeNumberStr = widget.episodeNumber;
-    if (repo == null || seasonId == null || episodeNumberStr == null) {
+    final seasonId = _currentSeasonId;
+    final episodeNumber = _currentEpisodeNum;
+    if (repo == null || seasonId == null) {
       // Não-PauloFlix ou sem IDs: sem persistência.
       _progressService = null;
       _savedPositionSeconds = null;
       _savedDurationSeconds = null;
       _savedIsCompleted = false;
-      return;
-    }
-
-    final episodeNumber = int.tryParse(episodeNumberStr);
-    if (episodeNumber == null) {
-      _progressService = null;
       return;
     }
 
@@ -559,7 +543,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       videos = event.video;
       audios = event.audio;
       subtitles = event.subtitle;
-      if (audios == null || audios!.isEmpty) return;
+      final currentAudios = audios;
+      if (currentAudios == null || currentAudios.isEmpty) return;
       for (final st in audios!) {
         if (st.language != null && st.language!.toLowerCase() == 'por') {
           audiosBr = st;
@@ -574,48 +559,21 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       debugPrint('[VideoPlayer] Playing state: $playing');
     });
 
-    // Completed: auto-play próximo episódio se disponível.
+    // Completed: auto-play próximo episódio.
     _completedSub = _player.stream.completed.listen((completed) {
       debugPrint('[VideoPlayer] Completed: $completed');
-      if (!mounted || !completed || !_hasNextEpisode) return;
+      if (!mounted || !completed) return;
+      _findAndPlayNextEpisode();
     });
-
-    // Position: detecta near-end para mostrar card + preload.
-    _nearEndSub = _player.stream.position.listen((position) {
-      if (!mounted || _disposed) return;
-      _checkNearEnd(position);
-    });
-  }
-
-  void _checkNearEnd(Duration position) {
-    if (_nearEndTriggered || !_hasNextEpisode) return;
-
-    final duration = _player.state.duration;
-    if (duration <= Duration.zero) return;
-
-    final remaining = duration - position;
-    final nearEndByTime = remaining <= _nearEndThreshold;
-    final nearEndByPct =
-        duration > Duration.zero &&
-        (position.inMicroseconds / duration.inMicroseconds) >=
-            _nearEndPctThreshold;
-
-    if (!nearEndByTime && !nearEndByPct) return;
-
-    _nearEndTriggered = true;
   }
 
   /// Limpa apenas subs específicas do episódio atual (embedded tracks).
   /// Não mexe nas subs persistentes (`_playingSub`, `_completedSub`,
-  /// `_debugTracksSub`, `_nearEndSub`) — evita recriá-las a cada troca
-  /// de episódio.
+  /// `_debugTracksSub`) — evita recriá-las a cada troca de episódio.
   Future<void> _cleanupEpisodeSubs() async {
     await _tracksSub?.cancel();
     _tracksSub = null;
     _currentVideoHeaders = null;
-    // Reseta flags de auto-play para o novo episódio
-    _nearEndTriggered = false;
-    _nextEpisode = null;
   }
 
   /// Closures para o player. `_player` pode ser null durante cleanup.
@@ -978,7 +936,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
     _playingSub?.cancel();
     _completedSub?.cancel();
-    _nearEndSub?.cancel();
     _tracksSub?.cancel();
     _debugTracksSub?.cancel();
 
@@ -1004,6 +961,88 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       positionSeconds: position.inSeconds,
       durationSeconds: duration.inSeconds > 0 ? duration.inSeconds : null,
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Auto-play próximo episódio
+  // ═══════════════════════════════════════════════════════════════════
+
+  /// Busca no banco o próximo episódio disponível e inicia a reprodução
+  /// automática. Suporta transição entre temporadas: se o episódio atual
+  /// é o último da season, busca a primeira season seguinte.
+  ///
+  /// Só funciona para conteúdo PauloFlix (requer `_currentSeasonId` e
+  /// `_progressRepo`). Para filmes ou outras fontes (AnimeFire), é no-op.
+  Future<void> _findAndPlayNextEpisode() async {
+    if (_disposed || !mounted) return;
+
+    // Só funciona para conteúdo PauloFlix com progresso.
+    if (_currentSeasonId == null || _progressRepo == null) return;
+
+    try {
+      // 1. Busca episódios da season atual, ordenados por episodeNumber.
+      final episodes = await _progressRepo!.getEpisodesForSeason(
+        _currentSeasonId!,
+      );
+      final idx = episodes.indexWhere(
+        (e) => e.episodeNumber == _currentEpisodeNum,
+      );
+
+      PauloFlixEpisodeRecord? nextRecord;
+      int? nextSeasonId;
+
+      if (idx >= 0 && idx < episodes.length - 1) {
+        // Mesma season: próximo episódio.
+        nextRecord = episodes[idx + 1];
+        nextSeasonId = _currentSeasonId;
+      } else if (widget.contentId != null) {
+        // Último episódio da season: busca próxima temporada.
+        final seasons = await _progressRepo!.getSeasonsForContent(
+          widget.contentId!,
+        );
+        final seasonIdx = seasons.indexWhere((s) => s.id == _currentSeasonId);
+
+        if (seasonIdx >= 0 && seasonIdx < seasons.length - 1) {
+          final nextSeason = seasons[seasonIdx + 1];
+          final nextSeasonEpisodes = await _progressRepo!.getEpisodesForSeason(
+            nextSeason.id!,
+          );
+          if (nextSeasonEpisodes.isNotEmpty) {
+            nextRecord = nextSeasonEpisodes.first;
+            nextSeasonId = nextSeason.id;
+          }
+        }
+      }
+
+      if (nextRecord != null && nextSeasonId != null) {
+        _playNextEpisode(nextRecord, nextSeasonId);
+      } else {
+        debugPrint('[VideoPlayer] No next episode available');
+      }
+    } catch (e) {
+      debugPrint('[VideoPlayer] Error finding next episode: $e');
+    }
+  }
+
+  /// Converte um [PauloFlixEpisodeRecord] em [Episode] e inicia a
+  /// reprodução via [_replaceEpisode]. Atualiza os campos mutáveis
+  /// de season/episode para que o progresso seja salvo corretamente.
+  void _playNextEpisode(PauloFlixEpisodeRecord record, int seasonId) {
+    if (!mounted) return;
+
+    setState(() {
+      _currentSeasonId = seasonId;
+      _currentEpisodeNum = record.episodeNumber;
+    });
+
+    final nextEpisode = Episode(
+      number: record.episodeNumber.toString(),
+      url: record.videoUrl,
+      title: record.title,
+      thumbnailUrl: record.thumbnailUrl,
+    );
+
+    _replaceEpisode(nextEpisode);
   }
 
   /// Sai do player voltando para a tela anterior (home/detail/lista de
