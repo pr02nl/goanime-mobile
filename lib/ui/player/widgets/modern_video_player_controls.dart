@@ -43,6 +43,7 @@ class ModernVideoPlayerControls extends StatefulWidget {
 
   /// Título exibido na top bar. `null` = oculta a top bar.
   final String? title;
+  final String? animeTitle;
 
   /// Callback do botão "voltar" (sai do player).
   final VoidCallback onBack;
@@ -72,6 +73,7 @@ class ModernVideoPlayerControls extends StatefulWidget {
     super.key,
     required this.player,
     required this.title,
+    required this.animeTitle,
     required this.onBack,
     this.onNextEpisode,
     this.skipLabel,
@@ -657,7 +659,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (_isVisible) _buildLayout(),
+            _buildLayout(),
             if (showLoading) _buildLoadingOverlay(),
             if (showError) _buildErrorOverlay(),
           ],
@@ -672,9 +674,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       child: FocusTraversalGroup(
         child: Column(
           children: [
-            if (widget.title != null) _buildTopBar(),
+            if (_isVisible) _buildTopBar(),
             const Spacer(),
-            _buildCenterControls(),
+            if (_isVisible) _buildCenterControls(),
             const Spacer(),
             _buildBottomBar(),
           ],
@@ -697,16 +699,37 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Text(
-                widget.title!,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.animeTitle != null) ...[
+                    Text(
+                      widget.animeTitle!,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                  ],
+                  if (widget.title != null) ...[
+                    Text(
+                      widget.title!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
               ),
             ),
             _buildSettingsButton(),
@@ -756,47 +779,49 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
               const SizedBox(height: 8),
             ],
             const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _formatDuration(_position),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+            if (_isVisible)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _formatDuration(_position),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: _SeekBar(
-                    position: _isSeeking ? _previewPosition() : _position,
-                    duration: _duration,
-                    buffer: _buffer,
-                    onSeek: _seekTo,
-                    togglePlay: _togglePlay,
-                    onSeekStart: () {
-                      setState(() => _isSeeking = true);
-                      _showAndScheduleAutoHide();
-                    },
-                    onSeekEnd: () {
-                      setState(() => _isSeeking = false);
-                      _showAndScheduleAutoHide();
-                    },
-                    onSeekBy: (seconds) => _seekBy(Duration(seconds: seconds)),
+                  Expanded(
+                    child: _SeekBar(
+                      position: _isSeeking ? _previewPosition() : _position,
+                      duration: _duration,
+                      buffer: _buffer,
+                      onSeek: _seekTo,
+                      togglePlay: _togglePlay,
+                      onSeekStart: () {
+                        setState(() => _isSeeking = true);
+                        _showAndScheduleAutoHide();
+                      },
+                      onSeekEnd: () {
+                        setState(() => _isSeeking = false);
+                        _showAndScheduleAutoHide();
+                      },
+                      onSeekBy: (seconds) =>
+                          _seekBy(Duration(seconds: seconds)),
+                    ),
                   ),
-                ),
-                Text(
-                  _formatDuration(_duration),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                  Text(
+                    _formatDuration(_duration),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
       ),
@@ -884,108 +909,102 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   Widget _buildErrorOverlay() {
     final message = _errorMessage;
-    return SizedBox.expand(
+    return Center(
       child: Container(
-        color: Colors.black,
         padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            margin: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-            ),
-            child: FocusTraversalGroup(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.red.withValues(alpha: 0.2),
-                          Colors.red.withValues(alpha: 0.1),
-                        ],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 48,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    AppLocalizations.of(context).playerError,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    message ?? AppLocalizations.of(context).error,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      FocusableWidget(
-                        onSelect: _retry,
-                        autoFocus: _isTVDevice,
-                        borderRadius: 16,
-                        child: ElevatedButton.icon(
-                          onPressed: _retry,
-                          icon: const Icon(Icons.refresh),
-                          label: Text(AppLocalizations.of(context).retry),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      FocusableWidget(
-                        onSelect: _close,
-                        borderRadius: 16,
-                        child: ElevatedButton.icon(
-                          onPressed: _close,
-                          icon: const Icon(Icons.close),
-                          label: Text(AppLocalizations.of(context).close),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A2E),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+        ),
+        child: FocusTraversalGroup(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.red.withValues(alpha: 0.2),
+                      Colors.red.withValues(alpha: 0.1),
                     ],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                AppLocalizations.of(context).playerError,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message ?? AppLocalizations.of(context).error,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FocusableWidget(
+                    onSelect: _retry,
+                    autoFocus: _isTVDevice,
+                    borderRadius: 16,
+                    child: ElevatedButton.icon(
+                      onPressed: _retry,
+                      icon: const Icon(Icons.refresh),
+                      label: Text(AppLocalizations.of(context).retry),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  FocusableWidget(
+                    onSelect: _close,
+                    borderRadius: 16,
+                    child: ElevatedButton.icon(
+                      onPressed: _close,
+                      icon: const Icon(Icons.close),
+                      label: Text(AppLocalizations.of(context).close),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
         ),
       ),
