@@ -33,27 +33,39 @@ void main() {
       );
     });
 
-    test('ratio < 10% sem isCompleted → reset (fechou sem querer)', () {
+    test('ratio < 5% E position < 30s → reset (fechou sem querer)', () {
       expect(
         MovieProgressService.shouldResetForResume(
           isCompleted: false,
-          positionSeconds: 5,
-          durationSeconds: 100,
+          positionSeconds: 3,   // < 30s
+          durationSeconds: 100,  // ratio = 0.03 < 0.05
         ),
         isTrue,
-        reason: '5% é "abriu e fechou sem querer"',
+        reason: '3s em 100s: abriu e fechou sem querer',
       );
     });
 
-    test('ratio >= 10% → retomar', () {
+    test('position >= 30s → retomar (mesmo com ratio pequeno)', () {
       expect(
         MovieProgressService.shouldResetForResume(
           isCompleted: false,
-          positionSeconds: 30,
-          durationSeconds: 100,
+          positionSeconds: 30,  // não < 30 = não reseta
+          durationSeconds: 100, // ratio = 0.30
         ),
         isFalse,
-        reason: '30% é pausa intencional',
+        reason: '30s assistidos é pausa intencional',
+      );
+    });
+
+    test('ratio >= 5% mesmo com position < 30s → retomar', () {
+      expect(
+        MovieProgressService.shouldResetForResume(
+          isCompleted: false,
+          positionSeconds: 3,   // < 30s
+          durationSeconds: 30,  // ratio = 0.10 >= 0.05
+        ),
+        isFalse,
+        reason: 'posição pequena mas proporção > 5% = conteúdo curto',
       );
     });
 

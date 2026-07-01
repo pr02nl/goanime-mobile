@@ -541,6 +541,26 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// no banco com posição 0.
   void _stopProgressServices() {
     _hasPlayerError = true;
+    // Salva o progresso atual ANTES de parar os timers, para que a
+    // última posição seja persistida mesmo em caso de erro de rede.
+    // Usa saveProgress com valores capturados (não closures) para
+    // evitar dependência do estado do player após o stop.
+    //
+    // Só salva se a posição for > 0, para evitar que uma posição
+    // corrompida (0) sobrescreva o último progresso válido salvo
+    // pelo timer periódico.
+    final pos = _getCurrentPosition();
+    final dur = _getCurrentDuration();
+    if (pos.inSeconds > 0) {
+      unawaited(_progressService?.saveProgress(
+        positionSeconds: pos.inSeconds,
+        durationSeconds: dur.inSeconds > 0 ? dur.inSeconds : null,
+      ));
+      unawaited(_movieProgressService?.saveProgress(
+        positionSeconds: pos.inSeconds,
+        durationSeconds: dur.inSeconds > 0 ? dur.inSeconds : null,
+      ));
+    }
     _progressService?.stop();
     _movieProgressService?.stop();
     cleanupIntroDb();

@@ -81,10 +81,14 @@ class EpisodeProgressService {
   ///
   /// **Reset** quando:
   /// - `isCompleted == true` (usuário quer reassistir)
-  /// - `positionSeconds / durationSeconds < 0.1` (provavelmente fechou
-  ///   sem querer)
+  /// - `positionSeconds < 30` **E** `positionSeconds / durationSeconds < 0.05`
+  ///   (provavelmente fechou sem querer nos primeiros segundos)
   ///
-  /// **Retomar** caso contrário (parou intencionalmente entre 10% e 90%).
+  /// **Retomar** caso contrário (parou intencionalmente).
+  ///
+  /// A condição dupla (absoluta + relativa) evita que erros de rede
+  /// descartem minutos de progresso: só reseta nos primeiros 30s.
+  ///
   static bool shouldResetForResume({
     required bool isCompleted,
     required int positionSeconds,
@@ -92,12 +96,14 @@ class EpisodeProgressService {
   }) {
     if (isCompleted) return true;
     if (durationSeconds <= 0) {
-      // Sem info de duração, não sabemos o ratio. Retoma do 0 (não
-      // sobrescreve nada).
+      // Sem info de duração, não sabemos o ratio. Não reseta.
       return false;
     }
+    // Só reseta se o usuário assistiu muito pouco (< 30s) E a
+    // proporção é muito baixa (< 5%). Preserva progresso em
+    // casos de erro de rede com 1-2 minutos assistidos.
     final ratio = positionSeconds / durationSeconds;
-    return ratio < 0.1;
+    return positionSeconds < 30 && ratio < 0.05;
   }
 
   /// Chamado **ANTES** de `Media.open`. Se retornar `true`, o caller

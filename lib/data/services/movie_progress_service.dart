@@ -45,9 +45,16 @@ class MovieProgressService {
   ///
   /// **Reset** quando:
   /// - `isCompleted == true` (usuário quer reassistir)
-  /// - `positionSeconds / durationSeconds < 0.1` (fechou sem querer)
+  /// - `positionSeconds < 30` **E** `positionSeconds / durationSeconds < 0.05`
+  ///   (fechou sem querer nos primeiros segundos)
   ///
-  /// **Retomar** caso contrário.
+  /// **Retomar** caso contrário (mesmo que a proporção seja pequena, se o
+  /// usuário já assistiu mais de 30s, preserva o progresso).
+  ///
+  /// A condição dupla (absoluta + relativa) evita que erros de rede
+  /// em filmes longos descartem minutos de progresso: para um filme de
+  /// 90min, 10% seriam 9min — com esta heurística, só reseta nos
+  /// primeiros 30s.
   static bool shouldResetForResume({
     required bool isCompleted,
     required int positionSeconds,
@@ -55,8 +62,11 @@ class MovieProgressService {
   }) {
     if (isCompleted) return true;
     if (durationSeconds <= 0) return false;
+    // Só reseta se o usuário assistiu muito pouco (< 30s) E a
+    // proporção é muito baixa (< 5%). Isso preserva progresso em
+    // casos de erro de rede com 1-2 minutos assistidos.
     final ratio = positionSeconds / durationSeconds;
-    return ratio < 0.1;
+    return positionSeconds < 30 && ratio < 0.05;
   }
 
   /// Chamado ANTES de `Media.open`. Se retornar `true`, o caller
