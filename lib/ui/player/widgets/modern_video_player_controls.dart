@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 
 import '../../../core/logger/app_logger.dart';
-
 import '../../../domain/models/episode.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
@@ -284,9 +283,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           error.contains('HTTP error 5') ||
           // Connection timed out: sem resposta (pode ser transiente).
           error.contains('Connection timed out')) {
-        const AppLogger('PlayerControls').debug(
-          'Ignoring transient network error: $error',
-        );
+        const AppLogger(
+          'PlayerControls',
+        ).debug('Ignoring transient network error: $error');
         return;
       }
 
@@ -298,9 +297,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           // grace period (_bufferRecoveryTimer) vai decidir quando
           // mostrar o erro. Não sobrescrever o loading com error
           // overlay — a rede pode voltar.
-          const AppLogger('PlayerControls').debug(
-            '⏳ Deferring error — buffer recovery in progress',
-          );
+          const AppLogger(
+            'PlayerControls',
+          ).debug('⏳ Deferring error — buffer recovery in progress');
           return;
         }
 
@@ -320,7 +319,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           // loading e inicia timer de grace period.
           // Se o buffer recuperar antes do timeout, retoma
           // automaticamente. Se não, mostra erro.
-          const AppLogger('PlayerControls').debug('⏸ Buffer drained during playback');
+          const AppLogger(
+            'PlayerControls',
+          ).debug('⏸ Buffer drained during playback');
           _waitingForBuffer = true;
           _startBufferRecoveryTimer();
           widget.player.pause();
@@ -334,7 +335,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
         } else if (buffering && !_isPlaying && _position == Duration.zero) {
           // Initial loading (position=0)
           setState(() => _uiState = _PlayerUIState.loading);
-        } else if (!buffering && _uiState == _PlayerUIState.loading && !_waitingForBuffer) {
+        } else if (!buffering &&
+            _uiState == _PlayerUIState.loading &&
+            !_waitingForBuffer) {
           // Initial loading finished
           setState(() => _uiState = _PlayerUIState.playing);
         }
@@ -444,9 +447,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     if (!_waitingForBuffer) return;
     if (!isBufferSufficient(_buffer, _duration, _position)) return;
 
-    const AppLogger('PlayerControls').debug(
-      '▶ Buffer sufficient (${_buffer.inSeconds}s), resuming playback',
-    );
+    const AppLogger(
+      'PlayerControls',
+    ).debug('▶ Buffer sufficient (${_buffer.inSeconds}s), resuming playback');
     _cancelBufferRecoveryTimer();
     _waitingForBuffer = false;
     widget.player.play();
@@ -570,31 +573,31 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (tracks.video.length > 1)
-                          _TrackSection(
-                            icon: Icons.videocam_rounded,
-                            title: 'Vídeo',
-                            tracks: tracks.video
-                                .map(
-                                  (t) => _TrackItemData(
-                                    id: t.id,
-                                    label: t.title ?? _formatVideoRes(t),
-                                    subtitle: _formatVideoSubtitle(t),
-                                    isActive:
-                                        t.id ==
-                                        widget.player.state.track.video.id,
-                                  ),
-                                )
-                                .toList(),
-                            onSelect: (index) {
-                              if (index < tracks.video.length) {
-                                widget.player.setVideoTrack(
-                                  tracks.video[index],
-                                );
-                                Navigator.pop(sheetContext);
-                              }
-                            },
-                          ),
+                        // if (tracks.video.length > 1)
+                        //   _TrackSection(
+                        //     icon: Icons.videocam_rounded,
+                        //     title: 'Vídeo',
+                        //     tracks: tracks.video
+                        //         .map(
+                        //           (t) => _TrackItemData(
+                        //             id: t.id,
+                        //             label: t.title ?? _formatVideoRes(t),
+                        //             subtitle: _formatVideoSubtitle(t),
+                        //             isActive:
+                        //                 t.id ==
+                        //                 widget.player.state.track.video.id,
+                        //           ),
+                        //         )
+                        //         .toList(),
+                        //     onSelect: (index) {
+                        //       if (index < tracks.video.length) {
+                        //         widget.player.setVideoTrack(
+                        //           tracks.video[index],
+                        //         );
+                        //         Navigator.pop(sheetContext);
+                        //       }
+                        //     },
+                        //   ),
                         if (tracks.audio.length > 1)
                           _TrackSection(
                             icon: Icons.audiotrack_rounded,
@@ -751,7 +754,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
               }
           }
         } catch (e, st) {
-          const AppLogger('PlayerControls').warning('Failed to set subtitle track', e, st);
+          const AppLogger(
+            'PlayerControls',
+          ).warning('Failed to set subtitle track', e, st);
         }
         if (sheetContext.mounted) Navigator.pop(sheetContext);
       },
@@ -759,29 +764,29 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   }
 
   /// Formata a resolução do VideoTrack: "1920x1080" ou fallback para "Track".
-  String _formatVideoRes(VideoTrack t) {
-    final w = t.w ?? 0;
-    final h = t.h ?? 0;
-    if (w > 0 && h > 0) return '${w}x$h';
-    return 'Track';
-  }
+  // String _formatVideoRes(VideoTrack t) {
+  //   final w = t.w ?? 0;
+  //   final h = t.h ?? 0;
+  //   if (w > 0 && h > 0) return '${w}x$h';
+  //   return 'Track';
+  // }
 
   /// Formata o subtítulo do VideoTrack: "codec • language".
-  String _formatVideoSubtitle(VideoTrack t) {
-    final parts = <String>[];
-    final w = t.w ?? 0;
-    final h = t.h ?? 0;
-    if (w > 0 && h > 0) {
-      parts.add('${w}x$h');
-    }
-    if (t.codec != null && t.codec!.isNotEmpty) {
-      parts.add(t.codec!);
-    }
-    if (t.language != null && t.language!.isNotEmpty) {
-      parts.add(t.language!);
-    }
-    return parts.isNotEmpty ? parts.join(' • ') : '';
-  }
+  // String _formatVideoSubtitle(VideoTrack t) {
+  //   final parts = <String>[];
+  //   final w = t.w ?? 0;
+  //   final h = t.h ?? 0;
+  //   if (w > 0 && h > 0) {
+  //     parts.add('${w}x$h');
+  //   }
+  //   if (t.codec != null && t.codec!.isNotEmpty) {
+  //     parts.add(t.codec!);
+  //   }
+  //   if (t.language != null && t.language!.isNotEmpty) {
+  //     parts.add(t.language!);
+  //   }
+  //   return parts.isNotEmpty ? parts.join(' • ') : '';
+  // }
 
   // ─── Build ───────────────────────────────────────────────────────
 
@@ -1019,9 +1024,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           ),
           const SizedBox(height: 16),
           Text(
-            isBuffering
-                ? l10n.recoveringConnection
-                : l10n.loadingStream,
+            isBuffering ? l10n.recoveringConnection : l10n.loadingStream,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
@@ -1031,9 +1034,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
           ),
           const SizedBox(height: 4),
           Text(
-            isBuffering
-                ? l10n.reconnectingServer
-                : l10n.preparingServer,
+            isBuffering ? l10n.reconnectingServer : l10n.preparingServer,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.6),
               fontSize: 12,
