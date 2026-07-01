@@ -42,7 +42,15 @@ class WatchlistRepositoryImpl implements WatchlistRepository {
             myAnimeListUrl: anime.myAnimeListUrl,
             addedAt: anime.addedAt,
           ),
-          mode: InsertMode.insertOrReplace,
+          onConflict: DoUpdate(
+            (old) => WatchlistItemsCompanion(
+              title: Value(anime.title),
+              coverImage: Value(anime.coverImage),
+              myAnimeListUrl: Value(anime.myAnimeListUrl),
+              addedAt: Value(anime.addedAt),
+            ),
+            target: [_db.watchlistItems.animeId],
+          ),
         );
   }
 
