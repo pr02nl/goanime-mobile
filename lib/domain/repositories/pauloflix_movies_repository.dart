@@ -4,7 +4,7 @@ import '../../domain/models/pauloflix_movie.dart';
 ///
 /// **Fase 3** — encapsula Drift. Espelha `PauloFlixRepository` mas com
 /// domínio de filme (com `tmdbId`, `year`, `videoUrl`,
-/// `subtitles`, `availableMovieCount`).
+/// `subtitles`).
 abstract class PauloFlixMoviesRepository {
   Future<List<PauloFlixMovie>> getAll();
 

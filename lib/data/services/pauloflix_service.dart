@@ -410,8 +410,6 @@ class PauloFlixService {
               genres: content.genres,
               status: content.status,
               episodeCount: content.episodeCount,
-              malId: content.malId,
-              anilistId: content.anilistId,
               originalTitle: content.originalTitle,
               year: content.year,
               tmdbId: content.tmdbId,

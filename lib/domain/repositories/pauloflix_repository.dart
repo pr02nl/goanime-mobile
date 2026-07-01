@@ -11,7 +11,6 @@ abstract class PauloFlixRepository {
   Future<List<PauloFlixContent>> searchByName(String query);
 
   Future<PauloFlixContent?> getByFolderName(String folderName);
-  Future<PauloFlixContent?> getByMalId(int malId);
 
   /// Salva ou substitui (UNIQUE em folderName).
   Future<void> saveContent(PauloFlixContent content);

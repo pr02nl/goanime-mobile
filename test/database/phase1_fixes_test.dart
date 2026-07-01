@@ -47,7 +47,6 @@ void main() {
         displayName: 'Deadpool',
         serverUrl: 'http://server/deadpool/',
         genres: const ['Action, Comedy', 'Sci-Fi', 'Adventure'],
-        availableMovieCount: 1,
       );
 
       final map = original.toMap();

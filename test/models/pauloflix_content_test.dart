@@ -49,7 +49,6 @@ void main() {
       expect(content.score, 8.5);
       expect(content.episodeCount, 220);
       expect(content.status, 'Finished Airing');
-      expect(content.malId, 123);
       expect(content.genres, ['Action', 'Fantasy']);
     });
 
@@ -66,8 +65,6 @@ void main() {
         genres: ['Action', 'Adventure'],
         status: 'Airing',
         episodeCount: 1000,
-        malId: 456,
-        anilistId: 789,
         isAvailable: true,
       );
 
@@ -84,8 +81,6 @@ void main() {
       expect(restored.genres, original.genres);
       expect(restored.status, original.status);
       expect(restored.episodeCount, original.episodeCount);
-      expect(restored.malId, original.malId);
-      expect(restored.anilistId, original.anilistId);
       expect(restored.isAvailable, original.isAvailable);
     });
 

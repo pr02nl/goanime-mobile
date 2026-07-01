@@ -50,7 +50,7 @@ class ModernVideoPlayerControls extends StatefulWidget {
   /// Callback para próximo episódio. `null` = sem botão.
   final VoidCallback? onNextEpisode;
 
-  /// Callback opcional para o botão "skip" (AniSkip intro/outro).
+  /// Callback opcional para o botão "skip" (TheIntroDB intro/outro).
   /// Se `null`, o botão não aparece.
   final String? skipLabel;
   final VoidCallback? onSkip;
@@ -1318,7 +1318,7 @@ class _TrackOption extends StatelessWidget {
   }
 }
 
-/// Botão "Pular intro" / "Pular abertura" (AniSkip).
+/// Botão "Pular intro" / "Pular abertura" (TheIntroDB).
 class _SkipIntroButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;

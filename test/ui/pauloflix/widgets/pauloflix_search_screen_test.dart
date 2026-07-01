@@ -32,8 +32,6 @@ class _FakePauloFlixRepository implements PauloFlixRepository {
   @override
   Future<PauloFlixContent?> getByFolderName(String folderName) async => null;
   @override
-  Future<PauloFlixContent?> getByMalId(int malId) async => null;
-  @override
   Future<void> saveContent(PauloFlixContent content) async {}
   @override
   Future<void> saveBatch(List<PauloFlixContent> contents) async {}
@@ -50,14 +48,12 @@ PauloFlixContent _anime({
   required String folderName,
   required String displayName,
   List<String> genres = const [],
-  int? malId,
 }) {
   return PauloFlixContent(
     folderName: folderName,
     displayName: displayName,
     serverUrl: 'http://server/$folderName/',
     genres: genres,
-    malId: malId,
   );
 }
 
@@ -68,19 +64,16 @@ void main() {
       folderName: 'Naruto',
       displayName: 'Naruto',
       genres: ['Action', 'Adventure'],
-      malId: 20,
     ),
     _anime(
       folderName: 'One Piece',
       displayName: 'One Piece',
       genres: ['Action', 'Comedy'],
-      malId: 21,
     ),
     _anime(
       folderName: 'Shingeki no Kyojin',
       displayName: 'Shingeki no Kyojin',
       genres: ['Action', 'Drama'],
-      malId: 22,
     ),
   ];
 

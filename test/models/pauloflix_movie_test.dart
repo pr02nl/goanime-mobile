@@ -20,7 +20,6 @@ void main() {
       expect(movie.genres, isEmpty);
       expect(movie.videoUrl, isNull);
       expect(movie.subtitles, isNull);
-      expect(movie.availableMovieCount, 0);
       expect(movie.isAvailable, true);
     });
 
@@ -51,13 +50,11 @@ void main() {
       expect(movie.bannerUrl, 'https://image.tmdb.org/t/p/w1280/backdrop.jpg');
       expect(movie.description, 'A thief who steals corporate secrets...');
       expect(movie.score, 8.4);
-      expect(movie.releaseDate, '2010-07-16');
       expect(movie.runtime, 148);
       expect(movie.year, 2010);
       expect(movie.tmdbId, 27205);
       expect(movie.videoUrl, isNull);
       expect(movie.subtitles, isNull);
-      expect(movie.availableMovieCount, 1);
       expect(movie.genres, ['Action', 'Sci-Fi']);
     });
 
@@ -72,11 +69,9 @@ void main() {
         description: 'A mind-bending thriller',
         score: 8.8,
         genres: ['Action', 'Thriller'],
-        releaseDate: '2010-07-16',
         runtime: 148,
         year: 2010,
         tmdbId: 27205,
-        availableMovieCount: 1,
         isAvailable: true,
       );
 
@@ -91,13 +86,11 @@ void main() {
       expect(restored.description, original.description);
       expect(restored.score, original.score);
       expect(restored.genres, original.genres);
-      expect(restored.releaseDate, original.releaseDate);
       expect(restored.runtime, original.runtime);
       expect(restored.year, original.year);
       expect(restored.tmdbId, original.tmdbId);
       expect(restored.videoUrl, isNull);
       expect(restored.subtitles, isNull);
-      expect(restored.availableMovieCount, original.availableMovieCount);
       expect(restored.isAvailable, original.isAvailable);
     });
 
@@ -110,7 +103,6 @@ void main() {
         'lastSynced': '2024-01-01T00:00:00.000',
         'isAvailable': 1,
         'isCollection': 0,
-        'availableMovieCount': 1,
       };
       final movie = PauloFlixMovie.fromMap(map);
       expect(movie.genres, ['Action', 'Comedy']);
@@ -401,6 +393,122 @@ void main() {
         );
 
         expect(movie.score, isNull);
+      });
+
+      test('deve parsear tmdb_id como int do JSON index', () async {
+        final json = <String, dynamic>{
+          'path': 'Interestelar (2014)',
+          'title': 'Interestelar',
+          'tmdb_id': 157336,
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.tmdbId, 157336);
+      });
+
+      test('deve parsear tmdb_id como string do JSON index', () async {
+        final json = <String, dynamic>{
+          'path': 'Interestelar (2014)',
+          'title': 'Interestelar',
+          'tmdb_id': '157336',
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.tmdbId, 157336);
+      });
+
+      test('deve parsear runtime como int do JSON index', () async {
+        final json = <String, dynamic>{
+          'path': 'Interestelar (2014)',
+          'title': 'Interestelar',
+          'runtime': 169,
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.runtime, 169);
+      });
+
+      test('deve parsear runtime como string do JSON index', () async {
+        final json = <String, dynamic>{
+          'path': 'Interestelar (2014)',
+          'title': 'Interestelar',
+          'runtime': '169',
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.runtime, 169);
+      });
+
+      test('deve usar poster como imageUrl e fanart como bannerUrl', () async {
+        final json = <String, dynamic>{
+          'path': 'Interestelar (2014)',
+          'title': 'Interestelar',
+          'poster': '/movies/Interestelar (2014)/poster.jpg',
+          'fanart': '/movies/Interestelar (2014)/fanart.jpg',
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(
+          movie.imageUrl,
+          '$baseHost/movies/Interestelar (2014)/poster.jpg',
+        );
+        expect(
+          movie.bannerUrl,
+          '$baseHost/movies/Interestelar (2014)/fanart.jpg',
+        );
+      });
+
+      test('deve parsear genre como lista de strings', () async {
+        final json = <String, dynamic>{
+          'path': 'Interestelar (2014)',
+          'title': 'Interestelar',
+          'genre': ['Ficção científica', 'Aventura', 'Drama'],
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(movie.genres, ['Ficção científica', 'Aventura', 'Drama']);
+      });
+
+      test('deve parsear plot como description', () async {
+        final json = <String, dynamic>{
+          'path': 'Interestelar (2014)',
+          'title': 'Interestelar',
+          'plot': 'As reservas naturais da Terra estão chegando ao fim...',
+        };
+
+        final movie = PauloFlixMovie.fromMovieIndex(
+          json: json,
+          baseHost: baseHost,
+        );
+
+        expect(
+          movie.description,
+          'As reservas naturais da Terra estão chegando ao fim...',
+        );
       });
     });
   });

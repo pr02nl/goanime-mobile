@@ -19,11 +19,9 @@ class PauloFlixMovie {
   final String? description;
   final double? score;
   final List<String> genres;
-  final String? releaseDate;
   final int? runtime;
   final int? year;
   final int? tmdbId;
-  final int availableMovieCount;
   final DateTime lastSynced;
 
   /// URL direta do arquivo de vídeo, vinda do campo `file` do
@@ -45,13 +43,11 @@ class PauloFlixMovie {
     this.description,
     this.score,
     this.genres = const [],
-    this.releaseDate,
     this.runtime,
     this.year,
     this.tmdbId,
     this.videoUrl,
     this.subtitles,
-    this.availableMovieCount = 0,
     DateTime? lastSynced,
     this.isAvailable = true,
   }) : lastSynced = lastSynced ?? DateTime.now();
@@ -90,11 +86,9 @@ class PauloFlixMovie {
       description: tmdb.overview,
       score: tmdb.voteAverage,
       genres: resolvedGenres,
-      releaseDate: tmdb.releaseDate,
       runtime: tmdb.runtime,
       year: tmdb.year,
       tmdbId: tmdb.id,
-      availableMovieCount: 1,
     );
   }
 
@@ -147,7 +141,6 @@ class PauloFlixMovie {
       genres: json['genre'] != null
           ? List<String>.from(json['genre'] as List)
           : [],
-      releaseDate: json['release_date'] as String?,
       runtime: json['runtime'] is int
           ? json['runtime'] as int
           : int.tryParse(json['runtime'] as String? ?? ''),
@@ -159,9 +152,6 @@ class PauloFlixMovie {
           : int.tryParse(json['tmdb_id'] as String? ?? ''),
       videoUrl: videoUrl,
       subtitles: subtitles,
-      availableMovieCount: json['available_movie_count'] is int
-          ? json['available_movie_count'] as int
-          : int.tryParse(json['available_movie_count'] as String? ?? '') ?? 1,
     );
   }
 
@@ -175,7 +165,6 @@ class PauloFlixMovie {
       'description': description,
       'score': score,
       'genres': encodeGenres(genres),
-      'releaseDate': releaseDate,
       'runtime': runtime,
       'year': year,
       'tmdbId': tmdbId,
@@ -183,7 +172,6 @@ class PauloFlixMovie {
       'subtitles': subtitles != null && subtitles!.isNotEmpty
           ? jsonEncode(subtitles!.map((s) => s.toJson()).toList())
           : null,
-      'availableMovieCount': availableMovieCount,
       'lastSynced': lastSynced.toIso8601String(),
       'isAvailable': isAvailable ? 1 : 0,
     };
@@ -209,11 +197,9 @@ class PauloFlixMovie {
                 )
                 .toList()
           : null,
-      releaseDate: map['releaseDate'] as String?,
       runtime: map['runtime'] as int?,
       year: map['year'] as int?,
       tmdbId: map['tmdbId'] as int?,
-      availableMovieCount: map['availableMovieCount'] as int? ?? 0,
       lastSynced: DateTime.parse(map['lastSynced'] as String),
       isAvailable: (map['isAvailable'] as int) == 1,
     );
@@ -241,13 +227,11 @@ class PauloFlixMovie {
     String? description,
     double? score,
     List<String>? genres,
-    String? releaseDate,
     int? runtime,
     int? year,
     int? tmdbId,
     String? videoUrl,
     List<ExternalSubtitleEntry>? subtitles,
-    int? availableMovieCount,
     DateTime? lastSynced,
     bool? isAvailable,
   }) {
@@ -263,11 +247,9 @@ class PauloFlixMovie {
       genres: genres ?? this.genres,
       videoUrl: videoUrl ?? this.videoUrl,
       subtitles: subtitles ?? this.subtitles,
-      releaseDate: releaseDate ?? this.releaseDate,
       runtime: runtime ?? this.runtime,
       year: year ?? this.year,
       tmdbId: tmdbId ?? this.tmdbId,
-      availableMovieCount: availableMovieCount ?? this.availableMovieCount,
       lastSynced: lastSynced ?? this.lastSynced,
       isAvailable: isAvailable ?? this.isAvailable,
     );

@@ -133,7 +133,7 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
         if (scoreCmp != 0) return scoreCmp;
         final yearCmp = (b.year ?? 0).compareTo(a.year ?? 0);
         if (yearCmp != 0) return yearCmp;
-        return b.availableMovieCount.compareTo(a.availableMovieCount);
+        return a.folderName.compareTo(b.folderName);
       });
     return sorted.first;
   }

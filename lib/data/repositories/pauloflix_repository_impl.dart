@@ -44,15 +44,6 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
   }
 
   @override
-  Future<PauloFlixContent?> getByMalId(int malId) async {
-    final row = await (_db.select(_db.pauloFlixContent)
-          ..where((t) => t.malId.equals(malId))
-          ..limit(1))
-        .getSingleOrNull();
-    return row == null ? null : _toDomain(row);
-  }
-
-  @override
   Future<void> saveContent(PauloFlixContent content) async {
     // **UPSERT real (Drift `DoUpdate`)** sobre `folderName` (UNIQUE).
     // NUNCA usar `InsertMode.insertOrReplace` aqui — no SQLite isso
@@ -76,8 +67,6 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
             genresJson: Value(encodeGenres(content.genres)),
             status: Value(content.status),
             episodeCount: Value(content.episodeCount),
-            malId: Value(content.malId),
-            anilistId: Value(content.anilistId),
             originalTitle: Value(content.originalTitle),
             year: Value(content.year),
             tmdbId: Value(content.tmdbId),
@@ -95,8 +84,6 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
               genresJson: Value(encodeGenres(content.genres)),
               status: Value(content.status),
               episodeCount: Value(content.episodeCount),
-              malId: Value(content.malId),
-              anilistId: Value(content.anilistId),
               originalTitle: Value(content.originalTitle),
               year: Value(content.year),
               tmdbId: Value(content.tmdbId),
@@ -125,8 +112,6 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
             genresJson: Value(encodeGenres(content.genres)),
             status: Value(content.status),
             episodeCount: Value(content.episodeCount),
-            malId: Value(content.malId),
-            anilistId: Value(content.anilistId),
             originalTitle: Value(content.originalTitle),
             year: Value(content.year),
             tmdbId: Value(content.tmdbId),
@@ -144,8 +129,6 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
               genresJson: Value(encodeGenres(content.genres)),
               status: Value(content.status),
               episodeCount: Value(content.episodeCount),
-              malId: Value(content.malId),
-              anilistId: Value(content.anilistId),
               originalTitle: Value(content.originalTitle),
               year: Value(content.year),
               tmdbId: Value(content.tmdbId),
@@ -193,8 +176,6 @@ class PauloFlixRepositoryImpl implements PauloFlixRepository {
       genres: decodeGenresOrFallback(row.genresJson),
       status: row.status,
       episodeCount: row.episodeCount,
-      malId: row.malId,
-      anilistId: row.anilistId,
       originalTitle: row.originalTitle,
       year: row.year,
       tmdbId: row.tmdbId,

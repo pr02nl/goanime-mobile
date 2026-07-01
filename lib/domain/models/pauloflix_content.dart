@@ -14,9 +14,6 @@ class PauloFlixContent {
   final List<String> genres;
   final String? status;
   final int? episodeCount;
-  final int? malId;
-  final int? anilistId;
-
   /// Título original (idioma original da produção).
   final String? originalTitle;
 
@@ -41,8 +38,6 @@ class PauloFlixContent {
     this.genres = const [],
     this.status,
     this.episodeCount,
-    this.malId,
-    this.anilistId,
     this.originalTitle,
     this.year,
     this.tmdbId,
@@ -66,7 +61,6 @@ class PauloFlixContent {
       genres: jikanAnime.genres.map((g) => g.name).toList(),
       status: jikanAnime.status,
       episodeCount: jikanAnime.episodes,
-      malId: jikanAnime.malId,
     );
   }
 
@@ -109,8 +103,6 @@ class PauloFlixContent {
           ? int.tryParse(json['year'] as String)
           : null,
       tmdbId: json['tmdb_id'] as int?,
-      malId: json['mal_id'] as int?,
-      anilistId: json['anilist_id'] as int?,
     );
   }
 
@@ -126,8 +118,6 @@ class PauloFlixContent {
       'genres': encodeGenres(genres),
       'status': status,
       'episodeCount': episodeCount,
-      'malId': malId,
-      'anilistId': anilistId,
       'originalTitle': originalTitle,
       'year': year,
       'tmdbId': tmdbId,
@@ -149,8 +139,6 @@ class PauloFlixContent {
       genres: decodeGenresOrFallback(map['genres']),
       status: map['status'] as String?,
       episodeCount: map['episodeCount'] as int?,
-      malId: map['malId'] as int?,
-      anilistId: map['anilistId'] as int?,
       originalTitle: map['originalTitle'] as String?,
       year: map['year'] as int?,
       tmdbId: map['tmdbId'] as int?,

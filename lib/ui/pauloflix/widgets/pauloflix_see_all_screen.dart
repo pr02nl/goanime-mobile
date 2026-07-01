@@ -419,6 +419,13 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     );
     final episodeIndex = idx >= 0 ? idx : 0;
 
+    // Busca seasonNumber para o TheIntroDB.
+    final seasons = await repo.getSeasonsForContent(content.id!);
+    final currentSeason = seasons.isEmpty
+        ? null
+        : seasons.firstWhere((s) => s.id == episode.seasonId,
+            orElse: () => seasons.first);
+
     final episodeList = allEpisodes
         .map(
           (e) => Episode(
@@ -448,6 +455,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
         contentId: content.id,
         seasonId: episode.seasonId,
         episodeNumber: episode.episodeNumber.toString(),
+        tmdbId: content.tmdbId,
+        seasonNumber: currentSeason?.seasonNumber,
       ),
     );
   }

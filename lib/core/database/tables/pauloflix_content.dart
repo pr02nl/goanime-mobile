@@ -21,8 +21,6 @@ class PauloFlixContent extends Table {
   TextColumn get genresJson => text().nullable()();
   TextColumn get status => text().nullable()();
   IntColumn get episodeCount => integer().nullable()();
-  IntColumn get malId => integer().nullable()();
-  IntColumn get anilistId => integer().nullable()();
   TextColumn get originalTitle => text().nullable()();
   IntColumn get year => integer().nullable()();
   IntColumn get tmdbId => integer().nullable()();

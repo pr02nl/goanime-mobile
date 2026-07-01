@@ -118,8 +118,16 @@ class AppDatabase extends _$AppDatabase {
   ///   - `idx_movies_search` em `paulo_flix_movies`
   ///     (`is_available`, `display_name`)
   ///     → cobre `searchByName` em filmes (mesmo padrão).
+  /// * v16 (2026-06-30): remove colunas órfãs que não existem mais
+  ///   nas definições Drift:
+  ///   - `mal_id` e `anilist_id` de `paulo_flix_content`
+  ///     (substituídas por `tmdb_id` do TheIntroDB).
+  ///   - `release_date` e `available_movie_count` de `paulo_flix_movies`
+  ///     (não fornecidas pelo JSON index).
+  ///   Sem migration data — Drift simplesmente ignora colunas
+  ///   desconhecidas ao mapear resultado de queries.
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -337,6 +345,27 @@ class AppDatabase extends _$AppDatabase {
         await db.customStatement(
           'ALTER TABLE paulo_flix_content '
           'ADD COLUMN tmdb_id INTEGER',
+        );
+      }
+
+      // v15 → v16: remove colunas órfãs do schema.
+      // SQLite DROP COLUMN é suportado desde 3.35.0 (2021-03-12).
+      // `IF EXISTS` torna a migration segura para re-execução.
+      if (from < 16) {
+        final db = m.database as AppDatabase;
+        // PauloFlixContent: malId → mal_id, anilistId → anilist_id
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_content DROP COLUMN IF EXISTS mal_id',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_content DROP COLUMN IF EXISTS anilist_id',
+        );
+        // PauloFlixMovies: releaseDate → release_date, availableMovieCount → available_movie_count
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_movies DROP COLUMN IF EXISTS release_date',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_movies DROP COLUMN IF EXISTS available_movie_count',
         );
       }
     },

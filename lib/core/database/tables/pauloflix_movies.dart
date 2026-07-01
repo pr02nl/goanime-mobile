@@ -14,12 +14,9 @@ class PauloFlixMovies extends Table {
   TextColumn get description => text().nullable()();
   RealColumn get score => real().nullable()();
   TextColumn get genresJson => text().nullable()();
-  TextColumn get releaseDate => text().nullable()();
   IntColumn get runtime => integer().nullable()();
   IntColumn get year => integer().nullable()();
   IntColumn get tmdbId => integer().nullable()();
-  IntColumn get availableMovieCount =>
-      integer().withDefault(const Constant(0))();
 
   /// URL direta do arquivo de vídeo, vinda do campo `file` do
   /// `movie_index.json`.

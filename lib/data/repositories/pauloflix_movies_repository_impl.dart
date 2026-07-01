@@ -67,7 +67,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             description: Value(content.description),
             score: Value(content.score),
             genresJson: Value(encodeGenres(content.genres)),
-            releaseDate: Value(content.releaseDate),
             runtime: Value(content.runtime),
             year: Value(content.year),
             tmdbId: Value(content.tmdbId),
@@ -75,7 +74,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
                 ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
                 : null),
-            availableMovieCount: Value(content.availableMovieCount),
             lastSynced: content.lastSynced,
             isAvailable: Value(content.isAvailable),
           ),
@@ -88,7 +86,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               description: Value(content.description),
               score: Value(content.score),
               genresJson: Value(encodeGenres(content.genres)),
-              releaseDate: Value(content.releaseDate),
               runtime: Value(content.runtime),
               year: Value(content.year),
               tmdbId: Value(content.tmdbId),
@@ -96,7 +93,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
                   ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
                   : null),
-              availableMovieCount: Value(content.availableMovieCount),
               lastSynced: Value(content.lastSynced),
               isAvailable: Value(content.isAvailable),
             ),
@@ -120,7 +116,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             description: Value(content.description),
             score: Value(content.score),
             genresJson: Value(encodeGenres(content.genres)),
-            releaseDate: Value(content.releaseDate),
             runtime: Value(content.runtime),
             year: Value(content.year),
             tmdbId: Value(content.tmdbId),
@@ -128,7 +123,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
             subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
                 ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
                 : null),
-            availableMovieCount: Value(content.availableMovieCount),
             lastSynced: content.lastSynced,
             isAvailable: Value(content.isAvailable),
           ),
@@ -141,7 +135,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               description: Value(content.description),
               score: Value(content.score),
               genresJson: Value(encodeGenres(content.genres)),
-              releaseDate: Value(content.releaseDate),
               runtime: Value(content.runtime),
               year: Value(content.year),
               tmdbId: Value(content.tmdbId),
@@ -149,7 +142,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               subtitlesJson: Value(content.subtitles != null && content.subtitles!.isNotEmpty
                   ? jsonEncode(content.subtitles!.map((s) => s.toJson()).toList())
                   : null),
-              availableMovieCount: Value(content.availableMovieCount),
               lastSynced: Value(content.lastSynced),
               isAvailable: Value(content.isAvailable),
             ),
@@ -192,7 +184,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
       description: row.description,
       score: row.score,
       genres: decodeGenresOrFallback(row.genresJson),
-      releaseDate: row.releaseDate,
       runtime: row.runtime,
       year: row.year,
       tmdbId: row.tmdbId,
@@ -202,7 +193,6 @@ class PauloFlixMoviesRepositoryImpl implements PauloFlixMoviesRepository {
               .map((s) => ExternalSubtitleEntry.fromJson(s as Map<String, dynamic>))
               .toList()
           : null,
-      availableMovieCount: row.availableMovieCount,
       lastSynced: row.lastSynced,
       isAvailable: row.isAvailable,
     );

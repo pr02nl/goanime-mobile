@@ -17,7 +17,6 @@ void main() {
   PauloFlixContent sample({
     String folderName = 'naruto',
     String displayName = 'Naruto',
-    int? malId = 20,
     double? score = 7.8,
     List<String> genres = const ['Action', 'Adventure'],
     bool isAvailable = true,
@@ -29,7 +28,6 @@ void main() {
       serverUrl: 'http://server/$folderName/',
       imageUrl: imageUrl,
       genres: genres,
-      malId: malId,
       score: score,
       isAvailable: isAvailable,
     );
@@ -41,7 +39,6 @@ void main() {
       await repo.saveContent(sample(
         folderName: 'onepiece',
         displayName: 'One Piece',
-        malId: 21,
       ));
 
       final all = await repo.getAll();
@@ -83,18 +80,6 @@ void main() {
       // Com ESCAPE, '%' é literal — só '100% Mamãe' casa.
       expect(results, hasLength(1));
       expect(results.first.displayName, '100% Mamãe');
-    });
-
-    test('getByMalId retorna o conteúdo correto', () async {
-      await repo.saveContent(sample(folderName: 'a', malId: 20));
-      await repo.saveContent(sample(folderName: 'b', malId: 21));
-
-      final found = await repo.getByMalId(21);
-      expect(found, isNotNull);
-      expect(found!.folderName, 'b');
-
-      final notFound = await repo.getByMalId(999);
-      expect(notFound, isNull);
     });
 
     test('getByFolderName retorna o conteúdo correto', () async {

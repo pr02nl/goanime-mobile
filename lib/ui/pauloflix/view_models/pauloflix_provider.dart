@@ -252,15 +252,6 @@ class PauloFlixProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  PauloFlixContent? getByMalId(int malId) {
-    try {
-      return _contents.firstWhere((c) => c.malId == malId);
-    } catch (e) {
-      debugPrint('getByMalId: $malId not found — $e');
-      return null;
-    }
-  }
-
   bool isAvailableOnPauloFlix(String animeName) {
     return _contents.any(
       (c) =>
@@ -285,8 +276,6 @@ class _NullPauloFlixRepository implements PauloFlixRepository {
   Future<List<PauloFlixContent>> searchByName(String query) async => [];
   @override
   Future<PauloFlixContent?> getByFolderName(String folderName) async => null;
-  @override
-  Future<PauloFlixContent?> getByMalId(int malId) async => null;
   @override
   Future<void> saveContent(PauloFlixContent content) async {}
   @override

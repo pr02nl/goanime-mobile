@@ -28,15 +28,18 @@ class PlayerRouteData {
   /// `null` para fluxos que não são filmes PauloFlix Movies.
   final String? movieFolderName;
 
-  /// IDs do AniList para AniSkip. Quando nulos, o player tenta
-  /// resolver por busca textual na AniList API.
-  final int? malId;
-  final int? anilistId;
+  /// TMDB ID para consulta de segmentos (intro/outro) via TheIntroDB.
+  /// `null` para fluxos sem metadados TMDB (AnimeFire, etc.).
+  final int? tmdbId;
+
+  /// Número da temporada (1, 2, 3...) para consulta TheIntroDB em TV.
+  /// `null` para filmes ou quando não disponível.
+  final int? seasonNumber;
 
   const PlayerRouteData({
     this.movieFolderName,
-    this.malId,
-    this.anilistId,
+    this.tmdbId,
+    this.seasonNumber,
 
     required this.episode,
     required this.animeTitle,

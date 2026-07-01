@@ -664,8 +664,6 @@ class PauloFlixEpisodeProgressRepositoryImpl
       genres: const [],
       status: row.status,
       episodeCount: row.episodeCount,
-      malId: row.malId,
-      anilistId: row.anilistId,
       lastSynced: row.lastSynced,
       isAvailable: row.isAvailable,
     );

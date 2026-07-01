@@ -7,7 +7,6 @@ PauloFlixContent _anime({
   String folderName = '',
   double? score,
   List<String> genres = const [],
-  int? malId,
 }) {
   return PauloFlixContent(
     folderName: folderName.isEmpty ? displayName : folderName,
@@ -15,7 +14,6 @@ PauloFlixContent _anime({
     serverUrl: 'http://server/$displayName/',
     score: score,
     genres: genres,
-    malId: malId,
   );
 }
 

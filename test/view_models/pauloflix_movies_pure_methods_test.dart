@@ -7,7 +7,6 @@ PauloFlixMovie _movie({
   String folderName = '',
   double? score,
   int? year,
-  int availableMovieCount = 1,
   List<String> genres = const [],
 }) {
   return PauloFlixMovie(
@@ -16,7 +15,6 @@ PauloFlixMovie _movie({
     serverUrl: 'http://server/$displayName/',
     score: score,
     year: year,
-    availableMovieCount: availableMovieCount,
     genres: genres,
   );
 }
@@ -52,23 +50,49 @@ void main() {
       expect(result!.displayName, 'B');
     });
 
-    test('desempata final por availableMovieCount desc', () {
+    test('desempata por folderName quando score e year empatam', () {
       final movies = [
-        _movie(
-          displayName: 'A',
-          score: 8.0,
-          year: 2020,
-          availableMovieCount: 1,
-        ),
         _movie(
           displayName: 'B',
           score: 8.0,
           year: 2020,
-          availableMovieCount: 5,
+        ),
+        _movie(
+          displayName: 'A',
+          score: 8.0,
+          year: 2020,
         ),
       ];
       final result = PauloFlixMoviesProvider.pickFeaturedMovie(movies);
-      expect(result!.displayName, 'B');
+      expect(result!.displayName, 'A');
+    });
+
+    test('folderName com caracteres especiais (espaço, parênteses, hífen) ordena corretamente', () {
+      final movies = [
+        _movie(
+          folderName: 'Interestelar (2014)',
+          displayName: 'Interestelar',
+          score: 8.0,
+          year: 2020,
+        ),
+        _movie(
+          folderName: 'Homem-Aranha - Longe de Casa (2019)',
+          displayName: 'Homem-Aranha',
+          score: 8.0,
+          year: 2020,
+        ),
+        _movie(
+          folderName: 'Matrix (1999)',
+          displayName: 'Matrix',
+          score: 8.0,
+          year: 2020,
+        ),
+      ];
+      final result = PauloFlixMoviesProvider.pickFeaturedMovie(movies);
+      // H < I < M em ordem alfabética
+      expect(result!.displayName, 'Homem-Aranha');
+      // Verifica que todos os filmes estão na lista original (imutabilidade)
+      expect(movies, hasLength(3));
     });
 
     test('filmes sem score ficam atrás dos com score', () {

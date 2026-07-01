@@ -7,7 +7,6 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
-import '../../../data/services/anilist_service.dart';
 import '../../../data/services/auth/authenticated_http_client.dart';
 import '../../../data/services/auth/jwt_token_manager.dart';
 import '../../../data/services/episode_progress_service.dart';
@@ -20,7 +19,7 @@ import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/utils/tv_detector.dart';
-import '../video_player_aniskip_mixin.dart';
+import '../video_player_introdb_mixin.dart';
 import 'modern_video_player_controls.dart';
 
 class ModernVideoPlayerScreen extends StatefulWidget {
@@ -47,10 +46,13 @@ class ModernVideoPlayerScreen extends StatefulWidget {
   /// `null` para fluxos que não são filmes.
   final String? movieFolderName;
 
-  /// IDs do AniList para AniSkip. Quando nulos, o player tenta
-  /// resolver por busca textual na AniList API.
-  final int? malId;
-  final int? anilistId;
+  /// TMDB ID para consulta de segmentos (intro/outro) via TheIntroDB.
+  /// `null` para fluxos sem metadados TMDB (AnimeFire, etc.).
+  final int? tmdbId;
+
+  /// Número da temporada (1, 2, 3...) para consulta TheIntroDB em TV.
+  /// `null` para filmes ou quando não disponível.
+  final int? seasonNumber;
 
   const ModernVideoPlayerScreen({
     super.key,
@@ -63,8 +65,8 @@ class ModernVideoPlayerScreen extends StatefulWidget {
     this.seasonId,
     this.episodeNumber,
     this.movieFolderName,
-    this.malId,
-    this.anilistId,
+    this.tmdbId,
+    this.seasonNumber,
   });
 
   @override
@@ -73,7 +75,7 @@ class ModernVideoPlayerScreen extends StatefulWidget {
 }
 
 class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
-    with VideoPlayerAniSkipMixin {
+    with VideoPlayerIntroDbMixin {
   late final _player = Player(
     configuration: const PlayerConfiguration(logLevel: MPVLogLevel.info),
   );
@@ -181,7 +183,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     return AppLocalizations.of(context).episode(epNum);
   }
 
-  // --- VideoPlayerAniSkipMixin abstract member implementations ---
+  // --- VideoPlayerIntroDbMixin abstract member implementations ---
 
   @override
   bool isActiveEpisode(String? key) {
@@ -197,16 +199,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   // --- End mixin implementations ---
 
-  String _buildEpisodeKey(ModernVideoPlayerScreen target) {
-    final anime = target.anime;
-    return buildEpisodeKey(
-      animeTitle: target.animeTitle,
-      episodeNumber: _currentEpisode.number.toString(),
-      episodeUrl: _currentEpisode.url,
-      animeAnilistId: anime?.anilistId?.toString(),
-      animeMalId: anime?.malId?.toString(),
-      animeUrl: anime?.url,
-    );
+  /// Constrói uma chave única para o episódio atual.
+  String _buildEpisodeKey() {
+    return '${widget.animeTitle}|${_currentEpisode.number}|${_currentEpisode.url}|${widget.tmdbId}';
   }
 
   @override
@@ -328,11 +323,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         getDur: _getCurrentDuration,
       ),
     );
-    cleanupAniSkip();
+    cleanupIntroDb();
     skipButtonActiveSegment = null;
     skipButtonDismissed = false;
     lastAutoHideTime = null;
-    skipTimes = null;
     showSkipButton = false;
     skipButtonLabel = '';
     _initializeVideoPlayer();
@@ -638,7 +632,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   Future<void> _initializeVideoPlayer() async {
     if (_disposed || !mounted) return;
 
-    final episodeKey = _buildEpisodeKey(widget);
+    final episodeKey = _buildEpisodeKey();
     debugPrint('[VideoPlayer] 🎬 Initializing player for episode: $episodeKey');
 
     // Fase 2: lê progresso salvo do banco (PauloFlix) ANTES do setState
@@ -852,25 +846,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       final videoDurationSeconds = _player.state.duration.inSeconds;
       debugPrint('[VideoPlayer] Duration (s): $videoDurationSeconds');
 
-      // Seta chave do episódio ativo para o mixin AniSkip
-      activeEpisodeKey = _buildEpisodeKey(widget);
+      // Seta chave do episódio ativo para o mixin IntroDB.
+      activeEpisodeKey = _buildEpisodeKey();
 
-      // Resolve IDs do AniList (malId/anilistId) para AniSkip.
-      // Prioridade: 1) rota (PlayerRouteData), 2) Anime model,
-      // 3) fallback por busca textual na AniList API.
-      int? resolvedMalId = widget.malId ?? widget.anime?.malId;
-      int? resolvedAnilistId = widget.anilistId ?? widget.anime?.anilistId;
-      if (resolvedMalId == null && resolvedAnilistId == null) {
-        final ids = await _resolveAnimeIds();
-        resolvedMalId = ids.$1;
-        resolvedAnilistId = ids.$2;
-      }
-
-      await loadSkipTimes(
-        episodeLengthSeconds: videoDurationSeconds,
-        malId: resolvedMalId,
-        anilistId: resolvedAnilistId,
-        episodeNumber: _currentEpisode.number.toString(),
+      // Carrega segmentos de intro/outro via TheIntroDB.
+      await loadSkipSegments(
+        tmdbId: widget.tmdbId,
+        seasonNumber: widget.seasonNumber,
+        episodeNumber: _currentEpisodeNum,
       );
     } catch (e) {
       debugPrint('Error initializing video: $e');
@@ -878,35 +861,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         setState(() {});
       }
     }
-  }
-
-  /// Busca os IDs (MAL e AniList) na AniList API usando o título
-  /// do anime. Usado quando `widget.anime?.malId` e
-  /// `widget.anime?.anilistId` são null (ex.: animes vindos de fontes
-  /// que não têm metadados do AniList).
-  ///
-  /// Retorna um par `(malId, anilistId)`. Ambos podem ser null se a
-  /// busca falhar ou o anime não for encontrado.
-  Future<(int?, int?)> _resolveAnimeIds() async {
-    try {
-      final response = await AniListService.fetchAnimeFromAniList(
-        widget.animeTitle,
-      );
-      if (response != null) {
-        debugPrint(
-          '[VideoPlayer] ✅ Resolved AniList IDs: '
-          'anilist=${response.data.media.id}, '
-          'mal=${response.data.media.idMal}',
-        );
-        return (response.data.media.idMal, response.data.media.id);
-      }
-      debugPrint(
-        '[VideoPlayer] ⚠️ AniList search returned no results for "${widget.animeTitle}"',
-      );
-    } catch (e) {
-      debugPrint('[VideoPlayer] ⚠️ Failed to resolve AniList IDs: $e');
-    }
-    return (null, null);
   }
 
   @override
@@ -943,7 +897,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations([]);
-    super.dispose(); // Mixin cancela positionTimer, skipButtonAutoHideTimer
+    super.dispose();
   }
 
   /// Salva o progresso final ANTES do player ser completamente descartado.
@@ -1076,7 +1030,6 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                 player: state.widget.controller.player,
                 title: _displayLabel,
                 onBack: _exitPlayer,
-                // onNextEpisode: _hasNextEpisode ? _goToNextEpisode : null,
                 skipLabel: showSkipButton ? skipButtonLabel : null,
                 onSkip: showSkipButton ? skipIntroOutro : null,
                 onRetry: _initializeVideoPlayer,
@@ -1329,119 +1282,4 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 //   }
 // }
 
-/// Overlay do botão AniSkip (pular intro/outro), independente dos
-/// controles. Aparece com slide-in da direita quando o skip está
-/// disponível, some com slide-out quando o skip passa ou é fechado.
-// class _AniSkipOverlay extends StatelessWidget {
-//   final bool visible;
-//   final String label;
-//   final VoidCallback onSkip;
 
-//   const _AniSkipOverlay({
-//     required this.visible,
-//     required this.label,
-//     required this.onSkip,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Positioned(
-//       right: 16,
-//       bottom: 80,
-//       child: SafeArea(
-//         top: false,
-//         child: AnimatedSlide(
-//           duration: const Duration(milliseconds: 300),
-//           curve: Curves.easeOutCubic,
-//           offset: visible ? Offset.zero : const Offset(2, 0),
-//           child: AnimatedOpacity(
-//             duration: const Duration(milliseconds: 200),
-//             opacity: visible ? 1 : 0,
-//             child: IgnorePointer(
-//               ignoring: !visible,
-//               child: ClipRRect(
-//                 borderRadius: BorderRadius.circular(8),
-//                 child: BackdropFilter(
-//                   filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-//                   child: Material(
-//                     color: Colors.transparent,
-//                     child: InkWell(
-//                       onTap: visible ? onSkip : null,
-//                       borderRadius: BorderRadius.circular(8),
-//                       child: Container(
-//                         padding: const EdgeInsets.symmetric(
-//                           horizontal: 16,
-//                           vertical: 10,
-//                         ),
-//                         decoration: BoxDecoration(
-//                           color: Colors.white.withValues(alpha: 0.15),
-//                           borderRadius: BorderRadius.circular(8),
-//                           border: Border.all(
-//                             color: Colors.white.withValues(alpha: 0.2),
-//                           ),
-//                         ),
-//                         child: Row(
-//                           mainAxisSize: MainAxisSize.min,
-//                           children: [
-//                             const Icon(
-//                               Icons.skip_next_rounded,
-//                               color: Colors.white,
-//                               size: 20,
-//                             ),
-//                             const SizedBox(width: 6),
-//                             Text(
-//                               label,
-//                               style: const TextStyle(
-//                                 color: Colors.white,
-//                                 fontSize: 14,
-//                                 fontWeight: FontWeight.w600,
-//                               ),
-//                             ),
-//                           ],
-//                         ),
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//               ),
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-/// Círculo de contagem regressiva animado.
-// class _CountdownCircle extends StatelessWidget {
-//   final int seconds;
-
-//   const _CountdownCircle({required this.seconds});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return SizedBox(
-//       width: 40,
-//       height: 40,
-//       child: Stack(
-//         alignment: Alignment.center,
-//         children: [
-//           CircularProgressIndicator(
-//             value: seconds / 10,
-//             strokeWidth: 3,
-//             backgroundColor: Colors.white.withValues(alpha: 0.15),
-//             valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE50914)),
-//           ),
-//           Text(
-//             '$seconds',
-//             style: const TextStyle(
-//               color: Colors.white,
-//               fontSize: 14,
-//               fontWeight: FontWeight.w700,
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }

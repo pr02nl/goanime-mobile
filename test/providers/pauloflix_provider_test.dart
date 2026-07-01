@@ -25,8 +25,6 @@ class FakePauloFlixRepository implements PauloFlixRepository {
   @override
   Future<PauloFlixContent?> getByFolderName(String folderName) async => null;
   @override
-  Future<PauloFlixContent?> getByMalId(int malId) async => null;
-  @override
   Future<void> saveContent(PauloFlixContent content) async {}
   @override
   Future<void> saveBatch(List<PauloFlixContent> contents) async {}
@@ -68,21 +66,18 @@ void main() {
         serverUrl: 'http://server/naruto/',
         imageUrl: 'http://img.com/naruto.jpg',
         genres: ['Action', 'Adventure'],
-        malId: 20,
       ),
       PauloFlixContent(
         folderName: 'One Piece',
         displayName: 'One Piece',
         serverUrl: 'http://server/onepiece/',
         genres: ['Action', 'Comedy'],
-        malId: 21,
       ),
       PauloFlixContent(
         folderName: 'Attack on Titan',
         displayName: 'Shingeki no Kyojin',
         serverUrl: 'http://server/aot/',
         genres: ['Action', 'Drama'],
-        malId: 22,
       ),
     ];
 
@@ -171,20 +166,6 @@ void main() {
 
       provider.clearSearch();
       expect(provider.contents.length, 3);
-    });
-
-    test('getByMalId deve retornar anime correto', () async {
-      final provider = PauloFlixProvider.withRepository(
-        repository: FakePauloFlixRepository([...testAnimes]),
-      );
-      await provider.loadContents();
-
-      final found = provider.getByMalId(21);
-      expect(found, isNotNull);
-      expect(found!.folderName, 'One Piece');
-
-      final notFound = provider.getByMalId(999);
-      expect(notFound, isNull);
     });
 
     test('isAvailableOnPauloFlix deve verificar por nome', () async {
