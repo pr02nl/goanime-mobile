@@ -132,16 +132,15 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
     positionTimer?.cancel();
     final timerKey = activeEpisodeKey;
 
-    positionTimer = Timer.periodic(
-      const Duration(milliseconds: 500),
-      (Timer timer) {
-        if (!isActiveEpisode(timerKey)) {
-          timer.cancel();
-          return;
-        }
-        _checkSkipButtonVisibility();
-      },
-    );
+    positionTimer = Timer.periodic(const Duration(milliseconds: 500), (
+      Timer timer,
+    ) {
+      if (!isActiveEpisode(timerKey)) {
+        timer.cancel();
+        return;
+      }
+      _checkSkipButtonVisibility();
+    });
   }
 
   // ─── Verificação de visibilidade ───────────────────────────────
@@ -260,17 +259,13 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
 
     final currentSeconds = position.inMilliseconds / 1000.0;
     Duration? skipToPosition;
-    String skipType = '';
 
     // Tenta intro
     final intro = _introDbSegments?.intro;
     if (intro != null && intro.isNotEmpty) {
       final s = intro.first;
       if (_isWithinWindow(s.startSec, s.endSec, currentSeconds)) {
-        skipToPosition = Duration(
-          milliseconds: (s.endSec * 1000).round(),
-        );
-        skipType = 'intro';
+        skipToPosition = Duration(milliseconds: (s.endSec * 1000).round());
       }
     }
 
@@ -280,10 +275,7 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
       if (credits != null && credits.isNotEmpty) {
         final s = credits.first;
         if (_isWithinWindow(s.startSec, s.endSec, currentSeconds)) {
-          skipToPosition = Duration(
-            milliseconds: (s.endSec * 1000).round(),
-          );
-          skipType = 'credits';
+          skipToPosition = Duration(milliseconds: (s.endSec * 1000).round());
         }
       }
     }
@@ -296,21 +288,6 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
     setState(() {
       showSkipButton = false;
     });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            skipType == 'intro'
-                ? AppLocalizations.of(context).skipIntro
-                : AppLocalizations.of(context).skipOutro,
-          ),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
-        ),
-      );
-    }
   }
 
   // ─── Helpers ───────────────────────────────────────────────────
