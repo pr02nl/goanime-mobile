@@ -17,8 +17,7 @@
 ├─────────────────────────────────────────────────────────────┤
 │  ┌──────────────────┐  ┌───────────────────────────────┐   │
 │  │  JSON Index Sync  │  │  Serviços Auxiliares          │   │
-│  │  (fonte primária) │  │  introdb_svc, download_svc,  │   │
-│  │  pauloflix*_svc   │  │  nfo_enricher, kodi_parser   │   │
+│  │  (fonte primária) │  │  introdb_svc, download_svc,   │
 │  └──────────────────┘  └───────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -100,11 +99,6 @@ Sincronização completa de todos os shows a partir do JSON index:
 5. Marca como indisponível shows que sumiram do servidor
 6. Callbacks de progresso (`onProgress`) e erro (`onError`)
 
-#### `fetchShowSeasons(String showUrl)`
-Scraping HTML da pasta do show (mantido para compatibilidade). Extrai seasons da lista `<a href>`.
-
-#### `fetchSeasonEpisodes(String seasonUrl)`
-Scraping HTML da pasta da season (mantido para compatibilidade). Extrai episódios por extensão de vídeo (`.mkv`, `.mp4`, etc.).
 
 ---
 
@@ -208,63 +202,6 @@ Reseta status para `queued` e re-processa fila.
 
 ---
 
-## PauloFlixEpisodeSyncService
-
-Serviço de sincronização on-demand de seasons + episodes.
-
-### Responsabilidades
-- Scraping HTML do file server (listings `<a href>`) para extrair seasons/episodes de um show
-- Integração com `PauloFlixNfoEnricher` para enriquecer episodes com:
-  - `.nfo` files (`S01E001.nfo`, `season.nfo`) → plot, originalTitle, outline, rating, runtime
-  - Thumbnails (`S01E001-thumb.jpg`)
-- Reatividade: upsert preserva progresso do usuário (`positionSeconds`, `isCompleted`)
-- Reconciliação: `reconcileSeasonEpisodes()` remove seasons/episodes que sumiram do servidor (mas preserva os que têm progresso)
-
-### Arquitetura
-
-| Camada | Responsabilidade |
-|--------|-----------------|
-| `PauloFlixEpisodeSyncService` | Orquestrador: fetch HTML → upsert no banco |
-| `PauloFlixNfoEnricher` | HTTP fetcher de NFOs/thumbs do servidor |
-| `KodiNfoParser` | Parser XML puro (sem Flutter) de `tvshow.nfo`, `movie.nfo`, `episodedetails.nfo`, `season.nfo` |
-| `PauloFlixEpisodeProgressRepository` | Persistência via Drift (tabelas `paulo_flix_seasons`, `paulo_flix_episodes`) |
-
-### Métodos Principais
-
-#### `syncSeasonEpisodes({contentId, contentServerUrl, enricher})`
-Sync upsert de seasons/episodes de um show.
-
-#### `reconcileSeasonEpisodes({contentId, contentServerUrl, enricher})`
-Sync + reconciliação: remove seasons/episodes ausentes do servidor **que não têm progresso do usuário**.
-
----
-
-## PauloFlixNfoEnricher
-
-Orquestrador HTTP para enriquecimento via arquivos NFO/JPG do servidor.
-
-### Métodos
-- `fetchShowNfo(showUrl)` → `KodiShowNfo?`
-- `fetchMovieNfo(folderUrl)` → `KodiShowNfo?`
-- `fetchSeasonNfo(seasonUrl)` → `KodiSeasonNfo?`
-- `fetchEpisodeNfo(seasonUrl, seasonNumber, episodeNumber)` → `KodiEpisodeNfo?`
-- `fetchSeasonListing(seasonUrl)` → record unificado
-- `fetchShowNfoWithImages(showUrl)` → record (nfo + DetectedShowImages)
-
----
-
-## KodiNfoParser
-
-Parser XML puro (sem Flutter) para arquivos NFO do Kodi.
-
-### Suporte
-- `parseShow(String xmlBody)` — root `<tvshow>` → `KodiShowNfo?`
-- `parseMovie(String xmlBody)` — root `<movie>` → `KodiShowNfo?`
-- `parseEpisode(String xmlBody)` — root `<episodedetails>` → `KodiEpisodeNfo?`
-- `parseSeasonNfo(String xmlBody)` — root `<season>` → `KodiSeasonNfo?`
-
----
-
 ## IntroDbService
 
 Serviço para consulta de segmentos de intro/outro via TheIntroDB API.
@@ -314,10 +251,8 @@ Wrapper `http.Client` que injeta `Authorization: Bearer <JWT>` em toda request.
 
 | Service | Camada | Tecnologia | Persiste? |
 |---------|--------|-----------|-----------|
-| `PauloFlixService` | Sync | HTTP + JSON index + HTML scraping (on-demand) | Via `PauloFlixRepository` (Drift) |
+| `PauloFlixService` | Sync | HTTP + JSON index (única fonte) | Via `PauloFlixRepository` (Drift) |
 | `PauloFlixMoviesService` | Sync | HTTP + JSON index (única fonte) | Via `PauloFlixMoviesRepository` (Drift) |
-| `PauloFlixEpisodeSyncService` | Sync | HTTP + HTML scraping + NFO | Via `PauloFlixEpisodeProgressRepository` (Drift) |
-| `PauloFlixNfoEnricher` | Sync | HTTP | Não |
 | `DownloadService` | Streaming | HTTP + Drift (fila + persistência) | Via `DownloadsRepository` (Drift) |
 | `IntroDbService` | API externa | HTTP (TheIntroDB API) | Sim (memória) |
 | `SearchHistoryService` | Persistência | SharedPreferences | Sim |
@@ -329,10 +264,10 @@ Wrapper `http.Client` que injeta `Authorization: Bearer <JWT>` em toda request.
 || Banco de dados | Drift | `core/database/app_database.dart` |
 || Repositories (5) | Drift | `data/repositories/*repository_impl.dart` |
 || Sync shows + films | HTTP + JSON index | `data/services/pauloflix*_service.dart` |
-|| Sync episodes | HTTP + HTML scraping | `data/services/paulo_flix_episode_sync_service.dart` |
-|| NFO enrichment | HTTP + XML parsing | `data/services/kodi/pauloflix_nfo_enricher.dart` |
-|| Kodi NFO parser | XML (package:xml) | `data/services/kodi/kodi_nfo_parser.dart` |
 || TheIntroDB API | HTTP | `data/services/introdb_service.dart` |
 || Downloads (fila HTTP) | HTTP + Drift | `data/services/download_service.dart` |
+|| Episode/season progress | Drift (SQLite) | `data/services/episode_progress_service.dart` |
+|| Movie progress | Drift (SQLite) | `data/services/movie_progress_service.dart` |
+|| Image precache | HTTP | `data/services/image_precache_service.dart` |
 || Search history | SharedPreferences | `data/services/search_history_service.dart` |
 || JWT auth | HTTP client wrapper | `data/services/auth/authenticated_http_client.dart` |

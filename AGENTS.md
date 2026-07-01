@@ -63,10 +63,6 @@ lib/
 │       │   ├── authenticated_http_client.dart     # Injeta JWT
 │       │   ├── authenticated_cache_manager.dart
 │       │   └── jwt_token_manager.dart
-│       ├── kodi/
-│       │   ├── kodi_nfo_models.dart
-│       │   ├── kodi_nfo_parser.dart
-│       │   └── pauloflix_nfo_enricher.dart
 │       ├── download_service.dart                  # Fila HTTP + persistência
 │       ├── episode_progress_service.dart          # Progresso de episódios
 │       ├── image_precache_service.dart            # Precache de imagens
@@ -74,7 +70,6 @@ lib/
 │       ├── movie_progress_service.dart            # Progresso de filmes
 │       ├── pauloflix_movies_service.dart          # Sync JSON index (Movies)
 │       ├── pauloflix_service.dart                 # Sync JSON index (TV)
-│       ├── paulo_flix_episode_sync_service.dart   # Sync episodes on-demand
 │       └── search_history_service.dart            # Histórico de busca
 │
 ├── routing/                           # Navegação
@@ -148,7 +143,6 @@ lib/
     ├── player/
     │   ├── video_player_introdb_mixin.dart  # Mixin TheIntroDB
     │   └── widgets/
-    │       ├── blogger_webview_screen.dart
     │       ├── modern_video_player_controls.dart # Controles overlay
     │       ├── video_player_episode_buttons.dart
     │       ├── video_player_screen.dart
@@ -265,7 +259,6 @@ The project uses **media_kit** for video playback:
 - TheIntroDB integration for skipping intro/outro segments
 - HTTP headers (User-Agent, Referer, JWT) injetados diretamente no `Media.open()`
 - Hardware acceleration enabled safely on TV
-- WebView fallback for iOS when needed
 - Adaptive video controls for different platforms
 
 ### Video Player Architecture

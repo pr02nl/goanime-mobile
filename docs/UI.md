@@ -53,7 +53,6 @@ Player de vídeo principal (media_kit).
 **Características:**
 - Player nativo (media_kit)
 - TheIntroDB integration (botão de pular intro/outro)
-- Fallback WebView para iOS
 - Legendas `.srt` (prioridade PT-BR)
 - Loading overlay com skeleton
 - Error handling com retry
@@ -72,12 +71,6 @@ Player de vídeo principal (media_kit).
 
 ---
 
-### BloggerWebViewScreen
-Fallback WebView para streaming no iOS.
-
-**Arquivo:** `lib/ui/player/widgets/blogger_webview_screen.dart`
-
----
 
 ### WatchlistScreen
 Lista de animes salvos para assistir depois.
@@ -107,7 +100,7 @@ Gerenciamento de downloads offline.
 ---
 
 ### PauloFlixEpisodeListScreen
-Lista de episódios/seasons de um show PauloFlix (via scraping on-demand).
+Lista de episódios/seasons de um show PauloFlix (lê do banco Drift, populado pelo sync do JSON index).
 
 **Arquivo:** `lib/ui/pauloflix/widgets/pauloflix_episode_list_screen.dart`
 
@@ -117,7 +110,7 @@ Lista de episódios/seasons de um show PauloFlix (via scraping on-demand).
 - Thumbnails do servidor (se disponíveis)
 - Progresso do usuário (assistido, posição)
 - Botão de download por episódio
-- Sync on-demand via `PauloFlixEpisodeSyncService`
+- Dados reativos via streams Drift (`watchSeasonsForContent`, `watchEpisodesForSeason`)
 
 ---
 
@@ -168,7 +161,7 @@ Tela de detalhe de filme.
 
 **Características:**
 - Backdrop + poster + sinopse + botão Assistir
-- Reutiliza `ModernVideoPlayerScreen` para reprodução
+- Reutiliza `VideoPlayerScreen` para reprodução
 - Suporte a legendas `.srt` (prioridade PT-BR)
 - TV: FocusableWidget nos sub-filmes
 

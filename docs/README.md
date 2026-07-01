@@ -127,7 +127,6 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 ### Tecnologias
 - **media_kit**: Player nativo Flutter de alta performance
 - **TheIntroDB**: Pular intro/outro automaticamente
-- **Fallback WebView**: Para iOS quando o player nativo falha
 
 ### Recursos
 - Download para offline
@@ -147,8 +146,7 @@ Baseada em fundo preto puro (#000000) com acentos vibrantes:
 | go_router | ^17.3.0 | Navegação type-safe |
 | provider | ^6.1.5+1 | State management |
 | http | ^1.6.0 | Requisições HTTP |
-| html | ^0.15.6 | Parsing HTML (fallback scraping) |
-| xml | ^7.0.1 | Parsing NFO (Kodi) |
+
 | cached_network_image | ^3.4.1 | Cache de imagens |
 | cryptography_plus | ^3.0.0 | JWT Ed25519 signing |
 
