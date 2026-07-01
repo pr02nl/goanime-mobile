@@ -50,10 +50,3 @@ class PlayerRouteData {
     this.episodeNumber,
   });
 }
-
-class WebViewRouteData {
-  final String url;
-  final String title;
-
-  const WebViewRouteData({required this.url, required this.title});
-}

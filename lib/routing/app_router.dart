@@ -12,7 +12,6 @@ import '../ui/pauloflix/widgets/pauloflix_see_all_screen.dart';
 import '../ui/pauloflix_movies/widgets/pauloflix_movie_detail_screen.dart';
 import '../ui/pauloflix_movies/widgets/pauloflix_movies_home_screen.dart';
 import '../ui/pauloflix_movies/widgets/pauloflix_movies_search_screen.dart';
-import '../ui/player/widgets/blogger_webview_screen.dart';
 import '../ui/player/widgets/video_player_screen.dart';
 import '../ui/search/widgets/search_screen.dart';
 import '../ui/settings/widgets/settings_screen.dart';
@@ -113,14 +112,6 @@ GoRouter createAppRouter({String? initialError}) {
         builder: (context, state) {
           final movie = state.extra as PauloFlixMovie;
           return PauloFlixMovieDetailScreen(content: movie);
-        },
-      ),
-      GoRoute(
-        path: '/blogger-webview',
-        name: 'blogger-webview',
-        builder: (context, state) {
-          final data = state.extra as WebViewRouteData;
-          return BloggerWebViewScreen(initialUrl: data.url, title: data.title);
         },
       ),
     ],
