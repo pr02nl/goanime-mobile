@@ -56,11 +56,6 @@ class PauloFlixService {
     void Function(String progress)? onProgress,
     void Function(String error)? onError,
 
-    /// Mantido para compatibilidade de assinatura, mas **ignorado**
-    /// — o JSON index substituiu o scraped-based sync.
-    // ignore: avoid_unused_constructor_parameters
-    Future<void> Function(PauloFlixContent content)? onContentSynced,
-
     /// Quando fornecido, popula seasons/episódios diretamente do JSON
     /// index, sem necessidade de scraping adicional.
     PauloFlixEpisodeProgressRepository? episodeRepository,
@@ -221,36 +216,6 @@ class PauloFlixService {
                 runtime: runtime,
               );
             }
-          }
-        }
-      }
-
-      // Dispara callback onContentSynced (se caller ainda quiser).
-      // Usa o mesmo `updatedIds` — sem getAll() adicional.
-      if (onContentSynced != null) {
-        for (final content in contents) {
-          final id = updatedIds[content.folderName];
-          if (id != null) {
-            // Cria um PauloFlixContent com o id preenchido
-            final saved = PauloFlixContent(
-              id: id,
-              folderName: content.folderName,
-              displayName: content.displayName,
-              serverUrl: content.serverUrl,
-              imageUrl: content.imageUrl,
-              bannerUrl: content.bannerUrl,
-              description: content.description,
-              score: content.score,
-              genres: content.genres,
-              status: content.status,
-              episodeCount: content.episodeCount,
-              originalTitle: content.originalTitle,
-              year: content.year,
-              tmdbId: content.tmdbId,
-              lastSynced: content.lastSynced,
-              isAvailable: content.isAvailable,
-            );
-            await onContentSynced(saved);
           }
         }
       }
