@@ -53,160 +53,158 @@ class NetflixHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return FocusTraversalGroup(
-      child: Container(
-        height: height,
-        decoration: const BoxDecoration(color: NetflixTheme.background),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background image
-            CachedNetworkImage(
-              imageUrl: imageUrl,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: height,
-              filterQuality: FilterQuality.high,
-              placeholder: (context, url) => Container(
-                color: NetflixTheme.surface,
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      AppColors.primary,
-                    ),
+    return Container(
+      height: height,
+      decoration: const BoxDecoration(color: NetflixTheme.background),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background image
+          CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: height,
+            filterQuality: FilterQuality.high,
+            placeholder: (context, url) => Container(
+              color: NetflixTheme.surface,
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.primary,
                   ),
                 ),
               ),
-              errorWidget: (context, url, error) => Container(
-                color: NetflixTheme.surface,
-                child: const Icon(
-                  Icons.error_outline,
-                  color: NetflixTheme.textTertiary,
-                ),
+            ),
+            errorWidget: (context, url, error) => Container(
+              color: NetflixTheme.surface,
+              child: const Icon(
+                Icons.error_outline,
+                color: NetflixTheme.textTertiary,
               ),
             ),
-            // Gradient overlay
-            Container(
-              decoration: BoxDecoration(
+          ),
+          // Gradient overlay
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  NetflixTheme.background.withValues(alpha: 0.3),
+                  NetflixTheme.background.withValues(alpha: 0.6),
+                  NetflixTheme.background,
+                ],
+                stops: const [0.0, 0.6, 1.0],
+              ),
+            ),
+          ),
+          // Badge (canto superior esquerdo) — opcional
+          if (badge != null)
+            Positioned(
+              left: NetflixTheme.horizontalPadding(context),
+              top: NetflixTheme.lg,
+              child: badge!,
+            ),
+          // Content
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: NetflixTheme.horizontalPadding(context),
+                vertical: NetflixTheme.lg,
+              ),
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    NetflixTheme.background.withValues(alpha: 0.3),
-                    NetflixTheme.background.withValues(alpha: 0.6),
-                    NetflixTheme.background,
-                  ],
-                  stops: const [0.0, 0.6, 1.0],
+                  colors: [Colors.transparent, NetflixTheme.background],
                 ),
               ),
-            ),
-            // Badge (canto superior esquerdo) — opcional
-            if (badge != null)
-              Positioned(
-                left: NetflixTheme.horizontalPadding(context),
-                top: NetflixTheme.lg,
-                child: badge!,
-              ),
-            // Content
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: NetflixTheme.horizontalPadding(context),
-                  vertical: NetflixTheme.lg,
-                ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, NetflixTheme.background],
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (showTitle)
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: NetflixTheme.textPrimary,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black,
-                              offset: Offset(0, 2),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (score != null) ...[
-                      const SizedBox(height: NetflixTheme.sm),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star,
-                            color: Color(0xFFFBBF24),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            score!.toStringAsFixed(1),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showTitle)
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: NetflixTheme.textPrimary,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black,
+                            offset: Offset(0, 2),
+                            blurRadius: 4,
                           ),
                         ],
                       ),
-                    ],
-                    if (description != null) ...[
-                      const SizedBox(height: NetflixTheme.md),
-                      Text(
-                        description!,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: NetflixTheme.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: NetflixTheme.lg),
+                    ),
+                  if (score != null) ...[
+                    const SizedBox(height: NetflixTheme.sm),
                     Row(
                       children: [
-                        if (onPlay != null)
-                          // Sem `autofocus: isTV` aqui — o shell gerencia
-                          // o foco inicial. Foco no Play via d-pad é
-                          // responsabilidade do `_restoreContentFocus`.
-                          _HeroActionButton(
-                            onPressed: onPlay!,
-                            icon: Icons.play_arrow,
-                            label: l10n.playNow,
-                            filled: true,
+                        const Icon(
+                          Icons.star,
+                          color: Color(0xFFFBBF24),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          score!.toStringAsFixed(1),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                        if (onMyList != null) ...[
-                          const SizedBox(width: NetflixTheme.md),
-                          _HeroActionButton(
-                            onPressed: onMyList!,
-                            icon: Icons.add,
-                            label: l10n.myList,
-                            filled: false,
-                          ),
-                        ],
+                        ),
                       ],
                     ),
                   ],
-                ),
+                  if (description != null) ...[
+                    const SizedBox(height: NetflixTheme.md),
+                    Text(
+                      description!,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: NetflixTheme.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: NetflixTheme.lg),
+                  Row(
+                    children: [
+                      if (onPlay != null)
+                        // Sem `autofocus: isTV` aqui — o shell gerencia
+                        // o foco inicial. Foco no Play via d-pad é
+                        // responsabilidade do `_restoreContentFocus`.
+                        _HeroActionButton(
+                          onPressed: onPlay!,
+                          icon: Icons.play_arrow,
+                          label: l10n.playNow,
+                          filled: true,
+                        ),
+                      if (onMyList != null) ...[
+                        const SizedBox(width: NetflixTheme.md),
+                        _HeroActionButton(
+                          onPressed: onMyList!,
+                          icon: Icons.add,
+                          label: l10n.myList,
+                          filled: false,
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -266,7 +264,22 @@ class _HeroActionButtonState extends State<_HeroActionButton> {
 
     return Focus(
       // Sem `autofocus: true` — ver doc do `NetflixHeroCard`.
-      onFocusChange: (focused) => setState(() => _isFocused = focused),
+      onFocusChange: (focused) {
+        setState(() => _isFocused = focused);
+        if (focused) {
+          // Revela o herocard completo ao receber foco via D-pad "cima".
+          // Usa addPostFrameCallback para evitar conflito com o
+          // ensureVisible automático do sistema de foco do Flutter.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            Scrollable.maybeOf(context)?.position.animateTo(
+              0,
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOutCubic,
+            );
+          });
+        }
+      },
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
             (event.logicalKey == LogicalKeyboardKey.select ||
