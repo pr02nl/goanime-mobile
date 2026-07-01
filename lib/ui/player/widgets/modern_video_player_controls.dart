@@ -401,26 +401,39 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   /// Verifica se o buffer atual é suficiente para retomar o playback.
   ///
-  /// Threshold: no mínimo 30s, no máximo 120s ou 50% da duração total
-  /// (o que for menor). Exemplos:
-  /// - Vídeo de 1min → threshold = 30s
-  /// - Vídeo de 10min → threshold = 30s (30s < 50% = 5min)
-  /// - Filme de 2h → threshold = 120s (capped)
-  static bool isBufferSufficient(Duration buffered, Duration duration) {
+  /// Usa o **restante** do vídeo (`duration - position`) como base:
+  /// - Alvo: 50% do restante, clamp entre 30s e 120s
+  /// - Se o restante for menor que o alvo, usa o restante
+  ///   (evita exigir mais buffer do que o possível).
+  ///
+  /// Exemplos (restante → alvo):
+  /// - Restante 30s → 30s (50% = 15s < min 30s, clamp sobe para 30s,
+  ///   e 30s == restante → buffer completo do trecho final)
+  /// - Restante 5min → 30s (50% = 2,5min, clamp mínimo de 30s)
+  /// - Restante 60min → 120s (50% = 30min, cap máximo de 120s)
+  static bool isBufferSufficient(
+    Duration buffered,
+    Duration duration,
+    Duration position,
+  ) {
     if (buffered <= Duration.zero) return false;
-    if (duration <= Duration.zero) {
-      // Sem duração conhecida: mínimo 30s
-      return buffered >= const Duration(seconds: 30);
+    final remaining = duration - position;
+    if (remaining <= Duration.zero) {
+      // Vídeo já acabou ou sem duração: queremos ao menos 5s para
+      // garantir que o último frame está disponível.
+      return buffered >= const Duration(seconds: 5);
     }
-    // 50% da duração, clamp entre 30s e 120s
-    final halfDuration = duration ~/ 2;
-    final threshold = halfDuration < const Duration(seconds: 30)
+    // 50% do restante, clamp entre 30s e 120s
+    final halfRemaining = remaining ~/ 2;
+    final target = halfRemaining < const Duration(seconds: 30)
         ? const Duration(seconds: 30)
-        : halfDuration;
-    final capped = threshold > const Duration(seconds: 120)
+        : halfRemaining;
+    final capped = target > const Duration(seconds: 120)
         ? const Duration(seconds: 120)
-        : threshold;
-    return buffered >= capped;
+        : target;
+    // Não exigir mais buffer do que o restante disponível
+    final effective = capped > remaining ? remaining : capped;
+    return buffered >= effective;
   }
 
   /// Inicia o timer de grace period para recuperação de buffer.
@@ -456,7 +469,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   /// o loading.
   void _checkBufferAndResume() {
     if (!_waitingForBuffer) return;
-    if (!isBufferSufficient(_buffer, _duration)) return;
+    if (!isBufferSufficient(_buffer, _duration, _position)) return;
 
     debugPrint(
       '[PlayerControls] ▶ Buffer sufficient '
