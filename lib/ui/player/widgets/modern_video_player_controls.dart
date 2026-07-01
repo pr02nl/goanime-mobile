@@ -346,10 +346,14 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     });
     _bufferPctSub = p.stream.buffer.listen((buffer) {
       if (mounted) {
-        setState(() => _buffer = buffer);
-        // Se estamos aguardando buffer, verifica se já é suficiente.
+        _buffer = buffer;
         if (_waitingForBuffer) {
+          // Durante buffer recovery a seek bar não fica visível
+          // (só o loading overlay). Pulamos o setState para evitar
+          // rebuilds desnecessários (~10-20/s).
           _checkBufferAndResume();
+        } else {
+          setState(() {});
         }
       }
     });

@@ -622,8 +622,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       if (!completer.isCompleted) completer.complete();
     }
 
-    timeoutTimer = Timer(const Duration(seconds: 5), () {
-      debugPrint('[VideoPlayer] Tracks stream timeout (5s)');
+    timeoutTimer = Timer(const Duration(seconds: 2), () {
+      debugPrint('[VideoPlayer] Tracks stream timeout (2s)');
       finish();
     });
 
@@ -879,11 +879,14 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       activeEpisodeKey = _buildEpisodeKey();
 
       // Carrega segmentos de intro/outro via TheIntroDB.
-      await loadSkipSegments(
+      // Fire-and-forget: a chamada HTTP não precisa bloquear o
+      // início da reprodução — os segmentos só são usados quando
+      // o player atinge a intro/outro (minutos depois).
+      unawaited(loadSkipSegments(
         tmdbId: widget.tmdbId,
         seasonNumber: widget.seasonNumber,
         episodeNumber: _currentEpisodeNum,
-      );
+      ));
     } catch (e) {
       debugPrint('Error initializing video: $e');
       if (mounted) {
