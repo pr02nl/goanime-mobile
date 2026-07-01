@@ -33,7 +33,6 @@ import 'package:flutter/material.dart';
 import '../../../domain/models/paulo_flix_progress_stats.dart';
 import '../../../domain/models/pauloflix_content.dart';
 import '../../core/themes/app_colors.dart';
-import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/netflix_card.dart';
 import '../../core/widgets/netflix_carousel.dart';
 import '../../core/widgets/progress_overlay.dart';
@@ -71,11 +70,7 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
     return NetflixCarousel(
       title: 'Continue assistindo',
       isTV: isTV,
-      items: contents
-          .map(
-            (c) => _buildCard(context, c),
-          )
-          .toList(),
+      items: contents.map((c) => _buildCard(context, c)).toList(),
     );
   }
 
@@ -85,19 +80,14 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
         ? _buildProgressOverlay(statsById[content.id!])
         : null;
 
-    return FocusableWidget(
-      onSelect: () => onContentTap?.call(content),
-      borderRadius: 6,
-      focusPadding: EdgeInsets.zero,
-      child: NetflixCard(
-        imageUrl: content.imageUrl ?? '',
-        title: content.displayName,
-        showTitle: true,
-        showRating: false,
-        isTV: isTV,
-        overlayWidget: overlay,
-        onTap: () => onContentTap?.call(content),
-      ),
+    return NetflixCard(
+      imageUrl: content.imageUrl ?? '',
+      title: content.displayName,
+      showTitle: true,
+      showRating: false,
+      isTV: isTV,
+      overlayWidget: overlay,
+      onTap: () => onContentTap?.call(content),
     );
   }
 
@@ -107,7 +97,8 @@ class PauloFlixContinueWatchingSection extends StatelessWidget {
   Widget? _buildProgressOverlay(PauloFlixProgressStats? stats) {
     if (stats == null) return null;
 
-    final hasProgress = stats.isAnimeCompleted ||
+    final hasProgress =
+        stats.isAnimeCompleted ||
         stats.isAnimeInProgress ||
         stats.completedEpisodes > 0;
     if (!hasProgress) return null;
