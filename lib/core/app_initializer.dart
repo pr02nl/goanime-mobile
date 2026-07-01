@@ -27,6 +27,11 @@ class InitializationResult {
   final JwtTokenManager jwtManager;
   final String? startupError;
 
+  /// Mensagem de aviso se o JWT falhou (auth não disponível).
+  /// Quando não-nulo, a UI deve exibir um snackbar informando que
+  /// downloads e sync podem não funcionar.
+  final String? jwtWarning;
+
   InitializationResult({
     required this.themeViewModel,
     required this.localeViewModel,
@@ -34,6 +39,7 @@ class InitializationResult {
     required this.appDatabase,
     required this.jwtManager,
     this.startupError,
+    this.jwtWarning,
   });
 }
 
@@ -74,10 +80,6 @@ class AppInitializer {
     }
 
     // ── 3. TVDetector (cache eager) ──────────────────────────────
-    // Dispara a detecção de TV logo no startup para que o cache
-    // esteja pronto quando a UI perguntar. A primeira chamada em
-    // TV Android faz uma invocação via platform channel (~100ms);
-    // as subsequentes retornam imediatamente do cache.
     try {
       final isTv = await TVDetector.isTV;
       debugPrint(
@@ -108,9 +110,8 @@ class AppInitializer {
     // ══════════════════════════════════════════════════════════════
     // 6. JWT manager — DEVE rodar ANTES dos services que o usam
     // (DownloadService, PauloFlixService, PauloFlixMoviesService).
-    // Em produção o base64 da chave privada está embutido no APK;
-    // em dev com placeholder, falha e os services usam fallback.
     // ══════════════════════════════════════════════════════════════
+    String? jwtWarning;
     final jwtManager = JwtTokenManager();
     debugPrint('[AppInitializer] ▶ Inicializando JWT manager...');
     http.Client? authClient;
@@ -132,6 +133,9 @@ class AppInitializer {
         inner: innerClient,
       );
     } catch (e) {
+      jwtWarning =
+          'Falha ao autenticar com o servidor. '
+          'Downloads e sincronização podem não funcionar. ($e)';
       debugPrint('[AppInitializer] ✗ JWT manager: $e');
     }
 
@@ -181,6 +185,7 @@ class AppInitializer {
       appDatabase: appDatabase,
       jwtManager: jwtManager,
       startupError: firstError,
+      jwtWarning: jwtWarning,
     );
   }
 }

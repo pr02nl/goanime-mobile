@@ -37,6 +37,7 @@ class PauloFlixApp extends StatelessWidget {
   final AppDatabase appDatabase;
   final JwtTokenManager jwtManager;
   final String? startupError;
+  final String? jwtWarning;
 
   const PauloFlixApp({
     super.key,
@@ -46,6 +47,7 @@ class PauloFlixApp extends StatelessWidget {
     required this.appDatabase,
     required this.jwtManager,
     this.startupError,
+    this.jwtWarning,
   });
 
   @override
@@ -83,6 +85,9 @@ class PauloFlixApp extends StatelessWidget {
         ),
         // Auth: JwtTokenManager.
         Provider<JwtTokenManager>.value(value: jwtManager),
+        // Aviso de JWT (exibido como snackbar no HomeScreen).
+        if (jwtWarning != null)
+          Provider<String>.value(value: jwtWarning!),
         // Services e viewmodels.
         ChangeNotifierProvider.value(value: themeViewModel),
         ChangeNotifierProvider.value(value: localeViewModel),

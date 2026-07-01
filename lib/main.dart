@@ -21,6 +21,7 @@ void main() async {
       appDatabase: result.appDatabase,
       jwtManager: result.jwtManager,
       startupError: result.startupError,
+      jwtWarning: result.jwtWarning,
     ),
   );
 }
