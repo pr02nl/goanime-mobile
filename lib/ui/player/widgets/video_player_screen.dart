@@ -522,7 +522,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     await service.flush(getCurrentPosition: getPos, getDuration: getDur);
   }
 
-  /// Para AMBOS os timers de progresso (episódios + filmes).
+  /// Para todos os timers ativos (progresso episódios/filmes + AniSkip).
   ///
   /// Chamado quando um erro de streaming é detectado, ANTES que
   /// `player.state.position` zere e sobrescreva o progresso salvo
@@ -530,7 +530,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   void _stopProgressServices() {
     _progressService?.stop();
     _movieProgressService?.stop();
-    debugPrint('[VideoPlayer] ⏹ Progress services stopped (player error)');
+    cleanupIntroDb();
+    debugPrint('[VideoPlayer] ⏹ All timers stopped (player error)');
   }
 
   /// Configura as stream subscriptions persistentes uma ÚNICA vez.
