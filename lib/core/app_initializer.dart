@@ -90,8 +90,8 @@ class AppInitializer {
       log.info(
         '✓ TVDetector (${isTv ? "TV" : "mobile"})',
       );
-    } catch (e) {
-      log.warning('⚠ TVDetector', e);
+    } catch (e, st) {
+      log.warning('⚠ TVDetector', e, st);
     }
 
     // ── 4. ThemeViewModel ────────────────────────────────────────
@@ -137,11 +137,11 @@ class AppInitializer {
         tokenManager: jwtManager,
         inner: innerClient,
       );
-    } catch (e) {
+    } catch (e, st) {
       jwtWarning =
           'Falha ao autenticar com o servidor. '
           'Downloads e sincronização podem não funcionar. ($e)';
-      log.error('✗ JWT manager', e);
+      log.error('✗ JWT manager', e, st);
     }
 
     // ── 7. AppDatabase + DownloadService ─────────────────────────

@@ -120,7 +120,8 @@ class DownloadButton extends StatelessWidget {
           ),
         );
       }
-    } catch (e) {
+    // ignore: unused_catch_stack
+    } catch (e, st) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -406,7 +407,8 @@ class _BatchDownloadDialogState extends State<BatchDownloadDialog> {
           ),
         );
       }
-    } catch (e) {
+    // ignore: unused_catch_stack
+    } catch (e, st) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

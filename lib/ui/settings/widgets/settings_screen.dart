@@ -349,9 +349,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (pauloFlixProvider.hasSyncError) {
           errors.add('Animes: ${pauloFlixProvider.lastSyncError}');
         }
-      } catch (e) {
+      } catch (e, st) {
         errors.add('Animes: $e');
-        const AppLogger('SettingsScreen').error('Erro no sync de animes', e);
+        const AppLogger('SettingsScreen').error('Erro no sync de animes', e, st);
       }
 
       try {
@@ -359,9 +359,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!moviesSuccess || pauloFlixMoviesProvider.hasSyncError) {
           errors.add('Filmes: ${pauloFlixMoviesProvider.lastSyncError ?? l10n.unknownError}');
         }
-      } catch (e) {
+      } catch (e, st) {
         errors.add('Filmes: $e');
-        const AppLogger('SettingsScreen').error('Erro no sync de filmes', e);
+        const AppLogger('SettingsScreen').error('Erro no sync de filmes', e, st);
       }
 
       if (mounted) {

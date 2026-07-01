@@ -310,8 +310,8 @@ class DownloadService extends ChangeNotifier {
           quality: quality,
         );
         downloadIds.add(id);
-      } catch (e) {
-        const AppLogger('Download').error('Failed to add episode ${episode['number']}', e);
+      } catch (e, st) {
+        const AppLogger('Download').error('Failed to add episode ${episode['number']}', e, st);
       }
     }
 
@@ -360,7 +360,8 @@ class DownloadService extends ChangeNotifier {
         if (uri.host.isEmpty) {
           throw Exception('Invalid URL format');
         }
-      } catch (e) {
+      // ignore: unused_catch_stack
+      } catch (e, st) {
         if (e.toString().contains('Invalid URL format')) {
           rethrow;
         }
@@ -369,8 +370,8 @@ class DownloadService extends ChangeNotifier {
 
       // Start the download (PauloFlix URLs are direct file URLs)
       await _downloadHttp(id);
-    } catch (e) {
-      const AppLogger('Download').error('Download error for $id', e);
+    } catch (e, st) {
+      const AppLogger('Download').error('Download error for $id', e, st);
       _downloads[id] = download.copyWith(
         status: DownloadStatus.failed,
         error: e.toString(),
@@ -515,7 +516,8 @@ class DownloadService extends ChangeNotifier {
       );
       await _repository.save(_downloads[id]!);
       _notify(true);
-    } catch (e) {
+    // ignore: unused_catch_stack
+    } catch (e, st) {
       rethrow;
     }
   }
@@ -654,8 +656,8 @@ class DownloadService extends ChangeNotifier {
         Directory? directory;
         try {
           directory = await getExternalStorageDirectory();
-        } catch (e) {
-          const AppLogger('Download').warning('External storage not available', e);
+        } catch (e, st) {
+          const AppLogger('Download').warning('External storage not available', e, st);
         }
 
         // Fallback to app documents for Android TV compatibility
@@ -681,8 +683,8 @@ class DownloadService extends ChangeNotifier {
         }
         return downloadDir;
       }
-    } catch (e) {
-      const AppLogger('Download').error('Failed to get download directory', e);
+    } catch (e, st) {
+      const AppLogger('Download').error('Failed to get download directory', e, st);
       return null;
     }
   }

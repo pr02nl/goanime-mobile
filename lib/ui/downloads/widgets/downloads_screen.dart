@@ -682,7 +682,8 @@ class _LocalVideoPlayerScreenState extends State<_LocalVideoPlayerScreen> {
       setState(() {
         _isInitialized = true;
       });
-    } catch (e) {
+    // ignore: unused_catch_stack
+    } catch (e, st) {
       setState(() {
         _errorMessage = e.toString();
       });

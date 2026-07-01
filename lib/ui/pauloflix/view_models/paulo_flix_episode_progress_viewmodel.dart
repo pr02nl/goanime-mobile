@@ -183,11 +183,12 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
 
       _status = PauloFlixEpisodeStatus.loaded;
       _safeNotify();
-    } catch (e) {
+    } catch (e, st) {
       log(
         '[PauloFlixEpisodeProgressViewModel] Erro ao carregar seasons: $e',
         name: 'PauloFlixEpisodeProgressViewModel',
         error: e,
+        stackTrace: st,
       );
       _errorMessage = 'Erro ao carregar temporadas: $e';
       _status = PauloFlixEpisodeStatus.error;

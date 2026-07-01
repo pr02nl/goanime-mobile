@@ -134,8 +134,8 @@ class PauloFlixMoviesService {
 
       onProgress?.call('Sincronização completa: $totalAvailable filmes');
       return true;
-    } catch (e) {
-      const AppLogger('PauloFlixMoviesService').error('syncContent error', e);
+    } catch (e, st) {
+      const AppLogger('PauloFlixMoviesService').error('syncContent error', e, st);
       onError?.call('Erro na sincronização: $e');
       return false;
     }

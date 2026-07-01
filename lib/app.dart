@@ -214,13 +214,13 @@ class _BackgroundSyncWrapperState extends State<_BackgroundSyncWrapper> {
   void _syncNow() {
     try {
       context.read<PauloFlixProvider>().syncContent();
-    } catch (e) {
-      const AppLogger('BackgroundSync').error('Erro no sync de animes', e);
+    } catch (e, st) {
+      const AppLogger('BackgroundSync').error('Erro no sync de animes', e, st);
     }
     try {
       context.read<PauloFlixMoviesProvider>().syncContent();
-    } catch (e) {
-      const AppLogger('BackgroundSync').error('Erro no sync de filmes', e);
+    } catch (e, st) {
+      const AppLogger('BackgroundSync').error('Erro no sync de filmes', e, st);
     }
   }
 

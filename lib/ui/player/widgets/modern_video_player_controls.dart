@@ -742,8 +742,8 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
                 }
               }
           }
-        } catch (e) {
-          const AppLogger('PlayerControls').warning('Failed to set subtitle track', e);
+        } catch (e, st) {
+          const AppLogger('PlayerControls').warning('Failed to set subtitle track', e, st);
         }
         if (sheetContext.mounted) Navigator.pop(sheetContext);
       },

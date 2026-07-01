@@ -122,8 +122,8 @@ mixin VideoPlayerIntroDbMixin<T extends StatefulWidget> on State<T> {
           }
         }
       }
-    } catch (e) {
-      log.error('Error loading segments', e);
+    } catch (e, st) {
+      log.error('Error loading segments', e, st);
     }
   }
 

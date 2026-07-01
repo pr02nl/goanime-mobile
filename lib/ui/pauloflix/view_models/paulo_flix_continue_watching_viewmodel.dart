@@ -60,8 +60,8 @@ class PauloFlixContinueWatchingViewModel extends ChangeNotifier {
     if (ids.isNotEmpty) {
       try {
         _statsById = await _repository.getProgressStatsForContents(ids);
-      } catch (e) {
-        const AppLogger('ContinueWatching').error('Erro ao buscar stats', e);
+      } catch (e, st) {
+        const AppLogger('ContinueWatching').error('Erro ao buscar stats', e, st);
         _statsById = const {};
       }
     } else {

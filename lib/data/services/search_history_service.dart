@@ -37,10 +37,10 @@ class SearchHistoryService {
     try {
       final List<dynamic> decoded = jsonDecode(historyJson);
       return decoded.map((e) => e.toString()).toList();
-    } catch (e) {
+    } catch (e, st) {
       const AppLogger(
         'SearchHistoryService',
-      ).error('Error loading search history', e);
+      ).error('Error loading search history', e, st);
       return [];
     }
   }

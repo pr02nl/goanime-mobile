@@ -135,8 +135,8 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
           const AppLogger('MoviesHomeScreen').error('Stream error', e);
         },
       );
-    } catch (e) {
-      const AppLogger('MoviesHomeScreen').error('Erro ao assinar stream de progresso', e);
+    } catch (e, st) {
+      const AppLogger('MoviesHomeScreen').error('Erro ao assinar stream de progresso', e, st);
     }
   }
 

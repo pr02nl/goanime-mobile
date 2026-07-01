@@ -31,8 +31,8 @@ class TVDetector {
       const platform = MethodChannel('com.pauloflix.tv_detector');
       final bool? isTV = await platform.invokeMethod('isTV');
       return isTV ?? _detectTVFallback();
-    } catch (e) {
-      const AppLogger('TVDetector').warning('Platform channel failed', e);
+    } catch (e, st) {
+      const AppLogger('TVDetector').warning('Platform channel failed', e, st);
       return _detectTVFallback();
     }
   }

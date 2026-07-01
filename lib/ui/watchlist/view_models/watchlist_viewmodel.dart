@@ -32,8 +32,8 @@ class WatchlistViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       _animes = await _repository.getAll();
-    } catch (e) {
-      const AppLogger('WatchlistViewModel').error('load failed', e);
+    } catch (e, st) {
+      const AppLogger('WatchlistViewModel').error('load failed', e, st);
     } finally {
       _isLoading = false;
       notifyListeners();

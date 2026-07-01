@@ -234,8 +234,8 @@ class PauloFlixService {
 
       onProgress?.call('Sincronização completa: $totalAvailable shows');
       return true;
-    } catch (e) {
-      const AppLogger('PauloFlixService').error('Sync error', e);
+    } catch (e, st) {
+      const AppLogger('PauloFlixService').error('Sync error', e, st);
       onError?.call('Erro na sincronização: $e');
       return false;
     }

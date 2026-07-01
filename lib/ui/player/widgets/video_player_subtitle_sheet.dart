@@ -340,8 +340,8 @@ class SubtitleSelectorTag extends StatelessWidget {
     try {
       await player?.setSubtitleTrack(track);
       const AppLogger('VideoPlayer').debug('Subtitle changed to: ${label ?? track.id}');
-    } catch (e) {
-      const AppLogger('VideoPlayer').warning('Failed to change subtitle', e);
+    } catch (e, st) {
+      const AppLogger('VideoPlayer').warning('Failed to change subtitle', e, st);
     }
     onSubtitleChanged();
   }

@@ -51,8 +51,8 @@ class _PauloFlixMovieDetailScreenState
         final progress = await repo.getProgress(widget.content.folderName);
         if (mounted) setState(() => _progress = progress);
       }
-    } catch (e) {
-      const AppLogger('MovieDetailScreen').error('Erro ao carregar progresso', e);
+    } catch (e, st) {
+      const AppLogger('MovieDetailScreen').error('Erro ao carregar progresso', e, st);
     }
   }
 

@@ -65,7 +65,8 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
       _status = PauloFlixMoviesStatus.loaded;
 
       _precacheImages();
-    } catch (e) {
+    // ignore: unused_catch_stack
+    } catch (e, st) {
       _errorMessage = 'Erro ao carregar filmes: $e';
       _status = PauloFlixMoviesStatus.error;
     }
@@ -98,7 +99,8 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
         notifyListeners();
       }
       return success;
-    } catch (e) {
+    // ignore: unused_catch_stack
+    } catch (e, st) {
       _errorMessage = 'Erro na sincronização de filmes: $e';
       _lastSyncError = _errorMessage;
       _status = PauloFlixMoviesStatus.error;
@@ -117,8 +119,8 @@ class PauloFlixMoviesProvider extends ChangeNotifier {
     if (q.isEmpty) return const [];
     try {
       return await _repository.searchByName(q);
-    } catch (e) {
-      const AppLogger('PauloFlixMoviesProvider').warning('searchByName falhou', e);
+    } catch (e, st) {
+      const AppLogger('PauloFlixMoviesProvider').warning('searchByName falhou', e, st);
       return const [];
     }
   }

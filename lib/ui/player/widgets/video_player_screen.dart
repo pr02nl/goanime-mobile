@@ -399,8 +399,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         'dur=${saved.durationSeconds}s '
         'completed=${saved.isCompleted}',
       );
-    } catch (e) {
-      _log.error('Failed to load saved progress', e);
+    } catch (e, st) {
+      _log.error('Failed to load saved progress', e, st);
       _savedPositionSeconds = null;
       _savedDurationSeconds = null;
       _savedIsCompleted = false;
@@ -491,8 +491,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         _savedDurationSeconds = null;
         _savedIsCompleted = false;
       }
-    } catch (e) {
-      _log.error('Failed to load movie progress', e);
+    } catch (e, st) {
+      _log.error('Failed to load movie progress', e, st);
       _savedPositionSeconds = null;
       _savedDurationSeconds = null;
       _savedIsCompleted = false;
@@ -652,8 +652,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       });
       _tracksSub = sub;
       await completer.future;
-    } catch (e) {
-      _log.error('Error waiting for embedded tracks', e);
+    } catch (e, st) {
+      _log.error('Error waiting for embedded tracks', e, st);
     }
   }
 
@@ -755,8 +755,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           _log.debug(
             '✓ JWT injetado no header do player (PauloFlix)',
           );
-        } catch (e) {
-          _log.warning('⚠ Falha ao injetar JWT (placeholder?)', e);
+        } catch (e, st) {
+          _log.warning('⚠ Falha ao injetar JWT (placeholder?)', e, st);
           // Sem auth, range requests vão dar 401. Mas o player ainda
           // funciona (vai mostrar erro de playback, não crash).
         }
@@ -778,8 +778,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         _log.debug(
           'Media opened (paused, waiting for video ready)',
         );
-      } catch (e) {
-        _log.warning('Failed with headers, trying without...');
+      } catch (e, st) {
+        _log.warning('Failed with headers, trying without...', e, st);
         // Fallback: try without headers
         final media = Media(resolvedVideoUrl);
         await _player.open(media, play: false);
@@ -808,8 +808,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           );
           await _player.setSubtitleTrack(subtitle);
           _log.debug('Subtitle loaded: ${s.displayName}');
-        } catch (e) {
-          _log.warning('Failed to load subtitle', e);
+        } catch (e, st) {
+          _log.warning('Failed to load subtitle', e, st);
           // Não derruba a reprodução — vídeo continua sem legenda.
         }
       } else if (_embeddedSubtitleTracks.isNotEmpty) {
@@ -818,8 +818,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         try {
           await _player.setSubtitleTrack(SubtitleTrack.auto());
           _log.debug('Subtitle auto (from embedded tracks)');
-        } catch (e) {
-          _log.warning('Failed auto subtitle', e);
+        } catch (e, st) {
+          _log.warning('Failed auto subtitle', e, st);
         }
       }
 
@@ -889,8 +889,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         seasonNumber: widget.seasonNumber,
         episodeNumber: _currentEpisodeNum,
       ));
-    } catch (e) {
-      _log.error('Error initializing video', e);
+    } catch (e, st) {
+      _log.error('Error initializing video', e, st);
       if (mounted) {
         setState(() {});
       }
@@ -1007,8 +1007,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       } else {
         _log.debug('No next episode available');
       }
-    } catch (e) {
-      _log.error('Error finding next episode', e);
+    } catch (e, st) {
+      _log.error('Error finding next episode', e, st);
     }
   }
 

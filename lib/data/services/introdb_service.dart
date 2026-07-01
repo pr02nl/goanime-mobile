@@ -188,8 +188,8 @@ class IntroDbService {
       }
     } on TimeoutException {
       // Timeout já logado acima.
-    } catch (e) {
-      const AppLogger('IntroDb').error('❌ Exception', e);
+    } catch (e, st) {
+      const AppLogger('IntroDb').error('❌ Exception', e, st);
     }
 
     return null;

@@ -14,8 +14,8 @@ class ThemeViewModel extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _isDarkMode = prefs.getBool(_themeKey) ?? true;
       notifyListeners();
-    } catch (e) {
-      const AppLogger('ThemeViewModel').error('load failed', e);
+    } catch (e, st) {
+      const AppLogger('ThemeViewModel').error('load failed', e, st);
     }
   }
 
@@ -25,8 +25,8 @@ class ThemeViewModel extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_themeKey, _isDarkMode);
-    } catch (e) {
-      const AppLogger('ThemeViewModel').error('toggleTheme persist failed', e);
+    } catch (e, st) {
+      const AppLogger('ThemeViewModel').error('toggleTheme persist failed', e, st);
     }
   }
 }

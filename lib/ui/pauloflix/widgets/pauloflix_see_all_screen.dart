@@ -112,8 +112,8 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       if (ids.isEmpty) return;
       final stats = await repo.getProgressStatsForContents(ids);
       if (mounted) setState(() => _statsById = stats);
-    } catch (e) {
-      const AppLogger('SeeAllScreen').error('Erro ao carregar stats', e);
+    } catch (e, st) {
+      const AppLogger('SeeAllScreen').error('Erro ao carregar stats', e, st);
     }
   }
 
