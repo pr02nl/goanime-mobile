@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../domain/models/pauloflix_content.dart';
 import '../domain/models/pauloflix_movie.dart';
 import '../ui/downloads/widgets/downloads_screen.dart';
-import '../ui/home/widgets/home_screen.dart';
 import '../ui/navigation/main_navigation_screen.dart';
 import '../ui/pauloflix/widgets/pauloflix_episode_list_screen.dart';
 import '../ui/pauloflix/widgets/pauloflix_search_screen.dart';
@@ -20,16 +19,11 @@ import 'route_data.dart';
 
 GoRouter createAppRouter({String? initialError}) {
   return GoRouter(
-    initialLocation: initialError != null ? '/error' : '/',
+    initialLocation: initialError != null ? '/error' : '/pauloflix-see-all',
     routes: [
       ShellRoute(
         builder: (context, state, child) => MainNavigationScreen(child: child),
         routes: [
-          GoRoute(
-            path: '/',
-            name: 'home',
-            builder: (context, state) => const HomeScreen(),
-          ),
           GoRoute(
             path: '/search',
             name: 'search',

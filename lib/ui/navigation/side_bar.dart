@@ -162,12 +162,12 @@ class SidebarState extends State<Sidebar> {
   }
 
   List<_NavItem> get _navItems => [
-    _NavItem(
-      icon: Icons.home,
-      label: 'Início',
-      isSelected: (loc) => loc == '/',
-      onTap: (ctx) => ctx.goNamed('home'),
-    ),
+    // _NavItem(
+    //   icon: Icons.home,
+    //   label: 'Início',
+    //   isSelected: (loc) => loc == '/',
+    //   onTap: (ctx) => ctx.goNamed('home'),
+    // ),
     _NavItem(
       icon: Icons.tv,
       label: 'Animes',
