@@ -887,7 +887,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       unawaited(loadSkipSegments(
         tmdbId: widget.tmdbId,
         seasonNumber: widget.seasonNumber,
-        episodeNumber: _currentEpisodeNum,
+        episodeNumber: widget.isMovie ? null : _currentEpisodeNum,
       ));
     } catch (e, st) {
       _log.error('Error initializing video', e, st);
