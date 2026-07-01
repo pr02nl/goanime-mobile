@@ -3,8 +3,8 @@ import 'package:drift/drift.dart';
 import 'connection/connection.dart';
 import 'tables/downloads.dart';
 import 'tables/paulo_flix_episodes.dart';
-import 'tables/paulo_flix_seasons.dart';
 import 'tables/paulo_flix_movie_progress.dart';
+import 'tables/paulo_flix_seasons.dart';
 import 'tables/pauloflix_content.dart';
 import 'tables/pauloflix_movies.dart';
 import 'tables/watchlist_items.dart';
@@ -261,78 +261,78 @@ class AppDatabase extends _$AppDatabase {
       // paulo_flix_content para persistir metadados do JSON index.
       // Sem migration data — o próximo sync repopula em background.
       // v10 → v11: adiciona tabela paulo_flix_movie_progress
-    // para persistir progresso de playback de filmes.
-    if (from < 11) {
-      final db = m.database as AppDatabase;
-      await m.createTable(db.pauloFlixMovieProgress);
-    }
+      // para persistir progresso de playback de filmes.
+      if (from < 11) {
+        final db = m.database as AppDatabase;
+        await m.createTable(db.pauloFlixMovieProgress);
+      }
 
-    // v11 → v12: adiciona colunas video_url e subtitles_json em
-    // paulo_flix_movies para persistir URL direta do vídeo e
-    // legendas externas do movie_index.json. Sem migration data —
-    // o próximo sync popula em background.
-    if (from < 12) {
-      final db = m.database as AppDatabase;
-      await db.customStatement(
-        'ALTER TABLE paulo_flix_movies ADD COLUMN video_url TEXT',
-      );
-      await db.customStatement(
-        'ALTER TABLE paulo_flix_movies ADD COLUMN subtitles_json TEXT',
-      );
-    }
+      // v11 → v12: adiciona colunas video_url e subtitles_json em
+      // paulo_flix_movies para persistir URL direta do vídeo e
+      // legendas externas do movie_index.json. Sem migration data —
+      // o próximo sync popula em background.
+      if (from < 12) {
+        final db = m.database as AppDatabase;
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_movies ADD COLUMN video_url TEXT',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_movies ADD COLUMN subtitles_json TEXT',
+        );
+      }
 
-    // v12 → v13: remove coluna is_collection de paulo_flix_movies.
-    // SQLite DROP COLUMN é suportado desde 3.35.0 (2021-03-12).
-    // A coluna já está removida do código (modelo, repositório,
-    // widgets); esta migration limpa o schema físico.
-    if (from < 13) {
-      final db = m.database as AppDatabase;
-      await db.customStatement(
-        'ALTER TABLE paulo_flix_movies DROP COLUMN is_collection',
-      );
-    }
+      // v12 → v13: remove coluna is_collection de paulo_flix_movies.
+      // SQLite DROP COLUMN é suportado desde 3.35.0 (2021-03-12).
+      // A coluna já está removida do código (modelo, repositório,
+      // widgets); esta migration limpa o schema físico.
+      if (from < 13) {
+        final db = m.database as AppDatabase;
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_movies DROP COLUMN is_collection',
+        );
+      }
 
-    // v13 → v14: adiciona 3 índices para otimizar queries.
-    // `CREATE INDEX IF NOT EXISTS` é seguro para re-execução
-    // (caso a migration interrompa no meio).
-    if (from < 14) {
-      final db = m.database as AppDatabase;
-      await db.customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_episodes_in_progress '
-        'ON paulo_flix_episodes('
-        'is_completed, position_seconds, last_watched)',
-      );
-      await db.customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_episodes_season_completed '
-        'ON paulo_flix_episodes(season_id, is_completed)',
-      );
-      await db.customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_content_available '
-        'ON paulo_flix_content(is_available)',
-      );
-    }
+      // v13 → v14: adiciona 3 índices para otimizar queries.
+      // `CREATE INDEX IF NOT EXISTS` é seguro para re-execução
+      // (caso a migration interrompa no meio).
+      if (from < 14) {
+        final db = m.database as AppDatabase;
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_episodes_in_progress '
+          'ON paulo_flix_episodes('
+          'is_completed, position_seconds, last_watched)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_episodes_season_completed '
+          'ON paulo_flix_episodes(season_id, is_completed)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_content_available '
+          'ON paulo_flix_content(is_available)',
+        );
+      }
 
-    if (from < 15) {
-      final db = m.database as AppDatabase;
-      await db.customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_seasons_content '
-        'ON paulo_flix_seasons(content_id, season_number)',
-      );
-      await db.customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_episodes_season_number '
-        'ON paulo_flix_episodes(season_id, episode_number)',
-      );
-      await db.customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_content_search '
-        'ON paulo_flix_content(is_available, display_name)',
-      );
-      await db.customStatement(
-        'CREATE INDEX IF NOT EXISTS idx_movies_search '
-        'ON paulo_flix_movies(is_available, display_name)',
-      );
-    }
+      if (from < 15) {
+        final db = m.database as AppDatabase;
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_seasons_content '
+          'ON paulo_flix_seasons(content_id, season_number)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_episodes_season_number '
+          'ON paulo_flix_episodes(season_id, episode_number)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_content_search '
+          'ON paulo_flix_content(is_available, display_name)',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_movies_search '
+          'ON paulo_flix_movies(is_available, display_name)',
+        );
+      }
 
-    if (from < 10) {
+      if (from < 10) {
         final db = m.database as AppDatabase;
         await db.customStatement(
           'ALTER TABLE paulo_flix_content '
@@ -355,17 +355,17 @@ class AppDatabase extends _$AppDatabase {
         final db = m.database as AppDatabase;
         // PauloFlixContent: malId → mal_id, anilistId → anilist_id
         await db.customStatement(
-          'ALTER TABLE paulo_flix_content DROP COLUMN IF EXISTS mal_id',
+          'ALTER TABLE paulo_flix_content DROP COLUMN mal_id',
         );
         await db.customStatement(
-          'ALTER TABLE paulo_flix_content DROP COLUMN IF EXISTS anilist_id',
+          'ALTER TABLE paulo_flix_content DROP COLUMN anilist_id',
         );
         // PauloFlixMovies: releaseDate → release_date, availableMovieCount → available_movie_count
         await db.customStatement(
-          'ALTER TABLE paulo_flix_movies DROP COLUMN IF EXISTS release_date',
+          'ALTER TABLE paulo_flix_movies DROP COLUMN release_date',
         );
         await db.customStatement(
-          'ALTER TABLE paulo_flix_movies DROP COLUMN IF EXISTS available_movie_count',
+          'ALTER TABLE paulo_flix_movies DROP COLUMN available_movie_count',
         );
       }
     },

@@ -85,8 +85,7 @@ class IntroDbService {
     required int tmdbId,
     int? season,
     int? episode,
-  }) =>
-      '$tmdbId|${season ?? ''}|${episode ?? ''}';
+  }) => '$tmdbId|${season ?? ''}|${episode ?? ''}';
 
   // ─── API pública ─────────────────────────────────────────────────
 
@@ -127,17 +126,11 @@ class IntroDbService {
 
     // Cache miss → HTTP request
     try {
-      final queryParams = <String, String>{
-        'tmdbId': tmdbId.toString(),
-      };
+      final queryParams = <String, String>{'tmdb_id': tmdbId.toString()};
       if (season != null) queryParams['season'] = season.toString();
       if (episode != null) queryParams['episode'] = episode.toString();
 
-      final uri = Uri.https(
-        'api.theintrodb.org',
-        '/v1/media',
-        queryParams,
-      );
+      final uri = Uri.https('api.theintrodb.org', '/v3/media', queryParams);
 
       debugPrint('[IntroDb] 🌐 GET $uri');
 
@@ -183,9 +176,7 @@ class IntroDbService {
         _evictOldest();
         return empty;
       } else {
-        debugPrint(
-          '[IntroDb] ❌ HTTP ${response.statusCode}: ${response.body}',
-        );
+        debugPrint('[IntroDb] ❌ HTTP ${response.statusCode}: ${response.body}');
       }
     } on TimeoutException {
       // Timeout já logado acima.

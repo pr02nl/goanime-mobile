@@ -1,6 +1,6 @@
 /// Models for TheIntroDB API
 ///
-/// API base: `https://api.theintrodb.org/v1`
+/// API base: `https://api.theintrodb.org/v3`
 /// Docs: https://theintrodb.org/docs
 ///
 /// Response format (JSON):
