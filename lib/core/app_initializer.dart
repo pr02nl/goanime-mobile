@@ -59,9 +59,11 @@ class AppInitializer {
 
     final _log = const AppLogger('AppInitializer');
 
-    void captureError(String label, Object e) {
+    /// Loga o erro e o acumula na lista de falhas.
+    /// [e] é a exceção lançada, [st] é o stack trace (opcional).
+    void captureError(String label, Object e, [StackTrace? st]) {
+      _log.error(label, e, st);
       final msg = '$label: $e';
-      _log.error(msg);
       errors.add(msg);
       firstError ??= msg;
     }
@@ -70,16 +72,16 @@ class AppInitializer {
     try {
       MediaKit.ensureInitialized();
       _log.info('✓ MediaKit');
-    } catch (e) {
-      captureError('MediaKit', e);
+    } catch (e, st) {
+      captureError('MediaKit', e, st);
     }
 
     // ── 2. PerformanceConfig ─────────────────────────────────────
     try {
       PerformanceConfig.init();
       _log.info('✓ PerformanceConfig');
-    } catch (e) {
-      captureError('PerformanceConfig', e);
+    } catch (e, st) {
+      captureError('PerformanceConfig', e, st);
     }
 
     // ── 3. TVDetector (cache eager) ──────────────────────────────
@@ -97,8 +99,8 @@ class AppInitializer {
     try {
       await themeViewModel.load();
       _log.info('✓ ThemeViewModel');
-    } catch (e) {
-      captureError('ThemeViewModel', e);
+    } catch (e, st) {
+      captureError('ThemeViewModel', e, st);
     }
 
     // ── 5. LocaleViewModel ───────────────────────────────────────
@@ -106,8 +108,8 @@ class AppInitializer {
     try {
       await localeViewModel.load();
       _log.info('✓ LocaleViewModel');
-    } catch (e) {
-      captureError('LocaleViewModel', e);
+    } catch (e, st) {
+      captureError('LocaleViewModel', e, st);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -139,7 +141,7 @@ class AppInitializer {
       jwtWarning =
           'Falha ao autenticar com o servidor. '
           'Downloads e sincronização podem não funcionar. ($e)';
-      _log.error('✗ JWT manager: $e');
+      _log.error('✗ JWT manager', e);
     }
 
     // ── 7. AppDatabase + DownloadService ─────────────────────────
@@ -157,8 +159,8 @@ class AppInitializer {
       );
       await downloadService.initialize();
       _log.info('✓ AppDatabase + DownloadService');
-    } catch (e) {
-      captureError('AppDatabase', e);
+    } catch (e, st) {
+      captureError('AppDatabase', e, st);
       rethrow;
     }
 
