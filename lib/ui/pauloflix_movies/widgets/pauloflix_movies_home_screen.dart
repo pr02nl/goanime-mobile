@@ -21,6 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/mixins/go_router_route_refresh_mixin.dart';
+
 import '../../../core/logger/app_logger.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
@@ -51,7 +53,8 @@ class PauloFlixMoviesHomeScreen extends StatefulWidget {
       _PauloFlixMoviesHomeScreenState();
 }
 
-class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
+class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen>
+    with GoRouterRouteRefreshMixin {
   bool _isTV = false;
 
   // ─── Snapshot derivado (memoizado por hash do conteúdo) ─────────────
@@ -69,8 +72,17 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
   StreamSubscription<List<PauloFlixMovieProgressRecord>>? _progressSub;
 
   @override
+  String get routePath => '/pauloflix-movies';
+
+  @override
+  void onRouteRefresh() {
+    _subscribeToProgressStream();
+  }
+
+  @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final provider = context.read<PauloFlixMoviesProvider>();

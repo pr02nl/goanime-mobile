@@ -24,6 +24,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/mixins/go_router_route_refresh_mixin.dart';
+
 import '../../../core/logger/app_logger.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
@@ -51,7 +53,8 @@ class PauloFlixSeeAllScreen extends StatefulWidget {
   State<PauloFlixSeeAllScreen> createState() => _PauloFlixSeeAllScreenState();
 }
 
-class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
+class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen>
+    with GoRouterRouteRefreshMixin {
   bool _isTV = false;
 
   // ─── Snapshot derivado (memoizado por hash do conteúdo) ─────────────
@@ -68,25 +71,17 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   // Cor de destaque da seção: roxo PauloFlix Animes.
   static const Color _accentColor = AppColors.animeAccent;
 
-  /// Última localização conhecida para detectar retorno do player.
-  String _lastLocation = '';
+  @override
+  String get routePath => '/pauloflix-see-all';
 
-  /// Referência ao routerDelegate para add/remove listener em
-  /// initState/dispose sem depender de GoRouter.of(context)
-  /// (que não está disponível em dispose quando o widget já foi
-  /// desmontado).
-  late final Listenable _routerDelegate;
+  @override
+  void onRouteRefresh() {
+    _loadAllStats();
+  }
 
   @override
   void initState() {
     super.initState();
-
-    // Captura a referência do routerDelegate em initState (quando
-    // GoRouter.of(context) ainda funciona) para usar em dispose
-    // (quando GoRouter.of(context) pode falhar porque o widget já
-    // foi desmontado da árvore).
-    _routerDelegate = GoRouter.of(context).routerDelegate;
-    _routerDelegate.addListener(_onRouteChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -132,51 +127,6 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
         _isTV = isTvBuild || screenWidth >= Responsive.tabletMaxWidth;
       });
     }
-  }
-
-  /// Callback disparado quando o GoRouter notifica mudança de rota.
-  /// Detecta quando voltamos do player (/pauloflix-see-all com
-  /// localização diferente da anterior) e agenda refresh dos stats.
-  ///
-  /// Usa `addPostFrameCallback` para ler `GoRouterState.of(context)`
-  /// APÓS a reconstrução do GoRouter (quando o InheritedWidget está
-  /// atualizado). O listener do `routerDelegate` dispara durante
-  /// `notifyListeners()` (antes da rebuild), então diferimos a leitura.
-  ///
-  /// Chama `_loadAllStats()` diretamente (sem delay) porque o save
-  /// do progresso já foi iniciado em `_exitPlayer()` antes do `pop()`.
-  void _onRouteChanged() {
-    if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final currentLocation = GoRouterState.of(context).uri.toString();
-      final isHome = currentLocation == '/pauloflix-see-all';
-      final wasDifferent = currentLocation != _lastLocation;
-      if (isHome && wasDifferent) {
-        _loadAllStats();
-      }
-      _lastLocation = currentLocation;
-    });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Inicializa a localização atual APÓS o widget estar montado na
-    // árvore de rota (GoRouterState.of(context) requer ModalRoute que
-    // só está disponível em didChangeDependencies/build, não em initState).
-    // Guard `if (_lastLocation.isEmpty)`: didChangeDependencies pode
-    // disparar múltiplas vezes (ex: tema, locale) e não queremos
-    // resetar _lastLocation no meio da sessão.
-    if (_lastLocation.isEmpty) {
-      _lastLocation = GoRouterState.of(context).uri.toString();
-    }
-  }
-
-  @override
-  void dispose() {
-    _routerDelegate.removeListener(_onRouteChanged);
-    super.dispose();
   }
 
   /// Carrega stats de progresso para todos os animes (usado para
