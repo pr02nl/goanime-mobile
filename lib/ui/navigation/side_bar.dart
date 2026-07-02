@@ -2,7 +2,11 @@
 // Sidebar expansível (TV / desktop) — comportamento YouTube TV
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'dart:io' show exit;
+
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -220,7 +224,56 @@ class SidebarState extends State<Sidebar> {
       isSelected: (loc) => loc == '/settings',
       onTap: (ctx) => ctx.goNamed('settings'),
     ),
+    _NavItem(
+      icon: Icons.exit_to_app,
+      label: 'Sair',
+      isSelected: (loc) => false,
+      onTap: (ctx) => _showExitDialog(ctx),
+    ),
   ];
+
+  Future<void> _showExitDialog(BuildContext ctx) async {
+    final shouldExit = await showDialog<bool>(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Sair do aplicativo?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Tem certeza que deseja sair?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: const Text('Não', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            autofocus: true,
+            child: const Text(
+              'Sim',
+              style: TextStyle(color: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (shouldExit == true) {
+      if (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS) {
+        SystemNavigator.pop();
+      } else {
+        exit(0);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -244,6 +297,15 @@ class SidebarState extends State<Sidebar> {
                 _buildLogo(),
                 const SizedBox(height: 12),
                 for (var i = 0; i < items.length; i++) ...[
+                  // Divider antes do item Sair (último)
+                  if (i == items.length - 1 && widget.expanded) ...[
+                    const SizedBox(height: 8),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Divider(color: Colors.white12, height: 1),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   _SidebarItem(
                     expanded: widget.expanded,
                     icon: items[i].icon,

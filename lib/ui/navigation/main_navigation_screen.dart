@@ -1,3 +1,6 @@
+import 'dart:io' show exit;
+
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -273,10 +276,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final sidebar = _sidebarKey.currentState;
 
     // Descobre o Scrollable horizontal do nó atual (se estiver num carrossel).
-    final ScrollableState? currentScrollable =
-        node.context != null
-            ? Scrollable.maybeOf(node.context!, axis: Axis.horizontal)
-            : null;
+    final ScrollableState? currentScrollable = node.context != null
+        ? Scrollable.maybeOf(node.context!, axis: Axis.horizontal)
+        : null;
 
     final descendants = scope.traversalDescendants.where((n) {
       if (!n.canRequestFocus || n.skipTraversal) return false;
@@ -405,15 +407,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Ação de borda: ← no edge do conteúdo abre sidebar; → na sidebar fecha
 // ─────────────────────────────────────────────────────────────────────────────  /// Intercepta [DirectionalFocusIntent] (gerado por FocusableWidget ao
-  /// mapear setas):
-  ///
-  /// * **←** na sidebar → no-op (sidebar já está no edge esquerdo).
-  /// * **←** no conteúdo no edge → [onLeftEdge] (abre sidebar).
-  /// * **←** no conteúdo no meio → move dentro do conteúdo (default).
-  /// * **→** na sidebar → [onRightEdgeFromSidebar] (fecha sidebar + restaura foco).
-  /// * **→** no conteúdo → move dentro do conteúdo (default).
-  /// * **↑↓** → default (move dentro da sidebar via `_SidebarTraversalPolicy`
-  ///   ou dentro do conteúdo).
+/// mapear setas):
+///
+/// * **←** na sidebar → no-op (sidebar já está no edge esquerdo).
+/// * **←** no conteúdo no edge → [onLeftEdge] (abre sidebar).
+/// * **←** no conteúdo no meio → move dentro do conteúdo (default).
+/// * **→** na sidebar → [onRightEdgeFromSidebar] (fecha sidebar + restaura foco).
+/// * **→** no conteúdo → move dentro do conteúdo (default).
+/// * **↑↓** → default (move dentro da sidebar via `_SidebarTraversalPolicy`
+///   ou dentro do conteúdo).
 class _SidebarEdgeAction extends Action<DirectionalFocusIntent> {
   final bool Function(FocusNode) isInSidebar;
   final bool Function(FocusNode) isAtLeftEdge;
@@ -622,11 +624,63 @@ class _DrawerMenu extends StatelessWidget {
                   onItemSelected();
                 },
               ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Divider(color: Colors.white12, height: 1),
+              ),
+              const SizedBox(height: 8),
+              _DrawerItem(
+                icon: Icons.exit_to_app,
+                label: 'Sair',
+                selected: false,
+                onTap: () => _showExitDialog(context),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _showExitDialog(BuildContext context) async {
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Sair do aplicativo?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Tem certeza que deseja sair?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Não', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            autofocus: true, // foco inicial no Sim para TV/desktop
+            child: const Text(
+              'Sim',
+              style: TextStyle(color: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldExit == true) {
+      if (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS) {
+        SystemNavigator.pop();
+      } else {
+        exit(0);
+      }
+    }
   }
 }
 
