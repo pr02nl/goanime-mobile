@@ -77,49 +77,63 @@ class _DownloadsScreenState extends State<DownloadsScreen>
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text(
-          AppLocalizations.of(context).downloadSettings,
-          style: const TextStyle(color: AppColors.textPrimary),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text(
-                AppLocalizations.of(context).maxConcurrentDownloads,
-                style: const TextStyle(color: AppColors.textPrimary),
-              ),
-              subtitle: Slider(
-                value: downloadService.maxConcurrentDownloads.toDouble(),
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: downloadService.maxConcurrentDownloads.toString(),
-                onChanged: (value) {
-                  downloadService.maxConcurrentDownloads = value.toInt();
-                },
-              ),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        final colorScheme = theme.colorScheme;
+        final textTheme = theme.textTheme;
+        return AlertDialog(
+          backgroundColor: colorScheme.surface,
+          title: Text(
+            AppLocalizations.of(ctx).downloadSettings,
+            style: textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                downloadService.clearCompleted();
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: Text(AppLocalizations.of(context).clearAllCompleted),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  AppLocalizations.of(ctx).maxConcurrentDownloads,
+                  style: textTheme.bodyLarge,
+                ),
+                subtitle: Slider(
+                  value: downloadService.maxConcurrentDownloads.toDouble(),
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  label: downloadService.maxConcurrentDownloads.toString(),
+                  onChanged: (value) {
+                    downloadService.maxConcurrentDownloads = value.toInt();
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  downloadService.clearCompleted();
+                  Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.error,
+                ),
+                child: Text(AppLocalizations.of(ctx).clearAllCompleted),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                AppLocalizations.of(ctx).close,
+                style: TextStyle(
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context).close),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -404,31 +418,45 @@ class _DownloadCard extends StatelessWidget {
   ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text(
-          AppLocalizations.of(context).deleteDownload,
-          style: const TextStyle(color: AppColors.textPrimary),
-        ),
-        content: Text(
-          AppLocalizations.of(context).deleteDownloadConfirmation,
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context).cancel),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        final colorScheme = theme.colorScheme;
+        final textTheme = theme.textTheme;
+        return AlertDialog(
+          backgroundColor: colorScheme.surface,
+          title: Text(
+            AppLocalizations.of(ctx).deleteDownload,
+            style: textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              downloadService.deleteDownload(download.id);
-              Navigator.pop(context);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(AppLocalizations.of(context).delete),
+          content: Text(
+            AppLocalizations.of(ctx).deleteDownloadConfirmation,
+            style: textTheme.bodyMedium,
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                AppLocalizations.of(ctx).cancel,
+                style: TextStyle(
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                downloadService.deleteDownload(download.id);
+                Navigator.pop(ctx);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: colorScheme.error,
+              ),
+              child: Text(AppLocalizations.of(ctx).delete),
+            ),
+          ],
+        );
+      },
     );
   }
 }
