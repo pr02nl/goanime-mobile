@@ -204,6 +204,8 @@ class PauloFlixService {
                 videoUrl: videoUrl,
                 thumbnailUrl: thumbnailUrl,
                 description: ep['plot'] as String?,
+                contentId: contentId,
+                seasonNumber: seasonNumber,
                 originalTitle: nfoJson?['originaltitle'] as String?,
                 outline: nfoJson?['outline'] as String?,
                 aired: ep['aired'] != null

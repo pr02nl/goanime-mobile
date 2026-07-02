@@ -368,6 +368,11 @@ class PauloFlixEpisodeProgressRepositoryImpl
     required String videoUrl,
     String? thumbnailUrl,
     String? description,
+    // Fase 17: colunas denormalizadas para busca do próximo episódio.
+    // Opcionais para compatibilidade com callers que ainda não
+    // propagam estes valores (sync antigo).
+    int? contentId,
+    int? seasonNumber,
     // Schema V2 (Fase N+7): 5 campos NFO扩idos.
     String? originalTitle,
     String? outline,
@@ -415,6 +420,15 @@ class PauloFlixEpisodeProgressRepositoryImpl
     final runtimeValue = runtime == null
         ? const Value<int?>.absent()
         : Value<int?>(runtime);
+
+    // Fase 17: valores denormalizados. null = preserva (não sobrescreve).
+    final contentIdValue = contentId == null
+        ? const Value<int?>.absent()
+        : Value<int?>(contentId);
+    final seasonNumberValue = seasonNumber == null
+        ? const Value<int?>.absent()
+        : Value<int?>(seasonNumber);
+
     final existing =
         await (_db.select(_db.pauloFlixEpisodes)
               ..where(
@@ -435,6 +449,8 @@ class PauloFlixEpisodeProgressRepositoryImpl
           videoUrl: Value(videoUrl),
           thumbnailUrl: thumbValue,
           description: descValue,
+          contentId: contentIdValue,
+          seasonNumber: seasonNumberValue,
           originalTitle: originalTitleValue,
           outline: outlineValue,
           aired: airedValue,
@@ -454,6 +470,8 @@ class PauloFlixEpisodeProgressRepositoryImpl
               videoUrl: videoUrl,
               thumbnailUrl: thumbValue,
               description: descValue,
+              contentId: contentIdValue,
+              seasonNumber: seasonNumberValue,
               originalTitle: originalTitleValue,
               outline: outlineValue,
               aired: airedValue,
@@ -569,6 +587,64 @@ class PauloFlixEpisodeProgressRepositoryImpl
     return rows.map((r) => r.read(_db.pauloFlixSeasons.seasonNumber)!).toSet();
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Next episode lookup
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<PauloFlixEpisodeRecord?> getNextEpisode({
+    required int seasonId,
+    required int episodeNumber,
+  }) async {
+    // 1. Tenta na mesma season: busca episode com episodeNumber + 1.
+    //    Usa o índice idx_episodes_season_number (season_id, episode_number).
+    final nextEpisode = await (_db.select(_db.pauloFlixEpisodes)
+          ..where(
+            (t) =>
+                t.seasonId.equals(seasonId) &
+                t.episodeNumber.equals(episodeNumber + 1),
+          )
+          ..limit(1))
+        .getSingleOrNull();
+    if (nextEpisode != null) return _toEpisodeDomain(nextEpisode);
+
+    // 2. Busca a season atual para saber contentId + seasonNumber.
+    //    Usa o índice da PK (id = seasonId).
+    final currentSeason = await (_db.select(_db.pauloFlixSeasons)
+          ..where((t) => t.id.equals(seasonId))
+          ..limit(1))
+        .getSingleOrNull();
+    if (currentSeason == null) return null;
+
+    // 3. Query composta: busca o próximo episódio na mesma OU próxima
+    //    season, usando as colunas denormalizadas (Fase 17).
+    //    Usa o índice idx_episodes_next_episode (content_id, season_number,
+    //    episode_number) para busca em 1 query.
+    final rows = await _db.customSelect(
+      'SELECT * FROM paulo_flix_episodes '
+      'WHERE content_id = ?1 '
+      'AND ('
+      '  (season_number = ?2 AND episode_number = ?3 + 1)'
+      '  OR'
+      '  (season_number > ?2 AND episode_number = 1)'
+      ') '
+      'ORDER BY season_number ASC, episode_number ASC '
+      'LIMIT 1',
+      variables: [
+        Variable.withInt(currentSeason.contentId),
+        Variable.withInt(currentSeason.seasonNumber),
+        Variable.withInt(episodeNumber),
+      ],
+      readsFrom: {_db.pauloFlixEpisodes},
+    ).get();
+    if (rows.isNotEmpty) {
+      return _toEpisodeDomain(
+        _db.pauloFlixEpisodes.map(rows.first.data),
+      );
+    }
+    return null;
+  }
+
   @override
   Future<Set<int>> getEpisodeNumbersForSeason(int seasonId) async {
     final rows =
@@ -631,6 +707,8 @@ class PauloFlixEpisodeProgressRepositoryImpl
     return PauloFlixEpisodeRecord(
       id: row.id,
       seasonId: row.seasonId,
+      contentId: row.contentId,
+      seasonNumber: row.seasonNumber,
       episodeNumber: row.episodeNumber,
       title: row.title,
       videoUrl: row.videoUrl,

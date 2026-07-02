@@ -163,6 +163,8 @@ class _FakeProgressRepository implements PauloFlixEpisodeProgressRepository {
     required String videoUrl,
     String? thumbnailUrl,
     String? description,
+    int? contentId,
+    int? seasonNumber,
     String? originalTitle,
     String? outline,
     DateTime? aired,
@@ -190,6 +192,12 @@ class _FakeProgressRepository implements PauloFlixEpisodeProgressRepository {
 
   @override
   Future<Set<int>> getEpisodeNumbersForSeason(int seasonId) async => {};
+
+  @override
+  Future<PauloFlixEpisodeRecord?> getNextEpisode({
+    required int seasonId,
+    required int episodeNumber,
+  }) async => null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════

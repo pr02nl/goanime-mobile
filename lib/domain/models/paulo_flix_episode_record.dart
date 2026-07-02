@@ -26,6 +26,16 @@ class PauloFlixEpisodeRecord {
   /// apaga os episodes.
   final int seasonId;
 
+  /// FK denormalizada para `paulo_flix_content.id` (Fase 17).
+  /// Populada pelo sync para permitir busca do próximo episódio em 1 query.
+  /// Nullable apenas durante migração — novos syncs sempre preenchem.
+  final int? contentId;
+
+  /// Número da season denormalizado (Fase 17).
+  /// Mesmo rationale do [contentId]: evita JOIN com seasons.
+  /// Nullable apenas durante migração.
+  final int? seasonNumber;
+
   /// Número do episódio dentro da season (1, 2, 3...).
   /// Único dentro de uma mesma season (`uniqueKeys: [seasonId, episodeNumber]`).
   final int episodeNumber;
@@ -113,6 +123,8 @@ class PauloFlixEpisodeRecord {
   PauloFlixEpisodeRecord({
     this.id,
     required this.seasonId,
+    this.contentId,
+    this.seasonNumber,
     required this.episodeNumber,
     required this.title,
     required this.videoUrl,

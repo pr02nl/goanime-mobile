@@ -55,6 +55,12 @@ class ModernVideoPlayerScreen extends StatefulWidget {
   /// `null` para filmes ou quando não disponível.
   final int? seasonNumber;
 
+  /// PlatformPlayer opcional injetado para testes.
+  /// Quando `null`, cria o Player padrão (produção).
+  /// Quando fornecido, usa este PlatformPlayer mockado, evitando
+  /// dependência de libs nativas em ambiente de teste.
+  final PlatformPlayer? platformPlayer;
+
   const ModernVideoPlayerScreen({
     super.key,
     required this.episode,
@@ -68,6 +74,7 @@ class ModernVideoPlayerScreen extends StatefulWidget {
     this.movieFolderName,
     this.tmdbId,
     this.seasonNumber,
+    this.platformPlayer,
   });
 
   @override
@@ -80,6 +87,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   final _log = const AppLogger('VideoPlayer');
 
   late final _player = Player(
+    platformPlayer: widget.platformPlayer,
     configuration: const PlayerConfiguration(logLevel: MPVLogLevel.info),
   );
   late final _videoController = VideoController(
@@ -173,6 +181,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   int? _savedDurationSeconds;
   bool _savedIsCompleted = false;
 
+  /// `true` quando há um próximo episódio disponível no banco.
+  /// Controla a visibilidade do botão "Próximo episódio" nos controles.
+  /// Inicializado como `false` e re-verificado a cada troca de episódio.
+  bool _hasNextEpisode = false;
+
   // Handler global de hardware keyboard. Usamos HardwareKeyboard em vez de
   // Focus/CallbackShortcuts para interceptar teclas SEM competir pelo foco
   // de teclado da árvore (Focus). Isso é crítico porque o Focus interno do
@@ -241,6 +254,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     _installHardwareKeyboardHandler();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeVideoPlayer();
+      _refreshNextEpisodeAvailability();
     });
   }
 
@@ -986,57 +1000,46 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// automática. Suporta transição entre temporadas: se o episódio atual
   /// é o último da season, busca a primeira season seguinte.
   ///
+  /// Usa o método eficiente [PauloFlixEpisodeProgressRepository.getNextEpisode]
+  /// que faz 1-3 queries indexadas (sem carregar TODOS os episódios).
+  ///
   /// Só funciona para conteúdo PauloFlix (requer `_currentSeasonId` e
   /// `_progressRepo`). Para filmes ou outras fontes (AnimeFire), é no-op.
   Future<void> _findAndPlayNextEpisode() async {
     if (_disposed || !mounted) return;
-
-    // Só funciona para conteúdo PauloFlix com progresso.
     if (_currentSeasonId == null || _progressRepo == null) return;
 
     try {
-      // 1. Busca episódios da season atual, ordenados por episodeNumber.
-      final episodes = await _progressRepo!.getEpisodesForSeason(
-        _currentSeasonId!,
-      );
-      final idx = episodes.indexWhere(
-        (e) => e.episodeNumber == _currentEpisodeNum,
+      final nextRecord = await _progressRepo!.getNextEpisode(
+        seasonId: _currentSeasonId!,
+        episodeNumber: _currentEpisodeNum,
       );
 
-      PauloFlixEpisodeRecord? nextRecord;
-      int? nextSeasonId;
-
-      if (idx >= 0 && idx < episodes.length - 1) {
-        // Mesma season: próximo episódio.
-        nextRecord = episodes[idx + 1];
-        nextSeasonId = _currentSeasonId;
-      } else if (widget.contentId != null) {
-        // Último episódio da season: busca próxima temporada.
-        final seasons = await _progressRepo!.getSeasonsForContent(
-          widget.contentId!,
-        );
-        final seasonIdx = seasons.indexWhere((s) => s.id == _currentSeasonId);
-
-        if (seasonIdx >= 0 && seasonIdx < seasons.length - 1) {
-          final nextSeason = seasons[seasonIdx + 1];
-          final nextSeasonEpisodes = await _progressRepo!.getEpisodesForSeason(
-            nextSeason.id!,
-          );
-          if (nextSeasonEpisodes.isNotEmpty) {
-            nextRecord = nextSeasonEpisodes.first;
-            nextSeasonId = nextSeason.id;
-          }
-        }
-      }
-
-      if (nextRecord != null && nextSeasonId != null) {
-        _playNextEpisode(nextRecord, nextSeasonId);
+      if (nextRecord != null) {
+        _playNextEpisode(nextRecord, nextRecord.seasonId);
       } else {
-        _log.debug('No next episode available');
+        if (mounted) setState(() => _hasNextEpisode = false);
+        const AppLogger('VideoPlayer').debug(
+          'No next episode available '
+          '(season $_currentSeasonId, ep $_currentEpisodeNum)',
+        );
       }
     } catch (e, st) {
-      _log.error('Error finding next episode', e, st);
+      const AppLogger('VideoPlayer').error(
+        'Error finding next episode',
+        e,
+        st,
+      );
     }
+  }
+
+  /// Handler do botão "Próximo episódio" nos controles.
+  /// Dispara a mesma lógica do auto-play, mas fire-and-forget
+  /// (não bloqueia a UI).
+  void _onNextEpisodePressed() {
+    if (_disposed || !mounted) return;
+    const AppLogger('VideoPlayer').debug('▶ Next episode button pressed');
+    unawaited(_findAndPlayNextEpisode());
   }
 
   /// Converte um [PauloFlixEpisodeRecord] em [Episode] e inicia a
@@ -1049,6 +1052,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       _currentSeasonId = seasonId;
       _currentEpisodeNum = record.episodeNumber;
     });
+    _refreshNextEpisodeAvailability();
 
     final nextEpisode = Episode(
       number: record.episodeNumber.toString(),
@@ -1058,6 +1062,29 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     );
 
     _replaceEpisode(nextEpisode);
+  }
+
+  /// Verifica no banco se há um próximo episódio disponível e atualiza
+  /// `_hasNextEpisode`. Usa o mesmo `getNextEpisode` do auto-play, mas
+  /// sem side effects (não toca nada).
+  ///
+  /// Para fluxos não-PauloFlix (filmes, AnimeFire), sempre marca `false`.
+  Future<void> _refreshNextEpisodeAvailability() async {
+    if (_disposed) return;
+    if (_currentSeasonId == null || _progressRepo == null) {
+      if (mounted) setState(() => _hasNextEpisode = false);
+      return;
+    }
+    try {
+      final next = await _progressRepo!.getNextEpisode(
+        seasonId: _currentSeasonId!,
+        episodeNumber: _currentEpisodeNum,
+      );
+      if (mounted) setState(() => _hasNextEpisode = next != null);
+    } catch (e, st) {
+      _log.warning('Error checking next episode availability', e, st);
+      if (mounted) setState(() => _hasNextEpisode = false);
+    }
   }
 
   /// Sai do player voltando para a tela anterior (home/detail/lista de
@@ -1103,6 +1130,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                 title: _displayLabel,
                 animeTitle: widget.isMovie ? null : widget.animeTitle,
                 onBack: _exitPlayer,
+                onNextEpisode: _hasNextEpisode ? _onNextEpisodePressed : null,
                 skipLabel: showSkipButton ? skipButtonLabel : null,
                 onSkip: showSkipButton ? skipIntroOutro : null,
                 onControlsVisible: () {

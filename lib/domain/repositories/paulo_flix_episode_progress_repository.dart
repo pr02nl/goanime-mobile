@@ -176,6 +176,13 @@ abstract class PauloFlixEpisodeProgressRepository {
     required String videoUrl,
     String? thumbnailUrl,
     String? description,
+    /// FK denormalizada para `paulo_flix_content.id` (Fase 17).
+    /// Opcional para compatibilidade com callers que ainda não
+    /// propagam este valor (sync antigo).
+    int? contentId,
+    /// Número da season denormalizado (Fase 17).
+    /// Mesmo rationale do [contentId].
+    int? seasonNumber,
     /// Título original do episode (idioma da produção).
     /// Vem de `<originaltitle>` no `S\d+E\d+\.nfo`. Nullable porque
     /// NFOs antigos não têm. Schema V2 (Fase N+7).
@@ -245,4 +252,32 @@ abstract class PauloFlixEpisodeProgressRepository {
   /// Lista os `episodeNumber` existentes para uma season (sem HTTP).
   /// Usado pelo sync geral para construir o diff.
   Future<Set<int>> getEpisodeNumbersForSeason(int seasonId);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Next episode lookup (usado pelo botão e auto-play)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Encontra o próximo episódio no banco de forma eficiente.
+  ///
+  /// 1. Se o episódio atual tiver `contentId` e `seasonNumber` preenchidos
+  ///    (colunas denormalizadas Fase 17), faz **1 query**:
+  ///    ```sql
+  ///    SELECT * FROM paulo_flix_episodes
+  ///    WHERE content_id = ?
+  ///      AND (
+  ///        (season_number = ? AND episode_number = ? + 1)
+  ///        OR
+  ///        (season_number > ? AND episode_number = 1)
+  ///      )
+  ///    ORDER BY season_number ASC, episode_number ASC
+  ///    LIMIT 1
+  ///    ```
+  /// 2. Caso contrário (dados migratórios sem denormalização), fallback
+  ///    para busca em 3-4 queries indexadas via JOIN com seasons.
+  ///
+  /// Retorna `null` se não houver próximo episódio disponível.
+  Future<PauloFlixEpisodeRecord?> getNextEpisode({
+    required int seasonId,
+    required int episodeNumber,
+  });
 }

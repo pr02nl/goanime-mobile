@@ -196,6 +196,16 @@ void main() {
       );
     });
 
+    test('getNextEpisode aceita seasonId e episodeNumber (sem contentId)',
+        () async {
+      final result = await repo.getNextEpisode(
+        seasonId: 1,
+        episodeNumber: 1,
+      );
+      expect(result, isNull,
+          reason: 'sem episodes no banco, retorna null');
+    });
+
     test('interface é implementável (compile-time check)', () {
       // Se _ContractStub compila, a interface está bem-formada.
       final PauloFlixEpisodeProgressRepository r = _ContractStub(db);
@@ -347,6 +357,8 @@ class _ContractStub implements PauloFlixEpisodeProgressRepository {
     required String videoUrl,
     String? thumbnailUrl, // Fase 5 do NFO enrichment
     String? description, // Fase 10 do NFO enrichment V2
+    int? contentId, // Fase 17
+    int? seasonNumber, // Fase 17
     // Schema V2扩e (Fase N+7): 5 campos NFO扩idos. Aceita os
     // mesmos valores que o contrato do repositório.
     String? originalTitle,
@@ -415,5 +427,13 @@ class _ContractStub implements PauloFlixEpisodeProgressRepository {
   @override
   Future<Set<int>> getEpisodeNumbersForSeason(int seasonId) async {
     return <int>{};
+  }
+
+  @override
+  Future<PauloFlixEpisodeRecord?> getNextEpisode({
+    required int seasonId,
+    required int episodeNumber,
+  }) async {
+    return null;
   }
 }

@@ -40,6 +40,18 @@ class PauloFlixEpisodes extends Table {
         onDelete: KeyAction.cascade,
       )();
   IntColumn get episodeNumber => integer()();
+
+  /// FK denormalizada para `paulo_flix_content.id` (Fase 17).
+  /// Populada pelo sync para permitir a busca do próximo episódio
+  /// em 1 query sem JOIN com `paulo_flix_seasons`.
+  /// Nullable apenas durante migração — novos syncs sempre preenchem.
+  IntColumn get contentId => integer().nullable()();
+
+  /// Número da season denormalizado (Fase 17).
+  /// Mesmo rationale do [contentId]: evita JOIN para busca do próximo ep.
+  /// Nullable apenas durante migração.
+  IntColumn get seasonNumber => integer().nullable()();
+
   TextColumn get title => text()();
   TextColumn get videoUrl => text()();
 

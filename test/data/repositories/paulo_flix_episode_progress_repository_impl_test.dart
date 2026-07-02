@@ -24,16 +24,20 @@ void main() {
 
   /// Cria content + season com N episodes (todos incompletos).
   /// Retorna (contentId, seasonId).
+  ///
+  /// [seasonNumber] default 1. Passa `contentId` e `seasonNumber` nos
+  /// inserts de episodes para popular as colunas denormalizadas (Fase 17).
   Future<(int, int)> seedSeason(
     AppDatabase db, {
     required int contentId,
     required int episodeCount,
     String seasonName = 'Season 01',
+    int seasonNumber = 1,
   }) async {
     final seasonId = await db.into(db.pauloFlixSeasons).insert(
           PauloFlixSeasonsCompanion.insert(
             contentId: contentId,
-            seasonNumber: 1,
+            seasonNumber: seasonNumber,
             displayName: seasonName,
             folderName: seasonName,
             episodeCount: Value(episodeCount),
@@ -47,6 +51,8 @@ void main() {
               episodeNumber: i,
               title: 'ep $i',
               videoUrl: 'https://server/ep$i.mkv',
+              contentId: Value(contentId),
+              seasonNumber: Value(seasonNumber),
               lastSynced: DateTime.now(),
             ),
           );
@@ -523,6 +529,189 @@ void main() {
 
       final list = await repo.getInProgressContents(limit: 3);
       expect(list, hasLength(3));
+    });
+  });
+
+  group('getNextEpisode', () {
+    late AppDatabase db;
+    late PauloFlixEpisodeProgressRepository repo;
+
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      repo = PauloFlixEpisodeProgressRepositoryImpl(db);
+    });
+
+    tearDown(() async => db.close());
+
+    test('mesma season: retorna próximo episódio (ep1 → ep2)', () async {
+      final contentId = await seedContent(db);
+      final (_, seasonId) = await seedSeason(
+        db,
+        contentId: contentId,
+        episodeCount: 3,
+      );
+
+      final next = await repo.getNextEpisode(
+        seasonId: seasonId,
+        episodeNumber: 1,
+      );
+
+      expect(next, isNotNull);
+      expect(next!.episodeNumber, 2);
+      expect(next.seasonId, seasonId);
+      expect(next.title, 'ep 2');
+    });
+
+    test('mesma season: último EP retorna null (não há próximo)', () async {
+      final contentId = await seedContent(db);
+      final (_, seasonId) = await seedSeason(
+        db,
+        contentId: contentId,
+        episodeCount: 3,
+      );
+
+      // Ep 3 é o último — não há próximo na mesma season.
+      // Também não há season seguinte, então retorna null.
+      final next = await repo.getNextEpisode(
+        seasonId: seasonId,
+        episodeNumber: 3,
+      );
+
+      expect(next, isNull);
+    });
+
+    test('cross-season: último EP da S01 retorna primeiro EP da S02',
+        () async {
+      final contentId = await seedContent(db);
+
+      // Season 1: 2 episódios
+      final s1 = (await seedSeason(
+        db,
+        contentId: contentId,
+        episodeCount: 2,
+        seasonName: 'Season 01',
+        seasonNumber: 1,
+      ))
+          .$2;
+
+      // Season 2: 2 episódios
+      final s2 = (await seedSeason(
+        db,
+        contentId: contentId,
+        episodeCount: 2,
+        seasonName: 'Season 02',
+        seasonNumber: 2,
+      ))
+          .$2;
+
+      // Último EP da S01 → deve encontrar primeiro EP da S02
+      final next = await repo.getNextEpisode(
+        seasonId: s1,
+        episodeNumber: 2,
+      );
+
+      expect(next, isNotNull);
+      expect(next!.episodeNumber, 1,
+          reason: 'deve ser o primeiro ep da S02');
+      expect(next.seasonId, s2,
+          reason: 'deve pertencer à S02');
+      expect(next.title, 'ep 1');
+    });
+
+    test('cross-season: contentId/seasonNumber denormalizados funcionam',
+        () async {
+      // Verifica que a query composta usa as colunas denormalizadas.
+      final contentId = await seedContent(db);
+
+      final s1 = (await seedSeason(
+        db,
+        contentId: contentId,
+        episodeCount: 1,
+        seasonNumber: 1,
+      ))
+          .$2;
+      final s2 = (await seedSeason(
+        db,
+        contentId: contentId,
+        episodeCount: 1,
+        seasonNumber: 2,
+      ))
+          .$2;
+
+      // Lê os episódios diretamente para verificar as colunas denormalizadas
+      final episodesS1 = await (db.select(db.pauloFlixEpisodes)
+            ..where((t) => t.seasonId.equals(s1)))
+          .get();
+      expect(episodesS1.first.contentId, contentId);
+      expect(episodesS1.first.seasonNumber, 1);
+
+      final next = await repo.getNextEpisode(
+        seasonId: s1,
+        episodeNumber: 1,
+      );
+      expect(next, isNotNull);
+      expect(next!.seasonId, s2);
+    });
+
+    test('cross-season: S01 → S03 (sem S02) pula corretamente', () async {
+      // Season 2 ausente — deve pular para S03
+      final contentId = await seedContent(db);
+
+      final s1 = (await seedSeason(
+        db,
+        contentId: contentId,
+        episodeCount: 1,
+        seasonNumber: 1,
+      ))
+          .$2;
+
+      // Pula season 2
+      final s3 = (await seedSeason(
+        db,
+        contentId: contentId,
+        episodeCount: 1,
+        seasonNumber: 3,
+      ))
+          .$2;
+
+      final next = await repo.getNextEpisode(
+        seasonId: s1,
+        episodeNumber: 1,
+      );
+
+      expect(next, isNotNull);
+      expect(next!.seasonId, s3,
+          reason: 'deve pular S02 (ausente) e ir direto para S03');
+      expect(next.episodeNumber, 1);
+    });
+
+    test('fim da série: última season, último EP → retorna null', () async {
+      final contentId = await seedContent(db);
+
+      final s1 = (await seedSeason(
+        db,
+        contentId: contentId,
+        episodeCount: 2,
+        seasonNumber: 1,
+      ))
+          .$2;
+
+      // Último EP da última season
+      final next = await repo.getNextEpisode(
+        seasonId: s1,
+        episodeNumber: 2,
+      );
+
+      expect(next, isNull,
+          reason: 'não há próxima season nem próximo ep na mesma');
+    });
+
+    test('seasonId inválido (não existe) → retorna null', () async {
+      final next = await repo.getNextEpisode(
+        seasonId: 99999,
+        episodeNumber: 1,
+      );
+      expect(next, isNull);
     });
   });
 

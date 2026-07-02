@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goanime/ui/core/widgets/focusable_widget.dart';
 import 'package:goanime/ui/player/widgets/modern_video_player_controls.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -520,6 +521,166 @@ void main() {
         centerParents,
         findsNothing,
         reason: 'Loading não deve estar centralizado (era tela cheia)',
+      );
+    });
+  });
+
+  group('ModernVideoPlayerControls — onNextEpisode', () {
+    testWidgets('fornecido → botão visível na top bar', (tester) async {
+      await tester.pumpWidget(
+        buildTestApp(player: player, onNextEpisode: () {}),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        find.byIcon(Icons.skip_next_rounded),
+        findsOneWidget,
+        reason: 'Botão próximo deve aparecer quando onNextEpisode é fornecido',
+      );
+    });
+
+    testWidgets('null → botão NÃO visível', (tester) async {
+      await tester.pumpWidget(buildTestApp(player: player));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        find.byIcon(Icons.skip_next_rounded),
+        findsNothing,
+        reason: 'Botão próximo não deve aparecer quando onNextEpisode é null',
+      );
+    });
+
+    testWidgets('fornecido + skipLabel → ambos os botões coexistem', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestApp(
+          player: player,
+          onNextEpisode: () {},
+          skipLabel: 'Pular',
+          onSkip: () {},
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Botão próximo (top bar)
+      expect(
+        find.byIcon(Icons.skip_next_rounded),
+        findsOneWidget,
+        reason: 'Botão próximo deve estar visível junto com skip',
+      );
+
+      // Botão skip (bottom bar)
+      expect(
+        find.text('Pular'),
+        findsOneWidget,
+        reason: 'Botão skip deve estar visível junto com próximo',
+      );
+    });
+
+    testWidgets('didUpdateWidget: null → callback → botão aparece', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTestApp(player: player));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        find.byIcon(Icons.skip_next_rounded),
+        findsNothing,
+        reason: 'Sem onNextEpisode: botão não deve estar visível',
+      );
+
+      await tester.pumpWidget(
+        buildTestApp(player: player, onNextEpisode: () {}),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        find.byIcon(Icons.skip_next_rounded),
+        findsOneWidget,
+        reason: 'Com onNextEpisode: botão deve aparecer após rebuild',
+      );
+    });
+
+    testWidgets('didUpdateWidget: callback → null → botão some', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestApp(player: player, onNextEpisode: () {}),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        find.byIcon(Icons.skip_next_rounded),
+        findsOneWidget,
+        reason: 'Com onNextEpisode: botão deve estar visível',
+      );
+
+      await tester.pumpWidget(buildTestApp(player: player));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(
+        find.byIcon(Icons.skip_next_rounded),
+        findsNothing,
+        reason: 'Sem onNextEpisode: botão deve sumir após rebuild',
+      );
+    });
+
+    testWidgets('onNextEpisode dispara via FocusableWidget.onSelect', (
+      tester,
+    ) async {
+      // Verificação FUNCIONAL: o FocusableWidget que envolve o ícone
+      // skip_next tem onSelect populado (aponta para _goToNext,
+      // que chama widget.onNextEpisode). Invocamos o callback
+      // diretamente para provar que a cadeia está íntegra.
+      //
+      // Não usamos tester.tap() porque o GestureDetector externo
+      // (behavior: HitTestBehavior.opaque) vence a arena de gestos
+      // sobre o InkWell interno do FocusableWidget.
+
+      var callbackFired = false;
+
+      await tester.pumpWidget(
+        buildTestApp(
+          player: player,
+          onNextEpisode: () => callbackFired = true,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Encontra o FocusableWidget ancestral do ícone skip_next
+      final iconFinder = find.byIcon(Icons.skip_next_rounded);
+      final focusableFinder = find.ancestor(
+        of: iconFinder,
+        matching: find.byType(FocusableWidget),
+      );
+
+      expect(
+        focusableFinder,
+        findsOneWidget,
+        reason:
+            'Deve existir um FocusableWidget envolvendo o ícone skip_next',
+      );
+
+      // Invoca o callback diretamente (cadeia: onSelect → _goToNext →
+      // widget.onNextEpisode?.call() → callbackFired = true)
+      final focusable = tester.widget<FocusableWidget>(focusableFinder);
+      focusable.onSelect?.call();
+      await tester.pump();
+
+      expect(
+        callbackFired,
+        isTrue,
+        reason:
+            'onNextEpisode deve ser chamado via FocusableWidget.onSelect',
       );
     });
   });

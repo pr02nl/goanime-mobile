@@ -127,7 +127,7 @@ class AppDatabase extends _$AppDatabase {
   ///   Sem migration data — Drift simplesmente ignora colunas
   ///   desconhecidas ao mapear resultado de queries.
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -164,6 +164,11 @@ class AppDatabase extends _$AppDatabase {
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_movies_search '
         'ON paulo_flix_movies(is_available, display_name)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_episodes_next_episode '
+        'ON paulo_flix_episodes('
+        'content_id, season_number, episode_number)',
       );
       // A lógica de importação dos bancos legados roda na Fase 2
       // (ver `docs/DATABASE_REFACTORING.md` §3).
@@ -366,6 +371,27 @@ class AppDatabase extends _$AppDatabase {
         );
         await db.customStatement(
           'ALTER TABLE paulo_flix_movies DROP COLUMN available_movie_count',
+        );
+      }
+
+      // v16 → v17: adiciona colunas denormalizadas content_id e
+      // season_number em paulo_flix_episodes para permitir a busca
+      // do próximo episódio em 1 query (sem JOIN com seasons).
+      // Sem migration data — o próximo sync popula em background.
+      if (from < 17) {
+        final db = m.database as AppDatabase;
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_episodes '
+          'ADD COLUMN content_id INTEGER',
+        );
+        await db.customStatement(
+          'ALTER TABLE paulo_flix_episodes '
+          'ADD COLUMN season_number INTEGER',
+        );
+        await db.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_episodes_next_episode '
+          'ON paulo_flix_episodes('
+          'content_id, season_number, episode_number)',
         );
       }
     },
