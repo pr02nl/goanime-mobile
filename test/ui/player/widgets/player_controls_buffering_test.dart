@@ -156,6 +156,9 @@ class _MockPlatformPlayer extends PlatformPlayer {
   /// Dispara atualização do buffer.
   void updateBuffer(Duration buffer) => bufferController.add(buffer);
 
+  /// Dispara evento de playing=true/false.
+  void setPlaying(bool playing) => playingController.add(playing);
+
   /// Dispara evento de erro.
   void emitError(String error) => errorController.add(error);
 
@@ -263,7 +266,7 @@ void main() {
       mockPlatform.updateBuffer(const Duration(seconds: 30));
 
       // Simula playing = true
-      mockPlatform.playingController.add(true);
+      mockPlatform.setPlaying(true);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
@@ -327,7 +330,7 @@ void main() {
       // Setup: player tocando
       mockPlatform.updateDuration(const Duration(minutes: 24));
       mockPlatform.updatePosition(const Duration(seconds: 5));
-      mockPlatform.playingController.add(true);
+      mockPlatform.setPlaying(true);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
@@ -370,7 +373,7 @@ void main() {
       // Setup: player tocando
       mockPlatform.updateDuration(const Duration(minutes: 24));
       mockPlatform.updatePosition(const Duration(seconds: 5));
-      mockPlatform.playingController.add(true);
+      mockPlatform.setPlaying(true);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
@@ -409,7 +412,7 @@ void main() {
       // Setup: player tocando, mostra skip button
       mockPlatform.updateDuration(const Duration(minutes: 24));
       mockPlatform.updatePosition(const Duration(seconds: 90));
-      mockPlatform.playingController.add(true);
+      mockPlatform.setPlaying(true);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
@@ -453,7 +456,7 @@ void main() {
       // Setup: player tocando
       mockPlatform.updateDuration(const Duration(minutes: 24));
       mockPlatform.updatePosition(const Duration(seconds: 5));
-      mockPlatform.playingController.add(true);
+      mockPlatform.setPlaying(true);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 

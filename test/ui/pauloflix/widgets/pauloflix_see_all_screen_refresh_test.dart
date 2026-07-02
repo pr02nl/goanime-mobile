@@ -9,8 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-
 import 'package:goanime/domain/models/paulo_flix_episode_record.dart';
 import 'package:goanime/domain/models/paulo_flix_progress_stats.dart';
 import 'package:goanime/domain/models/paulo_flix_season_record.dart';
@@ -20,6 +18,7 @@ import 'package:goanime/domain/repositories/pauloflix_repository.dart';
 import 'package:goanime/l10n/app_localizations.dart';
 import 'package:goanime/ui/pauloflix/view_models/pauloflix_provider.dart';
 import 'package:goanime/ui/pauloflix/widgets/pauloflix_see_all_screen.dart';
+import 'package:provider/provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // Mocks
@@ -73,10 +72,9 @@ class _FakeProgressRepository implements PauloFlixEpisodeProgressRepository {
   _FakeProgressRepository({
     required Map<int, PauloFlixProgressStats> initialStats,
     required Map<int, PauloFlixProgressStats> updatedStats,
-    required _CallCounter counter,
-  })  : _initialStats = Map.of(initialStats),
-        _updatedStats = Map.of(updatedStats),
-        counter = counter;
+    required this.counter,
+  }) : _initialStats = Map.of(initialStats),
+       _updatedStats = Map.of(updatedStats);
 
   @override
   Future<Map<int, PauloFlixProgressStats>> getProgressStatsForContents(
@@ -93,15 +91,17 @@ class _FakeProgressRepository implements PauloFlixEpisodeProgressRepository {
 
   @override
   Future<PauloFlixProgressStats> getStatsForContent(int contentId) async =>
-      _initialStats[contentId] ?? const PauloFlixProgressStats(
+      _initialStats[contentId] ??
+      const PauloFlixProgressStats(
         totalEpisodes: 0,
         completedEpisodes: 0,
         inProgressEpisodes: 0,
       );
 
   @override
-  Future<List<PauloFlixContent>> getInProgressContents({int limit = 12}) async =>
-      const [];
+  Future<List<PauloFlixContent>> getInProgressContents({
+    int limit = 12,
+  }) async => const [];
 
   @override
   Stream<List<PauloFlixContent>> watchInProgressContents({int limit = 12}) =>
@@ -110,14 +110,12 @@ class _FakeProgressRepository implements PauloFlixEpisodeProgressRepository {
   @override
   Future<PauloFlixEpisodeRecord?> getLatestInProgressEpisodeForContent(
     int contentId,
-  ) async =>
-      null;
+  ) async => null;
 
   @override
   Future<List<PauloFlixSeasonRecord>> getSeasonsForContent(
     int contentId,
-  ) async =>
-      [];
+  ) async => [];
 
   @override
   Stream<List<PauloFlixSeasonRecord>> watchSeasonsForContent(int contentId) =>
@@ -126,8 +124,7 @@ class _FakeProgressRepository implements PauloFlixEpisodeProgressRepository {
   @override
   Future<List<PauloFlixEpisodeRecord>> getEpisodesForSeason(
     int seasonId,
-  ) async =>
-      [];
+  ) async => [];
 
   @override
   Stream<List<PauloFlixEpisodeRecord>> watchEpisodesForSeason(int seasonId) =>
@@ -239,9 +236,7 @@ Widget _buildTestApp({
     initialLocation: '/pauloflix-see-all',
     routes: [
       ShellRoute(
-        builder: (context, state, child) => Scaffold(
-          body: child,
-        ),
+        builder: (context, state, child) => Scaffold(body: child),
         routes: [
           GoRoute(
             path: '/pauloflix-see-all',
@@ -263,11 +258,8 @@ Widget _buildTestApp({
       GoRoute(
         path: '/player',
         name: 'player',
-        builder: (context, state) => const Scaffold(
-          body: Center(
-            child: Text('Player Screen'),
-          ),
-        ),
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: Text('Player Screen'))),
       ),
     ],
   );
@@ -322,13 +314,15 @@ void main() {
   group('PauloFlixSeeAllScreen — refresh ao voltar do player', () {
     /// Helper: faz os pumps necessários para processar a carga inicial.
     /// Retorna o router GoRouter para navegação.
-    Future<GoRouter> _initialLoad(WidgetTester tester) async {
-      await tester.pumpWidget(_buildTestApp(
-        testAnimes: testAnimes,
-        initialStats: initialStats,
-        updatedStats: updatedStats,
-        counter: counter,
-      ));
+    Future<GoRouter> initialLoad(WidgetTester tester) async {
+      await tester.pumpWidget(
+        _buildTestApp(
+          testAnimes: testAnimes,
+          initialStats: initialStats,
+          updatedStats: updatedStats,
+          counter: counter,
+        ),
+      );
       // Pump 1: first build + initState + didChangeDependencies
       await tester.pump();
       // Pump 2: postFrameCallback starts → provider.loadContents()
@@ -340,113 +334,108 @@ void main() {
       // Pump 5: nested postFrameCallback → _loadAllStats() → getProgressStatsForContents
       await tester.pump();
 
-      return GoRouter.of(
-        tester.element(find.byType(PauloFlixSeeAllScreen)),
-      );
+      return GoRouter.of(tester.element(find.byType(PauloFlixSeeAllScreen)));
     }
 
-    testWidgets(
-      'inicialmente sem overlay de progresso (stats vazios)',
-      (tester) async {
-        await _initialLoad(tester);
+    testWidgets('inicialmente sem overlay de progresso (stats vazios)', (
+      tester,
+    ) async {
+      await initialLoad(tester);
 
-        // Hero banner exibe 'Naruto' + card no carrossel também exibe
-        expect(find.text('Naruto'), findsNWidgets(2));
+      // Hero banner exibe 'Naruto' + card no carrossel também exibe
+      expect(find.text('Naruto'), findsNWidgets(2));
 
-        // Inicialmente a barra de progresso NÃO deve aparecer (sem progresso)
-        expect(find.byType(LinearProgressIndicator), findsNothing);
-      },
-    );
+      // Inicialmente a barra de progresso NÃO deve aparecer (sem progresso)
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+    });
 
-    testWidgets(
-      'getProgressStatsForContents é chamado 1x na carga inicial',
-      (tester) async {
-        await _initialLoad(tester);
+    testWidgets('getProgressStatsForContents é chamado 1x na carga inicial', (
+      tester,
+    ) async {
+      await initialLoad(tester);
 
-        // Apenas 1 chamada (carga inicial)
-        expect(counter.calls, equals(1));
-      },
-    );
+      // Apenas 1 chamada (carga inicial)
+      expect(counter.calls, equals(1));
+    });
 
-    testWidgets(
-      'após navegar para /player e voltar, stats são recarregados '
-      '(getProgressStatsForContents é chamado novamente '
-      'via remontagem do widget)',
-      (tester) async {
-        await _initialLoad(tester);
-        expect(counter.calls, equals(1));
+    testWidgets('após navegar para /player e voltar, stats são recarregados '
+        '(getProgressStatsForContents é chamado novamente '
+        'via remontagem do widget)', (tester) async {
+      await initialLoad(tester);
+      expect(counter.calls, equals(1));
 
-        // Simula a navegação recriando o app com GoRouter na mesma rota
-        await tester.pumpWidget(_buildTestApp(
+      // Simula a navegação recriando o app com GoRouter na mesma rota
+      await tester.pumpWidget(
+        _buildTestApp(
           testAnimes: testAnimes,
           initialStats: initialStats,
           updatedStats: updatedStats,
           counter: counter,
-        ));
-        await tester.pump();
-        await tester.pump();
-        await tester.pump();
-        // loadContents completa → notifyListeners → rebuild
-        await tester.pump();
-        // nested postFrameCallback → _loadAllStats() (2ª chamada)
-        await tester.pump();
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      // loadContents completa → notifyListeners → rebuild
+      await tester.pump();
+      // nested postFrameCallback → _loadAllStats() (2ª chamada)
+      await tester.pump();
 
-        // getProgressStatsForContents deve ter sido chamado 2x
-        // (1 inicial + 1 da remontagem)
-        expect(counter.calls, equals(2));
-      },
-    );
+      // getProgressStatsForContents deve ter sido chamado 2x
+      // (1 inicial + 1 da remontagem)
+      expect(counter.calls, equals(2));
+    });
 
-    testWidgets(
-      'após remontar, a barra de progresso aparece no card '
-      '(3/12 episódios completos)',
-      (tester) async {
-        await _initialLoad(tester);
+    testWidgets('após remontar, a barra de progresso aparece no card '
+        '(3/12 episódios completos)', (tester) async {
+      await initialLoad(tester);
 
-        // Inicialmente sem barra de progresso
-        expect(find.byType(LinearProgressIndicator), findsNothing);
+      // Inicialmente sem barra de progresso
+      expect(find.byType(LinearProgressIndicator), findsNothing);
 
-        // Simula retorno do player recriando o app
-        await tester.pumpWidget(_buildTestApp(
+      // Simula retorno do player recriando o app
+      await tester.pumpWidget(
+        _buildTestApp(
           testAnimes: testAnimes,
           initialStats: initialStats,
           updatedStats: updatedStats,
           counter: counter,
-        ));
-        await tester.pump();
-        await tester.pump();
-        await tester.pump();
-        await tester.pump();
-        await tester.pump();
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
 
-        // Após remontagem (2ª chamada → updatedStats → 3/12), barra aparece
-        expect(find.byType(LinearProgressIndicator), findsOneWidget);
-        expect(find.text('3/12'), findsOneWidget);
-      },
-    );
+      // Após remontagem (2ª chamada → updatedStats → 3/12), barra aparece
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.text('3/12'), findsOneWidget);
+    });
 
-    testWidgets(
-      'se stats não mudarem, o overlay não aparece (ratio=0)',
-      (tester) async {
-        // Neste cenário, initialStats == updatedStats (não mudou)
-        await _initialLoad(tester);
+    testWidgets('se stats não mudarem, o overlay não aparece (ratio=0)', (
+      tester,
+    ) async {
+      // Neste cenário, initialStats == updatedStats (não mudou)
+      await initialLoad(tester);
 
-        // Simula retorno do player recriando o app (mesmo stats)
-        await tester.pumpWidget(_buildTestApp(
+      // Simula retorno do player recriando o app (mesmo stats)
+      await tester.pumpWidget(
+        _buildTestApp(
           testAnimes: testAnimes,
           initialStats: initialStats,
           updatedStats: initialStats, // sem mudança
           counter: counter,
-        ));
-        await tester.pump();
-        await tester.pump();
-        await tester.pump();
-        await tester.pump();
-        await tester.pump();
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
 
-        // Mesmo após refresh, ratio continua 0 → sem barra
-        expect(find.byType(LinearProgressIndicator), findsNothing);
-      },
-    );
+      // Mesmo após refresh, ratio continua 0 → sem barra
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+    });
   });
 }
