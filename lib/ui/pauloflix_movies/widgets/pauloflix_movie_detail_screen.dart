@@ -11,6 +11,7 @@ import '../../../domain/models/pauloflix_movie.dart';
 import '../../../domain/models/pauloflix_movie_item.dart';
 import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../routing/route_data.dart';
+import '../../core/mixins/go_router_route_refresh_mixin.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/completed_badge.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
@@ -26,7 +27,8 @@ class PauloFlixMovieDetailScreen extends StatefulWidget {
 }
 
 class _PauloFlixMovieDetailScreenState
-    extends State<PauloFlixMovieDetailScreen> {
+    extends State<PauloFlixMovieDetailScreen>
+    with GoRouterRouteRefreshMixin<PauloFlixMovieDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _playButtonFocusNode = FocusNode();
 
@@ -38,6 +40,12 @@ class _PauloFlixMovieDetailScreenState
 
   // Progresso do filme
   PauloFlixMovieProgressRecord? _progress;
+
+  @override
+  String get routePath => '/pauloflix-movie-detail';
+
+  @override
+  void onRouteRefresh() => _loadProgress();
 
   @override
   void initState() {
