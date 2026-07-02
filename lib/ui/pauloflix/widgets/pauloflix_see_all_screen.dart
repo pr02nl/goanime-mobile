@@ -71,18 +71,22 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   /// Última localização conhecida para detectar retorno do player.
   String _lastLocation = '';
 
+  /// Referência ao routerDelegate para add/remove listener em
+  /// initState/dispose sem depender de GoRouter.of(context)
+  /// (que não está disponível em dispose quando o widget já foi
+  /// desmontado).
+  late final Listenable _routerDelegate;
+
   @override
   void initState() {
     super.initState();
 
-    // Inicializa a localização atual
-    _lastLocation = GoRouterState.of(context).uri.toString();
-
-    // Escuta mudanças de rota para recarregar stats ao retornar do player.
-    // routerDelegate (RouterDelegate) extende Listenable com
-    // addListener/removeListener que notifica quando a pilha de rotas
-    // muda (push/pop).
-    GoRouter.of(context).routerDelegate.addListener(_onRouteChanged);
+    // Captura a referência do routerDelegate em initState (quando
+    // GoRouter.of(context) ainda funciona) para usar em dispose
+    // (quando GoRouter.of(context) pode falhar porque o widget já
+    // foi desmontado da árvore).
+    _routerDelegate = GoRouter.of(context).routerDelegate;
+    _routerDelegate.addListener(_onRouteChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -90,61 +94,89 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
       await provider.loadContents();
       if (!mounted) return;
 
-      // Carrega stats de progresso para overlays nos cards.
-      await _loadAllStats();
-
-      final screenWidth =
-          WidgetsBinding
-              .instance
-              .platformDispatcher
-              .views
-              .first
-              .physicalSize
-              .width /
-          WidgetsBinding
-              .instance
-              .platformDispatcher
-              .views
-              .first
-              .devicePixelRatio;
-      final isTvBuild = await TVDetector.isTV;
-      if (mounted) {
-        setState(() {
-          _isTV = isTvBuild || screenWidth >= Responsive.tabletMaxWidth;
-        });
-      }
+      // `loadContents()` chamou `notifyListeners()`, mas o rebuild do
+      // widget (que popula `_allContents` via `_ensureSnapshotBuilt`)
+      // só acontece no PRÓXIMO frame. Por isso, `_loadAllStats`
+      // (que precisa de `_allContents` populado) deve ser chamado
+      // num post-frame callback separado.
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await _loadAllStats();
+        await _detectAndSetIsTV();
+      });
     });
+  }
+
+  /// Detecta se o dispositivo é TV e ajusta `_isTV`.
+  /// Extraído para método separado porque a lógica precisa rodar
+  /// num post-frame callback ANINHADO (após `_loadAllStats()`).
+  Future<void> _detectAndSetIsTV() async {
+    if (!mounted) return;
+    final screenWidth =
+        WidgetsBinding
+            .instance
+            .platformDispatcher
+            .views
+            .first
+            .physicalSize
+            .width /
+        WidgetsBinding
+            .instance
+            .platformDispatcher
+            .views
+            .first
+            .devicePixelRatio;
+    final isTvBuild = await TVDetector.isTV;
+    if (mounted) {
+      setState(() {
+        _isTV = isTvBuild || screenWidth >= Responsive.tabletMaxWidth;
+      });
+    }
   }
 
   /// Callback disparado quando o GoRouter notifica mudança de rota.
   /// Detecta quando voltamos do player (/pauloflix-see-all com
   /// localização diferente da anterior) e agenda refresh dos stats.
+  ///
+  /// Usa `addPostFrameCallback` para ler `GoRouterState.of(context)`
+  /// APÓS a reconstrução do GoRouter (quando o InheritedWidget está
+  /// atualizado). O listener do `routerDelegate` dispara durante
+  /// `notifyListeners()` (antes da rebuild), então diferimos a leitura.
+  ///
+  /// Chama `_loadAllStats()` diretamente (sem delay) porque o save
+  /// do progresso já foi iniciado em `_exitPlayer()` antes do `pop()`.
   void _onRouteChanged() {
     if (!mounted) return;
-    final currentLocation = GoRouterState.of(context).uri.toString();
-    final isHome = currentLocation == '/pauloflix-see-all';
-    final wasDifferent = currentLocation != _lastLocation;
-    if (isHome && wasDifferent) {
-      _scheduleStatsRefresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final currentLocation = GoRouterState.of(context).uri.toString();
+      final isHome = currentLocation == '/pauloflix-see-all';
+      final wasDifferent = currentLocation != _lastLocation;
+      if (isHome && wasDifferent) {
+        _loadAllStats();
+      }
+      _lastLocation = currentLocation;
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Inicializa a localização atual APÓS o widget estar montado na
+    // árvore de rota (GoRouterState.of(context) requer ModalRoute que
+    // só está disponível em didChangeDependencies/build, não em initState).
+    // Guard `if (_lastLocation.isEmpty)`: didChangeDependencies pode
+    // disparar múltiplas vezes (ex: tema, locale) e não queremos
+    // resetar _lastLocation no meio da sessão.
+    if (_lastLocation.isEmpty) {
+      _lastLocation = GoRouterState.of(context).uri.toString();
     }
-    _lastLocation = currentLocation;
   }
 
   @override
   void dispose() {
-    GoRouter.of(context).routerDelegate.removeListener(_onRouteChanged);
+    _routerDelegate.removeListener(_onRouteChanged);
     super.dispose();
-  }
-
-  /// Agenda um refresh de stats com um pequeno delay para permitir
-  /// que o save de progresso do player (disparado em _exitPlayer + dispose)
-  /// complete a escrita no SQLite antes de recarregarmos os dados.
-  void _scheduleStatsRefresh() {
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) {
-        _loadAllStats();
-      }
-    });
   }
 
   /// Carrega stats de progresso para todos os animes (usado para
