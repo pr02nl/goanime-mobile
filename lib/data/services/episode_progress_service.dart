@@ -99,11 +99,11 @@ class EpisodeProgressService {
       // Sem info de duração, não sabemos o ratio. Não reseta.
       return false;
     }
-    // Só reseta se o usuário assistiu muito pouco (< 30s) E a
+    // Só reseta se o usuário assistiu muito pouco (<= 30s) E a
     // proporção é muito baixa (< 5%). Preserva progresso em
     // casos de erro de rede com 1-2 minutos assistidos.
     final ratio = positionSeconds / durationSeconds;
-    return positionSeconds < 30 && ratio < 0.05;
+    return positionSeconds <= 30 && ratio < 0.05;
   }
 
   /// Chamado **ANTES** de `Media.open`. Se retornar `true`, o caller
