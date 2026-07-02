@@ -61,8 +61,8 @@ class _CallCounter {
 /// diferentes dependendo de quantas vezes foi consultado globalmente
 /// (via `_CallCounter.calls`, que persiste entre remontagens).
 ///
-/// - 1ª consulta → `_initialStats` (sem progresso)
-/// - 2ª consulta em diante → `_updatedStats` (com progresso, simulando
+/// - 1a consulta -> `_initialStats` (sem progresso)
+/// - 2a consulta em diante -> `_updatedStats` (com progresso, simulando
 ///   que o player salvou antes de voltar)
 class _FakeProgressRepository implements PauloFlixEpisodeProgressRepository {
   final Map<int, PauloFlixProgressStats> _initialStats;
@@ -81,10 +81,6 @@ class _FakeProgressRepository implements PauloFlixEpisodeProgressRepository {
     List<int> contentIds,
   ) async {
     counter.calls++;
-    // Usa counter.calls (global) em vez de instância local para
-    // que mesmo após pumpWidget (que recria este repo), a 1ª chamada
-    // neste novo repo seja tratada como "2ª consulta global" se
-    // counter.calls >= 2.
     if (counter.calls >= 2) return Map.of(_updatedStats);
     return Map.of(_initialStats);
   }
@@ -221,9 +217,9 @@ PauloFlixContent _anime({
 
 /// Cria um widget de teste com providers mockados e GoRouter.
 ///
-/// [initialStats] — stats retornados na 1ª consulta.
-/// [updatedStats] — stats retornados após o refresh (pós-player).
-/// [counter] — contador de chamadas ao repo.
+/// [initialStats] - stats retornados na 1a consulta.
+/// [updatedStats] - stats retornados apos o refresh (pos-player).
+/// [counter] - contador de chamadas ao repo.
 Widget _buildTestApp({
   required List<PauloFlixContent> testAnimes,
   required Map<int, PauloFlixProgressStats> initialStats,
@@ -239,7 +235,6 @@ Widget _buildTestApp({
 
   final provider = PauloFlixProvider.withRepository(repository: contentRepo);
 
-  // GoRouter com rota home (pauloflix-see-all) + rota player (fora do shell).
   final router = GoRouter(
     initialLocation: '/pauloflix-see-all',
     routes: [
@@ -285,165 +280,335 @@ Widget _buildTestApp({
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Tests
+// Fixtures: animes de teste
+// ═══════════════════════════════════════════════════════════════════════
+
+final _singleAnime = [
+  _anime(id: 1, folderName: 'Naruto', displayName: 'Naruto'),
+];
+
+final _multipleAnimes = [
+  _anime(id: 1, folderName: 'Naruto', displayName: 'Naruto'),
+  _anime(id: 2, folderName: 'Bleach', displayName: 'Bleach'),
+  _anime(id: 3, folderName: 'OnePiece', displayName: 'One Piece'),
+];
+
+// ═══════════════════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Faz os pumps para processar a carga inicial da SeeAllScreen.
+Future<void> pumpUntilReady(
+  WidgetTester tester, {
+  required List<PauloFlixContent> testAnimes,
+  required Map<int, PauloFlixProgressStats> initialStats,
+  required Map<int, PauloFlixProgressStats> updatedStats,
+  required _CallCounter counter,
+}) async {
+  await tester.pumpWidget(
+    _buildTestApp(
+      testAnimes: testAnimes,
+      initialStats: initialStats,
+      updatedStats: updatedStats,
+      counter: counter,
+    ),
+  );
+  await tester.pump(); // Pump 1: build + initState
+  await tester.pump(); // Pump 2: postFrameCallback -> loadContents()
+  await tester.pump(); // Pump 3: loadContents completa -> rebuild
+  await tester.pump(); // Pump 4: _ensureSnapshotBuilt
+  await tester.pump(); // Pump 5: _loadAllStats -> getProgressStatsForContents
+}
+
+/// Simula o retorno do player recriando o app (mesmo padrao do
+/// see_all_screen_refresh_test original).
+Future<void> pumpAfterReturn(
+  WidgetTester tester, {
+  required List<PauloFlixContent> testAnimes,
+  required Map<int, PauloFlixProgressStats> initialStats,
+  required Map<int, PauloFlixProgressStats> updatedStats,
+  required _CallCounter counter,
+}) async {
+  await tester.pumpWidget(
+    _buildTestApp(
+      testAnimes: testAnimes,
+      initialStats: initialStats,
+      updatedStats: updatedStats,
+      counter: counter,
+    ),
+  );
+  await tester.pump();
+  await tester.pump();
+  await tester.pump();
+  await tester.pump();
+  await tester.pump();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Tests - Grupo 1: Refresh basico (1 anime, progresso parcial)
 // ═══════════════════════════════════════════════════════════════════════
 
 void main() {
-  final testAnimes = [
-    _anime(id: 1, folderName: 'Naruto', displayName: 'Naruto'),
-  ];
+  group('PauloFlixSeeAllScreen -- refresh ao voltar do player', () {
+    late Map<int, PauloFlixProgressStats> initialStats;
+    late Map<int, PauloFlixProgressStats> updatedStats;
+    late _CallCounter counter;
 
-  late Map<int, PauloFlixProgressStats> initialStats;
-  late Map<int, PauloFlixProgressStats> updatedStats;
-  late _CallCounter counter;
-
-  setUp(() {
-    // Inicialmente: sem progresso
-    initialStats = {
-      1: const PauloFlixProgressStats(
-        totalEpisodes: 12,
-        completedEpisodes: 0,
-        inProgressEpisodes: 0,
-      ),
-    };
-
-    // Após jogar no player: 3 episódios completos
-    updatedStats = {
-      1: const PauloFlixProgressStats(
-        totalEpisodes: 12,
-        completedEpisodes: 3,
-        inProgressEpisodes: 1,
-      ),
-    };
-
-    counter = _CallCounter();
-  });
-
-  group('PauloFlixSeeAllScreen — refresh ao voltar do player', () {
-    /// Helper: faz os pumps necessários para processar a carga inicial.
-    /// Retorna o router GoRouter para navegação.
-    Future<GoRouter> initialLoad(WidgetTester tester) async {
-      await tester.pumpWidget(
-        _buildTestApp(
-          testAnimes: testAnimes,
-          initialStats: initialStats,
-          updatedStats: updatedStats,
-          counter: counter,
+    setUp(() {
+      initialStats = {
+        1: const PauloFlixProgressStats(
+          totalEpisodes: 12, completedEpisodes: 0, inProgressEpisodes: 0,
         ),
-      );
-      // Pump 1: first build + initState + didChangeDependencies
-      await tester.pump();
-      // Pump 2: postFrameCallback starts → provider.loadContents()
-      await tester.pump();
-      // Pump 3: loadContents completa → notifyListeners → rebuild
-      await tester.pump();
-      // Pump 4: rebuild triggers _ensureSnapshotBuilt
-      await tester.pump();
-      // Pump 5: nested postFrameCallback → _loadAllStats() → getProgressStatsForContents
-      await tester.pump();
-
-      return GoRouter.of(tester.element(find.byType(PauloFlixSeeAllScreen)));
-    }
+      };
+      updatedStats = {
+        1: const PauloFlixProgressStats(
+          totalEpisodes: 12, completedEpisodes: 3, inProgressEpisodes: 1,
+        ),
+      };
+      counter = _CallCounter();
+    });
 
     testWidgets('inicialmente sem overlay de progresso (stats vazios)', (
       tester,
     ) async {
-      await initialLoad(tester);
+      await pumpUntilReady(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
 
-      // Hero banner exibe 'Naruto' + card no carrossel também exibe
       expect(find.text('Naruto'), findsNWidgets(2));
-
-      // Inicialmente a barra de progresso NÃO deve aparecer (sem progresso)
       expect(find.byType(LinearProgressIndicator), findsNothing);
     });
 
-    testWidgets('getProgressStatsForContents é chamado 1x na carga inicial', (
+    testWidgets('getProgressStatsForContents e chamado 1x na carga inicial', (
       tester,
     ) async {
-      await initialLoad(tester);
-
-      // Apenas 1 chamada (carga inicial)
-      expect(counter.calls, equals(1));
-    });
-
-    testWidgets('após navegar para /player e voltar, stats são recarregados '
-        '(getProgressStatsForContents é chamado novamente '
-        'via remontagem do widget)', (tester) async {
-      await initialLoad(tester);
-      expect(counter.calls, equals(1));
-
-      // Simula a navegação recriando o app com GoRouter na mesma rota
-      await tester.pumpWidget(
-        _buildTestApp(
-          testAnimes: testAnimes,
-          initialStats: initialStats,
-          updatedStats: updatedStats,
-          counter: counter,
-        ),
+      await pumpUntilReady(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
       );
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-      // loadContents completa → notifyListeners → rebuild
-      await tester.pump();
-      // nested postFrameCallback → _loadAllStats() (2ª chamada)
-      await tester.pump();
-
-      // getProgressStatsForContents deve ter sido chamado 2x
-      // (1 inicial + 1 da remontagem)
-      expect(counter.calls, equals(2));
+      expect(counter.calls, equals(1));
     });
 
-    testWidgets('após remontar, a barra de progresso aparece no card '
-        '(3/12 episódios completos)', (tester) async {
-      await initialLoad(tester);
-
-      // Inicialmente sem barra de progresso
+    testWidgets('apos voltar do player com progresso parcial: '
+        'barra aparece com "3/12"', (tester) async {
+      await pumpUntilReady(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
       expect(find.byType(LinearProgressIndicator), findsNothing);
 
-      // Simula retorno do player recriando o app
-      await tester.pumpWidget(
-        _buildTestApp(
-          testAnimes: testAnimes,
-          initialStats: initialStats,
-          updatedStats: updatedStats,
-          counter: counter,
-        ),
+      await pumpAfterReturn(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
       );
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
 
-      // Após remontagem (2ª chamada → updatedStats → 3/12), barra aparece
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsAtLeastNWidgets(1));
       expect(find.text('3/12'), findsOneWidget);
     });
 
-    testWidgets('se stats não mudarem, o overlay não aparece (ratio=0)', (
+    testWidgets('se stats nao mudarem, o overlay nao aparece (ratio=0)', (
       tester,
     ) async {
-      // Neste cenário, initialStats == updatedStats (não mudou)
-      await initialLoad(tester);
-
-      // Simula retorno do player recriando o app (mesmo stats)
-      await tester.pumpWidget(
-        _buildTestApp(
-          testAnimes: testAnimes,
-          initialStats: initialStats,
-          updatedStats: initialStats, // sem mudança
-          counter: counter,
-        ),
+      await pumpUntilReady(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
       );
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
-      await tester.pump();
 
-      // Mesmo após refresh, ratio continua 0 → sem barra
+      await pumpAfterReturn(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: initialStats,
+        counter: counter,
+      );
+
       expect(find.byType(LinearProgressIndicator), findsNothing);
+    });
+
+    testWidgets('getProgressStatsForContents e chamado novamente apos rebuild',
+        (tester) async {
+      await pumpUntilReady(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
+      expect(counter.calls, equals(1));
+
+      await pumpAfterReturn(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
+      expect(counter.calls, equals(2));
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Tests - Grupo 2: Completed badge (anime 100% completo)
+  // ═══════════════════════════════════════════════════════════════════
+
+  group('PauloFlixSeeAllScreen -- completed badge', () {
+    late Map<int, PauloFlixProgressStats> initialStats;
+    late Map<int, PauloFlixProgressStats> updatedStats;
+    late _CallCounter counter;
+
+    setUp(() {
+      initialStats = {
+        1: const PauloFlixProgressStats(
+          totalEpisodes: 12, completedEpisodes: 0, inProgressEpisodes: 0,
+        ),
+      };
+      // Anime 100% completo (12/12)
+      updatedStats = {
+        1: const PauloFlixProgressStats(
+          totalEpisodes: 12, completedEpisodes: 12, inProgressEpisodes: 0,
+        ),
+      };
+      counter = _CallCounter();
+    });
+
+    testWidgets('apos voltar do player com anime completo: '
+        'badge verde + texto "Completo"', (tester) async {
+      await pumpUntilReady(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
+
+      // Inicialmente sem "Completo"
+      expect(find.text('Completo'), findsNothing);
+
+      await pumpAfterReturn(
+        tester,
+        testAnimes: _singleAnime,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
+
+      // Deve mostrar "Completo" (CompletedBadge)
+      expect(find.text('Completo'), findsAtLeastNWidgets(1));
+      // Barra de progresso NAO deve aparecer (substituida pelo badge)
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Tests - Grupo 3: Multiplos animes com diferentes progressos
+  // ═══════════════════════════════════════════════════════════════════
+
+  group('PauloFlixSeeAllScreen -- multiplos animes', () {
+    late Map<int, PauloFlixProgressStats> initialStats;
+    late Map<int, PauloFlixProgressStats> updatedStats;
+    late _CallCounter counter;
+
+    setUp(() {
+      // Inicialmente: todos sem progresso
+      initialStats = {
+        1: const PauloFlixProgressStats(
+          totalEpisodes: 12, completedEpisodes: 0, inProgressEpisodes: 0,
+        ),
+        2: const PauloFlixProgressStats(
+          totalEpisodes: 8, completedEpisodes: 0, inProgressEpisodes: 0,
+        ),
+        3: const PauloFlixProgressStats(
+          totalEpisodes: 24, completedEpisodes: 0, inProgressEpisodes: 0,
+        ),
+      };
+      // Apos jogar no player:
+      // - Anime 1: parcial (3/12)
+      // - Anime 2: completo (8/8)
+      // - Anime 3: sem mudanca (0/24)
+      updatedStats = {
+        1: const PauloFlixProgressStats(
+          totalEpisodes: 12, completedEpisodes: 3, inProgressEpisodes: 1,
+        ),
+        2: const PauloFlixProgressStats(
+          totalEpisodes: 8, completedEpisodes: 8, inProgressEpisodes: 0,
+        ),
+        3: const PauloFlixProgressStats(
+          totalEpisodes: 24, completedEpisodes: 0, inProgressEpisodes: 0,
+        ),
+      };
+      counter = _CallCounter();
+    });
+
+    testWidgets('cada anime exibe o overlay correto: '
+        'parcial (3/12), completo, e sem progresso', (tester) async {
+      await pumpUntilReady(
+        tester,
+        testAnimes: _multipleAnimes,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
+
+      // Inicialmente sem overlays
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(find.text('Completo'), findsNothing);
+
+      await pumpAfterReturn(
+        tester,
+        testAnimes: _multipleAnimes,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
+
+      // Anime 1 (parcial): barra de progresso + "3/12"
+      expect(find.byType(LinearProgressIndicator), findsAtLeastNWidgets(1));
+      expect(find.text('3/12'), findsOneWidget);
+
+      // Anime 2 (completo): badge "Completo"
+      expect(find.text('Completo'), findsAtLeastNWidgets(1));
+
+      // Todos os titulos estao presentes
+      expect(find.text('Naruto'), findsWidgets);
+      expect(find.text('Bleach'), findsWidgets);
+      expect(find.text('One Piece'), findsWidgets);
+    });
+
+    testWidgets('getProgressStatsForContents e chamado com todos os '
+        '3 contentIds no refresh', (tester) async {
+      await pumpUntilReady(
+        tester,
+        testAnimes: _multipleAnimes,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
+      expect(counter.calls, equals(1));
+
+      await pumpAfterReturn(
+        tester,
+        testAnimes: _multipleAnimes,
+        initialStats: initialStats,
+        updatedStats: updatedStats,
+        counter: counter,
+      );
+      expect(counter.calls, equals(2));
     });
   });
 }

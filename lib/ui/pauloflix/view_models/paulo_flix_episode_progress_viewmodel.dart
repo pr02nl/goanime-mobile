@@ -232,19 +232,31 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
     _seasonAccessOrder.remove(seasonId);
     _seasonAccessOrder.add(seasonId);
 
-    if (_episodesBySeason.containsKey(seasonId)) {
-      _safeNotify();
-      return;
+    // Evita cache infinito — só faz evicção se for uma nova season
+    // (cache miss). Em cache hit, preserva os dados das outras seasons.
+    if (!_episodesBySeason.containsKey(seasonId)) {
+      _evictOldestSeason();
     }
 
-    // Evita cache infinito — remove a season mais antiga se exceder limite.
-    _evictOldestSeason();
-
+    // ═══════════════════════════════════════════════════════════════════
+    // SEMPRE recria a subscrição no stream, mesmo se os episódios já
+    // estão em cache. Antes, retornávamos cedo no cache hit sem criar
+    // uma nova subscrição, o que quebrava a reatividade: se o usuário
+    // trocasse de temporada e voltasse, o stream anterior já havia sido
+    // cancelado e a UI nunca recebia updates de progresso ao retornar
+    // do player.
+    // ═══════════════════════════════════════════════════════════════════
     _episodesSub?.cancel();
     _episodesSub = _repository.watchEpisodesForSeason(seasonId).listen((eps) {
       _episodesBySeason[seasonId] = eps;
       _safeNotify();
     });
+
+    // Se já temos dados em cache, notifica para exibir imediatamente
+    // (evita flicker de "vazio" enquanto o stream não emite).
+    if (_episodesBySeason.containsKey(seasonId)) {
+      _safeNotify();
+    }
   }
 
   void _clearCache() {

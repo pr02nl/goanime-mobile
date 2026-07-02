@@ -1092,23 +1092,41 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// controle remoto **não fecha o app** — volta para a home do app, onde
   /// o usuário pode escolher outro anime ou "sair" via Home do launcher.
   ///
-  /// Inicia o save do progresso ANTES do pop para que o SQLite tenha
-  /// mais tempo de completar a escrita antes do GoRouter listener
-  /// disparar o reload de stats na home screen.
+  /// Diferentemente da versão anterior que fazia `Navigator.pop` antes do
+  /// save completar (`unawaited` + pop imediato), agora aguarda o save
+  /// terminar ANTES de fazer o pop. Isso elimina a race condition onde o
+  /// `GoRouterRouteRefreshMixin` (ou stream reativo) lia o progresso
+  /// antigo do DB porque o save ainda não havia terminado.
+  ///
+  /// O `_exitPlayer` é `void` (assinatura `VoidCallback` exigida pelos
+  /// controles), então delegamos a operação async para `_saveAndPop`.
   ///
   /// Se o player foi aberto como rota raiz (sem pai no Navigator), cai
   /// para `SystemNavigator.pop()` na TV (fecha app). Em mobile isso é
   /// improvável porque o player sempre é empilhado sobre uma rota.
   void _exitPlayer() {
-    // Inicia save antes do pop para dar tempo do SQLite escrever.
     _progressSavedOnExit = true;
     final lastPosition = _player.state.position;
     final lastDuration = _player.state.duration;
     if (lastPosition.inSeconds > 0) {
-      unawaited(_saveFinalProgress(lastPosition, lastDuration));
+      unawaited(_saveAndPop(lastPosition, lastDuration));
+    } else {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
     }
+  }
 
-    if (Navigator.canPop(context)) {
+  /// Salva o progresso final e, em seguida, faz o pop da rota.
+  ///
+  /// Separado de `_exitPlayer` por que este é `void` (assinatura
+  /// `VoidCallback`), enquanto `_saveAndPop` pode ser `async` e
+  /// aguardar o save antes de navegar.
+  Future<void> _saveAndPop(Duration position, Duration duration) async {
+    await _saveFinalProgress(position, duration);
+    // `_progressSavedOnExit` já foi setado em `_exitPlayer`, então
+    // `dispose()` não tentará salvar novamente.
+    if (mounted && Navigator.canPop(context)) {
       Navigator.pop(context);
     }
   }
