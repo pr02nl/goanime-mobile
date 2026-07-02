@@ -204,47 +204,56 @@ class _WatchlistScreenState extends State<WatchlistScreen>
     final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text(
-          l10n.clearWatchlistQuestion,
-          style: const TextStyle(color: Colors.white),
-        ),
-        content: Text(
-          l10n.clearWatchlistConfirmation,
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              l10n.cancel,
-              style: const TextStyle(color: Colors.white70),
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        final colorScheme = theme.colorScheme;
+        final textTheme = theme.textTheme;
+        return AlertDialog(
+          backgroundColor: colorScheme.surface,
+          title: Text(
+            l10n.clearWatchlistQuestion,
+            style: textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
           ),
-          TextButton(
-            onPressed: () async {
-              final navigator = Navigator.of(dialogContext);
-              final messenger = ScaffoldMessenger.of(context);
-              navigator.pop();
-              await context.read<WatchlistViewModel>().refresh();
-              if (mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(l10n.watchlistCleared),
-                    backgroundColor: AppColors.primary,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-            child: Text(
-              l10n.clear,
-              style: const TextStyle(color: AppColors.error),
-            ),
+          content: Text(
+            l10n.clearWatchlistConfirmation,
+            style: textTheme.bodyMedium,
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                l10n.cancel,
+                style: TextStyle(
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                final navigator = Navigator.of(dialogContext);
+                final messenger = ScaffoldMessenger.of(context);
+                navigator.pop();
+                await context.read<WatchlistViewModel>().refresh();
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(l10n.watchlistCleared),
+                      backgroundColor: colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              child: Text(
+                l10n.clear,
+                style: TextStyle(color: colorScheme.error),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
