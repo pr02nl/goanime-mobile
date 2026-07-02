@@ -928,7 +928,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
   /// arrastar a seek bar, ou pular intro/outro enquanto carrega.
   Widget _buildLoadingOverlay() {
     return Positioned(
-      top: 16,
+      top: 32,
       right: 16,
       child: Material(
         color: Colors.black54,
