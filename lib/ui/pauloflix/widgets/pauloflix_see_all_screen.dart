@@ -68,9 +68,22 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
   // Cor de destaque da seção: roxo PauloFlix Animes.
   static const Color _accentColor = AppColors.animeAccent;
 
+  /// Última localização conhecida para detectar retorno do player.
+  String _lastLocation = '';
+
   @override
   void initState() {
     super.initState();
+
+    // Inicializa a localização atual
+    _lastLocation = GoRouterState.of(context).uri.toString();
+
+    // Escuta mudanças de rota para recarregar stats ao retornar do player.
+    // routerDelegate (RouterDelegate) extende Listenable com
+    // addListener/removeListener que notifica quando a pilha de rotas
+    // muda (push/pop).
+    GoRouter.of(context).routerDelegate.addListener(_onRouteChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final provider = context.read<PauloFlixProvider>();
@@ -103,8 +116,40 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen> {
     });
   }
 
+  /// Callback disparado quando o GoRouter notifica mudança de rota.
+  /// Detecta quando voltamos do player (/pauloflix-see-all com
+  /// localização diferente da anterior) e agenda refresh dos stats.
+  void _onRouteChanged() {
+    if (!mounted) return;
+    final currentLocation = GoRouterState.of(context).uri.toString();
+    final isHome = currentLocation == '/pauloflix-see-all';
+    final wasDifferent = currentLocation != _lastLocation;
+    if (isHome && wasDifferent) {
+      _scheduleStatsRefresh();
+    }
+    _lastLocation = currentLocation;
+  }
+
+  @override
+  void dispose() {
+    GoRouter.of(context).routerDelegate.removeListener(_onRouteChanged);
+    super.dispose();
+  }
+
+  /// Agenda um refresh de stats com um pequeno delay para permitir
+  /// que o save de progresso do player (disparado em _exitPlayer + dispose)
+  /// complete a escrita no SQLite antes de recarregarmos os dados.
+  void _scheduleStatsRefresh() {
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        _loadAllStats();
+      }
+    });
+  }
+
   /// Carrega stats de progresso para todos os animes (usado para
   /// overlays nos cards do grid e carrosséis).
+  /// Também tenta refresh do ContinueWatchingViewModel se disponível.
   Future<void> _loadAllStats() async {
     try {
       final repo = context.read<PauloFlixEpisodeProgressRepository>();

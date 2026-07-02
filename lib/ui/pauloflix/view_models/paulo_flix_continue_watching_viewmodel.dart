@@ -39,12 +39,50 @@ class PauloFlixContinueWatchingViewModel extends ChangeNotifier {
     int limit = 12,
   })  : _repository = repository,
         _limit = limit {
+    _setupSubscription();
+  }
+
+  /// Inicia a subscription ao stream reativo do banco.
+  void _setupSubscription() {
+    _sub?.cancel();
     _sub = _repository.watchInProgressContents(limit: _limit).listen(
       _onUpdate,
       onError: (Object e, StackTrace st) {
         const AppLogger('ContinueWatching').error('Stream error', e);
       },
     );
+  }
+
+  /// Força uma recarga completa dos dados (útil ao retornar do player).
+  /// Cancela a subscription atual, busca dados frescos do banco,
+  /// e re-estabelece o stream reativo.
+  Future<void> refresh() async {
+    if (_disposed) return;
+    _sub?.cancel();
+    _sub = null;
+
+    try {
+      // Busca dados frescos diretamente (não via stream).
+      final contents = await _repository.getInProgressContents(limit: _limit);
+      if (_disposed) return;
+      _contents = contents;
+      _loading = false;
+      notifyListeners();
+
+      // Atualiza stats.
+      final ids = contents.map((c) => c.id).whereType<int>().toList();
+      if (ids.isNotEmpty) {
+        _statsById = await _repository.getProgressStatsForContents(ids);
+      } else {
+        _statsById = const {};
+      }
+      if (!_disposed) notifyListeners();
+    } catch (e, st) {
+      const AppLogger('ContinueWatching').error('Erro ao refresh', e, st);
+    }
+
+    // Re-estabelece o stream reativo para atualizações futuras.
+    _setupSubscription();
   }
 
   Future<void> _onUpdate(List<PauloFlixContent> next) async {

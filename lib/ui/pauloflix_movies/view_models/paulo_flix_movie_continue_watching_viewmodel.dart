@@ -47,6 +47,33 @@ class PauloFlixMovieContinueWatchingViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Força uma recarga completa dos dados (útil ao retornar do player).
+  /// Cancela a subscription atual, busca dados frescos do banco,
+  /// e re-estabelece o stream reativo.
+  Future<void> refresh() async {
+    if (_disposed) return;
+    _sub?.cancel();
+    _sub = null;
+
+    try {
+      final contents = await _repository.getInProgressMovies(limit: _limit);
+      if (_disposed) return;
+      _contents = contents;
+      _loading = false;
+      notifyListeners();
+    } catch (e, st) {
+      const AppLogger('MovieContinueWatching').error('Erro ao refresh', e, st);
+    }
+
+    // Re-estabelece o stream reativo para atualizações futuras.
+    _sub = _repository.watchInProgressMovies(limit: _limit).listen(
+      _onUpdate,
+      onError: (Object e, StackTrace st) {
+        const AppLogger('MovieContinueWatching').error('Stream error', e);
+      },
+    );
+  }
+
   List<PauloFlixMovieProgressRecord> get contents => _contents;
   bool get loading => _loading;
   bool get isEmpty => !_loading && _contents.isEmpty;

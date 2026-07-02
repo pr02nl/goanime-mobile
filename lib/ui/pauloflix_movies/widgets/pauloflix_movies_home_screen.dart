@@ -116,8 +116,7 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
     try {
       final repo = context.read<PauloFlixMovieProgressRepository?>();
       if (repo == null) return;
-      _progressSub?.cancel();
-      _progressSub = repo.watchAllProgress().listen(
+      _progressSub?.cancel();        _progressSub = repo.watchAllProgress().listen(
         (records) {
           if (!mounted) return;
           final map = <String, MovieProgressState>{};
@@ -125,6 +124,8 @@ class _PauloFlixMoviesHomeScreenState extends State<PauloFlixMoviesHomeScreen> {
             map[p.folderName] = MovieProgressState(
               ratio: p.progressRatio,
               isCompleted: p.isCompleted,
+              positionSeconds: p.positionSeconds,
+              durationSeconds: p.durationSeconds,
             );
           }
           setState(() => _progressMap = map);
@@ -492,13 +493,17 @@ class _MovieContinueWatchingCarousel extends StatelessWidget {
   }
 
   Widget _buildCard(BuildContext context, PauloFlixMovieProgressRecord record) {
-    // Overlay: barra de progresso.
+    // Overlay: barra de progresso + tempo decorrido/total.
     // O stream watchInProgressMovies já garante positionSeconds > 0,
     // então o overlay está sempre presente aqui.
     final overlay = ProgressOverlay.build(
       ratio: record.progressRatio,
       isCompleted: false,
       accentColor: AppColors.moviesAccent,
+      timeLabel: ProgressOverlay.buildTimeLabel(
+        positionSeconds: record.positionSeconds,
+        durationSeconds: record.durationSeconds,
+      ),
     );
     final cardWidth = Responsive.getHorizontalListItemWidth(context);
     final cardHeight = Responsive.getCardHeightSync(context);

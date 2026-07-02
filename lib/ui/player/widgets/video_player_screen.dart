@@ -133,6 +133,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// no início de `_initializeVideoPlayer()`.
   bool _hasPlayerError = false;
 
+  /// Flag para evitar dupla chamada de `_saveFinalProgress`.
+  /// `_exitPlayer()` inicia o save antes do pop; `dispose()` também
+  /// tenta salvar (idempotente). Esta flag pula o segundo save.
+  bool _progressSavedOnExit = false;
+
   // ═══════════════════════════════════════════════════════════════════
   // Auto-play próximo episódio
   // ═══════════════════════════════════════════════════════════════════
@@ -935,9 +940,11 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     final lastPosition = _player.state.position;
     final lastDuration = _player.state.duration;
 
-    // Fire-and-forget: último save USA VALORES CAPTURADOS, não closures
-    // que acessam `_player.state` depois do dispose.
-    unawaited(_saveFinalProgress(lastPosition, lastDuration));
+    // Só salva se não tiver sido salvo em _exitPlayer. Evita o duplo
+    // save idempotente (já que _exitPlayer iniciou o save antes do pop).
+    if (!_progressSavedOnExit) {
+      unawaited(_saveFinalProgress(lastPosition, lastDuration));
+    }
 
     // Cleanup síncrono: para o player antes do State ser desmontado
     _player.stop();
@@ -1058,13 +1065,24 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
   /// controle remoto **não fecha o app** — volta para a home do app, onde
   /// o usuário pode escolher outro anime ou "sair" via Home do launcher.
   ///
+  /// Inicia o save do progresso ANTES do pop para que o SQLite tenha
+  /// mais tempo de completar a escrita antes do GoRouter listener
+  /// disparar o reload de stats na home screen.
+  ///
   /// Se o player foi aberto como rota raiz (sem pai no Navigator), cai
   /// para `SystemNavigator.pop()` na TV (fecha app). Em mobile isso é
   /// improvável porque o player sempre é empilhado sobre uma rota.
   void _exitPlayer() {
+    // Inicia save antes do pop para dar tempo do SQLite escrever.
+    _progressSavedOnExit = true;
+    final lastPosition = _player.state.position;
+    final lastDuration = _player.state.duration;
+    if (lastPosition.inSeconds > 0) {
+      unawaited(_saveFinalProgress(lastPosition, lastDuration));
+    }
+
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
-      return;
     }
   }
 

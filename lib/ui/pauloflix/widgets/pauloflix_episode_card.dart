@@ -23,6 +23,7 @@ import '../../../domain/models/pauloflix_models.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
+import '../../core/widgets/progress_overlay.dart';
 
 /// Card de episódio estilo Netflix.
 ///
@@ -434,7 +435,14 @@ class PauloflixEpisodeCard extends StatelessWidget {
             if (_showProgressBar || _showCompletedIcon) ...[
               const SizedBox(height: 6),
               if (_showProgressBar)
-                _ProgressBar(ratio: _progressRatio, isTV: isTV)
+                _ProgressBar(
+                  ratio: _progressRatio,
+                  isTV: isTV,
+                  timeLabel: ProgressOverlay.buildTimeLabel(
+                    positionSeconds: positionSeconds,
+                    durationSeconds: durationSeconds,
+                  ),
+                )
               else
                 _CompletedIndicator(isTV: isTV),
             ],
@@ -548,26 +556,47 @@ class PauloflixEpisodeCard extends StatelessWidget {
 /// o episódio está em andamento.
 ///
 /// Renderiza um `LinearProgressIndicator` (Material) com a cor primária
-/// do app. Width 100% do parent.
+/// do app, seguido por um label opcional de tempo decorrido/total.
 class _ProgressBar extends StatelessWidget {
   final double ratio;
   final bool isTV;
 
-  const _ProgressBar({required this.ratio, required this.isTV});
+  /// Label opcional no formato "12:30 / 24:00".
+  final String? timeLabel;
+
+  const _ProgressBar({required this.ratio, required this.isTV, this.timeLabel});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 4,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(2),
-        child: LinearProgressIndicator(
-          value: ratio,
-          minHeight: 4,
-          backgroundColor: Colors.white.withValues(alpha: 0.1),
-          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 4,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 4,
+              backgroundColor: Colors.white.withValues(alpha: 0.1),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
         ),
-      ),
+        if (timeLabel != null && timeLabel!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              timeLabel!,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: isTV ? 11 : 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
