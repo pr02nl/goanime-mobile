@@ -13,7 +13,6 @@ import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../routing/route_data.dart';
 import '../../core/mixins/go_router_route_refresh_mixin.dart';
 import '../../core/themes/app_colors.dart';
-import '../../core/widgets/completed_badge.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
 import '../../core/widgets/progress_bar.dart';
@@ -32,7 +31,6 @@ class PauloFlixMovieDetailScreen extends StatefulWidget {
 class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
     with GoRouterRouteRefreshMixin<PauloFlixMovieDetailScreen> {
   final ScrollController _scrollController = ScrollController();
-  final FocusNode _playButtonFocusNode = FocusNode();
 
   String? _error;
 
@@ -52,30 +50,14 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
   @override
   void initState() {
     super.initState();
-    _playButtonFocusNode.addListener(_onPlayButtonFocusChanged);
     _resolveSingleMovie();
     _loadProgress();
   }
 
   @override
   void dispose() {
-    _playButtonFocusNode.removeListener(_onPlayButtonFocusChanged);
-    _playButtonFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _onPlayButtonFocusChanged() {
-    if (_playButtonFocusNode.hasFocus) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _scrollController.animateTo(
-          0,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOutCubic,
-        );
-      });
-    }
   }
 
   Future<void> _loadProgress() async {
@@ -111,7 +93,6 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
     String title, {
     List<SubtitleTrackInfo> subtitles = const [],
   }) async {
-    // Converte SubtitleTrackInfo → EpisodeSubtitleTrack para passar pro player.
     final episodeTracks = subtitles
         .map(
           (s) => EpisodeSubtitleTrack(
@@ -148,8 +129,6 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
     }
   }
 
-  /// Força recarga do progresso. Usado pelo `GoRouterRouteRefreshMixin`
-  /// e também chamado manualmente após retorno do player.
   Future<void> refreshProgress() async {
     await _loadProgress();
   }
@@ -165,190 +144,280 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
 
   double get _progressRatio => _progress?.progressRatio ?? 0.0;
 
-  String get _buttonLabel {
-    if (_isCompleted) return 'Reassistir';
-    if (_isInProgress) return 'Continuar';
-    return 'Assistir';
-  }
-
-  IconData get _buttonIcon {
-    if (_isCompleted) return Icons.replay_rounded;
-    if (_isInProgress) return Icons.play_arrow_rounded;
-    return Icons.play_arrow_rounded;
-  }
+  // ─── Build ─────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final hasBanner = (widget.content.bannerUrl ?? '').isNotEmpty;
+    final colorScheme = Theme.of(context).colorScheme;
+    final bottomInset = MediaQuery.of(context).padding.bottom + 24;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          _buildAppBar(),
-          SliverToBoxAdapter(child: _buildMovieInfo()),
-          if (_error != null) SliverToBoxAdapter(child: _buildError()),
-          SliverToBoxAdapter(child: _buildActionButtons()),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final hasBanner = (widget.content.bannerUrl ?? '').isNotEmpty;
-
-    return SliverAppBar(
-      expandedHeight: 420,
-      pinned: true,
-      stretch: true,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (hasBanner)
-              CachedNetworkImage(
-                imageUrl: widget.content.bannerUrl!,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [colorScheme.primary, colorScheme.secondary],
-                    ),
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [colorScheme.primary, colorScheme.secondary],
-                    ),
-                  ),
-                ),
-              )
-            else
-              Container(
-                decoration: BoxDecoration(
+      body: Stack(
+        children: [
+          // Banner em tela cheia
+          Positioned.fill(
+            child: hasBanner
+                ? CachedNetworkImage(
+                    imageUrl: widget.content.bannerUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) =>
+                        _buildPlaceholder(colorScheme),
+                    errorWidget: (context, url, error) =>
+                        _buildPlaceholder(colorScheme),
+                  )
+                : _buildPlaceholder(colorScheme),
+          ),
+          // Gradiente escuro: começa cedo (20%) e vai até preto total
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [colorScheme.primary, colorScheme.secondary],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black26,
+                      Colors.black87,
+                      Colors.black,
+                    ],
+                    stops: [0.0, 0.3, 0.6, 1.0],
                   ),
                 ),
               ),
-            // Overlay Gradient
-            Container(
+            ),
+          ),
+          // Botão voltar no canto superior direito
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 12,
+            child: FocusableWidget(
+              onSelect: () => _back(),
+              borderRadius: 20,
+              child: Material(
+                color: Colors.black26,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: _back,
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.close, color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Conteúdo ancorado no fim da tela com fundo semi-transparente
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.7),
+                    Colors.black.withValues(alpha: 0.0),
+                    Colors.black.withValues(alpha: 0.65),
+                    Colors.black,
+                  ],
+                  stops: const [0.0, 0.3, 0.7],
+                ),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.55,
+                ),
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          _buildPlayButton(),
+                          const SizedBox(height: 20),
+                          _buildMovieInfo(),
+                          if (_error != null) _buildError(),
+                        ]),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _back() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
+  Widget _buildPlaceholder(ColorScheme colorScheme) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colorScheme.primary, colorScheme.secondary],
         ),
       ),
+    );
+  }
+
+  Widget _buildPlayButton() {
+    final disabled = _movieVideoUrl == null;
+    final icon = _isCompleted ? Icons.replay_rounded : Icons.play_arrow_rounded;
+    final label = _isCompleted
+        ? 'Reassistir'
+        : _isInProgress
+        ? 'Continuar'
+        : 'Assistir';
+
+    final playWidget = Row(
+      children: [
+        if (disabled)
+          const _PlayCircle(icon: Icons.play_circle_outline, enabled: false)
+        else
+          _PlayCircle(
+            icon: icon,
+            enabled: true,
+            accentColor: _isCompleted ? Colors.green : AppColors.moviesAccent,
+            onTap: () => _openPlayer(
+              _movieVideoUrl!,
+              widget.content.displayName,
+              subtitles: _movieSubtitles,
+            ),
+          ),
+        const SizedBox(width: 12),
+        if (_isInProgress) ...[
+          Text(
+            '${(_progressRatio * 100).toStringAsFixed(0)}%',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ProgressBar(
+              ratio: _progressRatio,
+              accentColor: AppColors.moviesAccent,
+              timeLabel: ProgressOverlay.buildTimeLabel(
+                positionSeconds: _progress?.positionSeconds,
+                durationSeconds: _progress?.durationSeconds,
+              ),
+            ),
+          ),
+        ] else
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+      ],
+    );
+
+    if (disabled) return playWidget;
+
+    return FocusableWidget(
+      onSelect: () => _openPlayer(
+        _movieVideoUrl!,
+        widget.content.displayName,
+        subtitles: _movieSubtitles,
+      ),
+      borderRadius: 8,
+      child: playWidget,
     );
   }
 
   Widget _buildMovieInfo() {
     final c = widget.content;
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Título
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              c.displayName,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          c.displayName,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            const PauloFlixMoviesBadge(fontSize: 12),
+            if (c.score != null) _ratingBadge(c.score!),
+            if (c.year != null) _metaChip(c.year!.toString()),
+            if (c.runtime != null) _metaChip('${c.runtime} min'),
+            if (_isCompleted) const _CompletoBadge(),
+          ],
+        ),
+        if (_isInProgress) ...[const SizedBox(height: 10), _buildProgressBar()],
+        const SizedBox(height: 16),
+        if ((c.description ?? '').isNotEmpty)
+          Text(
+            c.description!,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 14,
+              height: 1.5,
             ),
           ),
+        if (c.genres.isNotEmpty) ...[
+          const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [
-              const PauloFlixMoviesBadge(fontSize: 12),
-              if (c.score != null) _ratingBadge(c.score!),
-              if (c.year != null) _metaChip(c.year!.toString()),
-              if (c.runtime != null) _metaChip('${c.runtime} min'),
-              // Badge de completado
-              if (_isCompleted) _completionBadge(),
-            ],
-          ),
-          // Barra de progresso (se em andamento)
-          if (_isInProgress) ...[
-            const SizedBox(height: 12),
-            _buildProgressBar(),
-          ],
-          const SizedBox(height: 16),
-          if ((c.description ?? '').isNotEmpty)
-            Text(
-              c.description!,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 14,
-                height: 1.5,
-              ),
-            ),
-          if (c.genres.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: c.genres
-                  .map(
-                    (g) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.moviesAccent.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.moviesAccent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        g,
-                        style: const TextStyle(
-                          color: Color(0xFFEF4444),
-                          fontSize: 12,
-                        ),
+            children: c.genres
+                .map(
+                  (g) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.moviesAccent.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.moviesAccent.withValues(alpha: 0.3),
                       ),
                     ),
-                  )
-                  .toList(),
-            ),
-          ],
+                    child: Text(
+                      g,
+                      style: const TextStyle(
+                        color: Color(0xFFEF4444),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
         ],
-      ),
+      ],
     );
   }
 
-  /// Badge verde "✓ Completo" exibido ao lado dos metadados.
-  Widget _completionBadge() {
-    return CompletedBadge.detailScreen();
-  }
-
-  /// Barra de progresso horizontal (em andamento).
   Widget _buildProgressBar() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,44 +446,6 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildActionButtons() {
-    final disabled = _movieVideoUrl == null;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: SizedBox(
-        width: double.infinity,
-        child: FocusableWidget(
-          child: ElevatedButton.icon(
-            onPressed: disabled
-                ? null
-                : () => _openPlayer(
-                    _movieVideoUrl!,
-                    widget.content.displayName,
-                    subtitles: _movieSubtitles,
-                  ),
-            icon: Icon(_buttonIcon, size: 28),
-            label: Text(
-              _buttonLabel,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            focusNode: _playButtonFocusNode,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isCompleted
-                  ? Colors.green
-                  : AppColors.moviesAccent,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.white12,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -517,6 +548,68 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
             _error!,
             style: const TextStyle(color: Colors.white),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Botão de play circular discreto usado no topo do conteúdo.
+class _PlayCircle extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+  final Color accentColor;
+  final VoidCallback? onTap;
+
+  const _PlayCircle({
+    required this.icon,
+    required this.enabled,
+    this.accentColor = AppColors.moviesAccent,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: enabled ? accentColor : Colors.white12,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 22),
+      ),
+    );
+  }
+}
+
+/// Badge "✓ Completo" no metadata row.
+class _CompletoBadge extends StatelessWidget {
+  const _CompletoBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, color: Colors.green, size: 12),
+          SizedBox(width: 4),
+          Text(
+            'Completo',
+            style: TextStyle(
+              color: Colors.green,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
