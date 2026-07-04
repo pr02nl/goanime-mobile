@@ -367,9 +367,7 @@ class _EpisodesListState extends State<_EpisodesList> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _readVm();
-    context
-        .read<PauloFlixEpisodeProgressViewModel>()
-        .addListener(_onVmChanged);
+    context.read<PauloFlixEpisodeProgressViewModel>().addListener(_onVmChanged);
   }
 
   void _onVmChanged() {
@@ -387,9 +385,9 @@ class _EpisodesListState extends State<_EpisodesList> {
 
   @override
   void dispose() {
-    context
-        .read<PauloFlixEpisodeProgressViewModel>()
-        .removeListener(_onVmChanged);
+    context.read<PauloFlixEpisodeProgressViewModel>().removeListener(
+      _onVmChanged,
+    );
     super.dispose();
   }
 
@@ -421,8 +419,9 @@ class _EpisodesListState extends State<_EpisodesList> {
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
         return Padding(
-          padding:
-              EdgeInsets.only(bottom: index == _records.length - 1 ? 0 : 8),
+          padding: EdgeInsets.only(
+            bottom: index == _records.length - 1 ? 0 : 8,
+          ),
           child: PauloflixEpisodeCard(
             episode: _scrapings[index],
             seasonNumber: _season?.seasonNumber ?? 1,
@@ -485,7 +484,7 @@ class _EpisodesListState extends State<_EpisodesList> {
       ),
     );
     if (context.mounted) {
-      await vm.refreshProgress();
+      await vm.refresh();
     }
   }
 }
