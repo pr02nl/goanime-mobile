@@ -23,12 +23,14 @@ class AnimeHeroBanner extends StatelessWidget {
   final PauloFlixContent content;
   final bool isTV;
   final double height;
+  final void Function()? onPlay;
 
   const AnimeHeroBanner({
     super.key,
     required this.content,
     required this.isTV,
     this.height = 420,
+    this.onPlay,
   });
 
   @override
@@ -53,7 +55,13 @@ class AnimeHeroBanner extends StatelessWidget {
         height: height,
         isTV: isTV,
         // Botão Play → vai para a lista de episódios.
-        onPlay: () => _openEpisodeList(context),
+        onPlay: () {
+          if (onPlay != null) {
+            onPlay!();
+            return;
+          }
+          _openEpisodeList(context);
+        },
       ),
     );
   }
