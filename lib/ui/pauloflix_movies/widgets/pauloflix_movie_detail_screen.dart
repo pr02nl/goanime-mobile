@@ -14,6 +14,7 @@ import '../../../routing/route_data.dart';
 import '../../core/mixins/go_router_route_refresh_mixin.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/completed_badge.dart';
+import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
 
 class PauloFlixMovieDetailScreen extends StatefulWidget {
@@ -26,8 +27,7 @@ class PauloFlixMovieDetailScreen extends StatefulWidget {
       _PauloFlixMovieDetailScreenState();
 }
 
-class _PauloFlixMovieDetailScreenState
-    extends State<PauloFlixMovieDetailScreen>
+class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
     with GoRouterRouteRefreshMixin<PauloFlixMovieDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _playButtonFocusNode = FocusNode();
@@ -189,7 +189,7 @@ class _PauloFlixMovieDetailScreenState
     final hasBanner = (widget.content.bannerUrl ?? '').isNotEmpty;
 
     return SliverAppBar(
-      expandedHeight: 220,
+      expandedHeight: 420,
       pinned: true,
       stretch: true,
       flexibleSpace: FlexibleSpaceBar(
@@ -378,29 +378,31 @@ class _PauloFlixMovieDetailScreenState
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SizedBox(
         width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: disabled
-              ? null
-              : () => _openPlayer(
-                  _movieVideoUrl!,
-                  widget.content.displayName,
-                  subtitles: _movieSubtitles,
-                ),
-          icon: Icon(_buttonIcon, size: 28),
-          label: Text(
-            _buttonLabel,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          focusNode: _playButtonFocusNode,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _isCompleted
-                ? Colors.green
-                : AppColors.moviesAccent,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.white12,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+        child: FocusableWidget(
+          child: ElevatedButton.icon(
+            onPressed: disabled
+                ? null
+                : () => _openPlayer(
+                    _movieVideoUrl!,
+                    widget.content.displayName,
+                    subtitles: _movieSubtitles,
+                  ),
+            icon: Icon(_buttonIcon, size: 28),
+            label: Text(
+              _buttonLabel,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            focusNode: _playButtonFocusNode,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _isCompleted
+                  ? Colors.green
+                  : AppColors.moviesAccent,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.white12,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
         ),
