@@ -265,6 +265,37 @@ class PauloFlixEpisodeProgressViewModel extends ChangeNotifier {
     _episodesSub = null;
   }
 
+  /// Busca dados frescos do banco via leitura direta (Future, não stream),
+  /// SEM alterar `_status` (evita loading spinner). Chamado ao retornar do
+  /// player. Usa `getSeasonsForContent`/`getEpisodesForSeason` em vez de
+  /// `.watch()` streams porque a reatividade do Drift pode falhar em
+  /// `NativeDatabase.createInBackground` (isolate bg) no Windows/Android TV.
+  Future<void> refreshProgress() async {
+    try {
+      final seasons = await _repository.getSeasonsForContent(content.id!);
+      _seasons = seasons;
+      if (_seasons.isNotEmpty) {
+        final i = _selectedSeasonIndex.clamp(0, _seasons.length - 1);
+        final seasonId = _seasons[i].id;
+        if (seasonId != null) {
+          final episodes = await _repository.getEpisodesForSeason(seasonId);
+          _episodesBySeason[seasonId] = episodes;
+        }
+      }
+      _errorMessage = null;
+      _safeNotify();
+    } catch (e, st) {
+      log(
+        '[PauloFlixEpisodeProgressViewModel] refreshProgress error: $e',
+        name: 'PauloFlixEpisodeProgressViewModel',
+        error: e,
+        stackTrace: st,
+      );
+      _errorMessage = 'Erro ao atualizar progresso: $e';
+      _safeNotify();
+    }
+  }
+
   Future<void> refresh() async {
     _seasonsSub?.cancel();
     _seasonsSub = null;
