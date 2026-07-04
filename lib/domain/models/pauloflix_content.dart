@@ -13,6 +13,7 @@ class PauloFlixContent {
   final List<String> genres;
   final String? status;
   final int? episodeCount;
+
   /// Título original (idioma original da produção).
   final String? originalTitle;
 
@@ -82,7 +83,9 @@ class PauloFlixContent {
       year: (json['year'] as String?)?.isNotEmpty == true
           ? int.tryParse(json['year'] as String)
           : null,
-      tmdbId: json['tmdb_id'] as int?,
+      tmdbId: json['tmdb_id'] is int
+          ? json['tmdb_id'] as int
+          : int.tryParse(json['tmdb_id'] as String? ?? ''),
     );
   }
 
