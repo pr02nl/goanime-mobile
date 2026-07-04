@@ -47,10 +47,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   /// sidebar fecha.
   final FocusScopeNode _contentScopeNode = FocusScopeNode();
 
-  /// Flag que indica que o diálogo de saída está aberto — evita re-entrada
-  /// no HardwareKeyboard handler enquanto o diálogo está visível.
-  bool _isDialogShowing = false;
-
   /// Último widget focado no conteúdo antes da sidebar abrir.
   /// Usado por [restoreContentFocus] para devolver o foco exato ao fechar.
   FocusNode? _lastContentFocusNode;
@@ -126,7 +122,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   void _closeSidebar() {
     if (!_sidebarOpen) return;
-    if (_isDialogShowing) return; // não fecha enquanto diálogo está aberto
     setState(() => _sidebarOpen = false);
     final current = FocusManager.instance.primaryFocus;
     if (current == null || !_isInContentScope(current)) {
@@ -148,10 +143,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     // Só trata Back no layout largo (TV/desktop).
     if (!_isWideScreen(context)) return false;
 
-    // Se um diálogo está aberto em cima do shell, não consome o evento —
-    // deixa o próprio diálogo ou o sistema lidar com o Back.
-    if (_isDialogShowing) return false;
-
     // Se há rotas empilhadas (ex.: player, configurações pushed),
     // não consome — deixa o sistema popar a rota do topo.
     final router = GoRouter.of(context);
@@ -171,70 +162,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
     _lastBackTime = now;
     if (_sidebarOpen) {
-      _showExitDialog();
-    } else {
-      _openSidebar();
-    }
-  }
-
-  Future<void> _showExitDialog() async {
-    // Marca que o diálogo está aberto para o HardwareKeyboard handler não
-    // tentar processar Back enquanto o diálogo estiver visível.
-    _isDialogShowing = true;
-
-    final shouldExit = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'Sair do aplicativo?',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: const Text(
-          'Tem certeza que deseja sair?',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Não', style: TextStyle(color: Colors.white70)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text(
-              'Sim',
-              style: TextStyle(color: AppColors.primary),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    // Nota: o diálogo com barrierDismissible:false só fecha via botões
-    // (Sim/Não) ou sistema Back. Quando o usuário pressiona Back no
-    // controle remoto, o sistema fecha o diálogo e shouldExit é null.
-    // Neste caso mantemos a sidebar aberta.
-    if (!mounted) return;
-
-    _isDialogShowing = false;
-
-    if (shouldExit == true) {
-      SystemNavigator.pop();
-    } else if (shouldExit == false) {
       _closeSidebar();
     } else {
-      // shouldExit é null (diálogo fechado via Back do sistema).
-      // O auto-close pode não ter disparado porque _isDialogShowing
-      // ainda era true durante a mudança de foco. Verifica no post-frame.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_sidebarOpen) return;
-        final focus = FocusManager.instance.primaryFocus;
-        if (focus == null) return;
-        final inSidebar =
-            _sidebarKey.currentState?.containsNode(focus) ?? false;
-        if (!inSidebar) _closeSidebar();
-      });
+      _openSidebar();
     }
   }
 
@@ -249,7 +179,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   /// (exit-dialog ou qualquer outro).
   void _onAnyFocusChange() {
     if (!mounted) return;
-    if (!_sidebarOpen || _isDialogShowing) return;
+    if (!_sidebarOpen) return;
     final focus = FocusManager.instance.primaryFocus;
     if (focus == null) return;
     final inSidebar = _sidebarKey.currentState?.containsNode(focus) ?? false;
@@ -326,7 +256,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         // HardwareKeyboard NÃO consumiu o evento — verificado pelas
         // mesmas guards: sem diálogo aberto, sem rotas empilhadas.
         if (didPop || !isWide) return;
-        if (_isDialogShowing) return;
         final router = GoRouter.of(context);
         if (router.canPop()) return;
         _onBackButton();
