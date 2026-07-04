@@ -16,6 +16,8 @@ import '../../core/themes/app_colors.dart';
 import '../../core/widgets/completed_badge.dart';
 import '../../core/widgets/focusable_widget.dart';
 import '../../core/widgets/pauloflix_movies_badge.dart';
+import '../../core/widgets/progress_bar.dart';
+import '../../core/widgets/progress_overlay.dart';
 
 class PauloFlixMovieDetailScreen extends StatefulWidget {
   final PauloFlixMovie content;
@@ -104,11 +106,11 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
     }
   }
 
-  void _openPlayer(
+  Future<void> _openPlayer(
     String videoUrl,
     String title, {
     List<SubtitleTrackInfo> subtitles = const [],
-  }) {
+  }) async {
     // Converte SubtitleTrackInfo → EpisodeSubtitleTrack para passar pro player.
     final episodeTracks = subtitles
         .map(
@@ -121,7 +123,7 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
         )
         .toList();
 
-    context.pushNamed(
+    await context.pushNamed(
       'player',
       extra: PlayerRouteData(
         episode: Episode(
@@ -141,6 +143,15 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
         ),
       ),
     );
+    if (mounted) {
+      await _loadProgress();
+    }
+  }
+
+  /// Força recarga do progresso. Usado pelo `GoRouterRouteRefreshMixin`
+  /// e também chamado manualmente após retorno do player.
+  Future<void> refreshProgress() async {
+    await _loadProgress();
   }
 
   // ─── Getters de estado do progresso ────────────────────────────────
@@ -357,15 +368,12 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
           ],
         ),
         const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(2),
-          child: LinearProgressIndicator(
-            value: _progressRatio,
-            minHeight: 4,
-            backgroundColor: Colors.white.withValues(alpha: 0.1),
-            valueColor: const AlwaysStoppedAnimation<Color>(
-              AppColors.moviesAccent,
-            ),
+        ProgressBar(
+          ratio: _progressRatio,
+          accentColor: AppColors.moviesAccent,
+          timeLabel: ProgressOverlay.buildTimeLabel(
+            positionSeconds: _progress?.positionSeconds,
+            durationSeconds: _progress?.durationSeconds,
           ),
         ),
       ],
