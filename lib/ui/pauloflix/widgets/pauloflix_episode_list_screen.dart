@@ -16,9 +16,9 @@ import '../../../l10n/app_localizations.dart';
 import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
-import '../../core/widgets/netflix_hero_card.dart';
 import '../../core/widgets/pauloflix_badge.dart';
 import '../view_models/paulo_flix_episode_progress_viewmodel.dart';
+import '_anime_hero_banner.dart';
 import 'pauloflix_episode_card.dart';
 import 'pauloflix_season_selector.dart';
 
@@ -75,18 +75,23 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        title: Text(
-          content.displayName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
       body: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _HeroBanner(content: content)),
+          SliverToBoxAdapter(
+            child: AnimeHeroBanner(
+              content: content,
+              isTV: isTV,
+              onPlay: () {
+                final vm = context.read<PauloFlixEpisodeProgressViewModel>();
+                final playEpisodes = vm.episodes;
+                if (playEpisodes.isNotEmpty) {
+                  _playEpisode(context, playEpisodes.first, 0);
+                }
+              },
+            ),
+          ),
 
+          // SliverToBoxAdapter(child: _HeroBanner(content: content)),
           SliverToBoxAdapter(child: _InfoPanel(content: content)),
 
           if (!isLoading && hasSeasons)
@@ -118,41 +123,6 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
-      ),
-    );
-  }
-}
-
-// --- Hero Banner ---
-
-class _HeroBanner extends StatelessWidget {
-  final PauloFlixContent content;
-
-  const _HeroBanner({required this.content});
-
-  @override
-  Widget build(BuildContext context) {
-    final heroUrl = context.select<PauloFlixEpisodeProgressViewModel, String?>(
-      (vm) => vm.selectedSeasonHeroUrl,
-    );
-    final isTV = MediaQuery.of(context).size.width > 1200;
-    final heroHeight = isTV ? 350.0 : 280.0;
-
-    return SizedBox(
-      height: heroHeight,
-      child: NetflixHeroCard(
-        imageUrl: heroUrl ?? '',
-        title: content.displayName,
-        showTitle: false,
-        height: heroHeight,
-        isTV: isTV,
-        onPlay: () {
-          final vm = context.read<PauloFlixEpisodeProgressViewModel>();
-          final playEpisodes = vm.episodes;
-          if (playEpisodes.isNotEmpty) {
-            _playEpisode(context, playEpisodes.first, 0);
-          }
-        },
       ),
     );
   }
