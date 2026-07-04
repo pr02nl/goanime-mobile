@@ -747,7 +747,9 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
 
   Widget _buildLayout() {
     return ColoredBox(
-      color: Colors.black.withValues(alpha: 0.35),
+      color: _isVisible
+          ? Colors.black.withValues(alpha: 0.35)
+          : Colors.transparent,
       child: FocusTraversalGroup(
         child: Column(
           children: [
