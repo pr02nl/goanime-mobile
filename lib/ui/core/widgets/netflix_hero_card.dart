@@ -70,9 +70,7 @@ class NetflixHeroCard extends StatelessWidget {
               color: NetflixTheme.surface,
               child: const Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppColors.primary,
-                  ),
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               ),
             ),
@@ -204,6 +202,16 @@ class NetflixHeroCard extends StatelessWidget {
               ),
             ),
           ),
+          if (Navigator.of(context).canPop())
+            Positioned(
+              top: 32,
+              left: 32,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                color: Colors.white,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
         ],
       ),
     );
