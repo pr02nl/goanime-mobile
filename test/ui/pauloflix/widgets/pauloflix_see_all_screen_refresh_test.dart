@@ -53,7 +53,7 @@ class _FakeContentRepository implements PauloFlixRepository {
 
 /// Contador de chamadas ao `getProgressStatsForContents`.
 /// Permite ao test verificar que o refresh foi disparado.
-class _CallCounter {
+class CallCounter {
   int calls = 0;
 }
 
@@ -67,7 +67,7 @@ class _CallCounter {
 class _FakeProgressRepository implements PauloFlixEpisodeProgressRepository {
   final Map<int, PauloFlixProgressStats> _initialStats;
   final Map<int, PauloFlixProgressStats> _updatedStats;
-  final _CallCounter counter;
+  final CallCounter counter;
 
   _FakeProgressRepository({
     required Map<int, PauloFlixProgressStats> initialStats,
@@ -224,7 +224,7 @@ Widget _buildTestApp({
   required List<PauloFlixContent> testAnimes,
   required Map<int, PauloFlixProgressStats> initialStats,
   required Map<int, PauloFlixProgressStats> updatedStats,
-  required _CallCounter counter,
+  required CallCounter counter,
 }) {
   final contentRepo = _FakeContentRepository(testAnimes);
   final progressRepo = _FakeProgressRepository(
@@ -303,7 +303,7 @@ Future<void> pumpUntilReady(
   required List<PauloFlixContent> testAnimes,
   required Map<int, PauloFlixProgressStats> initialStats,
   required Map<int, PauloFlixProgressStats> updatedStats,
-  required _CallCounter counter,
+  required CallCounter counter,
 }) async {
   await tester.pumpWidget(
     _buildTestApp(
@@ -327,7 +327,7 @@ Future<void> pumpAfterReturn(
   required List<PauloFlixContent> testAnimes,
   required Map<int, PauloFlixProgressStats> initialStats,
   required Map<int, PauloFlixProgressStats> updatedStats,
-  required _CallCounter counter,
+  required CallCounter counter,
 }) async {
   await tester.pumpWidget(
     _buildTestApp(
@@ -352,20 +352,24 @@ void main() {
   group('PauloFlixSeeAllScreen -- refresh ao voltar do player', () {
     late Map<int, PauloFlixProgressStats> initialStats;
     late Map<int, PauloFlixProgressStats> updatedStats;
-    late _CallCounter counter;
+    late CallCounter counter;
 
     setUp(() {
       initialStats = {
         1: const PauloFlixProgressStats(
-          totalEpisodes: 12, completedEpisodes: 0, inProgressEpisodes: 0,
+          totalEpisodes: 12,
+          completedEpisodes: 0,
+          inProgressEpisodes: 0,
         ),
       };
       updatedStats = {
         1: const PauloFlixProgressStats(
-          totalEpisodes: 12, completedEpisodes: 3, inProgressEpisodes: 1,
+          totalEpisodes: 12,
+          completedEpisodes: 3,
+          inProgressEpisodes: 1,
         ),
       };
-      counter = _CallCounter();
+      counter = CallCounter();
     });
 
     testWidgets('inicialmente sem overlay de progresso (stats vazios)', (
@@ -441,26 +445,28 @@ void main() {
       expect(find.byType(LinearProgressIndicator), findsNothing);
     });
 
-    testWidgets('getProgressStatsForContents e chamado novamente apos rebuild',
-        (tester) async {
-      await pumpUntilReady(
-        tester,
-        testAnimes: _singleAnime,
-        initialStats: initialStats,
-        updatedStats: updatedStats,
-        counter: counter,
-      );
-      expect(counter.calls, equals(1));
+    testWidgets(
+      'getProgressStatsForContents e chamado novamente apos rebuild',
+      (tester) async {
+        await pumpUntilReady(
+          tester,
+          testAnimes: _singleAnime,
+          initialStats: initialStats,
+          updatedStats: updatedStats,
+          counter: counter,
+        );
+        expect(counter.calls, equals(1));
 
-      await pumpAfterReturn(
-        tester,
-        testAnimes: _singleAnime,
-        initialStats: initialStats,
-        updatedStats: updatedStats,
-        counter: counter,
-      );
-      expect(counter.calls, equals(2));
-    });
+        await pumpAfterReturn(
+          tester,
+          testAnimes: _singleAnime,
+          initialStats: initialStats,
+          updatedStats: updatedStats,
+          counter: counter,
+        );
+        expect(counter.calls, equals(2));
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════
@@ -470,21 +476,25 @@ void main() {
   group('PauloFlixSeeAllScreen -- completed badge', () {
     late Map<int, PauloFlixProgressStats> initialStats;
     late Map<int, PauloFlixProgressStats> updatedStats;
-    late _CallCounter counter;
+    late CallCounter counter;
 
     setUp(() {
       initialStats = {
         1: const PauloFlixProgressStats(
-          totalEpisodes: 12, completedEpisodes: 0, inProgressEpisodes: 0,
+          totalEpisodes: 12,
+          completedEpisodes: 0,
+          inProgressEpisodes: 0,
         ),
       };
       // Anime 100% completo (12/12)
       updatedStats = {
         1: const PauloFlixProgressStats(
-          totalEpisodes: 12, completedEpisodes: 12, inProgressEpisodes: 0,
+          totalEpisodes: 12,
+          completedEpisodes: 12,
+          inProgressEpisodes: 0,
         ),
       };
-      counter = _CallCounter();
+      counter = CallCounter();
     });
 
     testWidgets('apos voltar do player com anime completo: '
@@ -522,19 +532,25 @@ void main() {
   group('PauloFlixSeeAllScreen -- multiplos animes', () {
     late Map<int, PauloFlixProgressStats> initialStats;
     late Map<int, PauloFlixProgressStats> updatedStats;
-    late _CallCounter counter;
+    late CallCounter counter;
 
     setUp(() {
       // Inicialmente: todos sem progresso
       initialStats = {
         1: const PauloFlixProgressStats(
-          totalEpisodes: 12, completedEpisodes: 0, inProgressEpisodes: 0,
+          totalEpisodes: 12,
+          completedEpisodes: 0,
+          inProgressEpisodes: 0,
         ),
         2: const PauloFlixProgressStats(
-          totalEpisodes: 8, completedEpisodes: 0, inProgressEpisodes: 0,
+          totalEpisodes: 8,
+          completedEpisodes: 0,
+          inProgressEpisodes: 0,
         ),
         3: const PauloFlixProgressStats(
-          totalEpisodes: 24, completedEpisodes: 0, inProgressEpisodes: 0,
+          totalEpisodes: 24,
+          completedEpisodes: 0,
+          inProgressEpisodes: 0,
         ),
       };
       // Apos jogar no player:
@@ -543,16 +559,22 @@ void main() {
       // - Anime 3: sem mudanca (0/24)
       updatedStats = {
         1: const PauloFlixProgressStats(
-          totalEpisodes: 12, completedEpisodes: 3, inProgressEpisodes: 1,
+          totalEpisodes: 12,
+          completedEpisodes: 3,
+          inProgressEpisodes: 1,
         ),
         2: const PauloFlixProgressStats(
-          totalEpisodes: 8, completedEpisodes: 8, inProgressEpisodes: 0,
+          totalEpisodes: 8,
+          completedEpisodes: 8,
+          inProgressEpisodes: 0,
         ),
         3: const PauloFlixProgressStats(
-          totalEpisodes: 24, completedEpisodes: 0, inProgressEpisodes: 0,
+          totalEpisodes: 24,
+          completedEpisodes: 0,
+          inProgressEpisodes: 0,
         ),
       };
-      counter = _CallCounter();
+      counter = CallCounter();
     });
 
     testWidgets('cada anime exibe o overlay correto: '
