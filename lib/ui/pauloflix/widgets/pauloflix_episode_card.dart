@@ -140,7 +140,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
         child: GestureDetector(
           onTap: onTap,
           child: Container(
-            height: isTV ? 120 : 100,
+            height: 150,
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(8),
@@ -162,7 +162,7 @@ class PauloflixEpisodeCard extends StatelessWidget {
 
   Widget _buildThumbnail() {
     return SizedBox(
-      width: isTV ? 160 : 140,
+      width: 267,
       height: double.infinity,
       child: Stack(
         fit: StackFit.expand,
@@ -580,7 +580,9 @@ class _ProgressBar extends StatelessWidget {
               value: ratio,
               minHeight: 4,
               backgroundColor: Colors.white.withValues(alpha: 0.1),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
             ),
           ),
         ),
