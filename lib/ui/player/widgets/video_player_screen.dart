@@ -7,6 +7,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/logger/app_logger.dart';
 import '../../../data/services/auth/authenticated_http_client.dart';
 import '../../../data/services/auth/jwt_token_manager.dart';
 import '../../../data/services/episode_progress_service.dart';
@@ -17,7 +18,6 @@ import '../../../domain/models/paulo_flix_episode_record.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../domain/repositories/paulo_flix_movie_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../core/logger/app_logger.dart';
 import '../../core/utils/episode_utils.dart';
 import '../../core/utils/tv_detector.dart';
 import '../video_player_introdb_mixin.dart';
@@ -88,7 +88,10 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
   late final _player = Player(
     platformPlayer: widget.platformPlayer,
-    configuration: const PlayerConfiguration(logLevel: MPVLogLevel.info),
+    configuration: const PlayerConfiguration(
+      logLevel: MPVLogLevel.info,
+      bufferSize: 128 * 1024 * 1024,
+    ),
   );
   late final _videoController = VideoController(
     _player,
@@ -571,14 +574,18 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     final pos = _getCurrentPosition();
     final dur = _getCurrentDuration();
     if (pos.inSeconds > 0) {
-      unawaited(_progressService?.saveProgress(
-        positionSeconds: pos.inSeconds,
-        durationSeconds: dur.inSeconds > 0 ? dur.inSeconds : null,
-      ));
-      unawaited(_movieProgressService?.saveProgress(
-        positionSeconds: pos.inSeconds,
-        durationSeconds: dur.inSeconds > 0 ? dur.inSeconds : null,
-      ));
+      unawaited(
+        _progressService?.saveProgress(
+          positionSeconds: pos.inSeconds,
+          durationSeconds: dur.inSeconds > 0 ? dur.inSeconds : null,
+        ),
+      );
+      unawaited(
+        _movieProgressService?.saveProgress(
+          positionSeconds: pos.inSeconds,
+          durationSeconds: dur.inSeconds > 0 ? dur.inSeconds : null,
+        ),
+      );
     }
     _progressService?.stop();
     _movieProgressService?.stop();
@@ -671,9 +678,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
     try {
       sub = player.stream.tracks.listen((t) {
-        _log.debug(
-          'Embedded subtitle tracks: ${t.subtitle.length}',
-        );
+        _log.debug('Embedded subtitle tracks: ${t.subtitle.length}');
         for (final st in t.subtitle) {
           _log.debug(
             '  embed: id=${st.id}, '
@@ -700,7 +705,9 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     if (_disposed || !mounted) return;
 
     final episodeKey = _buildEpisodeKey();
-    _log.debug('🎬 Initializing player for episode: $episodeKey');    // ═══════════════════════════════════════════════════════════════════
+    _log.debug(
+      '🎬 Initializing player for episode: $episodeKey',
+    ); // ═══════════════════════════════════════════════════════════════════
     // Paraleliza tarefas independentes no início da inicialização:
     // 1. DB read (progresso salvo do episódio/filme)  — 5-50ms
     // 2. TV detection (já iniciada em initState)       — 10-100ms
@@ -791,9 +798,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         try {
           final token = await jwtFuture ?? '';
           mergedHeaders['Authorization'] = 'Bearer $token';
-          _log.debug(
-            '✓ JWT injetado no header do player (PauloFlix)',
-          );
+          _log.debug('✓ JWT injetado no header do player (PauloFlix)');
         } catch (e, st) {
           _log.warning('⚠ Falha ao injetar JWT (placeholder?)', e, st);
           // Sem auth, range requests vão dar 401. Mas o player ainda
@@ -802,6 +807,20 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       }
 
       _log.debug('Headers: $mergedHeaders');
+
+      // Configura cache de rede do MPV (antes do Media.open).
+      // `cache-size` em KiB. Padrão MPV é ~75 MB. Aumentamos para
+      // 500 MB para evitar ciclos de buffer-underrun em streams HTTP.
+      try {
+        await (_player.platform as dynamic).setProperty('cache-size', '512000');
+        await (_player.platform as dynamic).setProperty(
+          'demuxer-readahead-secs',
+          '30',
+        );
+        _log.debug('✓ MPV cache configurado: cache-size=500MB, readahead=30s');
+      } catch (e) {
+        _log.warning('⚠ Falha ao configurar cache MPV (não crítico)', e);
+      }
 
       // Fase 2: aplica heurística de reset vs retomar (PauloFlix) ANTES
       // do Media.open. Se reset: zera progresso no banco + abre do zero.
@@ -814,9 +833,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       try {
         final media = Media(resolvedVideoUrl, httpHeaders: mergedHeaders);
         await _player.open(media, play: false);
-        _log.debug(
-          'Media opened (paused, waiting for video ready)',
-        );
+        _log.debug('Media opened (paused, waiting for video ready)');
       } catch (e, st) {
         _log.warning('Failed with headers, trying without...', e, st);
         // Fallback: try without headers
@@ -923,11 +940,13 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
       // Fire-and-forget: a chamada HTTP não precisa bloquear o
       // início da reprodução — os segmentos só são usados quando
       // o player atinge a intro/outro (minutos depois).
-      unawaited(loadSkipSegments(
-        tmdbId: widget.tmdbId,
-        seasonNumber: widget.seasonNumber,
-        episodeNumber: widget.isMovie ? null : _currentEpisodeNum,
-      ));
+      unawaited(
+        loadSkipSegments(
+          tmdbId: widget.tmdbId,
+          seasonNumber: widget.seasonNumber,
+          episodeNumber: widget.isMovie ? null : _currentEpisodeNum,
+        ),
+      );
     } catch (e, st) {
       _log.error('Error initializing video', e, st);
       if (mounted) {
@@ -1025,11 +1044,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         );
       }
     } catch (e, st) {
-      const AppLogger('VideoPlayer').error(
-        'Error finding next episode',
-        e,
-        st,
-      );
+      const AppLogger('VideoPlayer').error('Error finding next episode', e, st);
     }
   }
 
@@ -1162,6 +1177,19 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
                     : null,
               );
             },
+            subtitleViewConfiguration: const SubtitleViewConfiguration(
+              style: TextStyle(
+                height: 1.4,
+                fontSize: 24.0,
+                letterSpacing: 0.0,
+                wordSpacing: 0.0,
+                color: Color(0xffffffff),
+                fontWeight: FontWeight.normal,
+                backgroundColor: Color(0xaa000000),
+              ),
+              textAlign: TextAlign.center,
+              padding: EdgeInsets.all(24.0),
+            ),
           ),
         ],
       ),
