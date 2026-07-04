@@ -362,12 +362,15 @@ class _EpisodesListState extends State<_EpisodesList> {
   List<PauloFlixEpisodeRecord> _records = const [];
   PauloFlixSeasonRecord? _season;
   List<scraping.PauloFlixEpisode> _scrapings = const [];
+  PauloFlixEpisodeProgressViewModel? _vm;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _readVm();
-    context.read<PauloFlixEpisodeProgressViewModel>().addListener(_onVmChanged);
+    _vm = context.read<PauloFlixEpisodeProgressViewModel>();
+    _vm?.removeListener(_onVmChanged);
+    _vm?.addListener(_onVmChanged);
   }
 
   void _onVmChanged() {
@@ -375,19 +378,16 @@ class _EpisodesListState extends State<_EpisodesList> {
   }
 
   void _readVm() {
-    final vm = context.read<PauloFlixEpisodeProgressViewModel>();
     setState(() {
-      _records = vm.episodes;
-      _season = vm.selectedSeason;
-      _scrapings = vm.scrapingEpisodesForSelected;
+      _records = _vm?.episodes ?? const [];
+      _season = _vm?.selectedSeason;
+      _scrapings = _vm?.scrapingEpisodesForSelected ?? const [];
     });
   }
 
   @override
   void dispose() {
-    context.read<PauloFlixEpisodeProgressViewModel>().removeListener(
-      _onVmChanged,
-    );
+    _vm?.removeListener(_onVmChanged);
     super.dispose();
   }
 
