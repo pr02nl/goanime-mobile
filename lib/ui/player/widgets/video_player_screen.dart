@@ -90,7 +90,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     platformPlayer: widget.platformPlayer,
     configuration: const PlayerConfiguration(
       logLevel: MPVLogLevel.info,
-      bufferSize: 128 * 1024 * 1024,
+      bufferSize: 256 * 1024 * 1024,
     ),
   );
   late final _videoController = VideoController(
@@ -808,19 +808,8 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
 
       _log.debug('Headers: $mergedHeaders');
 
-      // Configura cache de rede do MPV (antes do Media.open).
-      // `cache-size` em KiB. Padrão MPV é ~75 MB. Aumentamos para
-      // 500 MB para evitar ciclos de buffer-underrun em streams HTTP.
-      try {
-        await (_player.platform as dynamic).setProperty('cache-size', '512000');
-        await (_player.platform as dynamic).setProperty(
-          'demuxer-readahead-secs',
-          '30',
-        );
-        _log.debug('✓ MPV cache configurado: cache-size=500MB, readahead=30s');
-      } catch (e) {
-        _log.warning('⚠ Falha ao configurar cache MPV (não crítico)', e);
-      }
+      // NOTA: estilo das legendas configurado via SubtitleViewConfiguration
+      // no build() usando TextStyle.shadows (contorno simulado).
 
       // Fase 2: aplica heurística de reset vs retomar (PauloFlix) ANTES
       // do Media.open. Se reset: zera progresso no banco + abre do zero.
@@ -878,6 +867,17 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
           _log.warning('Failed auto subtitle', e, st);
         }
       }
+
+      // Aumenta o cache de rede do MPV após Media.open (player já
+      // inicializado). cache-size em KiB = 500 MB.
+      try {
+        await (_player.platform as dynamic).setProperty('cache-size', '512000');
+        await (_player.platform as dynamic).setProperty(
+          'demuxer-readahead-secs',
+          '30',
+        );
+        _log.debug('✓ cache-size=500MB, readahead=30s');
+      } catch (_) {}
 
       // Wait for video dimensions to be available before starting playback.
       // This prevents audio playing before the video surface is ready.
@@ -1179,13 +1179,23 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
             },
             subtitleViewConfiguration: const SubtitleViewConfiguration(
               style: TextStyle(
-                height: 1.4,
-                fontSize: 24.0,
+                // height: 1.4,
+                fontSize: 48.0,
                 letterSpacing: 0.0,
                 wordSpacing: 0.0,
                 color: Color(0xffffffff),
-                fontWeight: FontWeight.normal,
-                backgroundColor: Color(0xaa000000),
+                fontWeight: FontWeight.w600,
+                backgroundColor: Color(0x00000000),
+                shadows: [
+                  Shadow(offset: Offset(-2.0, -2.0), color: Color(0xff000000)),
+                  Shadow(offset: Offset(2.0, -2.0), color: Color(0xff000000)),
+                  Shadow(offset: Offset(-2.0, 2.0), color: Color(0xff000000)),
+                  Shadow(offset: Offset(2.0, 2.0), color: Color(0xff000000)),
+                  Shadow(offset: Offset(0.0, -2.0), color: Color(0xff000000)),
+                  Shadow(offset: Offset(0.0, 2.0), color: Color(0xff000000)),
+                  Shadow(offset: Offset(-2.0, 0.0), color: Color(0xff000000)),
+                  Shadow(offset: Offset(2.0, 0.0), color: Color(0xff000000)),
+                ],
               ),
               textAlign: TextAlign.center,
               padding: EdgeInsets.all(24.0),
