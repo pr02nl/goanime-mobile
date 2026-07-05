@@ -33,6 +33,9 @@ class NetflixHeroCard extends StatelessWidget {
   final Widget? badge;
   final double? score;
   final bool showTitle;
+  final bool hasSeasons;
+  final int seasonCount;
+  final List<String> genres;
   final double height;
   final bool isTV;
 
@@ -46,8 +49,11 @@ class NetflixHeroCard extends StatelessWidget {
     this.badge,
     this.score,
     this.showTitle = true,
+    this.hasSeasons = false,
+    this.seasonCount = 0,
     this.height = 400,
     this.isTV = false,
+    this.genres = const [],
   });
 
   @override
@@ -141,27 +147,86 @@ class NetflixHeroCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                  if (score != null) ...[
-                    const SizedBox(height: NetflixTheme.sm),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.star,
-                          color: Color(0xFFFBBF24),
-                          size: 20,
+                  Row(
+                    spacing: NetflixTheme.sm,
+                    children: [
+                      if (score != null) ...[
+                        // const SizedBox(height: NetflixTheme.sm),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              color: Color(0xFFFBBF24),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              score!.toStringAsFixed(1),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          score!.toStringAsFixed(1),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                      ],
+                      if (hasSeasons) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '$seasonCount ${seasonCount == 1 ? 'temporada' : 'temporadas'}',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ],
-                    ),
-                  ],
+                      if (genres.isNotEmpty) ...[
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: genres
+                              .take(5)
+                              .map(
+                                (genre) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.15,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    genre,
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
+                    ],
+                  ),
                   if (description != null) ...[
                     const SizedBox(height: NetflixTheme.md),
                     Text(
