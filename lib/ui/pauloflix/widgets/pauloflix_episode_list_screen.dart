@@ -16,9 +16,8 @@ import '../../../l10n/app_localizations.dart';
 import '../../../routing/route_data.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
-import '../../core/widgets/pauloflix_badge.dart';
 import '../view_models/paulo_flix_episode_progress_viewmodel.dart';
-import '_anime_hero_banner.dart';
+import 'anime_hero_banner.dart';
 import 'pauloflix_episode_card.dart';
 import 'pauloflix_season_selector.dart';
 
@@ -54,6 +53,9 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
     final hasSeasons = context.select<PauloFlixEpisodeProgressViewModel, bool>(
       (vm) => vm.hasSeasons,
     );
+    final seasonCount = context.select<PauloFlixEpisodeProgressViewModel, int>(
+      (vm) => vm.seasons.length,
+    );
     final errorMessage = context
         .select<PauloFlixEpisodeProgressViewModel, String?>(
           (vm) => vm.errorMessage,
@@ -81,6 +83,8 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
             child: AnimeHeroBanner(
               content: content,
               isTV: isTV,
+              hasSeasons: hasSeasons,
+              seasonCount: seasonCount,
               onPlay: () {
                 final vm = context.read<PauloFlixEpisodeProgressViewModel>();
                 final playEpisodes = vm.episodes;
@@ -92,8 +96,7 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
           ),
 
           // SliverToBoxAdapter(child: _HeroBanner(content: content)),
-          SliverToBoxAdapter(child: _InfoPanel(content: content)),
-
+          // SliverToBoxAdapter(child: InfoPanel(content: content)),
           if (!isLoading && hasSeasons)
             SliverToBoxAdapter(
               child: Padding(
@@ -174,128 +177,6 @@ class _PauloFlixEpisodeListView extends StatelessWidget {
 }
 
 // --- Info Panel ---
-
-class _InfoPanel extends StatelessWidget {
-  final PauloFlixContent content;
-
-  const _InfoPanel({required this.content});
-
-  @override
-  Widget build(BuildContext context) {
-    final hasSeasons = context.select<PauloFlixEpisodeProgressViewModel, bool>(
-      (vm) => vm.hasSeasons,
-    );
-    final seasonCount = context.select<PauloFlixEpisodeProgressViewModel, int>(
-      (vm) => vm.seasons.length,
-    );
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const PauloFlixBadge(),
-              if (content.score != null) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        content.score!.toStringAsFixed(1),
-                        style: const TextStyle(
-                          color: Colors.amber,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              if (hasSeasons) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '$seasonCount ${seasonCount == 1 ? 'temporada' : 'temporadas'}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ),
-              ],
-            ],
-          ),
-
-          if (content.description != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              content.description!,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 14,
-                height: 1.5,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-
-          if (content.genres.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: content.genres
-                  .take(5)
-                  .map(
-                    (genre) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Text(
-                        genre,
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
 
 // --- Error State ---
 
