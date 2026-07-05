@@ -155,9 +155,16 @@ class PauloFlixService {
             'Sincronizando episódios de ${content.displayName}...',
           );
 
+          final scrapedSeasonNumbers = <int>{};
+          // Mapa: seasonId (DB) → scraped episode numbers
+          final scrapedEpisodeNumbersBySeason = <int, Set<int>>{};
+          // Mapa: seasonId (DB) por seasonNumber (scraped)
+          final seasonIdByNumber = <int, int>{};
+
           for (final seasonJson in seasonsJson) {
             final seasonData = seasonJson as Map<String, dynamic>;
             final seasonNumber = seasonData['season'] as int;
+            scrapedSeasonNumbers.add(seasonNumber);
             final folderName =
                 seasonData['folderName'] as String? ?? 'Season $seasonNumber';
             final displayName = folderName;
@@ -168,13 +175,19 @@ class PauloFlixService {
               displayName: displayName,
               folderName: folderName,
             );
+            seasonIdByNumber[seasonNumber] = seasonId;
 
             final episodesJson = seasonData['episodes'] as List<dynamic>?;
-            if (episodesJson == null || episodesJson.isEmpty) continue;
+            if (episodesJson == null || episodesJson.isEmpty) {
+              scrapedEpisodeNumbersBySeason[seasonId] = <int>{};
+              continue;
+            }
 
+            final scrapedEpNumbers = <int>{};
             for (final episodeJson in episodesJson) {
               final ep = episodeJson as Map<String, dynamic>;
               final episodeNumber = ep['episode'] as int;
+              scrapedEpNumbers.add(episodeNumber);
               final episodeTitle =
                   (ep['title'] as String?) ?? 'Episode $episodeNumber';
               final filePath = ep['file'] as String;
@@ -185,7 +198,6 @@ class PauloFlixService {
                 thumbnailUrl = '$_baseHost${ep['thumb']}';
               }
 
-              // NFO V2 fields extras
               final dynamic rawNfo = ep['nfo'];
               final Map<String, dynamic>? nfoJson = rawNfo is Map
                   ? Map<String, dynamic>.from(rawNfo)
@@ -217,6 +229,23 @@ class PauloFlixService {
                 runtime: runtime,
               );
             }
+            scrapedEpisodeNumbersBySeason[seasonId] = scrapedEpNumbers;
+          }
+
+          // Remove seasons que sumiram do índice
+          final removedSeasons = await episodeRepository.removeMissingSeasons(
+            contentId: contentId,
+            scrapedSeasonNumbers: scrapedSeasonNumbers,
+          );
+
+          // Remove episódios que sumiram de cada season (exceto seasons
+          // que já foram removidas acima — cascade cuida delas).
+          for (final entry in scrapedEpisodeNumbersBySeason.entries) {
+            if (removedSeasons.contains(entry.key)) continue;
+            await episodeRepository.removeMissingEpisodes(
+              seasonId: entry.key,
+              scrapedEpisodeNumbers: entry.value,
+            );
           }
         }
       }

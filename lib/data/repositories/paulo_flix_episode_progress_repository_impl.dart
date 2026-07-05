@@ -505,42 +505,18 @@ class PauloFlixEpisodeProgressRepositoryImpl
     required int contentId,
     required Set<int> scrapedSeasonNumbers,
   }) async {
-    // Busca seasons existentes (com episodeCount para diagnóstico).
     final existing = await (_db.select(
       _db.pauloFlixSeasons,
     )..where((t) => t.contentId.equals(contentId))).get();
     final removed = <int>[];
     for (final s in existing) {
       if (scrapedSeasonNumbers.contains(s.seasonNumber)) continue;
-      // Verifica se tem progresso: se QUALQUER episode da season tem
-      // positionSeconds > 0 ou isCompleted = true, MANTÉM.
-      final hasProgress =
-          await (_db.selectOnly(_db.pauloFlixEpisodes)
-                ..addColumns([_db.pauloFlixEpisodes.id.count()])
-                ..where(
-                  _db.pauloFlixEpisodes.seasonId.equals(s.id) &
-                      (_db.pauloFlixEpisodes.positionSeconds.isBiggerThanValue(
-                            0,
-                          ) |
-                          _db.pauloFlixEpisodes.isCompleted.equals(true)),
-                ))
-              .map((row) => row.read(_db.pauloFlixEpisodes.id.count()) ?? 0)
-              .getSingle();
-      if (hasProgress > 0) {
-        const AppLogger('PauloFlixSync').debug(
-          'Season ${s.seasonNumber} (id=${s.id}) '
-          'ausente do scrape, mas tem progresso — MANTENDO.',
-        );
-        continue;
-      }
-      // Sem progresso — safe delete (cascade apaga os episodes).
       await (_db.delete(
         _db.pauloFlixSeasons,
       )..where((t) => t.id.equals(s.id))).go();
       removed.add(s.id);
       const AppLogger('PauloFlixSync').debug(
-        'Season ${s.seasonNumber} (id=${s.id}) '
-        'ausente do scrape + sem progresso — REMOVIDA.',
+        'Season ${s.seasonNumber} (id=${s.id}) removida (ausente do índice)',
       );
     }
     return removed;
@@ -557,21 +533,12 @@ class PauloFlixEpisodeProgressRepositoryImpl
     final removed = <int>[];
     for (final e in existing) {
       if (scrapedEpisodeNumbers.contains(e.episodeNumber)) continue;
-      // Guarda de progresso: se tem position > 0 OU isCompleted, MANTÉM.
-      if (e.positionSeconds > 0 || e.isCompleted) {
-        const AppLogger('PauloFlixSync').debug(
-          'Episode ${e.episodeNumber} (id=${e.id}) '
-          'ausente do scrape, mas tem progresso — MANTENDO.',
-        );
-        continue;
-      }
       await (_db.delete(
         _db.pauloFlixEpisodes,
       )..where((t) => t.id.equals(e.id))).go();
       removed.add(e.id);
       const AppLogger('PauloFlixSync').debug(
-        'Episode ${e.episodeNumber} (id=${e.id}) '
-        'ausente do scrape + sem progresso — REMOVIDO.',
+        'Episode ${e.episodeNumber} (id=${e.id}) removido (ausente do índice)',
       );
     }
     return removed;
