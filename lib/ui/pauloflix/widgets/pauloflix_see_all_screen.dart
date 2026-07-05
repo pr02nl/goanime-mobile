@@ -24,8 +24,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/mixins/go_router_route_refresh_mixin.dart';
-
 import '../../../core/logger/app_logger.dart';
 import '../../../domain/models/anime.dart';
 import '../../../domain/models/episode.dart';
@@ -34,6 +32,7 @@ import '../../../domain/models/pauloflix_content.dart';
 import '../../../domain/repositories/paulo_flix_episode_progress_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../routing/route_data.dart';
+import '../../core/mixins/go_router_route_refresh_mixin.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../core/utils/tv_detector.dart';
@@ -43,7 +42,7 @@ import '../../core/widgets/paginated_alphabetical_carousel.dart';
 import '../../core/widgets/progress_overlay.dart';
 import '../view_models/paulo_flix_continue_watching_viewmodel.dart';
 import '../view_models/pauloflix_provider.dart';
-import '_anime_hero_banner.dart';
+import 'anime_hero_banner.dart';
 import 'paulo_flix_continue_watching_section.dart';
 
 class PauloFlixSeeAllScreen extends StatefulWidget {
@@ -115,12 +114,7 @@ class _PauloFlixSeeAllScreenState extends State<PauloFlixSeeAllScreen>
             .first
             .physicalSize
             .width /
-        WidgetsBinding
-            .instance
-            .platformDispatcher
-            .views
-            .first
-            .devicePixelRatio;
+        WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
     final isTvBuild = await TVDetector.isTV;
     if (mounted) {
       setState(() {
