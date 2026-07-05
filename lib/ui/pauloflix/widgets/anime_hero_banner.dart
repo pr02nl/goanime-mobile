@@ -23,12 +23,16 @@ class AnimeHeroBanner extends StatelessWidget {
   final PauloFlixContent content;
   final bool isTV;
   final double height;
+  final bool hasSeasons;
+  final int seasonCount;
   final void Function()? onPlay;
 
   const AnimeHeroBanner({
     super.key,
     required this.content,
     required this.isTV,
+    this.hasSeasons = false,
+    this.seasonCount = 0,
     this.height = 420,
     this.onPlay,
   });
@@ -52,8 +56,11 @@ class AnimeHeroBanner extends StatelessWidget {
         // badge: const PauloFlixBadge(),
         // Score com estrelinha (null se não disponível).
         score: content.score,
+        hasSeasons: hasSeasons,
+        seasonCount: seasonCount,
         height: height,
         isTV: isTV,
+        genres: content.genres,
         // Botão Play → vai para a lista de episódios.
         onPlay: () {
           if (onPlay != null) {
