@@ -241,8 +241,14 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
       if (mounted) {
         setState(() {
           _isPlaying = v;
-          if (v && _uiState == _PlayerUIState.loading) {
+          if (v &&
+              (_uiState == _PlayerUIState.loading ||
+                  _uiState == _PlayerUIState.error)) {
             _uiState = _PlayerUIState.playing;
+            _errorMessage = null;
+          } else if (!v && _uiState == _PlayerUIState.error) {
+            _uiState = _PlayerUIState.loading;
+            _errorMessage = null;
           }
         });
       }
@@ -843,7 +849,7 @@ class _ModernVideoPlayerControlsState extends State<ModernVideoPlayerControls>
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
