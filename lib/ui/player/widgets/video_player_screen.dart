@@ -90,7 +90,7 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
     platformPlayer: widget.platformPlayer,
     configuration: const PlayerConfiguration(
       logLevel: MPVLogLevel.info,
-      bufferSize: 256 * 1024 * 1024,
+      bufferSize: 32 * 1024 * 1024,
     ),
   );
   late final _videoController = VideoController(
@@ -868,15 +868,25 @@ class _ModernVideoPlayerScreenState extends State<ModernVideoPlayerScreen>
         }
       }
 
-      // Aumenta o cache de rede do MPV após Media.open (player já
-      // inicializado). cache-size em KiB = 500 MB.
+      // Configura cache do MPV para economizar RAM em TV.
+      // Valores reduzidos drasticamente: antes era 500MB cache + 30s
+      // readahead, causando OOM em filmes na TV (1.5-2GB RAM total).
+      // cache-size em KiB = 50 MB.
       try {
-        await (_player.platform as dynamic).setProperty('cache-size', '512000');
+        await (_player.platform as dynamic).setProperty('cache-size', '51200');
         await (_player.platform as dynamic).setProperty(
           'demuxer-readahead-secs',
-          '30',
+          '10',
         );
-        _log.debug('✓ cache-size=500MB, readahead=30s');
+        await (_player.platform as dynamic).setProperty(
+          'demuxer-max-bytes',
+          '50MiB',
+        );
+        await (_player.platform as dynamic).setProperty(
+          'demuxer-max-back-bytes',
+          '10MiB',
+        );
+        _log.debug('✓ cache=50MB, readahead=10s, demuxer-max=50MiB');
       } catch (_) {}
 
       // Wait for video dimensions to be available before starting playback.
