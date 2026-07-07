@@ -14,7 +14,6 @@ import '../../../routing/route_data.dart';
 import '../../core/mixins/go_router_route_refresh_mixin.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/widgets/focusable_widget.dart';
-import '../../core/widgets/pauloflix_movies_badge.dart';
 import '../../core/widgets/progress_bar.dart';
 import '../../core/widgets/progress_overlay.dart';
 
@@ -231,7 +230,7 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.55,
+                  maxHeight: MediaQuery.of(context).size.height * 0.50,
                 ),
                 child: CustomScrollView(
                   controller: _scrollController,
@@ -365,14 +364,46 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
           spacing: 8,
           runSpacing: 8,
           children: [
-            const PauloFlixMoviesBadge(fontSize: 12),
             if (c.score != null) _ratingBadge(c.score!),
             if (c.year != null) _metaChip(c.year!.toString()),
             if (c.runtime != null) _metaChip('${c.runtime} min'),
             if (_isCompleted) const _CompletoBadge(),
+            if (c.genres.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: c.genres
+                    .map(
+                      (g) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.moviesAccent.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.moviesAccent.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          g,
+                          style: const TextStyle(
+                            color: Color(0xFFEF4444),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
           ],
         ),
-        if (_isInProgress) ...[const SizedBox(height: 10), _buildProgressBar()],
+        // if (_isInProgress) ...[const SizedBox(height: 10), _buildProgressBar()],
         const SizedBox(height: 16),
         if ((c.description ?? '').isNotEmpty)
           Text(
@@ -383,71 +414,40 @@ class _PauloFlixMovieDetailScreenState extends State<PauloFlixMovieDetailScreen>
               height: 1.5,
             ),
           ),
-        if (c.genres.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: c.genres
-                .map(
-                  (g) => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.moviesAccent.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AppColors.moviesAccent.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Text(
-                      g,
-                      style: const TextStyle(
-                        color: Color(0xFFEF4444),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
       ],
     );
   }
 
-  Widget _buildProgressBar() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(
-              Icons.play_circle_outline,
-              color: AppColors.moviesAccent,
-              size: 14,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '${(_progressRatio * 100).toStringAsFixed(0)}% assistido',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ProgressBar(
-          ratio: _progressRatio,
-          accentColor: AppColors.moviesAccent,
-          timeLabel: ProgressOverlay.buildTimeLabel(
-            positionSeconds: _progress?.positionSeconds,
-            durationSeconds: _progress?.durationSeconds,
-          ),
-        ),
-      ],
-    );
-  }
+  // Widget _buildProgressBar() {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Row(
+  //         children: [
+  //           const Icon(
+  //             Icons.play_circle_outline,
+  //             color: AppColors.moviesAccent,
+  //             size: 14,
+  //           ),
+  //           const SizedBox(width: 4),
+  //           Text(
+  //             '${(_progressRatio * 100).toStringAsFixed(0)}% assistido',
+  //             style: const TextStyle(color: Colors.white70, fontSize: 12),
+  //           ),
+  //         ],
+  //       ),
+  //       const SizedBox(height: 6),
+  //       ProgressBar(
+  //         ratio: _progressRatio,
+  //         accentColor: AppColors.moviesAccent,
+  //         timeLabel: ProgressOverlay.buildTimeLabel(
+  //           positionSeconds: _progress?.positionSeconds,
+  //           durationSeconds: _progress?.durationSeconds,
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   Widget _ratingBadge(double score) {
     return Container(
